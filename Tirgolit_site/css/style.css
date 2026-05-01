@@ -1,0 +1,1151 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --font-size-base: 22px;
+}
+
+body {
+  direction: rtl;
+  font-family: 'Frank Ruhl Libre', 'David', 'Times New Roman', serif;
+  font-size: var(--font-size-base);
+  background: #000;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+img {
+  border: 0;
+  outline: none;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+/* ─── SCREENS ─────────────────────────────── */
+.screen {
+  display: none;
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+}
+.screen.active {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── LOGIN SCREEN ────────────────────────── */
+#screen-login { background: #000; }
+
+.login-outer {
+  flex: 1;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  overflow: hidden;
+}
+
+/* 800×600 viewport, StartB.jpg background, scaled by JS */
+.login-viewport {
+  position: absolute;
+  width: 800px;
+  height: 600px;
+  background: url('../assets/menu/StartB.jpg') no-repeat left top;
+  background-size: 800px 600px;
+  transform-origin: 0 0;
+  overflow: hidden;
+}
+
+/* Movie PictureBox: 360×260 at (227,20) — video and static fallback share same position */
+.login-movie {
+  position: absolute;
+  left: 227px;
+  top: 20px;
+  width: 360px;
+  height: 260px;
+  object-fit: fill;
+  cursor: pointer;
+}
+
+/* Buttons — positioned at VB6 design coords scaled to 800×600.
+   All use <img> with graphic src; no CSS backgrounds or borders. */
+.lbtn, .ubtn, .gbtn, .sbtn {
+  outline: none;
+  border: 0;
+  -webkit-tap-highlight-color: transparent;
+  background: transparent;
+}
+
+.lbtn {
+  position: absolute;
+  cursor: pointer;
+  display: block;
+}
+
+/* goOut: StartX1.bmp — 72×71 at (0,0) */
+.lbtn-exit  { left: 0;     top: 0;     width: 72px;  height: 71px; }
+/* CafH: StartH1.bmp — 67×72 at (733,0) */
+.lbtn-help  { left: 733px; top: 0;     width: 67px;  height: 72px; }
+/* OKu: Startok2.bmp — 145×66 at (219,347) */
+.lbtn-ok    { left: 219px; top: 347px; width: 145px; height: 66px; }
+/* goQues: StartQ1.bmp — 49×55 at (258,446) */
+.lbtn-ques  { left: 258px; top: 446px; width: 49px;  height: 55px; }
+/* CafH2: StartQb1.bmp — 34×39 at (597,560) */
+.lbtn-caf2  { left: 597px; top: 560px; width: 34px;  height: 39px; }
+
+/* UNTXT: David 23.5pt, white bg, dark green, centered RTL, 208×34 at (378,361) */
+.login-input {
+  position: absolute;
+  left: 378px;
+  top: 361px;
+  width: 208px;
+  height: 34px;
+  background: white;
+  border: none;
+  outline: none;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  font-size: 20px;
+  color: rgb(0, 64, 0);
+  text-align: center;
+  direction: rtl;
+  padding: 0 4px;
+  box-sizing: border-box;
+}
+
+/* Ulist: 234×109 at (336,428), startlb.jpg background */
+.login-ulist {
+  position: absolute;
+  left: 336px;
+  top: 428px;
+  width: 234px;
+  height: 109px;
+  background: url('../assets/menu/StartLb.jpg') no-repeat center center;
+  background-size: 100% 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  direction: rtl;
+}
+
+.login-ulist::-webkit-scrollbar { width: 4px; }
+.login-ulist::-webkit-scrollbar-track { background: transparent; }
+.login-ulist::-webkit-scrollbar-thumb { background: rgba(0,80,0,0.5); border-radius: 2px; }
+
+/* List items: David 18pt → ~16px, RGB(120,170,30) green */
+.login-uitem {
+  padding: 3px 8px;
+  font-size: 16px;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  color: rgb(120, 170, 30);
+  cursor: pointer;
+  direction: rtl;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+  line-height: 1.5;
+}
+
+.login-uitem:hover  { color: rgb(180, 210, 30); background: rgba(0,0,0,0.1); }
+.login-uitem.active { color: rgb(180, 210, 30); background: rgba(0,0,0,0.15); font-weight: bold; }
+
+/* Subtle delete button revealed on hover */
+.login-uitem-del {
+  opacity: 0;
+  font-size: 12px;
+  color: #c33;
+  padding: 0 3px;
+  flex-shrink: 0;
+  transition: opacity 0.12s;
+  line-height: 1;
+}
+.login-uitem:hover .login-uitem-del { opacity: 0.65; }
+.login-uitem-del:hover { opacity: 1 !important; color: #f00; }
+
+/* ─── UNIT SELECTION ──────────────────────── */
+#screen-units {
+  background: #000;
+}
+
+.units-outer {
+  flex: 1;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  overflow: hidden;
+}
+
+/* 800×600 viewport with MainS.jpg background, scaled by JS */
+.units-viewport {
+  position: absolute;
+  width: 800px;
+  height: 600px;
+  background: url('../assets/menu/MainS.jpg') no-repeat left top;
+  background-size: 800px 600px;
+  transform-origin: 0 0;
+  overflow: hidden;
+}
+
+/* Score column background: Slist Left=2520/12×0.8=168, Top=2385/12×0.8=159, 63×290 */
+.u-score-bg {
+  position: absolute;
+  left: 168px;
+  top: 159px;
+  width: 63px;
+  height: 290px;
+  pointer-events: none;
+}
+
+/* Unit list background: Ulist Left=3465/12×0.8=231, same Top, 330×290 */
+.u-list-bg {
+  position: absolute;
+  left: 231px;
+  top: 159px;
+  width: 330px;
+  height: 290px;
+  pointer-events: none;
+}
+
+/* Scrollable rows: end at x=536 so rows don't overlap the custom scrollbar (x=536-561) */
+.u-list {
+  position: absolute;
+  left: 168px;
+  top: 159px;
+  width: 368px;   /* 536-168 — stops at scrollbar left edge */
+  height: 290px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;  /* Firefox: hide native scrollbar */
+}
+.u-list::-webkit-scrollbar { display: none; } /* Chrome/Safari: hide native scrollbar */
+
+/* Each row: [score 63px] [name 330px] in LTR order.
+   direction:ltr prevents the RTL body from reversing the flex order. */
+.u-row {
+  display: flex;
+  align-items: center;
+  direction: ltr;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(0,66,11,0.12);
+  min-height: 26px;
+  background: transparent;
+  transition: background 0.1s;
+}
+
+.u-row:hover     { background: rgba(255,243,190,0.45); }
+.u-row.u-row-sel { background: rgba(160,220,160,0.55); }
+
+.u-score-cell {
+  width: 63px;
+  flex-shrink: 0;
+  text-align: center;
+  font-size: 13px;
+  padding: 3px 2px;
+  direction: ltr;
+}
+
+.u-name-cell {
+  flex: 1;
+  padding: 3px 6px 3px 2px;
+  font-size: 15px;
+  color: rgb(0, 55, 10);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  direction: rtl;
+  text-align: right;
+}
+
+/* Level tabs — transparent click areas over the sidebar in Mains.jpg.
+   CSS slices MainSel1/2.jpg for selected/hover states; default is transparent. */
+.u-tab {
+  position: absolute;
+  left: 561px;
+  width: 124px;
+  cursor: pointer;
+  background-image: none;
+  background-size: 124px 338px;
+  background-repeat: no-repeat;
+}
+
+/* BtnRama: form_twips/12 × (800/999) for both axes.
+   153 = BtnRama(0).Top_screen = 191.25×0.8 = 153px (hardcoded in BitBlt).
+   Source y in image = BtnRama(i).Top_screen - 153 → tab 0 starts at image row 0. */
+#u-tab-0 { top: 153px; height: 88px; background-position: 0   0;     }
+#u-tab-1 { top: 240px; height: 85px; background-position: 0  -87px;  }
+#u-tab-2 { top: 327px; height: 85px; background-position: 0 -174px;  }
+#u-tab-3 { top: 411px; height: 82px; background-position: 0 -258px;  }
+
+/* Hover: slice of MainSel2.jpg (hover state from original BitBlt) */
+.u-tab:hover { background-image: url('../assets/menu/MainSel2.jpg'); }
+
+/* Selected: slice of MainSel1.jpg */
+.u-tab.selected { background-image: url('../assets/menu/MainSel1.jpg'); }
+
+/* Keep selected state even when hovered */
+.u-tab.selected:hover { background-image: url('../assets/menu/MainSel1.jpg'); }
+
+/* Play button: ButtonG auto-size 162×67. Left=4485/12×0.8=299, Top=7395/12×0.8=493 */
+.u-play {
+  position: absolute;
+  left: 299px;
+  top: 493px;
+  width: 162px;
+  height: 67px;
+  cursor: pointer;
+}
+
+/* Exit button: bEx1.bmp 55×48 at (6,6) */
+.u-exit {
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  width: 55px;
+  height: 48px;
+  cursor: pointer;
+}
+
+/* Questions button: Qbues1.bmp 60×60 at (738,3) */
+.u-ques {
+  position: absolute;
+  left: 738px;
+  top: 3px;
+  width: 60px;
+  height: 60px;
+  cursor: pointer;
+}
+
+/* Username: drawn by NTi_Timer near top of form, color-animated into place */
+.u-username {
+  position: absolute;
+  left: 0;
+  top: 11px;
+  width: 800px;
+  font-size: 34px;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  color: rgb(90, 124, 222);
+  text-align: center;
+  direction: rtl;
+  pointer-events: none;
+}
+
+.u-username.u-username-anim {
+  animation: usernameIn 0.25s ease-out forwards;
+}
+
+@keyframes usernameIn {
+  from { color: rgb(165, 224, 254); transform: translate(-4px, -2px); opacity: 0.5; }
+  to   { color: rgb(90, 124, 222);  transform: translate(0, 0);       opacity: 1;   }
+}
+
+/* ─── GAME SCREEN ─────────────────────────── */
+#screen-game {
+  flex-direction: column;
+  background: #000;
+}
+
+/* Outer container fills full screen, centers the viewport */
+.game-outer {
+  flex: 1;
+  position: relative;
+  background: #000;
+  overflow: hidden;
+}
+
+/* 800×600 game viewport — scaled by JS to fit available space */
+.game-viewport {
+  position: absolute;
+  width: 800px;
+  height: 600px;
+  background: url('../assets/menu/tirgol1.bmp') no-repeat left top;
+  background-size: 800px 600px;
+  overflow: hidden;
+  transform-origin: 0 0;
+}
+
+/* .game-viewport.bg-2 handles background — see GLIST SCREEN section */
+
+/* goOut: Ex1/2.bmp 55×48 at VB6 Left=90/10×0.673=6, Top=90/10×0.667=6 */
+.game-exit {
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  width: 55px;
+  height: 48px;
+  cursor: pointer;
+}
+
+/* goQues: Ques1/2.bmp 60×60 at VB6 Left=11070/10×0.673=745, Top=45/10×0.667=3 */
+.game-ques {
+  position: absolute;
+  left: 745px;
+  top: 3px;
+  width: 60px;
+  height: 60px;
+  cursor: pointer;
+}
+
+/* Unit title: Myname[0] position Left=4965/10×0.673=334, Top=45/10×0.667=3 */
+.game-unit-title {
+  position: absolute;
+  left: 334px;
+  top: 3px;
+  width: 400px;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  font-size: 28px;
+  color: #f4a473;
+  text-align: center;
+  direction: rtl;
+  pointer-events: none;
+  text-shadow: 1px 1px 0 rgba(0,0,0,0.6);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* GFull plank overlay container — sits behind #game-rows */
+#game-planks {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+}
+
+/* Plank overlays — position/width set inline by setPlank() per kind.
+   GFull (matched): x=208 w=440 both kinds.
+   GTran kind=1 (hover): x=509 w=136 right half only.
+   GTran kind=2 (hover): x=208 w=320 left half only.
+   GGreen (Tirgol3 hover): x=208 w=440. */
+.gfull-plank, .gtran-plank, .ggreen-plank {
+  position: absolute;
+  height: 46px;
+  background-size: 440px 392px;
+  background-repeat: no-repeat;
+  pointer-events: none;
+}
+.gfull-plank  { background-image: url('../assets/menu/GFull.bmp'); }
+.gtran-plank  { background-image: url('../assets/menu/GTran.bmp'); }
+.ggreen-plank { background-image: url('../assets/menu/GGreen.bmp'); }
+
+/* Row container — anchored at viewport origin; rows are abs-positioned children */
+#game-rows {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+}
+
+/* Each question row: absolutely placed over the matching plank.
+   Shel (expr) at x=201 (Shel.Left=3015/15), Tesh (answer) at x=508 (Tesh.Left=7620/15).
+   Row width: 201..662 covers both labels with small margin. */
+.q-row {
+  position: absolute;
+  left: 171px;
+  width: 521px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  direction: ltr;
+  overflow: hidden;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.q-row:not(.matched):hover {
+  background: rgba(255, 245, 190, 0.18);
+}
+
+.q-row.matched {
+  pointer-events: none;
+}
+
+/* On the GFull.bmp peach plank, use dark text (VB6 Me.ForeColor=&H800000=navy) */
+.q-row.matched .row-expr,
+.q-row.matched .row-answer {
+  color: #000080;
+  text-shadow: none;
+}
+
+.q-row.wrong-flash,
+.t2-row.wrong-flash {
+  animation: wrongFlash 0.4s;
+}
+
+@keyframes wrongFlash {
+  0%, 100% { background: transparent; }
+  50%       { background: rgba(210, 40, 40, 0.45); }
+}
+
+.q-row.hint-flash {
+  animation: hintPulse 0.55s ease-in-out infinite alternate;
+}
+
+/* Keyboard-focus indicator (VB6 arrow-key navigation) */
+.q-row.key-focused {
+  background: rgba(255, 245, 190, 0.28);
+  outline: 1px solid rgba(255, 245, 190, 0.45);
+}
+
+@keyframes hintPulse {
+  from { background: transparent; }
+  to   { background: rgba(255, 213, 79, 0.32); }
+}
+
+/* Shel: VB6 Left=201, Width=311px. Tesh.Left=508 → expr col = 508-201=307px, right-justified to x=508 */
+.row-expr {
+  width: 337px;
+  flex-shrink: 0;
+  color: #fff;
+  font-size: 19px;
+  font-weight: bold;
+  text-align: right;
+  text-shadow: 0 1px 4px #000, 0 0 8px rgba(0,0,0,0.7);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* Tesh: VB6 Left=513, Width=151px, Alignment=Left */
+.row-answer {
+  width: 181px;
+  flex-shrink: 0;
+  color: #ffd54f;
+  font-size: 19px;
+  font-weight: bold;
+  text-align: left;
+  text-shadow: 0 1px 4px #000, 0 0 8px rgba(0,0,0,0.7);
+  white-space: nowrap;
+  overflow: hidden;
+  transition: opacity 0.15s;
+}
+
+.row-answer.hidden  { opacity: 0; }
+.row-answer.preview { opacity: 0.5; color: #ccc; }
+.row-answer.revealed { opacity: 1; color: #7ddd86; }
+
+/* kind=2: expression slot starts empty, previews on hover, reveals on match */
+.row-expr.preview  { opacity: 0.5; color: #ccc; }
+.row-expr.revealed { opacity: 1; color: #7ddd86; }
+
+/* Rooster character nest (BACK.bmp + animated Stati sprite)
+   Chik: Left=9525/15=635, Top=885/15=59, Width=Height=2475/15=165 */
+.char-nest {
+  position: absolute;
+  left: 635px;
+  top: 59px;
+  width: 165px;
+  height: 165px;
+}
+
+.char-back,
+.char-sprite {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Egg sprite container — anchored at viewport origin */
+#game-eggs {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+}
+
+/*
+ * CSmall.bmp: 350×150px sprite sheet, 7 columns each 50px wide.
+ * col 0 (x=0):   whole egg — unanswered
+ * col 2 (x=100): broken shell — 3+ wrong
+ * col 4 (x=200): hatched chick — perfect
+ * col 5 (x=250): hatched chick — 1 wrong
+ * col 6 (x=300): hatched chick — 2 wrongs
+ * Egg size: Width=585/10×0.673=39px, Height=675/10×0.667=45px
+ * Scale 0.78 → bg-size 273×135px
+ */
+.egg-sprite {
+  position: absolute;
+  width: 39px;
+  height: 45px;
+  overflow: hidden;
+  background-image: url('../assets/menu/CSmall.png');
+  background-size: 273px 135px;
+  background-repeat: no-repeat;
+  background-position-y: 0;
+  image-rendering: pixelated;
+}
+
+/* Knas: Alignment=Center, Width=1335 twips → 90px (no AutoSize). */
+.penalty-overlay {
+  position: absolute;
+  left: 692px;
+  top: 258px;
+  width: 90px;
+  color: #ff6b35;
+  font-size: 27px;
+  font-weight: bold;
+  text-align: center;
+  text-shadow: 0 0 6px rgba(0,0,0,0.9), 2px 2px 4px rgba(0,0,0,0.8);
+  direction: ltr;
+  line-height: 1;
+}
+
+/* Ttex: AutoSize=True, Alignment=Center, Width=585 twips → ~39px initial, grows to ~50px.
+   Use 52px container to match AutoSize center. */
+.timer-overlay {
+  position: absolute;
+  left: 716px;
+  top: 392px;
+  width: 52px;
+  color: #4fc3f7;
+  font-size: 20px;
+  font-weight: bold;
+  text-align: center;
+  text-shadow: 0 0 6px rgba(0,0,0,0.9), 2px 2px 4px rgba(0,0,0,0.8);
+  direction: ltr;
+  line-height: 1;
+}
+
+/* QStxt: AutoSize=True, Alignment=Center, Left=561 (kind=1) / Left=289 (kind=2)
+   AutoSize means the label shrinks to content — keep container narrow so
+   center-aligned text stays near the anchored left edge. */
+.target-bar-overlay {
+  position: absolute;
+  left: 561px;
+  top: 522px;
+  width: 70px;
+  text-align: center;
+  direction: ltr;
+}
+
+.game-viewport.kind-2 .target-bar-overlay {
+  left: 289px;
+}
+
+.target-label {
+  color: #e8e0c0;
+  font-size: 20px;
+  text-shadow: 0 1px 4px #000;
+}
+
+.target-value {
+  color: #800000;
+  font-size: 26px;
+  font-weight: bold;
+  direction: ltr;
+  text-align: center;
+  text-shadow: 0 1px 3px rgba(255,255,255,0.4);
+  line-height: 1;
+}
+
+/* ─── SCORE SCREEN ─────────────────────────
+   Mirrors VB6: ScoreControl overlaid on the game form.
+   score-viewport = 800×600 with game bg; score-panel = Score.jpg at ScoreC position.
+   All positions derived from ScoreControl.ctl (678×722 internal) → panel 454×485.
+   Scale: X = 454/678 = 0.670, Y = 485/722 = 0.672.
+──────────────────────────────────────────── */
+#screen-score { background: #000; }
+
+.score-outer {
+  flex: 1;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  overflow: hidden;
+}
+
+/* 800×600 game-bg viewport (ScoreC overlaid on Tirgol1 form) */
+.score-viewport {
+  position: absolute;
+  width: 800px;
+  height: 600px;
+  background: url('../assets/menu/tirgol1.bmp') no-repeat left top;
+  background-size: 800px 600px;
+  transform-origin: 0 0;
+  overflow: hidden;
+}
+
+/* .score-viewport.bg-2 handles background — see GLIST SCREEN section */
+
+/* Egg sprites on score viewport — same geometry as #game-eggs */
+#score-eggs {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+}
+
+/* ScoreC: form Left=3150/15=210px, Top=1725/15=115px, Width=6750/15=450px, Height=7275/15=485px */
+.score-panel {
+  position: absolute;
+  left: 210px;
+  top: 115px;
+  width: 450px;
+  height: 485px;
+  background: url('../assets/menu/Score.jpg') no-repeat left top;
+  background-size: 450px 485px;
+}
+
+/* Pie chart canvas: VB6 Circle at internal (345,238) = 1:1 CSS px in panel.
+   Canvas 110×110 (radius up to 50px + margin), center at canvas(55,55).
+   top-left at (345-55, 238-55) = (290, 183). */
+#score-pie {
+  position: absolute;
+  left: 290px;
+  top: 183px;
+  width: 110px;
+  height: 110px;
+  pointer-events: none;
+}
+
+/* ── Text elements (absolute within .score-panel) ──────────────── */
+
+/* Username: Myname[0] David 48pt → 43px. Center = 339/678 × 454 = 227px from left.
+   ForeColor=#FFFF80; shadows offset +2/-2 and -1/+2 px */
+.sc-username {
+  position: absolute;
+  left: 0;
+  top: 35px;
+  width: 100%;
+  text-align: center;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  font-size: 43px;
+  color: #FFFF80;
+  text-shadow: 2px -2px 0 #D37D61, -1px 2px 0 #804000;
+  direction: rtl;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* "נקודות" (points): Myname[9] Left=69px → 46px, Top=179px → 120px, David 36pt → 32px
+   ForeColor=#E8FFBD; same shadow family */
+.sc-nekudot {
+  position: absolute;
+  left: 0;
+  top: 120px;
+  width: 180px;
+  text-align: right;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  font-size: 32px;
+  color: #E8FFBD;
+  text-shadow: 2px -2px 0 #D37D61, -1px 2px 0 #804000;
+  direction: rtl;
+  pointer-events: none;
+}
+
+/* Score number: Myname[3] Left=272px → 182px, Top=161px → 108px, David 48pt → 43px
+   ForeColor=#C00000 (dark red) */
+.sc-number {
+  position: absolute;
+  left: 0;
+  top: 108px;
+  width: 100%;
+  text-align: center;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  font-size: 43px;
+  font-weight: bold;
+  color: #C00000;
+  text-shadow: 2px -2px 0 #D37D61, -1px 2px 0 #804000;
+  direction: ltr;
+  pointer-events: none;
+}
+
+/* "קיבלת" (you got): Myname[6] Left=417px → 279px, Top=165px → 111px, 36pt → 32px
+   ForeColor=#E8FFBD */
+.sc-kibalt {
+  position: absolute;
+  left: 279px;
+  top: 111px;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  font-size: 32px;
+  color: #E8FFBD;
+  text-shadow: 2px -2px 0 #D37D61, -1px 2px 0 #804000;
+  direction: rtl;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* Rating text: Myname[12] Left=138px → 92px, Top=278px → 187px, 36pt → 32px
+   Color set dynamically via JS (score-dependent) */
+.sc-rating {
+  position: absolute;
+  left: 0;
+  top: 187px;
+  width: 100%;
+  text-align: center;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  font-size: 32px;
+  text-shadow: 2px -2px 0 rgba(0,0,0,0.4), -1px 2px 0 rgba(0,0,0,0.4);
+  direction: rtl;
+  pointer-events: none;
+}
+
+/* Stats — Stxt[0-2]: Left=158px → 106px; David 12pt → 13px
+   tov (correct, green): Top=378px → 254px
+   be  (1-2 wrong, cyan): Top=401px → 269px
+   ra  (bad, navy): Top=428px → 288px */
+.sc-stat-tov,
+.sc-stat-be,
+.sc-stat-ra {
+  position: absolute;
+  left: 106px;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  font-size: 13px;
+  direction: ltr;
+  pointer-events: none;
+}
+.sc-stat-tov { top: 254px; color: #00FF80; }
+.sc-stat-be  { top: 269px; color: #80FFFF; }
+.sc-stat-ra  { top: 288px; color: #0000FF; }
+
+/* ── Buttons ──────────────────────────────────────────────────── */
+.sbtn {
+  position: absolute;
+  cursor: pointer;
+  display: block;
+}
+
+/* CafEx (exit): Left=255 twips/15=17px, Top=4740/15=316px in ScoreControl internal px.
+   Size from Sex2.jpg natural file dimensions: 187×84px. */
+.sc-exit-btn {
+  left: 17px;
+  top: 316px;
+  width: 187px;
+  height: 84px;
+}
+
+/* CafRe (replay): Left=3690/15=246px, Top=4725/15=315px. Same size. */
+.sc-replay-btn {
+  left: 246px;
+  top: 315px;
+  width: 187px;
+  height: 84px;
+}
+
+/* ─── UNIT LIST SCROLLBAR ────────────────────
+   Custom VB6-style scrollbar on right edge of Ulist.
+   Ulist right edge at x=561. Scrollbar 25px wide: x=536..561.
+   Up arrow: y=159, Down arrow: y=424, Track: y=184..424 (240px).
+──────────────────────────────────────────── */
+.u-scroll-up,
+.u-scroll-dn {
+  position: absolute;
+  left: 536px;
+  width: 25px;
+  height: 25px;
+  cursor: pointer;
+  z-index: 5;
+}
+.u-scroll-up { top: 159px; }
+.u-scroll-dn { top: 424px; }
+
+.u-scrollbar-track {
+  position: absolute;
+  left: 536px;
+  top: 184px;
+  width: 25px;
+  height: 240px;
+  background: url('../assets/menu/TafPas.bmp') no-repeat left top;
+  background-size: 25px 240px;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.u-scrollbar-thumb {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 25px;
+  height: 30px;
+  background: url('../assets/menu/pas2.bmp') no-repeat left top;
+  background-size: 25px 30px;
+  cursor: ns-resize;
+  display: none;
+  pointer-events: auto;
+  z-index: 6;
+}
+
+.u-scrollbar-thumb.dragging {
+  cursor: grabbing;
+}
+
+
+/* ─── GLIST SCREEN ──────────────────────────
+   Full 800×600 overlay inside units-viewport.
+   Background: Glist.jpg (800×600).
+   Positions: x = twips/12060×800, y = twips/9800×600.
+──────────────────────────────────────────── */
+.glist-screen {
+  position: absolute;
+  top: 0; left: 0;
+  width: 800px;
+  height: 600px;
+  background: url('../assets/menu/Glist.jpg') no-repeat 0 0;
+  background-size: 800px 600px;
+  z-index: 50;
+}
+
+/* goOut: bEx1.bmp 55×48 at (6,6) */
+.glist-exit {
+  position: absolute;
+  left: 6px; top: 6px;
+  width: 55px; height: 48px;
+  cursor: pointer;
+}
+
+/* goQues: Qbues1.bmp 60×60 at Left=11070/15=738, Top=45/15=3 */
+.glist-ques {
+  position: absolute;
+  left: 738px; top: 3px;
+  width: 60px; height: 60px;
+  cursor: pointer;
+}
+
+/* Username: PaintLn(180, 125, ..., Fs=28) → 28pt at 96dpi = 37px */
+.glist-username {
+  position: absolute;
+  left: 0; top: 125px;
+  width: 360px;
+  text-align: center;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  font-size: 37px;
+  color: rgb(40, 44, 142);
+  text-shadow: -1px 1px 0 rgb(150,90,20), 1px -1px 0 rgb(220,120,20);
+  direction: rtl;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* Unit name: PaintLn(180, 175, ...) — top at y=175. Font: 32pt→43px default, shrinks for long names. */
+.glist-unitname {
+  position: absolute;
+  left: 0; top: 175px;
+  width: 360px;
+  text-align: center;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  font-size: 43px;
+  color: rgb(30, 100, 24);
+  text-shadow: -1px 1px 0 rgb(150,90,20), 1px -1px 0 rgb(220,120,20);
+  direction: rtl;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* Best score: PaintLn(175, 233, ..., Fs=24) → 24pt at 96dpi = 32px */
+.glist-bestscore {
+  position: absolute;
+  left: 0; top: 233px;
+  width: 360px;
+  text-align: center;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  font-size: 32px;
+  text-shadow: -1px 1px 0 rgb(150,90,20), 1px -1px 0 rgb(220,120,20);
+  direction: rtl;
+  pointer-events: none;
+}
+
+/* IconP: 259×199 at Left=735/12060×800=49, Top=5010/9800×600=307 */
+.glist-icon {
+  position: absolute;
+  left: 49px; top: 334px;
+  width: 259px; height: 199px;
+  pointer-events: none;
+}
+
+/* GameGo rows: transparent clickable areas.
+   Left=5445/15=363, Width=6495/15=433, Height=915/15=61.
+   background used for hover highlight (list3.jpg slice via JS). */
+.glist-row {
+  position: absolute;
+  left: 363px;
+  width: 430px;
+  height: 56px;
+  cursor: pointer;
+  background-repeat: no-repeat;
+  background-size: 395px 492px;
+}
+
+#glist-row-0 { top:  81px; }
+#glist-row-1 { top: 143px; }
+#glist-row-2 { top: 204px; }
+#glist-row-3 { top: 267px; }
+#glist-row-4 { top: 330px; }
+#glist-row-5 { top: 426px; }
+/* Row 6: Left=5400/15=360 */
+#glist-row-6 { top: 507px; left: 360px; }
+
+/* Score badges: BitBlt dest x=373 (runtime px), 118×62.
+   Source from Zeva1/2/3.jpg (118×413); source_y = row_top − 79. */
+.glist-badge {
+  position: absolute;
+  left: 373px;
+  width: 118px;
+  height: 62px;
+  background-repeat: no-repeat;
+  background-size: 118px 413px;
+  pointer-events: none;
+}
+
+#glist-badge-0 { top:  81px; }
+#glist-badge-1 { top: 143px; }
+#glist-badge-2 { top: 204px; }
+#glist-badge-3 { top: 267px; }
+#glist-badge-4 { top: 330px; }
+#glist-badge-5 { top: 426px; }
+
+/* Score numbers: Me.Print at form default font (33pt at 96dpi = 44px).
+   Centered within the 118px Zeva badge strip (left=373). */
+.glist-score-num {
+  position: absolute;
+  left: 373px;
+  width: 118px;
+  text-align: center;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  font-size: 28px;
+  font-weight: bold;
+  direction: ltr;
+  pointer-events: none;
+}
+
+#glist-snum-0 { top:  91px; }
+#glist-snum-1 { top: 153px; }
+#glist-snum-2 { top: 214px; }
+#glist-snum-3 { top: 277px; }
+#glist-snum-4 { top: 340px; }
+#glist-snum-5 { top: 436px; }
+
+/* Separate bg class so game bg is independent of game kind mechanics */
+.game-viewport.bg-2  { background-image: url('../assets/menu/tirgol2.bmp'); }
+.score-viewport.bg-2 { background-image: url('../assets/menu/tirgol2.bmp'); }
+
+/* Tirgol2 sequential typing background (tirgol3.bmp) */
+.game-viewport.bg-t2  { background-image: url('../assets/menu/tirgol3.bmp'); }
+.score-viewport.bg-t2 { background-image: url('../assets/menu/tirgol3.bmp'); }
+
+/* Tirgol3 background (bg-t3 added by game3.js on init) */
+.game-viewport.bg-t3 { background-image: url('../assets/menu/Tirgol4.bmp'); }
+
+/* ─── TIRGOL2 TYPING ROW STYLES ─────────────────────────── */
+/* Active typing row (current TshNom — GTran full-width plank) */
+.t2-row {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  direction: ltr;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  font-size: 19px;
+  font-weight: bold;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* Matched row text: same layout as game.js .q-row */
+.t2-row.matched .t2-expr,
+.t2-row.matched .t2-ans {
+  color: #000080;
+  text-shadow: none;
+}
+
+/* Expression column (same width as .row-expr in game.js) */
+.t2-expr {
+  width: 337px;
+  flex-shrink: 0;
+  color: #fff;
+  text-align: right;
+  text-shadow: 0 1px 4px #000, 0 0 8px rgba(0,0,0,0.7);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* Answer column (same width as .row-answer in game.js) */
+.t2-ans {
+  width: 181px;
+  flex-shrink: 0;
+  color: #ffd54f;
+  text-align: left;
+  text-shadow: 0 1px 4px #000, 0 0 8px rgba(0,0,0,0.7);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* Hint chars shown in red after 3 wrong keypresses (VB6 De=99) */
+.t2-hint {
+  color: #ff4040;
+}
+
+/* Blinking cursor at current typing position */
+.t2-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: #fff;
+  vertical-align: middle;
+  animation: t2blink 0.6s step-end infinite;
+}
+
+@keyframes t2blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* ─── TIRGOL3 ROW STYLES ─────────────────────────── */
+/* Clickable question rows (absolutely positioned over game-viewport) */
+.t3-row {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background 0.1s;
+  direction: ltr;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  font-size: 26px;
+  color: #ffff80;
+  text-shadow: 1px 1px 0 #000;
+  padding: 0 6px;
+  box-sizing: border-box;
+}
+.t3-hover { background: rgba(255, 255, 180, 0.18); }
+/* expression column: fixed 290px (row left=160 → divider at 450), right-aligned so "=" aligns to fixed column */
+.t3-expr  { flex: 0 0 290px; width: 290px; text-align: right; }
+.t3-sep   { flex: 0 0 auto; white-space: pre; }
+.t3-ans   { flex: 0 0 auto; color: #ffcc66; }
+.t3-typing  { color: #88ffff; border-bottom: 2px solid #88ffff; }
+.t3-correct { color: #88ff88; }
+/* VB6 De=99: expected next char shown in red at cursor after 2+ wrong keys */
+.t3-hint-char { color: #ff4444; text-decoration: underline; }
+
+/* ─── CANVAS VIEWPORT (WarG, Krav) ──────────────────
+   Same scaling approach as game-viewport but no bg image */
+.canvas-vp {
+  position: absolute;
+  width: 800px;
+  height: 600px;
+  overflow: hidden;
+  transform-origin: 0 0;
+}
+.canvas-vp canvas {
+  display: block;
+  width: 800px;
+  height: 600px;
+}
+
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.3); border-radius: 3px; }
+

@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>תרגוליט – תרגול חשבון</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════
+     LOGIN SCREEN
+════════════════════════════════════════ -->
+<div id="screen-login" class="screen">
+  <div class="login-outer">
+    <div class="login-viewport" id="login-viewport">
+
+      <!-- Movie PictureBox: 360×260 at (227,20) — shows video then static -->
+      <video class="login-movie" id="login-video" autoplay muted playsinline>
+        <source src="assets/menu/Intro.mp4" type="video/mp4">
+        <source src="assets/menu/Intro.webm" type="video/webm">
+      </video>
+      <img class="login-movie" id="login-movie-static"
+           src="assets/menu/StartM2.jpg" alt="" style="display:none">
+
+      <!-- goOut: exit button — 48×47 at (0,0) -->
+      <img class="lbtn lbtn-exit"
+           src="assets/menu/StartX1.bmp" alt=""
+           data-norm="assets/menu/StartX1.bmp"
+           data-hover="assets/menu/StartX2.bmp"
+           onclick="appLogin_exit()">
+
+      <!-- CafH: help button — 45×48 at (733,0) -->
+      <img class="lbtn lbtn-help"
+           src="assets/menu/StartH1.bmp" alt=""
+           data-norm="assets/menu/StartH1.bmp"
+           data-hover="assets/menu/StartH2.bmp">
+
+      <!-- OKu: enter/OK button — 97×44 at (219,347) -->
+      <img class="lbtn lbtn-ok"
+           src="assets/menu/Startok2.bmp" alt=""
+           data-norm="assets/menu/Startok2.bmp"
+           data-hover="assets/menu/Startok1.bmp"
+           data-down="assets/menu/Startok3.bmp"
+           onclick="appLogin_start()">
+
+      <!-- UNTXT: username input — 208×34 at (378,361) -->
+      <input type="text" id="login-input" class="login-input"
+             maxlength="15" autocomplete="off" spellcheck="false"
+             oninput="appLogin_inputChange(this.value)"
+             onkeydown="appLogin_inputKey(event)">
+
+      <!-- Ulist: user list — 234×109 at (336,428) -->
+      <div id="user-list" class="login-ulist"></div>
+
+      <!-- goQues: questions button — 33×37 at (258,446) -->
+      <img class="lbtn lbtn-ques"
+           src="assets/menu/StartQ1.bmp" alt=""
+           data-norm="assets/menu/StartQ1.bmp"
+           data-hover="assets/menu/StartQ2.bmp">
+
+      <!-- CafH2: small bottom button — 23×26 at (597,560) -->
+      <img class="lbtn lbtn-caf2"
+           src="assets/menu/StartQb1.bmp" alt=""
+           data-norm="assets/menu/StartQb1.bmp"
+           data-hover="assets/menu/StartQb2.bmp">
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     UNIT SELECTION SCREEN
+════════════════════════════════════════ -->
+<div id="screen-units" class="screen">
+  <div class="units-outer">
+    <div class="units-viewport" id="units-viewport">
+
+      <!-- Level tabs (right sidebar, 4 slots) — transparent click areas; images via CSS -->
+      <div class="u-tab" id="u-tab-0" onclick="appUnits_selectTab(0)"></div>
+      <div class="u-tab" id="u-tab-1" onclick="appUnits_selectTab(1)"></div>
+      <div class="u-tab" id="u-tab-2" onclick="appUnits_selectTab(2)"></div>
+      <div class="u-tab" id="u-tab-3" onclick="appUnits_selectTab(3)"></div>
+
+      <!-- List panel backgrounds -->
+      <img class="u-score-bg" src="assets/menu/MainSL1.jpg" alt="">
+      <img class="u-list-bg"  src="assets/menu/MainSL2.jpg" alt="">
+
+      <!-- Scrollable unit rows (overlaid on both bg images) -->
+      <div id="u-list" class="u-list"></div>
+
+      <!-- Play button: MainOk1/2.jpg 162×67 at (299,514) -->
+      <img class="ubtn u-play" id="u-play" src="assets/menu/MainOk1.jpg" alt=""
+           data-norm="assets/menu/MainOk1.jpg" data-hover="assets/menu/MainOk2.jpg"
+           onclick="appUnits_play()">
+
+      <!-- Exit button: bEx1/2.bmp 55×48 at (6,6) -->
+      <img class="ubtn u-exit" src="assets/menu/bEx1.bmp" alt=""
+           data-norm="assets/menu/bEx1.bmp" data-hover="assets/menu/bEx2.bmp"
+           onclick="appUnits_back()">
+
+      <!-- Questions button: Qbues1/2.bmp 60×60 at (738,3) -->
+      <img class="ubtn u-ques" src="assets/menu/Qbues1.bmp" alt=""
+           data-norm="assets/menu/Qbues1.bmp" data-hover="assets/menu/Qbues2.bmp">
+
+      <!-- Username in sky area (animated in on entry) -->
+      <div class="u-username" id="units-username"></div>
+
+      <!-- Custom scrollbar for unit list (right edge of Ulist, x=536) -->
+      <img class="ubtn u-scroll-up"
+           src="assets/menu/taf1U.bmp" alt=""
+           data-norm="assets/menu/taf1U.bmp"
+           data-hover="assets/menu/taf1U2.bmp"
+           onclick="appUnits_scrollUp()">
+      <img class="ubtn u-scroll-dn"
+           src="assets/menu/taf1D.bmp" alt=""
+           onclick="appUnits_scrollDn()">
+      <div class="u-scrollbar-track" id="u-scrollbar-track">
+        <div class="u-scrollbar-thumb" id="u-scrollbar-thumb"></div>
+      </div>
+
+      <!-- GList: full 800×600 game-selection overlay (mirrors VB6 GList.frm) -->
+      <div id="glist-screen" class="glist-screen" style="display:none">
+
+        <!-- goOut: bEx1.bmp 55×48 at (6,6) -->
+        <img class="gbtn glist-exit"
+             src="assets/menu/bEx1.bmp" alt=""
+             data-norm="assets/menu/bEx1.bmp"
+             data-hover="assets/menu/bEx2.bmp"
+             onclick="appGList_exit()">
+
+        <!-- goQues: Qbues1.bmp 60×60 at (734,3) -->
+        <img class="gbtn glist-ques"
+             src="assets/menu/Qbues1.bmp" alt=""
+             data-norm="assets/menu/Qbues1.bmp"
+             data-hover="assets/menu/Qbues2.bmp">
+
+        <!-- Dynamic text drawn by PaintLn() at runtime -->
+        <div class="glist-username"  id="glist-username"></div>
+        <div class="glist-unitname"  id="glist-unitname"></div>
+        <div class="glist-bestscore" id="glist-bestscore"></div>
+
+        <!-- IconP: changes on row hover (icon0=idle, icon1-7=per row) -->
+        <img class="glist-icon" id="glist-icon" src="assets/menu/Icon0.bmp" alt="">
+
+        <!-- 7 GameGo rows — transparent click areas (handlers wired in openGList) -->
+        <div class="glist-row" id="glist-row-0"></div>
+        <div class="glist-row" id="glist-row-1"></div>
+        <div class="glist-row" id="glist-row-2"></div>
+        <div class="glist-row" id="glist-row-3"></div>
+        <div class="glist-row" id="glist-row-4"></div>
+        <div class="glist-row" id="glist-row-5"></div>
+        <div class="glist-row" id="glist-row-6"></div>
+
+        <!-- Score badges (rows 0-5): Zeva strip slices -->
+        <div class="glist-badge" id="glist-badge-0"></div>
+        <div class="glist-badge" id="glist-badge-1"></div>
+        <div class="glist-badge" id="glist-badge-2"></div>
+        <div class="glist-badge" id="glist-badge-3"></div>
+        <div class="glist-badge" id="glist-badge-4"></div>
+        <div class="glist-badge" id="glist-badge-5"></div>
+
+        <!-- Score numbers (rows 0-5) -->
+        <div class="glist-score-num" id="glist-snum-0"></div>
+        <div class="glist-score-num" id="glist-snum-1"></div>
+        <div class="glist-score-num" id="glist-snum-2"></div>
+        <div class="glist-score-num" id="glist-snum-3"></div>
+        <div class="glist-score-num" id="glist-snum-4"></div>
+        <div class="glist-score-num" id="glist-snum-5"></div>
+
+      </div><!-- /glist-screen -->
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     GAME SCREEN
+════════════════════════════════════════ -->
+<div id="screen-game" class="screen">
+
+  <!-- 800×600 game viewport, scales to fit full window -->
+  <div class="game-outer">
+    <div class="game-viewport" id="game-viewport">
+
+      <!-- goOut: Ex1/2.bmp 55×48 at (6,6) -->
+      <img class="game-exit gbtn"
+           src="assets/menu/Ex1.bmp" alt=""
+           data-norm="assets/menu/Ex1.bmp"
+           data-hover="assets/menu/Ex2.bmp"
+           onclick="appGame_exit()">
+
+      <!-- goQues: Ques1/2.bmp 60×60 at (745,3) -->
+      <img class="game-ques gbtn"
+           src="assets/menu/Ques1.bmp" alt=""
+           data-norm="assets/menu/Ques1.bmp"
+           data-hover="assets/menu/Ques2.bmp">
+
+      <!-- Unit title at Myname position (334,3) -->
+      <div class="game-unit-title" id="game-unit-title"></div>
+
+      <!-- Egg sprites on fence (CSmall.bmp sprite sheet) — lowest z, behind char -->
+      <div id="game-eggs"></div>
+
+      <!-- Rooster character: BACK.bmp nest + animated Stati sprite -->
+      <div class="char-nest">
+        <img class="char-back" src="assets/anim/BACK.png" alt="">
+        <img class="char-sprite" id="char-img" src="assets/anim/Stati0.png" alt="">
+      </div>
+
+      <!-- GFull plank overlays (rendered behind rows, above char) -->
+      <div id="game-planks"></div>
+
+      <!-- Question rows (absolutely positioned on top) -->
+      <div id="game-rows"></div>
+
+      <!-- Penalty number (right panel) -->
+      <div class="penalty-overlay" id="game-penalty">0</div>
+
+      <!-- Timer (right panel) -->
+      <div class="timer-overlay" id="game-timer">0:00</div>
+
+      <!-- Target value (QStxt — what to find) -->
+      <div class="target-bar-overlay">
+        <span class="target-value" id="game-target-value"></span>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════
+     SCORE SCREEN
+════════════════════════════════════════ -->
+<div id="screen-score" class="screen">
+  <div class="score-outer">
+    <div class="score-viewport" id="score-viewport">
+
+      <!-- Egg sprites at game positions (visible around the score panel) -->
+      <div id="score-eggs"></div>
+
+      <!-- ScoreC panel: left=212, top=115, 454×485 — Score.jpg background -->
+      <div class="score-panel" id="score-panel">
+
+        <!-- Pie chart canvas: VB6 Timer1 animation, center at panel (231,160) -->
+        <canvas id="score-pie" width="110" height="110"></canvas>
+
+
+        <!-- Username (VB6 Myname[0-2], David 48pt, 3-layer shadow) -->
+        <div class="sc-username" id="sc-username"></div>
+
+        <!-- "נקודות" (points) — left of score, VB6 Myname[9-11] -->
+        <div class="sc-nekudot">נקודות</div>
+
+        <!-- Score number — VB6 Myname[3-5], David 48pt -->
+        <div class="sc-number" id="sc-number">0</div>
+
+        <!-- "קיבלת" (you got) — right of score, VB6 Myname[6-8] -->
+        <div class="sc-kibalt">קיבלת</div>
+
+        <!-- Rating text — VB6 Myname[12-14], color varies with score -->
+        <div class="sc-rating" id="sc-rating"></div>
+
+        <!-- Stats (VB6 Stxt[0-2]: tov/be/ra counts) -->
+        <div class="sc-stat-tov" id="sc-tov">0</div>
+        <div class="sc-stat-be"  id="sc-be">0</div>
+        <div class="sc-stat-ra"  id="sc-ra">0</div>
+
+        <!-- Exit button: CafEx — Sex2/1.jpg -->
+        <img class="sbtn sc-exit-btn"
+             src="assets/menu/Sex2.jpg" alt=""
+             data-norm="assets/menu/Sex2.jpg"
+             data-hover="assets/menu/Sex1.jpg"
+             onclick="appScore_units()">
+
+        <!-- Replay button: CafRe — Sre2/1.jpg -->
+        <img class="sbtn sc-replay-btn"
+             src="assets/menu/Sre2.jpg" alt=""
+             data-norm="assets/menu/Sre2.jpg"
+             data-hover="assets/menu/Sre1.jpg"
+             onclick="appScore_replay()">
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     WAR SCREEN (WarG canvas game)
+════════════════════════════════════════ -->
+<div id="screen-war" class="screen">
+  <div class="game-outer">
+    <div class="canvas-vp" id="war-vp">
+      <canvas id="war-canvas" width="800" height="600"></canvas>
+
+      <!-- goOut: Ex1/2.bmp 55×48 at (6,6) -->
+      <img class="game-exit gbtn"
+           src="assets/menu/Ex1.bmp" alt=""
+           data-norm="assets/menu/Ex1.bmp"
+           data-hover="assets/menu/Ex2.bmp"
+           onclick="appGame_exit()">
+
+      <!-- goQues: Ques1/2.bmp 64×49 at (738,3) -->
+      <img class="game-ques gbtn"
+           src="assets/menu/Ques1.bmp" alt=""
+           data-norm="assets/menu/Ques1.bmp"
+           data-hover="assets/menu/Ques2.bmp"
+           style="left:738px; top:3px; width:64px; height:49px;">
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     KRAV SCREEN (Krav canvas game)
+════════════════════════════════════════ -->
+<div id="screen-krav" class="screen">
+  <div class="game-outer">
+    <div class="canvas-vp" id="krav-vp">
+      <canvas id="krav-canvas" width="800" height="600"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="js/data.js"></script>
+<script src="js/users.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/game.js"></script>
+<script src="js/game2.js"></script>
+<script src="js/game3.js"></script>
+<script src="js/gamewar.js"></script>
+<script src="js/gamekrav.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>
