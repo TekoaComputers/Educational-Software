@@ -28,7 +28,7 @@ const GameT3 = (() => {
 
   // Egg layout reuses same columns/rows as game.js but only 8 eggs (2 rows of 4)
   const EGG_COLS   = [18, 57, 96, 134];
-  const EGG_ROWS   = [131, 181];
+  const EGG_ROWS   = [342, 420];
   const EGG_BGX    = { '-1': 0, '0': -156, '1': -117, '2': -117, 'bad': -78 };
 
   const ANIM_SEQUENCES = {
@@ -110,7 +110,12 @@ const GameT3 = (() => {
     fakeAnswer = pickFake(scenePairs, unit.questions);
 
     renderRows();
-    setGaze(targetRow + 2); // rows 2-5 in gaze index
+
+    // Brief question-mark animation per scene (VB6: qStart pose)
+    stopAnim();
+    const charImg = document.getElementById('char-img');
+    if (charImg) charImg.src = './assets/anim/qStart6.png';
+    setTimeout(() => setGaze(targetRow + 2), 500);
   }
 
   function pickFake(scene, allQs) {
@@ -330,7 +335,6 @@ const GameT3 = (() => {
       if (row >= EGG_ROWS.length) return;
       const div = document.createElement('div');
       div.className = 'egg-sprite';
-      div.style.backgroundImage = "url('../assets/menu/CSmall2.png')";
       div.style.left = EGG_COLS[col] + 'px';
       div.style.top  = EGG_ROWS[row] + 'px';
       const key = status < 0 ? '-1' : status === 0 ? '0' : status <= 2 ? String(status) : 'bad';

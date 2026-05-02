@@ -154,7 +154,18 @@
         <div class="glist-row" id="glist-row-5"></div>
         <div class="glist-row" id="glist-row-6"></div>
 
-        <!-- Score badges (rows 0-5): Zeva strip slices -->
+        <!-- Row highlight overlays: positioned at VB6 BitBlt dest coords.
+             Rows 0-5: dest x=480, w=288, src x=103.
+             Row 6:    dest x=377, w=395, src x=0. -->
+        <div class="glist-hl" id="glist-hl-0"></div>
+        <div class="glist-hl" id="glist-hl-1"></div>
+        <div class="glist-hl" id="glist-hl-2"></div>
+        <div class="glist-hl" id="glist-hl-3"></div>
+        <div class="glist-hl" id="glist-hl-4"></div>
+        <div class="glist-hl" id="glist-hl-5"></div>
+        <div class="glist-hl glist-hl-6" id="glist-hl-6"></div>
+
+        <!-- Score badges (rows 0-5): Zeva strip slices at VB6 dest x=373, w=118, h=62 -->
         <div class="glist-badge" id="glist-badge-0"></div>
         <div class="glist-badge" id="glist-badge-1"></div>
         <div class="glist-badge" id="glist-badge-2"></div>
@@ -162,7 +173,7 @@
         <div class="glist-badge" id="glist-badge-4"></div>
         <div class="glist-badge" id="glist-badge-5"></div>
 
-        <!-- Score numbers (rows 0-5) -->
+        <!-- Score numbers (rows 0-5): VB6 CurrentX=380, CurrentY=GameGo.Top+10 -->
         <div class="glist-score-num" id="glist-snum-0"></div>
         <div class="glist-score-num" id="glist-snum-1"></div>
         <div class="glist-score-num" id="glist-snum-2"></div>
@@ -320,6 +331,33 @@
   <div class="game-outer">
     <div class="canvas-vp" id="krav-vp">
       <canvas id="krav-canvas" width="800" height="600"></canvas>
+
+      <!-- Player name entry overlay (VB6 PlayN textboxes: B at 570,54; A at 84,54) -->
+      <div id="krav-names" style="display:none; position:absolute; top:0; left:0; width:800px; height:600px; pointer-events:none;">
+        <input id="krav-name-b" type="text" maxlength="20" dir="rtl"
+          style="display:none; position:absolute; left:530px; top:46px; width:230px; height:32px;
+                 font-size:18px; font-family:'Frank Ruhl Libre',serif; text-align:right;
+                 background:rgba(255,255,220,0.95); border:2px solid #0000cc;
+                 padding:2px 6px; box-sizing:border-box; pointer-events:auto; outline:none;">
+        <input id="krav-name-a" type="text" maxlength="20" dir="rtl"
+          style="display:none; position:absolute; left:44px; top:46px; width:230px; height:32px;
+                 font-size:18px; font-family:'Frank Ruhl Libre',serif; text-align:right;
+                 background:rgba(255,255,220,0.95); border:2px solid #cc0000;
+                 padding:2px 6px; box-sizing:border-box; pointer-events:auto; outline:none;">
+      </div>
+
+      <!-- Exit button: Ex1/2.bmp 55×48 at (6,6) — same as other game screens -->
+      <img class="game-exit gbtn"
+           src="assets/menu/Ex1.bmp" alt=""
+           data-norm="assets/menu/Ex1.bmp"
+           data-hover="assets/menu/Ex2.bmp"
+           onclick="appGame_exit()">
+
+      <!-- Help button: Ques1/2.bmp 60×60 at (745,3) -->
+      <img class="game-ques gbtn"
+           src="assets/menu/Ques1.bmp" alt=""
+           data-norm="assets/menu/Ques1.bmp"
+           data-hover="assets/menu/Ques2.bmp">
     </div>
   </div>
 </div>

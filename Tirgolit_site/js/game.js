@@ -108,6 +108,7 @@ const Game = (() => {
 
     // Start intro animation then kick off scene
     startAnim('start');
+    AudioMgr.playAnim(`Tirgol1Q${gameKind}.wav`);
     setTimeout(() => {
       goToScene(0);
       startTimer();
@@ -430,10 +431,10 @@ const Game = (() => {
       if (matched[i]) continue;
       if (gameKind === 1) {
         const ansEl = document.getElementById(`row-ans-${i}`);
-        if (ansEl) ansEl.className = 'row-answer hidden';
+        if (ansEl && !ansEl.classList.contains('preview')) ansEl.className = 'row-answer hidden';
       } else {
         const exprEl = document.getElementById(`row-expr-${i}`);
-        if (exprEl) { exprEl.textContent = ''; exprEl.className = 'row-expr'; }
+        if (exprEl && !exprEl.classList.contains('preview')) { exprEl.textContent = ''; exprEl.className = 'row-expr'; }
       }
     }
   }

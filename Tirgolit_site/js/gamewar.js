@@ -241,7 +241,7 @@ const GameWar = (() => {
     if (idx < 1 || idx > allPairs.length) return;
     tshP   = allPairs[idx - 1].answer;
     strAns = tshP[0];
-    yq     = 520;
+    yq     = 565;
     xqQ    = 100;
   }
 
@@ -491,6 +491,7 @@ const GameWar = (() => {
   function triggerEndGame(lane) {
     if (losing || !gameRunning) return;  // prevent re-trigger
     gameRunning = false;
+    warScore    = 0;
     losing      = true;
     losingLane  = lane || rLane;
 
@@ -737,12 +738,12 @@ const GameWar = (() => {
   function renderQuestion() {
     const idx = qi(rLane);
     if (idx < 1 || idx > allPairs.length || answered[idx]) return;
-    if (rMachav !== 0) return;  // don't show question while rooster is moving/shooting
     const pair   = allPairs[idx - 1];
     const typed  = strAns.slice(0, -1);
     const cursor = cursorVis ? '_' : ' ';
 
     ctx.font = 'bold 36px "Frank Ruhl Libre", serif';
+    ctx.direction = 'ltr';
     ctx.textAlign = 'left';
 
     const fullW = ctx.measureText(pair.expr + ' = ' + pair.answer).width;

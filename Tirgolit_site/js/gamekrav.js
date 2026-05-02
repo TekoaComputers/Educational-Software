@@ -35,6 +35,9 @@ const GameKrav = (() => {
   let charStates;     // [state for player 0, state for player 1]
   let charPositions;  // [x for player 0, x for player 1]
 
+  // Player names (VB6 PlayN(0)=player A left, PlayN(1)=player B right)
+  let playerNames = ['שחקן א', 'שחקן ב'];
+
   // Panel animation (LoaHC/LoaHT)
   let loaHC, loaHT;   // [frame for panel 0, frame for panel 1] (0=closed, 6=open)
 
@@ -122,7 +125,7 @@ const GameKrav = (() => {
     ctx.fillText('טוען...', 400, 300);
 
     loadAllSprites().then(() => {
-      if (!gameRunning) startGame();
+      if (!gameRunning) startNameEntry();
     });
   }
 
@@ -137,6 +140,58 @@ const GameKrav = (() => {
       window.removeEventListener('keydown', keyHandler);
       keyHandler = null;
     }
+    // Hide name entry overlay if visible
+    const overlay = document.getElementById('krav-names');
+    if (overlay) overlay.style.display = 'none';
+    playerNames = ['שחקן א', 'שחקן ב'];
+  }
+
+  // ─── Name entry (VB6 PlayN textboxes) ──────────────────────────────────────
+
+  function startNameEntry() {
+    const overlay = document.getElementById('krav-names');
+    const inputB  = document.getElementById('krav-name-b');
+    const inputA  = document.getElementById('krav-name-a');
+    if (!overlay || !inputB || !inputA) { startGame(); return; }
+
+    // Draw background so name inputs appear over it
+    if (bgImg) ctx.drawImage(bgImg, 0, 0, 800, 600);
+
+    overlay.style.display = 'block';
+
+    // Phase 1: Player B enters name (right side, PlayN(1))
+    inputB.value = '';
+    inputB.placeholder = 'שחקן ב';
+    inputB.style.display = 'block';
+    inputB.focus();
+    AudioMgr.play('./assets/krav/Pla1.wav');
+
+    function onBDone(e) {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      playerNames[1] = inputB.value.trim() || 'שחקן ב';
+      inputB.removeEventListener('keydown', onBDone);
+      inputB.style.display = 'none';
+
+      // Phase 2: Player A enters name (left side, PlayN(0))
+      inputA.value = '';
+      inputA.placeholder = 'שחקן א';
+      inputA.style.display = 'block';
+      inputA.focus();
+      AudioMgr.play('./assets/krav/Pla2.wav');
+
+      function onADone(e2) {
+        if (e2.key !== 'Enter') return;
+        e2.preventDefault();
+        playerNames[0] = inputA.value.trim() || 'שחקן א';
+        inputA.removeEventListener('keydown', onADone);
+        inputA.style.display = 'none';
+        overlay.style.display = 'none';
+        startGame();
+      }
+      inputA.addEventListener('keydown', onADone);
+    }
+    inputB.addEventListener('keydown', onBDone);
   }
 
   // ─── Game start ──────────────────────────────────────────────────────────────
@@ -145,7 +200,7 @@ const GameKrav = (() => {
     gameRunning = true;
     ttVis       = true;   // VB6 Restart: roosters shown, indicator hidden
     shela       = 1;
-    tor         = 1;   // VB6 Restart: Tor = 1
+    tor         = 0;
     ttPosR      = TT_START;
     showQ       = false;
     scoreT        = [0, 0];
@@ -154,15 +209,13 @@ const GameKrav = (() => {
     loaHC         = [6, 6];
     loaHT         = [6, 6];
 
-    // VB6 Restart: only close the active player's panel (Tor=1) to trigger first ShelInit
+    // Close the active player's panel to trigger first ShelInit
     loaHT[tor] = 0;
 
     keyHandler = e => handleKey(e);
     window.addEventListener('keydown', keyHandler);
     blinkId = setInterval(() => { cursorVis = !cursorVis; }, 400);
-    tickId  = setInterval(tick, TICK_MS);
-
-    AudioMgr.play('./assets/krav/Pla1.wav');
+    tickId = setInterval(tick, TICK_MS);
   }
 
   function shelInit() {
@@ -235,12 +288,12 @@ const GameKrav = (() => {
     if (shela > allPairs.length || scoreT[0] >= 3 || scoreT[1] >= 3) {
       setTimeout(finish, 1500);
     } else {
-      // Reset indicator and characters, then start next round (VB6 Restart: Tor always=1)
+      // Reset indicator and characters, then start next round
       setTimeout(() => {
         ttPosR        = TT_START;
         charStates    = [3, 2];
         charPositions = [120, 520];
-        tor   = 1;
+        tor   = 0;
         loaHC = [6, 6];
         loaHT = [6, 6];
         loaHT[tor] = 0;
@@ -347,7 +400,7 @@ const GameKrav = (() => {
       const st     = states[p];
       const frames = tarSpr[st];
       if (!frames || !frames.length) continue;
-      const frame = frames[Math.floor(Date.now() / 200) % frames.length];
+      const frame = frames[Math.floor(Date.now() / 270) % frames.length];
       if (!frame) continue;
       // VB6: TarP(9/10) = 130×180, TarP(2-5) = 150×180
       const w = (st === 9 || st === 10) ? WIN_W : CHAR_W;
@@ -386,6 +439,7 @@ const GameKrav = (() => {
     const cursor = cursorVis ? '_' : ' ';
 
     ctx.font = 'bold 28px "Frank Ruhl Libre", serif';
+    ctx.direction = 'ltr';
     ctx.textAlign = 'left';
     ctx.fillStyle = 'rgb(230,255,230)';
 
@@ -404,48 +458,36 @@ const GameKrav = (() => {
     // Draw the central indicator (OneTar) — uses TarP(1) = 240×180
     const frames = tarSpr[1];
     if (frames && frames.length) {
-      const frame = frames[Math.floor(Date.now() / 100) % frames.length];
+      const frame = frames[Math.floor(Date.now() / 270) % frames.length];
       if (frame) ctx.drawImage(frame, ttPosR - IND_W / 2, IND_Y, IND_W, IND_H);
     } else {
       ctx.fillStyle = '#ffff00';
       ctx.fillRect(ttPosR - 15, IND_Y + 60, 30, 60);
     }
 
-    // Draw boundary markers
-    ctx.strokeStyle = 'rgba(255,50,50,0.6)';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([4, 4]);
-    ctx.beginPath();
-    ctx.moveTo(TAR_AX, PANEL_Y);
-    ctx.lineTo(TAR_AX, PANEL_Y + PANEL_H + 200);
-    ctx.stroke();
-    ctx.strokeStyle = 'rgba(50,50,255,0.6)';
-    ctx.beginPath();
-    ctx.moveTo(TAR_BX, PANEL_Y);
-    ctx.lineTo(TAR_BX, PANEL_Y + PANEL_H + 200);
-    ctx.stroke();
-    ctx.setLineDash([]);
   }
 
   function renderScores() {
-    ctx.font = 'bold 36px "Frank Ruhl Libre", serif';
+    // VB6 AnoName positions: [0] player A (red) center≈303, [1] player B (blue) center≈508
+    ctx.font = '20px "Frank Ruhl Libre", serif';
     ctx.textAlign = 'center';
     ctx.fillStyle = '#ff8080';
-    ctx.fillText(scoreT[0], 200, 80);
+    ctx.fillText(playerNames[0], 303, 40);
     ctx.fillStyle = '#8080ff';
-    ctx.fillText(scoreT[1], 600, 80);
+    ctx.fillText(playerNames[1], 508, 40);
 
-    // Player labels
-    ctx.font = '20px "Frank Ruhl Libre", serif';
-    ctx.fillStyle = '#ffcc88';
-    ctx.fillText('שחקן א׳', 200, 45);
-    ctx.fillText('שחקן ב׳', 600, 45);
+    // VB6 Sname positions: Sname[3] (player A score) x=273, Sname[2] (player B score) x=474, y≈57
+    ctx.font = 'bold 32px "Frank Ruhl Libre", serif';
+    ctx.fillStyle = '#ff8080';
+    ctx.fillText(scoreT[0], 273, 72);
+    ctx.fillStyle = '#8080ff';
+    ctx.fillText(scoreT[1], 474, 72);
 
     // Active player indicator
-    const arrowX = tor === 0 ? 200 : 600;
+    const arrowX = tor === 0 ? 303 : 508;
     ctx.fillStyle = '#ffff00';
-    ctx.font = '24px serif';
-    ctx.fillText('▼', arrowX, 105);
+    ctx.font = '20px serif';
+    ctx.fillText('▼', arrowX, 92);
   }
 
   // ─── Helpers ─────────────────────────────────────────────────────────────────

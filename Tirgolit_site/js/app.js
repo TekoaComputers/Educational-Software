@@ -372,48 +372,51 @@ const App = (() => {
     showScreen('units');
     screen.style.display = 'block';
 
-    // Persistent selection state (VB6 Rlast, starts at 0)
-    let rlast = 0;
-    const rowEls = [];
+    // Persistent selection state (-1 = nothing clicked yet)
+    let rlast = -1;
+    const hlEls = [];
 
+    // VB6 BitBlt: rows 0-5 dest x=480 src x=103; row 6 dest x=377 src x=0; srcY=Top-78
     function applyRowBg(rowIdx, type) {
-      const el = rowEls[rowIdx];
-      if (!el) return;
+      const hlEl = hlEls[rowIdx];
+      if (!hlEl) return;
       const top  = GLIST_ROW_TOPS[rowIdx];
-      const bgX  = (rowIdx === 6) ? 17 : 14; // VB6: dest480-src103=117-103=14 for rows 0-5
-      const bgY  = -(top - 78);
+      const srcX = rowIdx === 6 ? 0 : 103;
+      const srcY = top - 78;
       const img  = type === 'hover'    ? "url('assets/menu/list3.jpg')"
                  : type === 'selected' ? "url('assets/menu/list2.jpg')"
                  : '';
-      el.style.backgroundImage    = img;
-      el.style.backgroundSize     = '395px 492px';
-      el.style.backgroundPosition = img ? `${bgX}px ${bgY}px` : '';
+      hlEl.style.backgroundImage    = img;
+      hlEl.style.backgroundPosition = img ? `${-srcX}px ${-srcY}px` : '';
     }
 
-    // Wire hover per row (replace with clones to drop stale listeners)
+    // Cache highlight elements and wire row click/hover
     GLIST_ROW_TOPS.forEach((rowTop, i) => {
       const rowEl = document.getElementById('glist-row-' + i);
       if (!rowEl) return;
       const clone = rowEl.cloneNode(true);
       rowEl.parentNode.replaceChild(clone, rowEl);
-      rowEls[i] = clone;
 
-      clone.addEventListener('click', () => appGList_select(i));
-      clone.addEventListener('mouseenter', () => {
-        if (rlast !== i) applyRowBg(rlast, ''); // clear old persistent highlight
-        applyRowBg(i, 'hover');
+      hlEls[i] = document.getElementById('glist-hl-' + i);
+
+      clone.addEventListener('click', () => {
+        applyRowBg(rlast, '');
         rlast = i;
+        applyRowBg(i, 'selected');
+        appGList_select(i);
+      });
+      clone.addEventListener('mouseenter', () => {
+        if (rlast !== -1) applyRowBg(rlast, '');
+        applyRowBg(i, 'hover');
         if (iconEl) iconEl.src = `assets/menu/Icon${i + 1}.bmp`;
       });
       clone.addEventListener('mouseleave', () => {
-        // Settle to persistent selection (VB6 Timer1 → list2.jpg on Rlast).
-        // Only update if rlast is still this row (mouseleave fires before next mouseenter).
-        if (i === rlast) applyRowBg(i, 'selected');
+        applyRowBg(i, '');
+        if (rlast !== -1) applyRowBg(rlast, 'selected');
+        if (iconEl) iconEl.src = 'assets/menu/Icon0.bmp';
       });
     });
 
-    // Show initial selection on row 0 (VB6 Form_Paint with Rlast=0)
-    applyRowBg(0, 'selected');
 
   }
 
@@ -512,7 +515,7 @@ const App = (() => {
     currentUnitId = uid;
     currentUnit   = unit;
     gameKind      = 1;
-    gameBg        = 1;
+    gameBg        = 't3';
     currentSlot   = slot ?? 4;
 
     const gameVp = document.getElementById('game-viewport');
@@ -589,6 +592,7 @@ const App = (() => {
       vp.classList.toggle('kind-2', gameKind === 2);
       vp.classList.toggle('bg-2',   gameBg   === 2);
       vp.classList.toggle('bg-t2',  gameBg   === 't2');
+      vp.classList.toggle('bg-t3',  gameBg   === 't3');
     }
 
     document.getElementById('sc-username').textContent = currentUser || '';
@@ -628,15 +632,17 @@ const App = (() => {
     if (!container) return;
     container.innerHTML = '';
 
+    const eggRows = (gameBg === 't3') ? [342, 420] : SCORE_EGG_ROWS;
+
     eggs.forEach((status, i) => {
       const col = i % 4;
       const row = Math.floor(i / 4);
-      if (row >= SCORE_EGG_ROWS.length) return;
+      if (row >= eggRows.length) return;
 
       const div = document.createElement('div');
       div.className = 'egg-sprite';
       div.style.left = SCORE_EGG_COLS[col] + 'px';
-      div.style.top  = SCORE_EGG_ROWS[row]  + 'px';
+      div.style.top  = eggRows[row]  + 'px';
 
       const key = status === -1 ? '-1' : status === 0 ? '0' : status === 1 ? '1' : status === 2 ? '2' : 'bad';
       div.style.backgroundPositionX = SCORE_EGG_BGX[key] + 'px';

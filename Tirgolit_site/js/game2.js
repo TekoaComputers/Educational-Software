@@ -86,6 +86,7 @@ const GameT2 = (() => {
     window.addEventListener('keydown', keyHandler);
 
     startAnim('start');
+    AudioMgr.playAnim(`Tirgol2Q${gameKind}.wav`);
     setTimeout(() => {
       goToScene(0);
       startTimer();
@@ -145,7 +146,10 @@ const GameT2 = (() => {
       intshp(pair.expr);
     }
 
-    setGaze(tshNom);
+    // Brief question-mark pose before showing cursor (VB6: qStart animation)
+    stopAnim();
+    if (charAnim) charAnim.src = './assets/anim/qStart6.png';
+    setTimeout(() => setGaze(tshNom), 500);
   }
 
   // ─── intshp: find numeric substrings in expr, pick one (VB6 Intshp) ─────────

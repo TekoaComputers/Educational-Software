@@ -454,12 +454,12 @@ img {
   direction: ltr;
   overflow: hidden;
   cursor: pointer;
-  transition: background 0.1s;
 }
 
-.q-row:not(.matched):hover {
-  background: rgba(255, 245, 190, 0.18);
-}
+/* Padding ~2 chars: gap between question text (right edge) and answer text (left edge) */
+.q-row:not(.matched) .row-expr   { padding-right: 24px; }
+.q-row:not(.matched) .row-answer { padding-left:  24px; }
+
 
 .q-row.matched {
   pointer-events: none;
@@ -602,9 +602,9 @@ img {
    Use 52px container to match AutoSize center. */
 .timer-overlay {
   position: absolute;
-  left: 716px;
+  left: 700px;
   top: 392px;
-  width: 52px;
+  width: 68px;
   color: #4fc3f7;
   font-size: 20px;
   font-weight: bold;
@@ -619,15 +619,16 @@ img {
    center-aligned text stays near the anchored left edge. */
 .target-bar-overlay {
   position: absolute;
-  left: 561px;
+  left: 549px;
   top: 522px;
-  width: 70px;
+  width: 200px;
   text-align: center;
   direction: ltr;
+  white-space: nowrap;
 }
 
 .game-viewport.kind-2 .target-bar-overlay {
-  left: 289px;
+  left: 277px;
 }
 
 .target-label {
@@ -644,6 +645,7 @@ img {
   text-align: center;
   text-shadow: 0 1px 3px rgba(255,255,255,0.4);
   line-height: 1;
+  white-space: nowrap;
 }
 
 /* ─── SCORE SCREEN ─────────────────────────
@@ -965,17 +967,31 @@ img {
   pointer-events: none;
 }
 
-/* GameGo rows: transparent clickable areas.
-   Left=5445/15=363, Width=6495/15=433, Height=915/15=61.
-   background used for hover highlight (list3.jpg slice via JS). */
+/* GameGo rows: transparent clickable areas only — no background.
+   Left=5445/15=363, Width=6495/15=433, Height=915/15=61. */
 .glist-row {
   position: absolute;
   left: 363px;
   width: 430px;
-  height: 56px;
+  height: 61px;
   cursor: pointer;
+}
+
+/* Row highlight overlays: match VB6 BitBlt dest exactly.
+   Rows 0-5: dest x=480, w=288, h=62, src x=103 from list image (395×492).
+   Row 6:    dest x=377, w=395, h=62, src x=0 from list image. */
+.glist-hl {
+  position: absolute;
+  left: 480px;
+  width: 288px;
+  height: 62px;
+  pointer-events: none;
   background-repeat: no-repeat;
   background-size: 395px 492px;
+}
+.glist-hl-6 {
+  left: 377px;
+  width: 395px;
 }
 
 #glist-row-0 { top:  81px; }
@@ -984,11 +1000,20 @@ img {
 #glist-row-3 { top: 267px; }
 #glist-row-4 { top: 330px; }
 #glist-row-5 { top: 426px; }
+
+#glist-hl-0 { top:  81px; }
+#glist-hl-1 { top: 143px; }
+#glist-hl-2 { top: 204px; }
+#glist-hl-3 { top: 267px; }
+#glist-hl-4 { top: 330px; }
+#glist-hl-5 { top: 426px; }
+#glist-hl-6 { top: 507px; }
 /* Row 6: Left=5400/15=360 */
 #glist-row-6 { top: 507px; left: 360px; }
 
 /* Score badges: BitBlt dest x=373 (runtime px), 118×62.
-   Source from Zeva1/2/3.jpg (118×413); source_y = row_top − 79. */
+   VB6: BitBlt dest x=373, w=118, h=62. Source from Zeva1/2/3.jpg (118×413);
+   source_y = GameGo(i).Top − 79. */
 .glist-badge {
   position: absolute;
   left: 373px;
@@ -1006,13 +1031,13 @@ img {
 #glist-badge-4 { top: 330px; }
 #glist-badge-5 { top: 426px; }
 
-/* Score numbers: Me.Print at form default font (33pt at 96dpi = 44px).
-   Centered within the 118px Zeva badge strip (left=373). */
+/* Score numbers: VB6 Me.Print at CurrentX=380, CurrentY=GameGo.Top+10.
+   Font David 33pt at 96dpi ≈ 44px. Left-aligned from x=380 within the badge. */
 .glist-score-num {
   position: absolute;
-  left: 373px;
-  width: 118px;
-  text-align: center;
+  left: 380px;
+  width: 111px;
+  text-align: left;
   font-family: 'Frank Ruhl Libre', 'David', serif;
   font-size: 28px;
   font-weight: bold;
@@ -1036,7 +1061,8 @@ img {
 .score-viewport.bg-t2 { background-image: url('../assets/menu/tirgol3.bmp'); }
 
 /* Tirgol3 background (bg-t3 added by game3.js on init) */
-.game-viewport.bg-t3 { background-image: url('../assets/menu/Tirgol4.bmp'); }
+.game-viewport.bg-t3  { background-image: url('../assets/menu/Tirgol4.bmp'); }
+.score-viewport.bg-t3 { background-image: url('../assets/menu/Tirgol4.bmp'); }
 
 /* ─── TIRGOL2 TYPING ROW STYLES ─────────────────────────── */
 /* Active typing row (current TshNom — GTran full-width plank) */
@@ -1058,6 +1084,10 @@ img {
   color: #000080;
   text-shadow: none;
 }
+
+/* Padding ~2 chars before answer is typed (same logic as .q-row) */
+.t2-row:not(.matched) .t2-expr { padding-right: 24px; }
+.t2-row:not(.matched) .t2-ans  { padding-left:  24px; }
 
 /* Expression column (same width as .row-expr in game.js) */
 .t2-expr {
