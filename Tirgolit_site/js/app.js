@@ -765,7 +765,7 @@ const App = (() => {
       if (active?.id === 'screen-game')  exitGame();
       else if (active?.id === 'screen-war')  exitGame();
       else if (active?.id === 'screen-krav') exitGame();
-      else if (active?.id === 'screen-units') showScreen('login');
+      else if (active?.id === 'screen-units') { renderLogin(); showScreen('login'); }
       else if (active?.id === 'screen-score') backToGList();
     }
   });
@@ -840,7 +840,7 @@ const App = (() => {
   window.appLogin_exit = appLogin_exit;
   window.appLogin_inputChange = appLogin_inputChange;
   window.appLogin_inputKey = appLogin_inputKey;
-  window.appUnits_back = () => showScreen('login');
+  window.appUnits_back = () => { renderLogin(); showScreen('login'); };
   window.appUnits_selectTab = selectTab;
   window.appUnits_play = playSelected;
   window.appUnits_scrollUp = appUnits_scrollUp;
