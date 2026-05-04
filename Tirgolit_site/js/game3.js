@@ -373,7 +373,7 @@ const GameT3 = (() => {
       }
       animFrame++;
       if (animFrame >= frames.length) { stopAnim(); setGaze(targetRow + 2); }
-    }, 80);
+    }, 50);
   }
 
   function stopAnim() {

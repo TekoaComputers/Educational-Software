@@ -36,7 +36,8 @@
       <img class="lbtn lbtn-help"
            src="assets/menu/StartH1.bmp" alt=""
            data-norm="assets/menu/StartH1.bmp"
-           data-hover="assets/menu/StartH2.bmp">
+           data-hover="assets/menu/StartH2.bmp"
+           onclick="appLogin_help()">
 
       <!-- OKu: enter/OK button — 97×44 at (219,347) -->
       <img class="lbtn lbtn-ok"
@@ -59,13 +60,67 @@
       <img class="lbtn lbtn-ques"
            src="assets/menu/StartQ1.bmp" alt=""
            data-norm="assets/menu/StartQ1.bmp"
-           data-hover="assets/menu/StartQ2.bmp">
+           data-hover="assets/menu/StartQ2.bmp"
+           onclick="appLogin_ques()">
 
-      <!-- CafH2: small bottom button — 23×26 at (597,560) -->
+      <!-- CafH2: teacher manual button — 23×26 at (597,560) -->
       <img class="lbtn lbtn-caf2"
            src="assets/menu/StartQb1.bmp" alt=""
            data-norm="assets/menu/StartQb1.bmp"
-           data-hover="assets/menu/StartQb2.bmp">
+           data-hover="assets/menu/StartQb2.bmp"
+           onclick="appLogin_manual()">
+
+      <!-- CafH2: teacher manual overlay -->
+      <div id="login-manual-overlay" class="login-manual-overlay" style="display:none">
+        <div class="login-manual-box">
+          <h2>בחירת מערכת הפעילויות הרצויה למורה ולתלמיד</h2>
+          <h3>כניסת התלמיד למערכת התרגול</h3>
+          <p>על התלמיד להקליד את שמו, או לבחור בו מתוך רשימת התלמידים הקיימת ולאשר.<br>
+          מומלץ לבדוק שהתלמיד משתמש בשם הנכון, משום שעל פי שם זה יירשמו התוצאות.</p>
+          <h3>מנהל תלמידים</h3>
+          <p>מערכת למעקב אחר הישגי התלמידים שהשתמשו בתוכנה, כולל אפשרות להדפסת לוחות הישגים.</p>
+          <h3>עריכת שיעורים</h3>
+          <p>מערכת המאפשרת למורה שינוי ועדכון שיעורים קיימים, עריכת שיעורים חדשים ועדכון מאגר התרגילים הפנימי.</p>
+          <h3>כיצד להכנס למנהל התלמידים?</h3>
+          <p>על מנת למנוע כניסת תלמידים לפעילויות אלה, על המורה להקליד קוד בכניסתו אליהן.<br>
+          הקוד ההתחלתי הוא <strong>777</strong>, ניתן לשנותו במסך מנהל התלמידים.</p>
+          <div class="login-manual-close" onclick="appLogin_manual_close()">סגור</div>
+        </div>
+      </div>
+
+      <!-- HelpD overlay: VB6 Left=157, Top=0, 513×558 — StartBS.jpg background -->
+      <div id="login-help-overlay" class="login-help-overlay" style="display:none">
+        <!-- HelpDS: VB6 Left=48, Top=104 within HelpD, 400×300 — plays Cre video -->
+        <video id="login-help-video" class="login-help-video" playsinline>
+          <source src="assets/CRE.mp4" type="video/mp4">
+        </video>
+        <!-- BackS: VB6 Left=330, Top=429 within HelpD, 91×43 — close button -->
+        <div class="login-help-close" onclick="appLogin_help_close()">סגור</div>
+      </div>
+
+      <!-- UnM: hidden teacher-login zone — VB6 Left=240, Top=549, 163×52 -->
+      <div class="admin-zone" style="left:240px;top:549px;width:163px;height:52px"
+           onclick="appAdmin_unm()"></div>
+      <!-- UsM: hidden user-management zone — VB6 Left=414, Top=549, 163×52 -->
+      <div class="admin-zone" style="left:414px;top:549px;width:163px;height:52px"
+           onclick="appAdmin_usm()"></div>
+
+      <!-- TMsg exit dialog: MsgX.jpg 300×200, buttons at VB6 Caf positions -->
+      <div id="login-exit-overlay" class="msgx-overlay" style="display:none">
+        <div class="msgx-box">
+          <img class="msgx-bg" src="assets/menu/MsgX.jpg" alt="">
+          <img class="msgx-yes mmbtn"
+               src="assets/menu/UserV1.bmp" alt=""
+               data-norm="assets/menu/UserV1.bmp"
+               data-hover="assets/menu/UserV2.bmp"
+               onclick="appLoginExit_yes()">
+          <img class="msgx-no mmbtn"
+               src="assets/menu/UserX1.bmp" alt=""
+               data-norm="assets/menu/UserX1.bmp"
+               data-hover="assets/menu/UserX2.bmp"
+               onclick="appLoginExit_no()">
+        </div>
+      </div>
 
     </div>
   </div>
@@ -103,7 +158,8 @@
 
       <!-- Questions button: Qbues1/2.bmp 60×60 at (738,3) -->
       <img class="ubtn u-ques" src="assets/menu/Qbues1.bmp" alt=""
-           data-norm="assets/menu/Qbues1.bmp" data-hover="assets/menu/Qbues2.bmp">
+           data-norm="assets/menu/Qbues1.bmp" data-hover="assets/menu/Qbues2.bmp"
+           onclick="appUnits_ques()">
 
       <!-- Username in sky area (animated in on entry) -->
       <div class="u-username" id="units-username"></div>
@@ -135,12 +191,16 @@
         <img class="gbtn glist-ques"
              src="assets/menu/Qbues1.bmp" alt=""
              data-norm="assets/menu/Qbues1.bmp"
-             data-hover="assets/menu/Qbues2.bmp">
+             data-hover="assets/menu/Qbues2.bmp"
+             onclick="appGList_ques()">
 
         <!-- Dynamic text drawn by PaintLn() at runtime -->
         <div class="glist-username"  id="glist-username"></div>
         <div class="glist-unitname"  id="glist-unitname"></div>
         <div class="glist-bestscore" id="glist-bestscore"></div>
+
+        <!-- Label1(0): VB6 Left=24, Top=267, 13pt bold black -->
+        <div class="glist-instr">בחר אחד מן המשחקים המופיעים כאן</div>
 
         <!-- IconP: changes on row hover (icon0=idle, icon1-7=per row) -->
         <img class="glist-icon" id="glist-icon" src="assets/menu/Icon0.bmp" alt="">
@@ -183,6 +243,41 @@
 
       </div><!-- /glist-screen -->
 
+      <!-- PrintTip: VB6 area at (166,447,350,70) — unit description shown on selection -->
+      <div id="u-tip" class="u-tip"></div>
+
+      <!-- EditP: teacher edit panel — VB6 Left=16, Top=203, 125×375, background=MainSEdi2.jpg -->
+      <!-- Controls are transparent Labels (no text) clicking over the background image -->
+      <div id="u-editp" class="u-editp" style="display:none">
+        <!-- Distor(3) rename: top=60, h=43, left=12, w=88 — enabled on tab 3 only -->
+        <div class="u-ep-area" id="u-ep-rename"  onclick="appUnits_rename()"></div>
+        <!-- Distor(1) edit lesson: top=111, h=43, left=12, w=88 — tab 3 only -->
+        <div class="u-ep-area" id="u-ep-edit"    onclick="appUnits_editLesson()"></div>
+        <!-- Distor(2) delete: top=159, h=43, left=12, w=88 — tab 3 only -->
+        <div class="u-ep-area" id="u-ep-delete"  onclick="appUnits_deleteUnit()"></div>
+        <!-- GoTirgol new lesson: top=207, h=43, left=9, w=88 -->
+        <div class="u-ep-area" id="u-ep-new"     onclick="appUnits_newLesson()"></div>
+        <!-- GoMilon edit dict: top=255, h=43, left=9, w=88 -->
+        <div class="u-ep-area" id="u-ep-dict"    onclick="appUnits_editDict()"></div>
+        <!-- HelpED help: top=306, h=55, left=12, w=67 -->
+        <div class="u-ep-area u-ep-help" id="u-ep-help" onclick="appUnits_lamoreh()"></div>
+      </div>
+
+      <!-- LaMoreh overlay: VB6 HelpED → LaMoreh.rtf teacher guide -->
+      <div id="units-lamoreh-overlay" class="units-lamoreh-overlay" style="display:none">
+        <div class="units-lamoreh-box">
+          <h2>עריכת שיעורים</h2>
+          <p>במסך זה מספר אפשרויות ייחודיות למורה, אשר יאפשרו לו שימוש יעיל יותר בתוכנה.</p>
+          <h3>שינוי שם</h3>
+          <p>מאפשר שינוי שמה של יחידה נבחרת. היחידה בעלת השם החדש תופיע בקטגורית השיעורים הנוספים.</p>
+          <h3>עריכה משלימה / שיעור חדש / עריכת מאגר</h3>
+          <p>אפשרויות אלו אינן זמינות בגרסת האינטרנט של התוכנה.</p>
+          <h3>מחק שיעור</h3>
+          <p>למחיקת שיעור קיים מרשימת השיעורים הנוספים. זהירות — לא ניתן לשחזר שיעור שנמחק.</p>
+          <div class="units-lamoreh-close" onclick="appUnits_lamoreh_close()">סגור</div>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -201,13 +296,30 @@
            src="assets/menu/Ex1.bmp" alt=""
            data-norm="assets/menu/Ex1.bmp"
            data-hover="assets/menu/Ex2.bmp"
-           onclick="appGame_exit()">
+           onclick="appGame_mmenu_show()">
 
       <!-- goQues: Ques1/2.bmp 60×60 at (745,3) -->
       <img class="game-ques gbtn"
            src="assets/menu/Ques1.bmp" alt=""
            data-norm="assets/menu/Ques1.bmp"
            data-hover="assets/menu/Ques2.bmp">
+
+      <!-- MMenu: 231×68 at (0,0) — shown on exit click, bg=MMenuB.bmp -->
+      <div id="mmenu-game" class="mmenu" style="display:none">
+        <img class="mmenu-bg" src="assets/menu/MMenuB.bmp" alt="">
+        <img class="mmenu-btn mmbtn" id="mmenu-g-exit"
+             src="assets/menu/MMenuX1.bmp" alt=""
+             data-norm="assets/menu/MMenuX1.bmp" data-hover="assets/menu/MMenu1.bmp"
+             onclick="appGame_mmenu_exit()">
+        <img class="mmenu-btn mmbtn" id="mmenu-g-restart"
+             src="assets/menu/MMenuX2.bmp" alt=""
+             data-norm="assets/menu/MMenuX2.bmp" data-hover="assets/menu/MMenu2.bmp"
+             onclick="appGame_mmenu_restart()">
+        <img class="mmenu-btn mmbtn" id="mmenu-g-continue"
+             src="assets/menu/MMenuX3.bmp" alt=""
+             data-norm="assets/menu/MMenuX3.bmp" data-hover="assets/menu/MMenu3.bmp"
+             onclick="appGame_mmenu_continue()">
+      </div>
 
       <!-- Unit title at Myname position (334,3) -->
       <div class="game-unit-title" id="game-unit-title"></div>
@@ -312,7 +424,7 @@
            src="assets/menu/Ex1.bmp" alt=""
            data-norm="assets/menu/Ex1.bmp"
            data-hover="assets/menu/Ex2.bmp"
-           onclick="appGame_exit()">
+           onclick="appGame_mmenu_show()">
 
       <!-- goQues: Ques1/2.bmp 64×49 at (738,3) -->
       <img class="game-ques gbtn"
@@ -320,6 +432,23 @@
            data-norm="assets/menu/Ques1.bmp"
            data-hover="assets/menu/Ques2.bmp"
            style="left:738px; top:3px; width:64px; height:49px;">
+
+      <!-- MMenu: 231×68 at (0,0) -->
+      <div id="mmenu-war" class="mmenu" style="display:none">
+        <img class="mmenu-bg" src="assets/menu/MMenuB.bmp" alt="">
+        <img class="mmenu-btn mmbtn"
+             src="assets/menu/MMenuX1.bmp" alt=""
+             data-norm="assets/menu/MMenuX1.bmp" data-hover="assets/menu/MMenu1.bmp"
+             onclick="appGame_mmenu_exit()">
+        <img class="mmenu-btn mmbtn"
+             src="assets/menu/MMenuX2.bmp" alt=""
+             data-norm="assets/menu/MMenuX2.bmp" data-hover="assets/menu/MMenu2.bmp"
+             onclick="appGame_mmenu_restart()">
+        <img class="mmenu-btn mmbtn"
+             src="assets/menu/MMenuX3.bmp" alt=""
+             data-norm="assets/menu/MMenuX3.bmp" data-hover="assets/menu/MMenu3.bmp"
+             onclick="appGame_mmenu_continue()">
+      </div>
     </div>
   </div>
 </div>
@@ -351,14 +480,135 @@
            src="assets/menu/Ex1.bmp" alt=""
            data-norm="assets/menu/Ex1.bmp"
            data-hover="assets/menu/Ex2.bmp"
-           onclick="appGame_exit()">
+           onclick="appGame_mmenu_show()">
 
       <!-- Help button: Ques1/2.bmp 60×60 at (745,3) -->
       <img class="game-ques gbtn"
            src="assets/menu/Ques1.bmp" alt=""
            data-norm="assets/menu/Ques1.bmp"
            data-hover="assets/menu/Ques2.bmp">
+
+      <!-- MMenu: 231×68 at (0,0) -->
+      <div id="mmenu-krav" class="mmenu" style="display:none">
+        <img class="mmenu-bg" src="assets/menu/MMenuB.bmp" alt="">
+        <img class="mmenu-btn mmbtn"
+             src="assets/menu/MMenuX1.bmp" alt=""
+             data-norm="assets/menu/MMenuX1.bmp" data-hover="assets/menu/MMenu1.bmp"
+             onclick="appGame_mmenu_exit()">
+        <img class="mmenu-btn mmbtn"
+             src="assets/menu/MMenuX2.bmp" alt=""
+             data-norm="assets/menu/MMenuX2.bmp" data-hover="assets/menu/MMenu2.bmp"
+             onclick="appGame_mmenu_restart()">
+        <img class="mmenu-btn mmbtn"
+             src="assets/menu/MMenuX3.bmp" alt=""
+             data-norm="assets/menu/MMenuX3.bmp" data-hover="assets/menu/MMenu3.bmp"
+             onclick="appGame_mmenu_continue()">
+      </div>
     </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     USER MANAGEMENT SCREEN (VB6 UserFrm)
+════════════════════════════════════════ -->
+<div id="screen-usermgmt" class="screen">
+  <div class="usermgmt-outer">
+    <div class="usermgmt-viewport" id="usermgmt-viewport">
+
+      <!-- goOut: ExU1/2.bmp at (6,6) — VB6 UserFrm uses exu1/2.bmp -->
+      <img class="ubtn um-exit"
+           src="assets/menu/ExU1.bmp" alt=""
+           data-norm="assets/menu/ExU1.bmp"
+           data-hover="assets/menu/ExU2.bmp"
+           onclick="appUserMgmt_back()">
+
+      <!-- goQues: Ques1/2.bmp 60×60 at (738,0) — opens admin manual -->
+      <img class="ubtn um-ques"
+           src="assets/menu/Ques1.bmp" alt=""
+           data-norm="assets/menu/Ques1.bmp"
+           data-hover="assets/menu/Ques2.bmp"
+           onclick="appUserMgmt_ques()">
+
+      <!-- Score list: VB6 Slist Left=126, Top=123, W=90, H=386 — per-user averages -->
+      <div id="um-slist" class="um-slist"></div>
+
+      <!-- Scrollable user list — VB6 Ulist at (210,123,246×386) -->
+      <div id="um-list" class="um-list"></div>
+
+      <!-- SelCmd[2] "מחק" — VB6 Left=7830,Top=2685,W=1770,H=600 twips → CSS 522,179,118×40 -->
+      <button class="um-cmd um-cmd-green" id="um-cmd-del"
+              style="left:522px;top:179px;width:118px;height:40px;font-size:20px"
+              onclick="appUserMgmt_delete()">מחק</button>
+
+      <!-- SelCmd[3] "הוסף" — VB6 Left=7830,Top=3405,W=1770,H=600 → CSS 522,227,118×40 -->
+      <button class="um-cmd um-cmd-green" id="um-cmd-add"
+              style="left:522px;top:227px;width:118px;height:40px;font-size:20px"
+              onclick="appUserMgmt_add()">הוסף</button>
+
+      <!-- SelCmd[4] "אפס ציון" — VB6 Left=7830,Top=4125,W=1770,H=600 → CSS 522,275,118×40 -->
+      <button class="um-cmd um-cmd-green" id="um-cmd-reset"
+              style="left:522px;top:275px;width:118px;height:40px;font-size:20px"
+              onclick="appUserMgmt_resetScores()">אפס ציון</button>
+
+      <!-- SelCmd[6] "הצג פירוט ממוצע" — VB6 Left=7740,Top=5220,W=1995,H=825 → CSS 516,348,133×55 -->
+      <button class="um-cmd um-cmd-green" id="um-cmd-detail"
+              style="left:516px;top:348px;width:133px;height:55px;font-size:18px"
+              onclick="appUserMgmt_detail()">הצג פירוט<br>ממוצע</button>
+
+      <!-- SelCmd[1] "בחר כל" — VB6 Left=2700,Top=8055,W=1320,H=375 → CSS 180,537,88×25 -->
+      <button class="um-cmd um-cmd-pink" id="um-cmd-selall"
+              style="left:180px;top:537px;width:88px;height:25px;font-size:13px"
+              onclick="appUserMgmt_selectAll()">בחר כל</button>
+
+      <!-- SelCmd[0] "פנה כל" — VB6 Left=4185,Top=8055,W=1320,H=375 → CSS 279,537,88×25 -->
+      <button class="um-cmd um-cmd-pink" id="um-cmd-clrall"
+              style="left:279px;top:537px;width:88px;height:25px;font-size:13px"
+              onclick="appUserMgmt_clearAll()">פנה כל</button>
+
+      <!-- SelCmd[5] "שנה קוד מנהל" — VB6 Left=9630,Top=8145,W=1860,H=645 → CSS 642,543,124×43 -->
+      <button class="um-cmd um-cmd-green" id="um-cmd-pass"
+              style="left:642px;top:543px;width:124px;height:43px;font-size:14px"
+              onclick="appUserMgmt_changePass()">שנה קוד<br>מנהל</button>
+
+      <!-- MINHAL admin manual overlay -->
+      <div id="um-minhal-overlay" class="um-minhal-overlay" style="display:none">
+        <div class="um-minhal-box">
+          <h2>מנהל התלמידים</h2>
+          <h3>רשימת התלמידים וממוצעי השגיהם</h3>
+          <p>ברשימה זו ניתן לצפות בשמות התלמידים שהשתמשו בתוכנה, ובהשגיהם הממוצעים. בסוגריים מצויין מספר השיעורים אותם תרגל התלמיד.</p>
+          <h3>בחירת תלמיד מהרשימה</h3>
+          <p>לבחירת תלמיד יש להקיש פעם אחת על שמו. להוצאת שם מהרשימה הנבחרת יש להקיש עליו פעם נוספת.</p>
+          <h3>פעולות נוספות לטיפול ברשימת התלמידים</h3>
+          <p><strong>מחק</strong> — להסרת שם התלמיד הנבחר והשגיו מהרשימה. זהירות — לא ניתן לשחזר את הנתונים הקודמים לאחר מחיקה!</p>
+          <p><strong>הוסף</strong> — להוספת שם תלמיד חדש לרשימה.</p>
+          <p><strong>אפס ציון</strong> — להשארת שמו של תלמיד ברשימה תוך מחיקת השגיו הקודמים.</p>
+          <h3>שנה סיסמת מורה</h3>
+          <p>לשינוי סיסמת הכניסה למנהל התלמידים או לעריכה. שים לב — הסיסמה משותפת לכל המורים המשתמשים בתוכנה.</p>
+          <div class="um-minhal-close" onclick="appUserMgmt_ques_close()">סגור</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- TMsg/TInput custom dialog (VB6 MsgForm.frm — MsgB.jpg 300×200) -->
+<div id="tmsg-overlay" style="display:none">
+  <div id="tmsg-box">
+    <img id="tmsg-bg" src="assets/menu/MsgB.jpg" alt="">
+    <div id="tmsg-text"></div>
+    <input type="text" id="tmsg-input" autocomplete="off" spellcheck="false" dir="rtl"
+           onkeydown="if(event.key==='Enter'){event.preventDefault();appTMsg_ok();}">
+    <img id="tmsg-ok" class="mmbtn"
+         src="assets/menu/UserV1.bmp" alt=""
+         data-norm="assets/menu/UserV1.bmp"
+         data-hover="assets/menu/UserV2.bmp"
+         onclick="appTMsg_ok()">
+    <img id="tmsg-cancel" class="mmbtn"
+         src="assets/menu/UserX1.bmp" alt=""
+         data-norm="assets/menu/UserX1.bmp"
+         data-hover="assets/menu/UserX2.bmp"
+         onclick="appTMsg_cancel()">
   </div>
 </div>
 

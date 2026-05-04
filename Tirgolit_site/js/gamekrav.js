@@ -6,7 +6,7 @@ const GameKrav = (() => {
   const TAR_BX   = 440;   // indicator right boundary → player 1 wins round
   const TT_START = 270;   // indicator start x (center)
   const TT_SPEED = 0.5;   // indicator px per tick (VB6: 0.5)
-  const TICK_MS  = 270;   // RunG.Interval
+  const TICK_MS  = 70;    // RunG.Interval (VB6 dynamically adjusts to 70ms on fast PCs)
   const PANEL_W  = 370;   // QPic width  (5550 twips / 15)
   const PANEL_H  = 115;   // QPic height (1725 twips / 15)
   const PANEL_Y  = 107;   // QPic top    (1605 twips / 15)
@@ -32,6 +32,13 @@ const GameKrav = (() => {
   const SCORE_Y  = 72;
   // ClickT: 4 seconds after panel closes before playing click hint sound
   const CLICK_DELAY_MS = 4000;
+  // ScoreQ (BackS.jpg) overlay layout — all in canvas pixels
+  const SCOREQ_X  = 210, SCOREQ_Y  = 114, SCOREQ_W  = 370, SCOREQ_H  = 160;
+  // Myname(0/1) label positions inside ScoreQ (VB6 Left/15, Top/15 → canvas offset)
+  const SCOREQ_S0_X = 306, SCOREQ_S1_X = 396, SCOREQ_S_BASELINE = 190;
+  // CafEx (exit) and CafRe (replay) button positions/sizes in canvas coords
+  const SCOREQ_EX_X = 263, SCOREQ_EX_Y = 215, SCOREQ_EX_W = 61, SCOREQ_EX_H = 37;
+  const SCOREQ_RE_X = 391, SCOREQ_RE_Y = 214, SCOREQ_RE_W = 61, SCOREQ_RE_H = 37;
 
   // ─── State ────────────────────────────────────────────────────────────────────
   let canvas, ctx;
@@ -69,6 +76,10 @@ const GameKrav = (() => {
   let spritesReady = false;
 
   let tickId, blinkId, clickTimerId;
+  let canvasClickHandler;
+  let showScoreOverlay = false;
+  let scoreOverlayGameOver = false;
+  let scoreImgs = {};
   let keyHandler;
   let cursorVis  = true;
   let gameRunning;
@@ -96,7 +107,12 @@ const GameKrav = (() => {
   }
 
   async function loadAllSprites() {
-    bgImg = await loadImg('./assets/krav/Back.jpg');
+    bgImg             = await loadImg('./assets/krav/Back.jpg');
+    scoreImgs.backS   = await loadImg('./assets/krav/BackS.jpg');
+    scoreImgs.ex1     = await loadImg('./assets/krav/Ex1.jpg');
+    scoreImgs.ex2     = await loadImg('./assets/krav/Ex2.jpg');
+    scoreImgs.re1     = await loadImg('./assets/krav/Re1.jpg');
+    scoreImgs.re2     = await loadImg('./assets/krav/Re2.jpg');
     const promises = [];
     for (let s = 0; s <= 10; s++) {
       const ss = s;
@@ -145,9 +161,10 @@ const GameKrav = (() => {
   }
 
   function destroy() {
-    gameRunning  = false;
-    animRunning  = false;
-    ttVis        = false;
+    gameRunning      = false;
+    animRunning      = false;
+    ttVis            = false;
+    showScoreOverlay = false;
     clearInterval(tickId);
     clearInterval(blinkId);
     clearTimeout(clickTimerId);
@@ -155,6 +172,10 @@ const GameKrav = (() => {
     if (keyHandler) {
       window.removeEventListener('keydown', keyHandler);
       keyHandler = null;
+    }
+    if (canvasClickHandler && canvas) {
+      canvas.removeEventListener('click', canvasClickHandler);
+      canvasClickHandler = null;
     }
     const overlay = document.getElementById('krav-names');
     if (overlay) overlay.style.display = 'none';
@@ -318,7 +339,10 @@ const GameKrav = (() => {
     if (ttPosR >= TAR_BX) { roundWin(1); return; }
 
     // VB6: if RealScore > 100 → OneTar.Machav = 6+Tor → active player wins by pressure
-    if (realScore[tor] > 100) { roundWin(tor); }
+    if (realScore[tor] > 100) { roundWin(tor); return; }
+
+    // Advance indicator animation frame each tick
+    indAni++;
   }
 
   // ─── Character animation ─────────────────────────────────────────────────────
@@ -411,21 +435,92 @@ const GameKrav = (() => {
     loaHT = [6, 6];
     loaHC = [6, 6];
 
-    if (shela > allPairs.length || scoreT[0] >= 3 || scoreT[1] >= 3) {
-      setTimeout(finish, 1500);
+    const gameOver = scoreT[0] >= 3 || scoreT[1] >= 3;
+    setTimeout(() => showScore(gameOver), 1500);
+  }
+
+  // ─── ShowScore overlay (VB6 ScoreQ / BackS.jpg panel) ───────────────────────
+  function showScore(gameOver) {
+    gameRunning          = false;
+    showScoreOverlay     = true;
+    scoreOverlayGameOver = gameOver;
+    clearInterval(tickId); tickId = null;
+    render();
+    canvasClickHandler = e => handleScoreClick(e);
+    canvas.addEventListener('click', canvasClickHandler);
+  }
+
+  function hideScoreOverlay() {
+    showScoreOverlay = false;
+    if (canvasClickHandler) {
+      canvas.removeEventListener('click', canvasClickHandler);
+      canvasClickHandler = null;
+    }
+  }
+
+  function restartRound() {
+    allPairs      = shuffle([...unit.questions]);
+    shela         = 1;
+    ttPosR        = TT_START;
+    charStates    = [3, 2];
+    charAni       = [0, 0];
+    charPy        = [IND_Y, IND_Y];
+    charPositions = [120, 520];
+    tor           = 1;
+    realScore     = [0, 0];
+    showQ         = false;
+    ttVis         = false;
+    loaHC         = [6, 6];
+    loaHT         = [6, 6];
+    loaHT[tor]    = 0;
+    gameRunning   = true;
+    tickId        = setInterval(tick, TICK_MS);
+  }
+
+  function handleScoreClick(e) {
+    const rect   = canvas.getBoundingClientRect();
+    const scaleX = canvas.width  / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const cx     = (e.clientX - rect.left) * scaleX;
+    const cy     = (e.clientY - rect.top)  * scaleY;
+    if (cx >= SCOREQ_EX_X && cx < SCOREQ_EX_X + SCOREQ_EX_W &&
+        cy >= SCOREQ_EX_Y && cy < SCOREQ_EX_Y + SCOREQ_EX_H) {
+      hideScoreOverlay();
+      finish();
+      return;
+    }
+    if (!scoreOverlayGameOver &&
+        cx >= SCOREQ_RE_X && cx < SCOREQ_RE_X + SCOREQ_RE_W &&
+        cy >= SCOREQ_RE_Y && cy < SCOREQ_RE_Y + SCOREQ_RE_H) {
+      hideScoreOverlay();
+      restartRound();
+    }
+  }
+
+  function renderScoreOverlay() {
+    // Draw BackS.jpg panel at ScoreQ position
+    if (scoreImgs.backS) {
+      ctx.drawImage(scoreImgs.backS, SCOREQ_X, SCOREQ_Y, SCOREQ_W, SCOREQ_H);
     } else {
-      setTimeout(() => {
-        ttPosR        = TT_START;
-        charStates    = [3, 2];
-        charAni       = [0, 0];
-        charPy        = [IND_Y, IND_Y];
-        charPositions = [120, 520];
-        tor   = 1;        // VB6 Restart: always start with Tor=1
-        realScore = [0, 0];
-        loaHC = [6, 6];
-        loaHT = [6, 6];
-        loaHT[tor] = 0;
-      }, 1200);
+      ctx.fillStyle = '#003366';
+      ctx.fillRect(SCOREQ_X, SCOREQ_Y, SCOREQ_W, SCOREQ_H);
+      ctx.strokeStyle = '#88aaff'; ctx.lineWidth = 2;
+      ctx.strokeRect(SCOREQ_X, SCOREQ_Y, SCOREQ_W, SCOREQ_H);
+    }
+    // Score numbers (Myname(0/1) = ScoreT values, VB6 Font=72pt)
+    ctx.font = 'bold 80px "Frank Ruhl Libre", serif';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = 'rgb(255,80,80)';
+    ctx.fillText(String(scoreT[0]), SCOREQ_S0_X, SCOREQ_S_BASELINE);
+    ctx.fillStyle = 'rgb(80,80,255)';
+    ctx.fillText(String(scoreT[1]), SCOREQ_S1_X, SCOREQ_S_BASELINE);
+    // CafEx button
+    if (scoreImgs.ex1) {
+      ctx.drawImage(scoreImgs.ex1, SCOREQ_EX_X, SCOREQ_EX_Y, SCOREQ_EX_W, SCOREQ_EX_H);
+    }
+    // CafRe button — hidden when game is over
+    if (!scoreOverlayGameOver && scoreImgs.re1) {
+      ctx.drawImage(scoreImgs.re1, SCOREQ_RE_X, SCOREQ_RE_Y, SCOREQ_RE_W, SCOREQ_RE_H);
     }
   }
 
@@ -514,6 +609,7 @@ const GameKrav = (() => {
     renderPanels();
     renderIndicator();
     renderScores();
+    if (showScoreOverlay) renderScoreOverlay();
   }
 
   function renderCharacters() {
@@ -572,8 +668,6 @@ const GameKrav = (() => {
 
   function renderIndicator() {
     if (ttVis) return;
-    // Advance indicator animation frame
-    indAni++;
     const frames = tarSpr[1];
     if (frames && frames.length) {
       if (indAni >= frames.length) indAni = 0;
@@ -596,13 +690,13 @@ const GameKrav = (() => {
 
     if (!gameRunning) return;
 
-    // VB6 Sname(2/3) — time-pressure score for each player (0-100)
-    // Sname(Tor+2): player 0 → Sname(2) at x=474; player 1 → Sname(3) at x=273
-    ctx.font = 'bold 22px "Frank Ruhl Libre", serif';
-    ctx.textAlign = 'left';
-    ctx.fillStyle = 'rgb(250,250,200)';
-    ctx.fillText(Math.floor(realScore[0]), SCORE_X[0], SCORE_Y);
-    ctx.fillText(Math.floor(realScore[1]), SCORE_X[1], SCORE_Y);
+    // VB6 Sname(Tor+2) — only the active player's time-pressure score is shown
+    if (showQ) {
+      ctx.font = 'bold 22px "Frank Ruhl Libre", serif';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = 'rgb(250,250,200)';
+      ctx.fillText(Math.floor(realScore[tor]), SCORE_X[tor], SCORE_Y);
+    }
 
     // Active player indicator
     ctx.textAlign = 'center';

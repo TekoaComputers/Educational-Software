@@ -28,6 +28,7 @@ const App = (() => {
   let glistUnitId = null;
   let glistUnit = null;
   let glistUnitName = null;
+  let glistKeyHandler = null;  // keyboard handler registered by openGList, removed by appGList_exit
 
   // ─── Initialization ───────────────────────────────────────────────────────
 
@@ -62,7 +63,7 @@ const App = (() => {
 
     // Button hover states using data-norm / data-hover / data-down attributes
     // Covers login (.lbtn), units (.ubtn), and game (.gbtn) buttons
-    document.querySelectorAll('.lbtn, .ubtn, .gbtn, .sbtn').forEach(btn => {
+    document.querySelectorAll('.lbtn, .ubtn, .gbtn, .sbtn, .mmbtn').forEach(btn => {
       const norm  = btn.dataset.norm;
       const hover = btn.dataset.hover;
       const down  = btn.dataset.down;
@@ -97,6 +98,7 @@ const App = (() => {
     resizeViewport('score-viewport');
     resizeViewport('war-vp');
     resizeViewport('krav-vp');
+    resizeViewport('usermgmt-viewport');
   }
 
   function resizeLoginViewport() { resizeViewport('login-viewport'); }
@@ -115,12 +117,13 @@ const App = (() => {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     const el = document.getElementById(`screen-${name}`);
     if (el) el.classList.add('active');
-    if (name === 'login') resizeViewport('login-viewport');
-    if (name === 'units') resizeViewport('units-viewport');
-    if (name === 'game')  resizeViewport('game-viewport');
-    if (name === 'score') resizeViewport('score-viewport');
-    if (name === 'war')   resizeViewport('war-vp');
-    if (name === 'krav')  resizeViewport('krav-vp');
+    if (name === 'login')    resizeViewport('login-viewport');
+    if (name === 'units')    resizeViewport('units-viewport');
+    if (name === 'game')     resizeViewport('game-viewport');
+    if (name === 'score')    resizeViewport('score-viewport');
+    if (name === 'war')      resizeViewport('war-vp');
+    if (name === 'krav')     resizeViewport('krav-vp');
+    if (name === 'usermgmt') resizeViewport('usermgmt-viewport');
   }
 
   // ─── Login Screen ─────────────────────────────────────────────────────────
@@ -145,12 +148,10 @@ const App = (() => {
       item.appendChild(nameSpan);
       item.appendChild(delBtn);
 
-      item.addEventListener('click', e => {
+      item.addEventListener('click', async e => {
         if (e.target === delBtn) {
-          if (confirm(`למחוק את "${name}"?`)) {
-            Users.remove(name);
-            renderLogin();
-          }
+          const ok = await showTMsg(`למחוק את "${name}"?`, true);
+          if (ok) { Users.remove(name); renderLogin(); }
           return;
         }
         const input = document.getElementById('login-input');
@@ -174,11 +175,11 @@ const App = (() => {
     });
   }
 
-  function loginEnter(name) {
+  async function loginEnter(name) {
     name = (name || '').trim();
     if (!name) return;
     if (!Users.list().includes(name)) {
-      try { Users.create(name); } catch(e) { alert(e.message); return; }
+      try { Users.create(name); } catch(e) { await showTMsg(e.message); return; }
     }
     currentUser = name;
     document.getElementById('login-input').value = '';
@@ -213,13 +214,196 @@ const App = (() => {
   }
 
   function appLogin_exit() {
-    if (!confirm('לצאת מהתוכנית?')) return;
+    const overlay = document.getElementById('login-exit-overlay');
+    if (overlay) overlay.style.display = 'flex';
+  }
+
+  function appLoginExit_yes() {
     if (document.referrer) {
       window.location.href = document.referrer;
     } else {
       window.close();
     }
   }
+
+  function appLoginExit_no() {
+    const overlay = document.getElementById('login-exit-overlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+
+  function appLogin_ques() {
+    AudioMgr.play('./assets/menu/KNISA.wav');
+  }
+
+  function appLogin_help() {
+    const overlay = document.getElementById('login-help-overlay');
+    const vid = document.getElementById('login-help-video');
+    if (!overlay) return;
+    overlay.style.display = 'block';
+    if (vid) {
+      vid.currentTime = 0;
+      vid.play().catch(() => {});
+      vid.onended = () => appLogin_help_close();
+    }
+  }
+
+  function appLogin_help_close() {
+    const overlay = document.getElementById('login-help-overlay');
+    const vid = document.getElementById('login-help-video');
+    if (vid) { vid.pause(); vid.onended = null; }
+    if (overlay) overlay.style.display = 'none';
+  }
+
+  function appLogin_manual() {
+    const overlay = document.getElementById('login-manual-overlay');
+    if (overlay) overlay.style.display = 'flex';
+  }
+
+  function appLogin_manual_close() {
+    const overlay = document.getElementById('login-manual-overlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+
+  async function checkAdminPass() {
+    const stored = localStorage.getItem('tirgolit_admin_pass') ?? '777';
+    if (!stored) return true;
+    const entered = await showTInput('הכנס סיסמת מורה', '');
+    if (entered === null) return false;
+    if (entered.trim() !== stored) { await showTMsg('סיסמא שגויה'); return false; }
+    return true;
+  }
+
+  async function appAdmin_unm() {
+    if (!await checkAdminPass()) return;
+    if (!Users.list().includes('מורה')) {
+      try { Users.create('מורה'); } catch(e) {}
+    }
+    loginEnter('מורה');
+  }
+
+  async function appAdmin_usm() {
+    if (!await checkAdminPass()) return;
+    showUserMgmt();
+  }
+
+  // ─── User Management Screen (VB6 UserFrm) ────────────────────────────────
+
+  function showUserMgmt() {
+    showScreen('usermgmt');
+    renderUserMgmt();
+  }
+
+  function renderUserMgmt() {
+    const listEl = document.getElementById('um-list');
+    const scoreEl = document.getElementById('um-slist');
+    if (!listEl) return;
+    listEl.innerHTML = '';
+    if (scoreEl) scoreEl.innerHTML = '';
+
+    Users.list().forEach(name => {
+      const item = document.createElement('div');
+      item.className = 'um-uitem';
+      item.dataset.name = name;
+      item.textContent = name;
+      item.addEventListener('click', () => {
+        listEl.querySelectorAll('.um-uitem').forEach(el => el.classList.remove('active'));
+        item.classList.add('active');
+      });
+      listEl.appendChild(item);
+
+      if (scoreEl) {
+        const scores = Object.entries(
+          JSON.parse(localStorage.getItem('tirgolit_users') || '{}')[name]?.scores || {}
+        ).filter(([k, v]) => !k.includes('_s') && v > 0);
+        const count = scores.length;
+        const avg = count > 0 ? Math.round(scores.reduce((s, [, v]) => s + v, 0) / count) : 0;
+        const si = document.createElement('div');
+        si.className = 'um-sitem';
+        if (avg > 0) {
+          si.textContent = avg + ' (' + count + ')';
+          si.style.color = avg >= 86 ? 'rgb(0,100,0)' : avg >= 67 ? 'rgb(100,100,0)' : 'rgb(100,0,0)';
+        }
+        scoreEl.appendChild(si);
+      }
+    });
+  }
+
+  function getSelectedUser() {
+    const el = document.querySelector('#um-list .um-uitem.active');
+    return el ? el.dataset.name : null;
+  }
+
+  function appUserMgmt_back() {
+    renderLogin();
+    showScreen('login');
+  }
+
+  async function appUserMgmt_add() {
+    const name = await showTInput('הכנס שם תלמיד', '');
+    if (name === null || !name.trim()) return;
+    try {
+      Users.create(name.trim());
+      renderUserMgmt();
+    } catch(e) {
+      await showTMsg(e.message);
+    }
+  }
+
+  async function appUserMgmt_delete() {
+    const name = getSelectedUser();
+    if (!name) { await showTMsg('בחר תלמיד מהרשימה'); return; }
+    const ok = await showTMsg(`למחוק את "${name}"?`, true);
+    if (!ok) return;
+    Users.remove(name);
+    renderUserMgmt();
+  }
+
+  async function appUserMgmt_resetScores() {
+    const name = getSelectedUser();
+    if (!name) { await showTMsg('בחר תלמיד מהרשימה'); return; }
+    const ok = await showTMsg(`למחוק את תוצאות "${name}"?`, true);
+    if (!ok) return;
+    Users.clearScores(name);
+    renderUserMgmt();
+  }
+
+  async function appUserMgmt_changePass() {
+    const newPass = await showTInput('הכנס סיסמה חדשה', '');
+    if (newPass === null) return;
+    localStorage.setItem('tirgolit_admin_pass', newPass.trim());
+    await showTMsg('הסיסמה עודכנה');
+  }
+
+  function appUserMgmt_selectAll() {
+    document.querySelectorAll('#um-list .um-uitem').forEach(el => el.classList.add('active'));
+  }
+
+  function appUserMgmt_clearAll() {
+    document.querySelectorAll('#um-list .um-uitem').forEach(el => el.classList.remove('active'));
+  }
+
+  async function appUserMgmt_detail() {
+    const name = getSelectedUser();
+    if (!name) { await showTMsg('בחר תלמיד מהרשימה'); return; }
+    const data = JSON.parse(localStorage.getItem('tirgolit_users') || '{}');
+    const scores = Object.entries(data[name]?.scores || {})
+      .filter(([k, v]) => !k.includes('_s') && v > 0)
+      .sort(([, a], [, b]) => b - a);
+    if (!scores.length) { await showTMsg('אין נתוני ציונים עבור ' + name); return; }
+    const avg = Math.round(scores.reduce((s, [, v]) => s + v, 0) / scores.length);
+    await showTMsg(name + '\nממוצע: ' + avg + ' (' + scores.length + ' שיעורים)');
+  }
+
+  function appUserMgmt_ques() {
+    const overlay = document.getElementById('um-minhal-overlay');
+    if (overlay) overlay.style.display = 'flex';
+  }
+
+  function appUserMgmt_ques_close() {
+    const overlay = document.getElementById('um-minhal-overlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+
 
   // ─── Unit Selection Screen ────────────────────────────────────────────────
 
@@ -229,6 +413,9 @@ const App = (() => {
     uname.classList.remove('u-username-anim');
     void uname.offsetWidth; // force reflow to restart animation
     uname.classList.add('u-username-anim');
+
+    const editp = document.getElementById('u-editp');
+    if (editp) editp.style.display = currentUser === 'מורה' ? 'block' : 'none';
 
     showScreen('units');
     selectedUnitId = null;
@@ -242,6 +429,17 @@ const App = (() => {
       const el = document.getElementById(`u-tab-${i}`);
       if (el) el.classList.toggle('selected', i === tabIdx);
     }
+    // VB6 BtnRama_Click: Distor(2) and Distor(3) only enabled on tab 3 (שיעורים נוספים)
+    const editp = document.getElementById('u-editp');
+    if (editp) {
+      editp.classList.toggle('tab3', tabIdx === 3);
+      const onTab3 = tabIdx === 3;
+      ['u-ep-delete', 'u-ep-rename', 'u-ep-edit'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('disabled', !onTab3);
+      });
+    }
+    clearTip();
     renderUnitList(tabIdx);
   }
 
@@ -262,10 +460,15 @@ const App = (() => {
       });
     }
 
-    levelItems.forEach(({ uid, name }, i) => {
+    const hiddenUnits = JSON.parse(localStorage.getItem('tirgolit_hidden_units') || '{}');
+    const customNames = JSON.parse(localStorage.getItem('tirgolit_unit_names') || '{}');
+    let rowNum = 0;
+    levelItems.forEach(({ uid, name }) => {
+      if (hiddenUnits[String(uid)]) return;
       const unit = UNITS_DATA.units[String(uid)];
       if (!unit) return;
-      // VB6 UnitFrm: IntUnScore = avg of top-2 slot scores; IntScColor = same 3-tier thresholds as GList
+      rowNum++;
+      const displayName = customNames[String(uid)] || name;
       const score = Users.getTopTwoAvg(currentUser, uid);
 
       const row = document.createElement('div');
@@ -279,7 +482,7 @@ const App = (() => {
 
       const nameEl = document.createElement('div');
       nameEl.className = 'u-name-cell';
-      nameEl.textContent = (i + 1) + ') ' + name;
+      nameEl.textContent = rowNum + ') ' + displayName;
 
       row.appendChild(scoreEl);
       row.appendChild(nameEl);
@@ -288,9 +491,10 @@ const App = (() => {
         listEl.querySelectorAll('.u-row.u-row-sel').forEach(r => r.classList.remove('u-row-sel'));
         row.classList.add('u-row-sel');
         selectedUnitId = uid;
+        showTip(uid);
       });
 
-      row.addEventListener('dblclick', () => openGList(uid, unit, name));
+      row.addEventListener('dblclick', () => openGList(uid, unit, displayName));
 
       listEl.appendChild(row);
     });
@@ -304,14 +508,78 @@ const App = (() => {
     const uid = selectedUnitId;
     const unit = UNITS_DATA.units[String(uid)];
     if (!unit) return;
+    const customNames = JSON.parse(localStorage.getItem('tirgolit_unit_names') || '{}');
     const level = UNITS_DATA.levels[selectedTabIndex];
-    const name = level?.unitNames?.[String(uid)] || unit.title;
+    const name = customNames[String(uid)] || level?.unitNames?.[String(uid)] || unit.title;
     openGList(uid, unit, name);
   }
 
+  function showTip(uid) {
+    const tipEl = document.getElementById('u-tip');
+    if (!tipEl) return;
+    const tips = (typeof UNIT_TIPS !== 'undefined' && UNIT_TIPS[String(uid)]) || [];
+    tipEl.innerHTML = tips.map(t => `<span>${t}</span>`).join('');
+  }
+
+  function clearTip() {
+    const tipEl = document.getElementById('u-tip');
+    if (tipEl) tipEl.innerHTML = '';
+  }
+
+  async function appUnits_rename() {
+    if (!selectedUnitId) { await showTMsg('בחר יחידה מהרשימה'); return; }
+    const customNames = JSON.parse(localStorage.getItem('tirgolit_unit_names') || '{}');
+    const level = UNITS_DATA.levels[selectedTabIndex];
+    const current = customNames[String(selectedUnitId)] || level?.unitNames?.[String(selectedUnitId)] || '';
+    const newName = await showTInput('שינוי שם השיעור:', current);
+    if (newName === null || !newName.trim()) return;
+    customNames[String(selectedUnitId)] = newName.trim();
+    localStorage.setItem('tirgolit_unit_names', JSON.stringify(customNames));
+    renderUnitList(selectedTabIndex);
+  }
+
+  async function appUnits_deleteUnit() {
+    if (!selectedUnitId) { await showTMsg('בחר יחידה מהרשימה'); return; }
+    const level = UNITS_DATA.levels[selectedTabIndex];
+    const name = level?.unitNames?.[String(selectedUnitId)] || String(selectedUnitId);
+    const ok = await showTMsg(`למחוק את השיעור "${name}"?`, true);
+    if (!ok) return;
+    const hidden = JSON.parse(localStorage.getItem('tirgolit_hidden_units') || '{}');
+    hidden[String(selectedUnitId)] = true;
+    localStorage.setItem('tirgolit_hidden_units', JSON.stringify(hidden));
+    selectedUnitId = null;
+    clearTip();
+    renderUnitList(selectedTabIndex);
+  }
+
+  async function appUnits_editLesson() {
+    await showTMsg('עורך השיעורים אינו זמין בגרסת האינטרנט');
+  }
+
+  async function appUnits_newLesson() {
+    await showTMsg('עורך השיעורים אינו זמין בגרסת האינטרנט');
+  }
+
+  async function appUnits_editDict() {
+    await showTMsg('עורך המאגר אינו זמין בגרסת האינטרנט');
+  }
+
+  function appUnits_lamoreh() {
+    const overlay = document.getElementById('units-lamoreh-overlay');
+    if (overlay) overlay.style.display = 'flex';
+  }
+
+  function appUnits_lamoreh_close() {
+    const overlay = document.getElementById('units-lamoreh-overlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+
   function openGList(uid, unit, unitName) {
-    glistUnitId  = uid;
-    glistUnit    = unit;
+    // Remove any stale keyboard handler from a previous call
+    if (glistKeyHandler) { window.removeEventListener('keydown', glistKeyHandler); glistKeyHandler = null; }
+
+    glistUnitId   = uid;
+    glistUnit     = unit;
     glistUnitName = unitName;
 
     const screen = document.getElementById('glist-screen');
@@ -334,7 +602,6 @@ const App = (() => {
     const scoreEl = document.getElementById('glist-bestscore');
     if (scoreEl) {
       scoreEl.textContent = (bestScore > 0 ? bestScore : '') + ' : ציון מוביל';
-      // VB6 TheS color: Case 0=blue, 1-66=red, 67-85=yellow, 86+=green (first-match thresholds)
       scoreEl.style.color = bestScore >= 86 ? 'rgb(0,100,0)'
                           : bestScore >= 67 ? 'rgb(100,100,0)'
                           : bestScore > 0   ? 'rgb(100,0,0)'
@@ -342,38 +609,36 @@ const App = (() => {
     }
 
     // Badges and score numbers for rows 0-5
-    // VB6 Form_Paint thresholds (first-match): ≤66=Zeva3/red, 67-85=Zeva2/yellow, ≥86=Zeva1/green
     for (let i = 0; i < 6; i++) {
       const sc      = Users.getSlotScore(currentUser, uid, i);
       const badgeEl = document.getElementById('glist-badge-' + i);
       const numEl   = document.getElementById('glist-snum-' + i);
       const srcY    = BADGE_SRC_Y[i];
-
       if (sc > 0) {
-        const zevaNum = sc >= 86 ? 1 : sc >= 67 ? 2 : 3; // 1=Zeva(0)/green, 3=Zeva(2)/red
+        const zevaNum = sc >= 86 ? 1 : sc >= 67 ? 2 : 3;
         badgeEl.style.backgroundImage    = `url('assets/menu/Zeva${zevaNum}.jpg')`;
         badgeEl.style.backgroundPosition = `0px -${srcY}px`;
         badgeEl.style.display = 'block';
-        numEl.textContent   = sc;
-        numEl.style.color   = sc >= 86 ? 'rgb(0,100,0)' : sc >= 67 ? 'rgb(100,100,0)' : 'rgb(100,0,0)';
+        numEl.textContent  = sc;
+        numEl.style.color  = sc >= 86 ? 'rgb(0,100,0)' : sc >= 67 ? 'rgb(100,100,0)' : 'rgb(100,0,0)';
         numEl.style.display = 'block';
       } else {
         badgeEl.style.backgroundImage = '';
         badgeEl.style.display = 'none';
-        numEl.textContent   = '';
+        numEl.textContent  = '';
         numEl.style.display = 'none';
       }
     }
 
-    // Reset icon (VB6 Form_Load: icon0.bmp initially)
     const iconEl = document.getElementById('glist-icon');
     if (iconEl) iconEl.src = 'assets/menu/Icon0.bmp';
 
     showScreen('units');
     screen.style.display = 'block';
 
-    // Persistent selection state (-1 = nothing clicked yet)
-    let rlast = -1;
+    // ── Row highlight state ───────────────────────────────────────────────────
+    let hoverRow   = -1;   // currently highlighted row (mouse or keyboard)
+    let pulseTimer = null; // VB6 Timer1 (70ms) settle pulse
     const hlEls = [];
 
     // VB6 BitBlt: rows 0-5 dest x=480 src x=103; row 6 dest x=377 src x=0; srcY=Top-78
@@ -385,45 +650,87 @@ const App = (() => {
       const srcY = top - 78;
       const img  = type === 'hover'    ? "url('assets/menu/list3.jpg')"
                  : type === 'selected' ? "url('assets/menu/list2.jpg')"
+                 : type === 'leaving'  ? "url('assets/menu/list1.jpg')"
                  : '';
       hlEl.style.backgroundImage    = img;
       hlEl.style.backgroundPosition = img ? `${-srcX}px ${-srcY}px` : '';
     }
 
-    // Cache highlight elements and wire row click/hover
+    // VB6 GameGo_MouseMove + Timer1: immediate list3 → 70ms settle → list2;
+    // previous row flashes list1 then clears (VB6 Eggp2 flash).
+    function setHover(i) {
+      if (pulseTimer) { clearTimeout(pulseTimer); pulseTimer = null; }
+      const prev = hoverRow;
+      hoverRow = i;
+
+      if (prev !== -1 && prev !== i) {
+        applyRowBg(prev, 'leaving');
+        setTimeout(() => { if (hoverRow !== prev) applyRowBg(prev, ''); }, 70);
+      }
+
+      if (i === -1) { if (iconEl) iconEl.src = 'assets/menu/Icon0.bmp'; return; }
+
+      applyRowBg(i, 'hover');
+      if (iconEl) iconEl.src = `assets/menu/Icon${i + 1}.bmp`;
+      pulseTimer = setTimeout(() => {
+        pulseTimer = null;
+        if (hoverRow === i) applyRowBg(i, 'selected');
+      }, 70);
+    }
+
+    // Cache highlight elements and wire row events
     GLIST_ROW_TOPS.forEach((rowTop, i) => {
       const rowEl = document.getElementById('glist-row-' + i);
       if (!rowEl) return;
       const clone = rowEl.cloneNode(true);
       rowEl.parentNode.replaceChild(clone, rowEl);
-
       hlEls[i] = document.getElementById('glist-hl-' + i);
 
-      clone.addEventListener('click', () => {
-        applyRowBg(rlast, '');
-        rlast = i;
-        applyRowBg(i, 'selected');
-        appGList_select(i);
-      });
-      clone.addEventListener('mouseenter', () => {
-        if (rlast !== -1) applyRowBg(rlast, '');
-        applyRowBg(i, 'hover');
-        if (iconEl) iconEl.src = `assets/menu/Icon${i + 1}.bmp`;
-      });
-      clone.addEventListener('mouseleave', () => {
-        applyRowBg(i, '');
-        if (rlast !== -1) applyRowBg(rlast, 'selected');
-        if (iconEl) iconEl.src = 'assets/menu/Icon0.bmp';
-      });
+      clone.addEventListener('click',      () => appGList_select(i));
+      clone.addEventListener('mouseenter', () => setHover(i));
+      clone.addEventListener('mouseleave', () => setHover(-1));
+      // VB6 GameGo_MouseDown/Up: swap between pressed (Yadq) and idle (Yadq2) cursor
+      clone.addEventListener('mousedown',  () => { clone.style.cursor = "url('assets/menu/Yadq.cur'), pointer"; });
+      clone.addEventListener('mouseup',    () => { clone.style.cursor = "url('assets/menu/Yadq2.cur'), pointer"; });
+      clone.addEventListener('mouseleave', () => { clone.style.cursor = "url('assets/menu/Yadq2.cur'), pointer"; }, true);
     });
 
-
+    // ── Keyboard navigation (VB6 Form_KeyDown / Form_KeyUp) ──────────────────
+    glistKeyHandler = (e) => {
+      if (!screen || screen.style.display === 'none') return;
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setHover(hoverRow <= 0 ? 6 : hoverRow - 1);
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setHover(hoverRow < 0 || hoverRow >= 6 ? 0 : hoverRow + 1);
+      } else if (e.key === 'Enter' && hoverRow !== -1) {
+        appGList_select(hoverRow);
+      } else if (e.key === 'F1') {
+        e.preventDefault();
+        appGList_ques();
+      } else if ((e.key === 'Q' || e.key === 'q') && e.shiftKey) {
+        // VB6 Form_KeyUp debug: randomise slot scores 1-3 (range 40-99)
+        for (let s = 1; s <= 3; s++) {
+          Users.setSlotScore(currentUser, glistUnitId, s, Math.floor(Math.random() * 60) + 40);
+        }
+        window.removeEventListener('keydown', glistKeyHandler);
+        glistKeyHandler = null;
+        openGList(glistUnitId, glistUnit, glistUnitName);
+      }
+    };
+    window.addEventListener('keydown', glistKeyHandler);
   }
 
   function appGList_exit() {
+    if (glistKeyHandler) { window.removeEventListener('keydown', glistKeyHandler); glistKeyHandler = null; }
     const screen = document.getElementById('glist-screen');
     if (screen) screen.style.display = 'none';
     renderUnitList(selectedTabIndex);
+  }
+
+  function appGList_ques() {
+    AudioMgr.play('./assets/menu/glist.wav');
   }
 
   function appGList_select(slot) {
@@ -447,6 +754,7 @@ const App = (() => {
   // ─── Game Screen ──────────────────────────────────────────────────────────
 
   function startGame(uid, unit, kind, bg, slot) {
+    lastGameStart = () => startGame(uid, unit, kind, bg, slot);
     currentUnitId = uid;
     currentUnit   = unit;
     gameKind      = kind;
@@ -474,6 +782,7 @@ const App = (() => {
   // ─── Tirgol2 (sequential typing, rows 1 and 2) ───────────────────────────
 
   function startGameT2(uid, unit, kind, slot) {
+    lastGameStart = () => startGameT2(uid, unit, kind, slot);
     currentUnitId = uid;
     currentUnit   = unit;
     gameKind      = kind;
@@ -509,9 +818,48 @@ const App = (() => {
     }
   }
 
+  // ─── MMenu pause menu (VB6 MMenu custom control) ─────────────────────────
+
+  let lastGameStart = null;
+
+  function mmenuHide() {
+    ['mmenu-game', 'mmenu-war', 'mmenu-krav'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+  }
+
+  function appGame_mmenu_show() {
+    const active = document.querySelector('.screen.active');
+    if (!active) return;
+    const map = { 'screen-game': 'mmenu-game', 'screen-war': 'mmenu-war', 'screen-krav': 'mmenu-krav' };
+    const el = document.getElementById(map[active.id]);
+    if (el) el.style.display = 'block';
+  }
+
+  function appGame_mmenu_continue() {
+    mmenuHide();
+  }
+
+  function appGame_mmenu_exit() {
+    mmenuHide();
+    exitGame();
+  }
+
+  function appGame_mmenu_restart() {
+    mmenuHide();
+    if (typeof Game    !== 'undefined') try { Game.destroy();     } catch(e) {}
+    if (typeof GameT2  !== 'undefined') try { GameT2.destroy();   } catch(e) {}
+    if (typeof GameT3  !== 'undefined') try { GameT3.destroy();   } catch(e) {}
+    if (typeof GameWar !== 'undefined') try { GameWar.destroy();  } catch(e) {}
+    if (typeof GameKrav!== 'undefined') try { GameKrav.destroy(); } catch(e) {}
+    if (lastGameStart) lastGameStart();
+  }
+
   // ─── Tirgol3 (GameKind=1, row 4) ─────────────────────────────────────────
 
   function startGameT3(uid, unit, slot) {
+    lastGameStart = () => startGameT3(uid, unit, slot);
     currentUnitId = uid;
     currentUnit   = unit;
     gameKind      = 1;
@@ -534,6 +882,7 @@ const App = (() => {
   // ─── WarG (row 5) ──────────────────────────────────────────────────────────
 
   function startGameWar(uid, unit, slot) {
+    lastGameStart = () => startGameWar(uid, unit, slot);
     currentUnitId = uid;
     currentUnit   = unit;
     gameKind      = 1;
@@ -550,6 +899,7 @@ const App = (() => {
   // ─── Krav (row 6) ──────────────────────────────────────────────────────────
 
   function startGameKrav(uid, unit, slot) {
+    lastGameStart = () => startGameKrav(uid, unit, slot);
     currentUnitId = uid;
     currentUnit   = unit;
     gameKind      = 1;
@@ -755,18 +1105,116 @@ const App = (() => {
     }
   }
 
+  // ─── TMsg/TInput dialog (VB6 MsgForm.frm) ────────────────────────────────
+
+  let _tmsgResolve = null;
+
+  function showTMsg(text, hasCancel = false) {
+    return new Promise(resolve => {
+      _tmsgResolve = resolve;
+      const overlay   = document.getElementById('tmsg-overlay');
+      const textEl    = document.getElementById('tmsg-text');
+      const inputEl   = document.getElementById('tmsg-input');
+      const okBtn     = document.getElementById('tmsg-ok');
+      const cancelBtn = document.getElementById('tmsg-cancel');
+      textEl.textContent = text;
+      inputEl.style.display = 'none';
+      if (hasCancel) {
+        okBtn.style.left     = '168px';
+        okBtn.style.top      = '117px';
+        cancelBtn.style.left = '30px';
+        cancelBtn.style.top  = '117px';
+        cancelBtn.style.display = 'block';
+      } else {
+        okBtn.style.left = '100px';
+        okBtn.style.top  = '132px';
+        cancelBtn.style.display = 'none';
+      }
+      overlay.style.display = 'flex';
+    });
+  }
+
+  function showTInput(text, defaultVal) {
+    return new Promise(resolve => {
+      _tmsgResolve = resolve;
+      const overlay   = document.getElementById('tmsg-overlay');
+      const textEl    = document.getElementById('tmsg-text');
+      const inputEl   = document.getElementById('tmsg-input');
+      const okBtn     = document.getElementById('tmsg-ok');
+      const cancelBtn = document.getElementById('tmsg-cancel');
+      textEl.textContent = text;
+      inputEl.style.display = 'block';
+      inputEl.value = defaultVal || '';
+      okBtn.style.left     = '168px';
+      okBtn.style.top      = '132px';
+      cancelBtn.style.left = '30px';
+      cancelBtn.style.top  = '132px';
+      cancelBtn.style.display = 'block';
+      overlay.style.display = 'flex';
+      setTimeout(() => inputEl.focus(), 10);
+    });
+  }
+
+  function _tmsgClose(result) {
+    const overlay = document.getElementById('tmsg-overlay');
+    if (overlay) overlay.style.display = 'none';
+    if (_tmsgResolve) { _tmsgResolve(result); _tmsgResolve = null; }
+  }
+
+  function appTMsg_ok() {
+    const inputEl = document.getElementById('tmsg-input');
+    if (inputEl && inputEl.style.display !== 'none') {
+      _tmsgClose(inputEl.value);
+    } else {
+      _tmsgClose(true);
+    }
+  }
+
+  function appTMsg_cancel() { _tmsgClose(null); }
+
   // ─── Key handlers ──────────────────────────────────────────────────────────
 
   document.addEventListener('keydown', e => {
+    const tmsg = document.getElementById('tmsg-overlay');
+    if (tmsg && tmsg.style.display !== 'none') {
+      if (e.key === 'Escape') { e.preventDefault(); appTMsg_cancel(); }
+      else if (e.key === 'Enter') { e.preventDefault(); appTMsg_ok(); }
+      return;
+    }
+    if (e.key === 'Enter') {
+      const active = document.querySelector('.screen.active');
+      if (active?.id === 'screen-units') {
+        const glist = document.getElementById('glist-screen');
+        if (!glist || glist.style.display === 'none') { playSelected(); return; }
+      }
+    }
     if (e.key === 'Escape') {
+      const ulamoreh = document.getElementById('units-lamoreh-overlay');
+      if (ulamoreh && ulamoreh.style.display !== 'none') { appUnits_lamoreh_close(); return; }
+      const manual = document.getElementById('login-manual-overlay');
+      if (manual && manual.style.display !== 'none') { appLogin_manual_close(); return; }
+      const help = document.getElementById('login-help-overlay');
+      if (help && help.style.display !== 'none') { appLogin_help_close(); return; }
+      const exitDlg = document.getElementById('login-exit-overlay');
+      if (exitDlg && exitDlg.style.display !== 'none') { appLoginExit_no(); return; }
+      const minhal = document.getElementById('um-minhal-overlay');
+      if (minhal && minhal.style.display !== 'none') { appUserMgmt_ques_close(); return; }
       const glist = document.getElementById('glist-screen');
       if (glist && glist.style.display !== 'none') { appGList_exit(); return; }
       const active = document.querySelector('.screen.active');
-      if (active?.id === 'screen-game')  exitGame();
-      else if (active?.id === 'screen-war')  exitGame();
-      else if (active?.id === 'screen-krav') exitGame();
-      else if (active?.id === 'screen-units') { renderLogin(); showScreen('login'); }
-      else if (active?.id === 'screen-score') backToGList();
+      // In game screens: Esc shows MMenu (like VB6 Form_KeyUp → goOut_Click → MMenu1.Visible=True)
+      if (active?.id === 'screen-game' || active?.id === 'screen-war' || active?.id === 'screen-krav') {
+        const mmenuVisible = ['mmenu-game','mmenu-war','mmenu-krav'].some(id => {
+          const el = document.getElementById(id);
+          return el && el.style.display !== 'none';
+        });
+        if (mmenuVisible) appGame_mmenu_continue(); else appGame_mmenu_show();
+        return;
+      }
+      if (active?.id === 'screen-login')    appLogin_exit();
+      else if (active?.id === 'screen-units')    { renderLogin(); showScreen('login'); }
+      else if (active?.id === 'screen-score')    backToGList();
+      else if (active?.id === 'screen-usermgmt') appUserMgmt_back();
     }
   });
 
@@ -825,6 +1273,10 @@ const App = (() => {
     });
   }
 
+  function appUnits_ques() {
+    AudioMgr.play('./assets/menu/yehida.wav');
+  }
+
   function appUnits_scrollUp() {
     const list = document.getElementById('u-list');
     if (list) { list.scrollTop -= 26; updateScrollThumb(); }
@@ -838,18 +1290,52 @@ const App = (() => {
   // Expose event handlers to HTML onclick
   window.appLogin_start = appLogin_start;
   window.appLogin_exit = appLogin_exit;
+  window.appLoginExit_yes = appLoginExit_yes;
+  window.appLoginExit_no = appLoginExit_no;
   window.appLogin_inputChange = appLogin_inputChange;
   window.appLogin_inputKey = appLogin_inputKey;
+  window.appLogin_ques = appLogin_ques;
+  window.appLogin_help = appLogin_help;
+  window.appLogin_help_close = appLogin_help_close;
+  window.appLogin_manual = appLogin_manual;
+  window.appLogin_manual_close = appLogin_manual_close;
+  window.appAdmin_unm = appAdmin_unm;
+  window.appAdmin_usm = appAdmin_usm;
   window.appUnits_back = () => { renderLogin(); showScreen('login'); };
   window.appUnits_selectTab = selectTab;
   window.appUnits_play = playSelected;
+  window.appUnits_ques = appUnits_ques;
+  window.appUnits_rename = appUnits_rename;
+  window.appUnits_deleteUnit = appUnits_deleteUnit;
+  window.appUnits_editLesson = appUnits_editLesson;
+  window.appUnits_newLesson = appUnits_newLesson;
+  window.appUnits_editDict = appUnits_editDict;
+  window.appUnits_lamoreh = appUnits_lamoreh;
+  window.appUnits_lamoreh_close = appUnits_lamoreh_close;
   window.appUnits_scrollUp = appUnits_scrollUp;
   window.appUnits_scrollDn = appUnits_scrollDn;
   window.appGame_exit = exitGame;
+  window.appGame_mmenu_show = appGame_mmenu_show;
+  window.appGame_mmenu_continue = appGame_mmenu_continue;
+  window.appGame_mmenu_exit = appGame_mmenu_exit;
+  window.appGame_mmenu_restart = appGame_mmenu_restart;
   window.appScore_replay = replayGame;
   window.appScore_units = backToGList;
   window.appGList_exit = appGList_exit;
   window.appGList_select = appGList_select;
+  window.appGList_ques = appGList_ques;
+  window.appUserMgmt_back = appUserMgmt_back;
+  window.appUserMgmt_add = appUserMgmt_add;
+  window.appUserMgmt_delete = appUserMgmt_delete;
+  window.appUserMgmt_resetScores = appUserMgmt_resetScores;
+  window.appUserMgmt_changePass = appUserMgmt_changePass;
+  window.appUserMgmt_selectAll = appUserMgmt_selectAll;
+  window.appUserMgmt_clearAll = appUserMgmt_clearAll;
+  window.appUserMgmt_detail = appUserMgmt_detail;
+  window.appUserMgmt_ques = appUserMgmt_ques;
+  window.appUserMgmt_ques_close = appUserMgmt_ques_close;
+  window.appTMsg_ok = appTMsg_ok;
+  window.appTMsg_cancel = appTMsg_cancel;
 
   return { init };
 })();

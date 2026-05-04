@@ -967,14 +967,29 @@ img {
   pointer-events: none;
 }
 
+/* Label1(0): VB6 Left=24, Top=267, Width=315, 13pt bold black */
+.glist-instr {
+  position: absolute;
+  left: 24px; top: 267px;
+  width: 315px;
+  text-align: center;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  font-size: 17px;
+  font-weight: bold;
+  color: #000;
+  direction: rtl;
+  pointer-events: none;
+}
+
 /* GameGo rows: transparent clickable areas only — no background.
-   Left=5445/15=363, Width=6495/15=433, Height=915/15=61. */
+   Left=5445/15=363, Width=6495/15=433, Height=915/15=61.
+   Yadq2.cur = custom pointer (VB6 GameGo MouseIcon). */
 .glist-row {
   position: absolute;
   left: 363px;
   width: 430px;
   height: 61px;
-  cursor: pointer;
+  cursor: url('../assets/menu/Yadq2.cur'), pointer;
 }
 
 /* Row highlight overlays: match VB6 BitBlt dest exactly.
@@ -1174,8 +1189,556 @@ img {
 }
 
 
+/* ─── LOGIN MANUAL OVERLAY (VB6 CafH2 / knisa.rtf) ── */
+.login-manual-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 50, 0.72);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-manual-box {
+  background: rgb(240, 248, 255);
+  border: 3px solid rgb(0, 100, 180);
+  border-radius: 8px;
+  padding: 20px 24px;
+  width: 660px;
+  max-height: 540px;
+  overflow-y: auto;
+  direction: rtl;
+  text-align: right;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+}
+
+.login-manual-box h2 {
+  font-size: 18px;
+  color: rgb(0, 60, 120);
+  text-align: center;
+  margin: 0 0 14px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid rgb(0, 100, 180);
+}
+
+.login-manual-box h3 {
+  font-size: 16px;
+  color: rgb(0, 80, 150);
+  margin: 12px 0 4px;
+}
+
+.login-manual-box p {
+  font-size: 14px;
+  color: rgb(20, 20, 50);
+  line-height: 1.6;
+  margin: 0 0 6px;
+}
+
+.login-manual-close {
+  display: block;
+  margin: 16px auto 0;
+  width: 80px;
+  text-align: center;
+  padding: 6px 12px;
+  background: rgba(192, 255, 192, 0.9);
+  border: 2px solid rgb(0, 120, 0);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 15px;
+  color: rgb(0, 80, 0);
+  font-weight: bold;
+}
+
+.login-manual-close:hover { background: rgb(160, 255, 160); }
+
+/* ─── LOGIN HELP OVERLAY (VB6 HelpD) ─────── */
+/* StartBS.jpg 513×558 at (157,0) inside login-viewport */
+.login-help-overlay {
+  position: absolute;
+  left: 157px;
+  top: 0;
+  width: 513px;
+  height: 558px;
+  background: url('../assets/menu/StartBS.jpg') no-repeat 0 0;
+  background-size: 513px 558px;
+  z-index: 100;
+}
+
+/* HelpDS: VB6 Left=48, Top=104 within HelpD, 400×300 — video player area */
+.login-help-video {
+  position: absolute;
+  left: 48px;
+  top: 104px;
+  width: 400px;
+  height: 300px;
+  display: block;
+}
+
+/* BackS: VB6 Left=330, Top=429 within HelpD, 91×43 — pale green close button */
+.login-help-close {
+  position: absolute;
+  left: 330px;
+  top: 429px;
+  width: 91px;
+  height: 43px;
+  cursor: pointer;
+  background: rgba(192, 255, 192, 0.85);
+  border: 2px solid rgba(0, 120, 0, 0.6);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  font-size: 16px;
+  color: rgb(0, 80, 0);
+  font-weight: bold;
+}
+.login-help-close:hover {
+  background: rgba(160, 255, 160, 0.95);
+}
+
+/* Admin hidden click zones (UnM / UsM) — transparent, no visual */
+.admin-zone {
+  position: absolute;
+  cursor: default;
+}
+
+/* ─── USER MANAGEMENT SCREEN (VB6 UserFrm) ─ */
+#screen-usermgmt { background: #000; }
+
+.usermgmt-outer {
+  flex: 1;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  overflow: hidden;
+}
+
+.usermgmt-viewport {
+  position: absolute;
+  width: 800px;
+  height: 600px;
+  background: url('../assets/menu/UserEd.jpg') no-repeat left top;
+  background-size: 800px 600px;
+  transform-origin: 0 0;
+  overflow: hidden;
+}
+
+/* goOut: bEx1/2.bmp 55×48 at (6,6) */
+.um-exit {
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  width: 55px;
+  height: 48px;
+  cursor: pointer;
+}
+
+/* User list: VB6 Ulist Left=210, Top=123, W=246, H=386 */
+.um-list {
+  position: absolute;
+  left: 210px;
+  top: 123px;
+  width: 246px;
+  height: 386px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  direction: rtl;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(30,40,80,0.3);
+}
+
+.um-list::-webkit-scrollbar { width: 4px; }
+.um-list::-webkit-scrollbar-track { background: transparent; }
+.um-list::-webkit-scrollbar-thumb { background: rgba(30,40,80,0.4); border-radius: 2px; }
+
+.um-uitem {
+  padding: 4px 10px;
+  font-size: 18px;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  color: rgb(30, 40, 80);
+  cursor: pointer;
+  direction: rtl;
+  user-select: none;
+  border-bottom: 1px solid rgba(30,40,80,0.1);
+}
+
+.um-uitem:hover  { background: rgba(200,210,255,0.4); }
+.um-uitem.active { background: rgba(160,180,255,0.6); font-weight: bold; }
+
+/* VB6 SelCmd Style=1 Graphical — text buttons with colored bg (no bitmap images) */
+.um-cmd {
+  position: absolute;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  direction: rtl;
+  text-align: center;
+  cursor: pointer;
+  border: 2px outset #bbb;
+  outline: none;
+  line-height: 1.2;
+  padding: 0 2px;
+  box-sizing: border-box;
+  user-select: none;
+}
+.um-cmd:active { border-style: inset; }
+
+.um-cmd-green { background: rgb(192,255,192); color: #000; }
+.um-cmd-green:hover  { background: rgb(160,240,160); }
+.um-cmd-green:active { background: rgb(140,220,140); }
+
+.um-cmd-pink  { background: rgb(255,192,192); color: #000; }
+.um-cmd-pink:hover   { background: rgb(240,160,160); }
+.um-cmd-pink:active  { background: rgb(220,140,140); }
+
+/* Score list: VB6 Slist Left=126, Top=123, W=90, H=386 */
+.um-slist {
+  position: absolute;
+  left: 126px;
+  top: 123px;
+  width: 90px;
+  height: 386px;
+  overflow: hidden;
+  direction: ltr;
+  pointer-events: none;
+}
+
+.um-sitem {
+  padding: 4px 6px;
+  height: 26px;
+  line-height: 18px;
+  font-size: 15px;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  border-bottom: 1px solid rgba(30,40,80,0.1);
+  box-sizing: border-box;
+}
+
+/* goQues: Ques1.bmp 60×60 at (738,0) */
+.um-ques {
+  position: absolute;
+  left: 738px;
+  top: 0;
+  width: 60px;
+  height: 60px;
+  cursor: pointer;
+}
+
+/* MINHAL admin manual overlay */
+.um-minhal-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,20,0.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 30;
+}
+
+.um-minhal-box {
+  background: #f5f0e8;
+  border: 2px solid #8a6030;
+  border-radius: 6px;
+  padding: 24px 28px 16px;
+  max-width: 560px;
+  width: 90%;
+  max-height: 520px;
+  overflow-y: auto;
+  direction: rtl;
+  text-align: right;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  color: #2a1a00;
+}
+
+.um-minhal-box h2 {
+  font-size: 20px;
+  color: #400000;
+  margin: 0 0 12px;
+  text-align: center;
+}
+
+.um-minhal-box h3 {
+  font-size: 16px;
+  color: #004000;
+  margin: 12px 0 4px;
+}
+
+.um-minhal-box p {
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0 0 8px;
+}
+
+.um-minhal-close {
+  display: block;
+  margin: 14px auto 0;
+  padding: 6px 20px;
+  background: #c8e8c8;
+  border: 1px solid #4a8a4a;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  text-align: center;
+  width: fit-content;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
 ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.3); border-radius: 3px; }
+
+/* ─── TMSG EXIT DIALOG (MsgX.jpg 300×200, VB6 MsgForm) ── */
+.msgx-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+  pointer-events: all;
+}
+
+.msgx-box {
+  position: relative;
+  width: 300px;
+  height: 200px;
+}
+
+.msgx-bg {
+  position: absolute;
+  left: 0; top: 0;
+  width: 300px; height: 200px;
+  pointer-events: none;
+}
+
+/* VB6 MsgForm Caf(0)=yes at (168,117), Caf(1)=no at (30,117), each 105×45 */
+.msgx-yes { position: absolute; left: 168px; top: 117px; width: 105px; height: 45px; cursor: pointer; }
+.msgx-no  { position: absolute; left: 30px;  top: 117px; width: 105px; height: 45px; cursor: pointer; }
+
+/* ─── MMENU PAUSE MENU (MMenuB.bmp 231×68 at 0,0) ── */
+.mmenu {
+  position: absolute;
+  left: 0; top: 0;
+  width: 231px; height: 68px;
+  z-index: 300;
+}
+
+.mmenu-bg {
+  position: absolute;
+  left: 0; top: 0;
+  width: 231px; height: 68px;
+  pointer-events: none;
+}
+
+/* VB6 MMenu buttons: Menu(0)=exit@6, Menu(1)=restart@81, Menu(2)=continue@156; y=6, 67×55 */
+.mmenu-btn {
+  position: absolute;
+  top: 6px;
+  width: 67px; height: 55px;
+  cursor: pointer;
+}
+
+#mmenu-g-exit    { left:   6px; }
+#mmenu-g-restart { left:  81px; }
+#mmenu-g-continue{ left: 156px; }
+
+/* War/Krav mmenu buttons share same positions */
+#mmenu-war   .mmenu-btn:nth-child(2) { left:   6px; }
+#mmenu-war   .mmenu-btn:nth-child(3) { left:  81px; }
+#mmenu-war   .mmenu-btn:nth-child(4) { left: 156px; }
+#mmenu-krav  .mmenu-btn:nth-child(2) { left:   6px; }
+#mmenu-krav  .mmenu-btn:nth-child(3) { left:  81px; }
+#mmenu-krav  .mmenu-btn:nth-child(4) { left: 156px; }
+
+/* ─── UNITS PRINT TIP (VB6 PrintTip area 166,447,350,70) ── */
+.u-tip {
+  position: absolute;
+  left: 166px;
+  top: 447px;
+  width: 350px;
+  height: 70px;
+  text-align: center;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  font-size: 15px;
+  color: rgb(80, 10, 10);
+  direction: rtl;
+  line-height: 1.5;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ─── UNITS TEACHER EDIT PANEL (VB6 EditP 16,203 125×375) ── */
+.u-editp {
+  position: absolute;
+  left: 16px;
+  top: 203px;
+  width: 125px;
+  height: 375px;
+  background: url('../assets/menu/MainSEdi2.jpg') no-repeat 0 0;
+  background-size: 125px 375px;
+  overflow: hidden;
+}
+
+.u-editp.tab3 {
+  background-image: url('../assets/menu/MainSEdi.jpg');
+}
+
+/* Transparent click areas over EditP background image — VB6 Distor/GoTirgol/GoMilon/HelpED */
+.u-ep-area {
+  position: absolute;
+  left: 12px;
+  width: 88px;
+  height: 43px;
+  cursor: pointer;
+  background: transparent;
+}
+
+.u-ep-area.disabled { pointer-events: none; cursor: default; }
+
+/* VB6 positions within EditP (twips/15): rename=60, edit=111, delete=159, new=207, dict=255, help=306 */
+#u-ep-rename  { top: 60px; }
+#u-ep-edit    { top: 111px; }
+#u-ep-delete  { top: 159px; }
+#u-ep-new     { top: 207px; left: 9px; }
+#u-ep-dict    { top: 255px; left: 9px; }
+.u-ep-help    { top: 306px; left: 12px; width: 67px; height: 55px; }
+
+/* ─── UNITS LAMOREH OVERLAY ──────────────────────── */
+.units-lamoreh-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 50, 0.72);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.units-lamoreh-box {
+  background: rgb(240, 248, 255);
+  border: 3px solid rgb(0, 100, 180);
+  border-radius: 8px;
+  padding: 20px 24px;
+  width: 620px;
+  max-height: 500px;
+  overflow-y: auto;
+  direction: rtl;
+  text-align: right;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+}
+
+.units-lamoreh-box h2 {
+  font-size: 18px;
+  color: rgb(0, 60, 120);
+  text-align: center;
+  margin: 0 0 12px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid rgb(0, 100, 180);
+}
+
+.units-lamoreh-box h3 {
+  font-size: 15px;
+  color: rgb(0, 80, 150);
+  margin: 10px 0 3px;
+}
+
+.units-lamoreh-box p {
+  font-size: 14px;
+  color: rgb(20, 20, 50);
+  line-height: 1.6;
+  margin: 0 0 6px;
+}
+
+.units-lamoreh-close {
+  display: block;
+  margin: 14px auto 0;
+  width: 80px;
+  text-align: center;
+  padding: 6px 12px;
+  background: rgba(192, 255, 192, 0.9);
+  border: 2px solid rgb(0, 120, 0);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 15px;
+  color: rgb(0, 80, 0);
+  font-weight: bold;
+}
+
+.units-lamoreh-close:hover { background: rgb(160, 255, 160); }
+
+/* ─── TMSG/TINPUT DIALOG (VB6 MsgForm.frm, MsgB.jpg 300×200) ── */
+#tmsg-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+#tmsg-box {
+  position: relative;
+  width: 300px;
+  height: 200px;
+}
+
+#tmsg-bg {
+  position: absolute;
+  left: 0; top: 0;
+  width: 300px; height: 200px;
+  pointer-events: none;
+}
+
+/* Cot label: VB6 Left=225/15=15, Top=270/15=18, Width=3975/15=265, Height=645/15=43 */
+#tmsg-text {
+  position: absolute;
+  left: 15px;
+  top: 18px;
+  width: 265px;
+  min-height: 43px;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  font-size: 16px;
+  color: #000080;
+  text-align: center;
+  direction: rtl;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  word-break: break-word;
+}
+
+/* INp textbox: VB6 Left=630/15=42, Top=1080/15=72, Width=3210/15=214, Height=510/15=34 */
+#tmsg-input {
+  position: absolute;
+  left: 42px;
+  top: 72px;
+  width: 214px;
+  height: 34px;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  font-size: 18px;
+  color: rgb(0, 64, 0);
+  text-align: center;
+  direction: rtl;
+  border: 1px solid #888;
+  background: white;
+  outline: none;
+  box-sizing: border-box;
+  padding: 0 4px;
+}
+
+#tmsg-ok, #tmsg-cancel {
+  position: absolute;
+  width: 105px;
+  height: 45px;
+  cursor: pointer;
+}
 

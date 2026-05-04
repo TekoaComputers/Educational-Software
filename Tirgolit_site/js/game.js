@@ -529,7 +529,7 @@ const Game = (() => {
       return;
     }
     animFrame = 0;
-    const interval = type === 'start' ? 150 : 80;
+    const interval = 50;
 
     // Derive PNG filename from BMP frame name
     function frameSrc(bmp) {

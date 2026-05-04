@@ -84,5 +84,10 @@ const Users = (() => {
     return Math.round((played[0] + played[1]) / 2);
   }
 
-  return { list, create, remove, getScore, setScore, getAverageScore, getSlotScore, setSlotScore, getTopTwoAvg };
+  function clearScores(name) {
+    const data = load();
+    if (data[name]) { data[name].scores = {}; save(data); }
+  }
+
+  return { list, create, remove, getScore, setScore, getAverageScore, getSlotScore, setSlotScore, getTopTwoAvg, clearScores };
 })();

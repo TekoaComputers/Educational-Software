@@ -480,7 +480,7 @@ const GameT2 = (() => {
     const frames = ANIM_SEQUENCES[type];
     if (!frames) { setGaze(tshNom); return; }
     animFrame = 0;
-    const interval = type === 'start' ? 150 : 80;
+    const interval = 50;
 
     animInterval = setInterval(() => {
       if (charAnim && frames[animFrame]) {
