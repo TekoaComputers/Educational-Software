@@ -266,16 +266,15 @@ const GameWar = (() => {
       if (!h) continue;
 
       if (dansTrans) {
-        // VB6 DansTrans win dance: pick random frame from specific range within TarP(11)
-        // fast lane (machav=10): VB6 TrR in 6-8 → array index 5-7
-        // other lanes (machav=11): VB6 TrR in 2-5 → array index 1-4
+        // VB6 DansTrans win dance: TrR * 105 source x; TrR=6-8 fast, TrR=2-5 others.
+        // VB6 source x=TrR*105, cC=1→x=0, so TrR maps directly to 0-based JS index.
         const dFrames = tarSpr[11] || [];
         if (!dFrames.length) continue;
         const isFast = (h.machav === 10);
         let fr;
         let attempts = 0;
         do {
-          fr = isFast ? (5 + Math.floor(Math.random() * 3)) : (1 + Math.floor(Math.random() * 4));
+          fr = isFast ? (6 + Math.floor(Math.random() * 3)) : (2 + Math.floor(Math.random() * 4));
           attempts++;
         } while (fr === h.ani && attempts < 5);
         h.ani = Math.min(fr, dFrames.length - 1);
@@ -477,11 +476,16 @@ const GameWar = (() => {
     gameRunning = false;
     celebrating = true;
     dansTrans   = true;
-    // Show all 4 hens for the win dance (VB6 DansTrans): fast lane keeps machav=10,
-    // others set to 11 so renderHens can tell which range to use
+    // Show all 4 hens for the win dance. Pre-set ani to the valid dance-frame range so
+    // the first render tick doesn't show a stale frame-0 (which may be blank).
     if (tarnlet) {
+      const df = tarSpr[11] || [];
       for (let i = 1; i <= 4; i++) {
-        if (tarnlet[i]) tarnlet[i].machav = (i === fastLane) ? 10 : 11;
+        if (!tarnlet[i]) continue;
+        const isFast = (i === fastLane);
+        tarnlet[i].machav = isFast ? 10 : 11;
+        const pick = isFast ? (6 + Math.floor(Math.random() * 3)) : (2 + Math.floor(Math.random() * 4));
+        tarnlet[i].ani = df.length > 0 ? Math.min(pick, df.length - 1) : 0;
       }
     }
     AudioMgr.play('./assets/war/Victor.wav');
@@ -792,11 +796,20 @@ const GameWar = (() => {
         continue;
       }
 
-      if (h.machav === 99) continue;
-      const frames = tarSpr[h.machav] || [];
-      if (frames.length) {
-        const frame = frames[Math.min(h.ani, frames.length - 1)];
-        if (frame) ctx.drawImage(frame, h.px, h.py, HEN_W, HEN_H);
+      // VB6 GDI retained-mode: once drawn, image persists. In HTML5 we must redraw every
+      // frame. Non-fast lanes (machav≠10) always show TarP(11) frame 0 (idle sitting hen).
+      if (h.machav === 10) {
+        const frames = tarSpr[10] || [];
+        if (frames.length) {
+          const frame = frames[Math.min(h.ani, frames.length - 1)];
+          if (frame) ctx.drawImage(frame, h.px, h.py, HEN_W, HEN_H);
+        }
+      } else {
+        const frames = tarSpr[11] || [];
+        if (frames.length) {
+          const frame = frames[0];
+          if (frame) ctx.drawImage(frame, h.px, h.py, HEN_W, HEN_H);
+        }
       }
     }
   }

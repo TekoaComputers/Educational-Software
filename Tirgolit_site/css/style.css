@@ -1742,3 +1742,284 @@ img {
   cursor: pointer;
 }
 
+
+
+/* ─── Lesson Editor (VB6 TirgolEd.frm) ──────────────────────────────────── */
+/* Full 800×600 overlay inside units-viewport. All positions = VB6 twips/15  */
+.lesson-editor {
+  position: absolute;
+  inset: 0;
+  width: 800px;
+  height: 600px;
+  z-index: 300;
+  overflow: hidden;
+}
+.led-bg {
+  position: absolute;
+  inset: 0;
+  width: 800px;
+  height: 600px;
+}
+/* Generic graphical button (matches mmbtn hover pattern) */
+.led-gbtn {
+  position: absolute;
+  cursor: pointer;
+  image-rendering: pixelated;
+}
+/* Koter: large unit-name label, centered at approx Left=376, Top=3, W=236 */
+#led-koter {
+  position: absolute;
+  left: 376px; top: 3px;
+  width: 236px; height: 36px;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  font-size: 28px;
+  color: #000;
+  text-align: center;
+  direction: rtl;
+  overflow: hidden;
+  white-space: nowrap;
+}
+/* Unit selector: above ListaQ, x=129, y=70, w=281 */
+#led-unit-sel {
+  position: absolute;
+  left: 129px; top: 70px;
+  width: 281px; height: 24px;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  font-size: 13px;
+  direction: rtl;
+  border: 1px solid #668;
+  background: #e8e8f8;
+  cursor: pointer;
+}
+/* ListaQ: question database — Left=129, Top=96, W=281, H=487 */
+#led-lista {
+  position: absolute;
+  left: 129px; top: 96px;
+  width: 281px; height: 487px;
+  overflow-y: auto;
+  background: rgba(230,230,255,0.7);
+  border: 1px solid #8899bb;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  font-size: 13px;
+  direction: ltr;
+}
+.led-lista-row {
+  padding: 2px 6px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(100,100,180,0.2);
+  color: #640000;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.led-lista-row:hover { background: rgba(0,100,0,0.15); }
+.led-lista-row.led-lista-added { color: #006400; font-weight: bold; }
+
+/* Nunit title: Left=507, Top=102, W=218, H=32 */
+#led-nunit {
+  position: absolute;
+  left: 507px; top: 102px;
+  width: 218px; height: 32px;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  font-size: 18px;
+  color: #400000;
+  direction: rtl;
+  border: 1px solid #888;
+  background: #fff;
+  padding: 2px 4px;
+  box-sizing: border-box;
+  text-align: right;
+}
+/* Tcount: Left=483, Top=135, W=128 */
+#led-tcount {
+  position: absolute;
+  left: 483px; top: 135px;
+  width: 248px; height: 16px;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  font-size: 13px;
+  color: #008000;
+  text-align: right;
+  direction: rtl;
+}
+/* ListQ: selected questions — Left=483, Top=153, W=282, H=300 */
+#led-listq {
+  position: absolute;
+  left: 483px; top: 153px;
+  width: 282px; height: 300px;
+  overflow-y: auto;
+  background: rgba(200,255,200,0.7);
+  border: 1px solid #559966;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  font-size: 13px;
+  direction: ltr;
+}
+.led-listq-row {
+  padding: 2px 6px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(0,100,0,0.15);
+  color: #640000;
+  white-space: nowrap;
+}
+.led-listq-row:hover { background: rgba(0,0,0,0.07); }
+.led-listq-row.led-listq-sel { background: #c0e0ff; color: #000066; }
+
+/* Expression "=" label: between expr input and answer */
+.led-eqlabel {
+  position: absolute;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  font-size: 16px;
+  font-weight: bold;
+  color: #008000;
+}
+/* TxT text inputs */
+.led-txtin {
+  position: absolute;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  font-size: 14px;
+  text-align: center;
+  border: 1px solid #888;
+  background: #fff;
+  padding: 1px 3px;
+  box-sizing: border-box;
+}
+.led-txtin-ans {
+  background: #f0fff0;
+  color: #006600;
+}
+/* Distor(3) add button */
+.led-addbtn {
+  position: absolute;
+  background: #c0ffc0;
+  border: 2px outset #aaa;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  font-size: 22px;
+  font-weight: bold;
+  color: #006600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.led-addbtn:hover { background: #a0ffa0; }
+.led-addbtn:active { border-style: inset; }
+
+/* ─── BANK EDITOR (VB6 MilonEd.frm) ──────────────────────────────── */
+.bank-editor {
+  position: absolute;
+  inset: 0;
+  width: 800px;
+  height: 600px;
+  z-index: 300;
+  overflow: hidden;
+}
+.bed-bg {
+  position: absolute;
+  inset: 0;
+  width: 800px;
+  height: 600px;
+}
+.bed-gbtn {
+  position: absolute;
+  cursor: pointer;
+  image-rendering: pixelated;
+}
+.bed-title {
+  position: absolute;
+  left: 30px; top: 177px;
+  width: 334px; height: 33px;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  font-size: 22px;
+  font-weight: bold;
+  color: #8B0000;
+  direction: rtl;
+  text-align: center;
+}
+.bed-colhdr {
+  position: absolute;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  font-size: 11px;
+  color: #400000;
+  direction: rtl;
+  text-align: center;
+  overflow: hidden;
+}
+/* ListQ shared style */
+.bed-listq {
+  position: absolute;
+  top: 45px;
+  height: 442px;
+  overflow-y: auto;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  font-size: 13px;
+  direction: ltr;
+}
+#bed-listq0 {
+  left: 397px;
+  width: 209px;
+  background: rgba(230,230,255,0.7);
+  border: 1px solid #8899bb;
+}
+#bed-listq1 {
+  left: 605px;
+  width: 97px;
+  background: rgba(255,230,230,0.7);
+  border: 1px solid #bb8899;
+  direction: rtl;
+  text-align: center;
+}
+.bed-listq-row {
+  padding: 2px 4px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(100,100,180,0.2);
+  color: #640000;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.bed-listq-row:hover { background: rgba(0,100,0,0.15); }
+.bed-listq-row.bed-listq-sel { background: #c0e0ff; color: #000066; }
+.bed-label {
+  position: absolute;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  font-size: 14px;
+  font-weight: bold;
+  color: #000;
+  direction: rtl;
+  text-align: center;
+}
+.bed-txtin {
+  position: absolute;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  font-size: 14px;
+  text-align: center;
+  border: 1px solid #888;
+  background: #fff;
+  padding: 1px 3px;
+  box-sizing: border-box;
+}
+.bed-txtin-ans {
+  background: #f0fff0;
+  color: #006600;
+}
+.bed-okbtn {
+  position: absolute;
+  background: #c0ffc0;
+  border: 2px outset #aaa;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  font-size: 16px;
+  font-weight: bold;
+  color: #006600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.bed-okbtn:hover { background: #a0ffa0; }
+.bed-okbtn:active { border-style: inset; }
+.bed-combo {
+  position: absolute;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  font-size: 13px;
+  direction: rtl;
+  border: 1px solid #888;
+  background: #fff;
+  cursor: pointer;
+}

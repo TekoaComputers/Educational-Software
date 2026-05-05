@@ -270,12 +270,192 @@
           <p>במסך זה מספר אפשרויות ייחודיות למורה, אשר יאפשרו לו שימוש יעיל יותר בתוכנה.</p>
           <h3>שינוי שם</h3>
           <p>מאפשר שינוי שמה של יחידה נבחרת. היחידה בעלת השם החדש תופיע בקטגורית השיעורים הנוספים.</p>
-          <h3>עריכה משלימה / שיעור חדש / עריכת מאגר</h3>
-          <p>אפשרויות אלו אינן זמינות בגרסת האינטרנט של התוכנה.</p>
+          <h3>שיעור חדש / עריכה משלימה</h3>
+          <p>יצירת שיעור חדש עם תרגילים מותאמים אישית, או עריכת שיעור מותאם קיים. השיעורים נשמרים בדפדפן.</p>
+          <h3>עריכת מאגר</h3>
+          <p>עריכת מאגר השאלות האישי. ניתן להוסיף, לערוך ולמחוק שאלות. השאלות נשמרות בדפדפן.</p>
           <h3>מחק שיעור</h3>
           <p>למחיקת שיעור קיים מרשימת השיעורים הנוספים. זהירות — לא ניתן לשחזר שיעור שנמחק.</p>
           <div class="units-lamoreh-close" onclick="appUnits_lamoreh_close()">סגור</div>
         </div>
+      </div>
+
+      <!-- Lesson Editor — VB6 TirgolEd.frm: full 800×600 overlay with TirgolEd.jpg background -->
+      <!-- All positions in px = VB6 twips / 15 -->
+      <div id="lesson-editor" class="lesson-editor" style="display:none">
+        <img class="led-bg" src="assets/menu/TirgolEd.jpg" alt="">
+
+        <!-- goOut: Left=6, Top=6, 40×34 -->
+        <img class="led-gbtn" id="led-goout"
+             src="assets/menu/ExU1.bmp" alt=""
+             data-norm="assets/menu/ExU1.bmp" data-hover="assets/menu/ExU2.bmp"
+             style="left:6px;top:6px;width:40px;height:34px"
+             onclick="appEditor_close()">
+
+        <!-- SaveL (save+close): Left=165, Top=12, 40×34 -->
+        <img class="led-gbtn" id="led-savel"
+             src="assets/menu/SaveB1.bmp" alt=""
+             data-norm="assets/menu/SaveB1.bmp" data-hover="assets/menu/SaveB2.bmp"
+             style="left:165px;top:12px;width:40px;height:34px;display:none"
+             onclick="appEditor_saveAndClose()">
+
+        <!-- SaveR (save only): Left=234, Top=12, 40×34 -->
+        <img class="led-gbtn" id="led-saver"
+             src="assets/menu/SaveBn1.bmp" alt=""
+             data-norm="assets/menu/SaveBn1.bmp" data-hover="assets/menu/SaveBn2.bmp"
+             style="left:234px;top:12px;width:40px;height:34px;display:none"
+             onclick="appEditor_save()">
+
+        <!-- goQues (help): Left=738, Top=0, 40×40 -->
+        <img class="led-gbtn"
+             src="assets/menu/Ques1.bmp" alt=""
+             data-norm="assets/menu/Ques1.bmp" data-hover="assets/menu/Ques2.bmp"
+             style="left:738px;top:0;width:40px;height:40px">
+
+        <!-- Koter: large title label — Left=376, Top=3, W=236, center -->
+        <div id="led-koter" class="led-koter"></div>
+
+        <!-- ── LEFT PANEL: question database (ListaQ area x=129–410, y=96–583) ── -->
+        <!-- Unit filter selector above the list -->
+        <select id="led-unit-sel" class="led-unit-sel" onchange="appEditor_populateDb()"></select>
+
+        <!-- Question database list (ListaQ[0] style: x=129, y=96+26=122, w=281, rest of h) -->
+        <div id="led-lista" class="led-lista"></div>
+
+        <!-- ── RIGHT PANEL ── -->
+        <!-- Nunit title: Left=507, Top=102, W=218, H=32 -->
+        <input id="led-nunit" class="led-nunit" type="text" dir="rtl" maxlength="50"
+               oninput="appEditor_titleChange()">
+
+        <!-- Tcount: Left=483, Top=135, W=128 -->
+        <div id="led-tcount" class="led-tcount"></div>
+
+        <!-- ListQ (selected questions): Left=483, Top=153, W=282, H=300 -->
+        <div id="led-listq" class="led-listq"></div>
+
+        <!-- Distor(1) delete selected: Left=534, Top=459, 70×35 -->
+        <img class="led-gbtn" id="led-del-btn"
+             src="assets/menu/Del.bmp" alt=""
+             data-norm="assets/menu/Del.bmp" data-hover="assets/menu/Del.bmp"
+             style="left:534px;top:459px;width:70px;height:35px"
+             onclick="appEditor_deleteSelected()">
+
+        <!-- Distor(2) clear all: Left=609, Top=459, 70×35 -->
+        <img class="led-gbtn"
+             src="assets/menu/DelU.bmp" alt=""
+             data-norm="assets/menu/DelU.bmp" data-hover="assets/menu/DelU.bmp"
+             style="left:609px;top:459px;width:70px;height:35px"
+             onclick="appEditor_clearAll()">
+
+        <!-- Label "=" between expr and answer: Left=501, Top=552 -->
+        <span class="led-eqlabel" style="left:501px;top:552px">=</span>
+
+        <!-- TxT(0) expression: Left=522, Top=516, W=169, H=26 -->
+        <input id="led-expr" class="led-txtin" type="text" dir="ltr"
+               style="left:522px;top:516px;width:169px;height:26px"
+               oninput="appEditor_exprChange()"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();appEditor_addQ();}">
+
+        <!-- TxT(1) answer (auto): Left=600, Top=552, W=87, H=26 -->
+        <input id="led-auto" class="led-txtin led-txtin-ans" type="text" dir="ltr"
+               style="left:600px;top:552px;width:87px;height:26px" readonly>
+
+        <!-- Distor(3) add button: Left=522, Top=546, W=73, H=36 -->
+        <div class="led-addbtn" style="left:522px;top:546px;width:73px;height:36px"
+             onclick="appEditor_addQ()">+</div>
+      </div>
+
+      <!-- Bank Editor — VB6 MilonEd.frm: full 800×600 overlay with MilonEd.jpg background -->
+      <!-- All positions in px = VB6 twips / 15 -->
+      <div id="bank-editor" class="bank-editor" style="display:none">
+        <img class="bed-bg" src="assets/menu/MilonEd.jpg" alt="">
+
+        <!-- goOut: Left=6, Top=6, 40×34 -->
+        <img class="bed-gbtn"
+             src="assets/menu/ExU1.bmp" alt=""
+             data-norm="assets/menu/ExU1.bmp" data-hover="assets/menu/ExU2.bmp"
+             style="left:6px;top:6px;width:40px;height:34px"
+             onclick="appBank_close()">
+
+        <!-- goQues: Left=738, Top=0, 40×40 -->
+        <img class="bed-gbtn"
+             src="assets/menu/Ques1.bmp" alt=""
+             data-norm="assets/menu/Ques1.bmp" data-hover="assets/menu/Ques2.bmp"
+             style="left:738px;top:0;width:40px;height:40px">
+
+        <!-- Title: Left=30, Top=177, W=334 -->
+        <div class="bed-title">עריכת מאגר שיעורים</div>
+
+        <!-- Column headers above lists -->
+        <div class="bed-colhdr" style="left:397px;top:29px;width:209px">תרגיל = תשובה</div>
+        <div class="bed-colhdr" style="left:605px;top:29px;width:97px">קטג׳ / רמה</div>
+
+        <!-- ListQ(0): Left=397, Top=45, W=209, H=442 -->
+        <div id="bed-listq0" class="bed-listq"></div>
+
+        <!-- ListQ(1): Left=605, Top=45, W=97, H=442 -->
+        <div id="bed-listq1" class="bed-listq bed-listq1"></div>
+
+        <!-- Label "תרגיל": Left=270, Top=261 -->
+        <span class="bed-label" style="left:270px;top:261px;width:56px">תרגיל</span>
+
+        <!-- TxT(0) expr: Left=87, Top=261, W=169, H=26 -->
+        <input id="bed-expr" class="bed-txtin" type="text" dir="ltr"
+               style="left:87px;top:261px;width:169px;height:26px"
+               oninput="appBank_exprChange()"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();appBank_okQ();}">
+
+        <!-- Label "תשובה": Left=267, Top=309 -->
+        <span class="bed-label" style="left:267px;top:309px;width:56px">תשובה</span>
+
+        <!-- TxT(1) answer: Left=165, Top=306, W=87, H=26 -->
+        <input id="bed-answer" class="bed-txtin bed-txtin-ans" type="text" dir="ltr"
+               style="left:165px;top:306px;width:87px;height:26px" readonly>
+
+        <!-- OK button: Left=90, Top=303, W=70, H=30 -->
+        <div class="bed-okbtn" style="left:90px;top:303px;width:70px;height:30px"
+             onclick="appBank_okQ()">OK</div>
+
+        <!-- Label "קטגוריה": Left=217, Top=378 -->
+        <span class="bed-label" style="left:217px;top:378px;width:66px">קטגוריה</span>
+
+        <!-- ComR (category): Left=113, Top=378, W=94 -->
+        <select id="bed-comr" class="bed-combo" style="left:113px;top:378px;width:94px">
+          <option value="+">חיבור  +</option>
+          <option value="-">חיסור  -</option>
+          <option value="*">כפל  *</option>
+          <option value="/">חילוק  /</option>
+          <option value="()">סוגריים</option>
+        </select>
+
+        <!-- Label "רמה": Left=209, Top=426 -->
+        <span class="bed-label" style="left:209px;top:426px;width:56px">רמה</span>
+
+        <!-- ComL (level): Left=161, Top=426, W=43 -->
+        <select id="bed-coml" class="bed-combo" style="left:161px;top:426px;width:43px">
+          <option value="א">א</option>
+          <option value="ב">ב</option>
+          <option value="ג">ג</option>
+          <option value="ד">ד</option>
+        </select>
+
+        <!-- Distor(3) save: Left=429, Top=507, W=70, H=35 -->
+        <img class="bed-gbtn"
+             src="assets/menu/Save.bmp" alt=""
+             style="left:429px;top:507px;width:70px;height:35px"
+             onclick="appBank_save()">
+
+        <!-- Distor(0) edit: Left=513, Top=507, W=70, H=35 -->
+        <img class="bed-gbtn"
+             src="assets/menu/Chan.bmp" alt=""
+             style="left:513px;top:507px;width:70px;height:35px"
+             onclick="appBank_editSelected()">
+
+        <!-- Distor(1) delete: Left=597, Top=507, W=70, H=35 -->
+        <img class="bed-gbtn"
+             src="assets/menu/Del.bmp" alt=""
+             style="left:597px;top:507px;width:70px;height:35px"
+             onclick="appBank_deleteQ()">
       </div>
 
     </div>

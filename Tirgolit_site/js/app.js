@@ -63,7 +63,7 @@ const App = (() => {
 
     // Button hover states using data-norm / data-hover / data-down attributes
     // Covers login (.lbtn), units (.ubtn), and game (.gbtn) buttons
-    document.querySelectorAll('.lbtn, .ubtn, .gbtn, .sbtn, .mmbtn').forEach(btn => {
+    document.querySelectorAll('.lbtn, .ubtn, .gbtn, .sbtn, .mmbtn, .led-gbtn').forEach(btn => {
       const norm  = btn.dataset.norm;
       const hover = btn.dataset.hover;
       const down  = btn.dataset.down;
@@ -405,6 +405,39 @@ const App = (() => {
   }
 
 
+  // ─── Custom unit helpers ──────────────────────────────────────────────────
+  function getCustomUnits() {
+    try { return JSON.parse(localStorage.getItem('tirgolit_custom_units') || '{}'); }
+    catch { return {}; }
+  }
+  function saveCustomUnits(obj) {
+    localStorage.setItem('tirgolit_custom_units', JSON.stringify(obj));
+  }
+  function getUnit(uid) {
+    const bu = UNITS_DATA.units[String(uid)];
+    if (bu) return bu;
+    return getCustomUnits()[String(uid)] || null;
+  }
+  function evalSafeExpr(expr) {
+    try {
+      expr = String(expr).trim()
+        .replace(/[xX×]/g, '*')
+        .replace(/[÷:]/g, '/');
+      if (!/^[\d+\-*/().\s]+$/.test(expr)) return null;
+      // eslint-disable-next-line no-new-func
+      const result = new Function('return (' + expr + ')')();
+      if (!isFinite(result) || isNaN(result)) return null;
+      const rounded = Math.round(result * 10000) / 10000;
+      return String(rounded);
+    } catch { return null; }
+  }
+  function inferOp(expr) {
+    if (/[*×xX]/.test(expr)) return '*';
+    if (/[/÷:]/.test(expr)) return '/';
+    if (/-/.test(expr.replace(/^-/, ''))) return '-';
+    return '+';
+  }
+
   // ─── Unit Selection Screen ────────────────────────────────────────────────
 
   function showUnits() {
@@ -499,6 +532,42 @@ const App = (() => {
       listEl.appendChild(row);
     });
 
+    // Custom units shown on tab 3 (שיעורים נוספים)
+    if (tabIdx === 3) {
+      const customs = getCustomUnits();
+      Object.entries(customs).forEach(([uid, cu]) => {
+        rowNum++;
+        const displayName = cu.title || uid;
+        const score = Users.getTopTwoAvg(currentUser, uid);
+
+        const row = document.createElement('div');
+        row.className = 'u-row';
+        row.dataset.uid = uid;
+
+        const scoreEl = document.createElement('div');
+        scoreEl.className = 'u-score-cell';
+        scoreEl.textContent = score > 0 ? score : '';
+        scoreEl.style.color = score >= 86 ? 'rgb(0,100,0)' : score >= 67 ? 'rgb(100,100,0)' : score > 0 ? 'rgb(100,0,0)' : 'rgb(160,160,160)';
+
+        const nameEl = document.createElement('div');
+        nameEl.className = 'u-name-cell';
+        nameEl.textContent = rowNum + ') ' + displayName;
+
+        row.appendChild(scoreEl);
+        row.appendChild(nameEl);
+
+        row.addEventListener('click', () => {
+          listEl.querySelectorAll('.u-row.u-row-sel').forEach(r => r.classList.remove('u-row-sel'));
+          row.classList.add('u-row-sel');
+          selectedUnitId = uid;
+          clearTip();
+        });
+        row.addEventListener('dblclick', () => openGList(uid, cu, displayName));
+
+        listEl.appendChild(row);
+      });
+    }
+
     // Update custom scrollbar thumb after list content changes
     requestAnimationFrame(updateScrollThumb);
   }
@@ -506,11 +575,12 @@ const App = (() => {
   function playSelected() {
     if (!selectedUnitId) return;
     const uid = selectedUnitId;
-    const unit = UNITS_DATA.units[String(uid)];
+    const unit = getUnit(String(uid));
     if (!unit) return;
     const customNames = JSON.parse(localStorage.getItem('tirgolit_unit_names') || '{}');
+    const customs = getCustomUnits();
     const level = UNITS_DATA.levels[selectedTabIndex];
-    const name = customNames[String(uid)] || level?.unitNames?.[String(uid)] || unit.title;
+    const name = customs[String(uid)]?.title || customNames[String(uid)] || level?.unitNames?.[String(uid)] || unit.title;
     openGList(uid, unit, name);
   }
 
@@ -540,28 +610,393 @@ const App = (() => {
 
   async function appUnits_deleteUnit() {
     if (!selectedUnitId) { await showTMsg('בחר יחידה מהרשימה'); return; }
-    const level = UNITS_DATA.levels[selectedTabIndex];
-    const name = level?.unitNames?.[String(selectedUnitId)] || String(selectedUnitId);
-    const ok = await showTMsg(`למחוק את השיעור "${name}"?`, true);
-    if (!ok) return;
-    const hidden = JSON.parse(localStorage.getItem('tirgolit_hidden_units') || '{}');
-    hidden[String(selectedUnitId)] = true;
-    localStorage.setItem('tirgolit_hidden_units', JSON.stringify(hidden));
+    const uid = String(selectedUnitId);
+    const customs = getCustomUnits();
+    if (customs[uid]) {
+      const ok = await showTMsg(`למחוק את השיעור "${customs[uid].title}"?`, true);
+      if (!ok) return;
+      delete customs[uid];
+      saveCustomUnits(customs);
+    } else {
+      const level = UNITS_DATA.levels[selectedTabIndex];
+      const name = level?.unitNames?.[uid] || uid;
+      const ok = await showTMsg(`למחוק את השיעור "${name}"?`, true);
+      if (!ok) return;
+      const hidden = JSON.parse(localStorage.getItem('tirgolit_hidden_units') || '{}');
+      hidden[uid] = true;
+      localStorage.setItem('tirgolit_hidden_units', JSON.stringify(hidden));
+    }
     selectedUnitId = null;
     clearTip();
     renderUnitList(selectedTabIndex);
   }
 
   async function appUnits_editLesson() {
-    await showTMsg('עורך השיעורים אינו זמין בגרסת האינטרנט');
+    if (!selectedUnitId) { await showTMsg('בחר יחידה מהרשימה'); return; }
+    const uid = String(selectedUnitId);
+    const customs = getCustomUnits();
+    if (!customs[uid]) { await showTMsg('ניתן לערוך שיעורים מותאמים אישית בלבד'); return; }
+    appEditor_open(uid, customs[uid]);
   }
 
   async function appUnits_newLesson() {
-    await showTMsg('עורך השיעורים אינו זמין בגרסת האינטרנט');
+    appEditor_open(null, null);
   }
 
-  async function appUnits_editDict() {
-    await showTMsg('עורך המאגר אינו זמין בגרסת האינטרנט');
+  // ─── Bank Editor (VB6 MilonEd.frm) ──────────────────────────────────────
+  const BANK_KEY = 'tirgolit_custom_bank';
+  let bankData    = [];
+  let bankSelIdx  = -1;
+  let bankEditing = false;
+  let bankChanged = false;
+
+  function appUnits_editDict() {
+    bankData    = getCustomBank();
+    bankSelIdx  = -1;
+    bankEditing = false;
+    bankChanged = false;
+    const overlay = document.getElementById('bank-editor');
+    if (!overlay) return;
+    overlay.style.display = 'block';
+    bankRenderLists();
+    bankClearInputs();
+  }
+
+  function getCustomBank() {
+    try { return JSON.parse(localStorage.getItem(BANK_KEY) || '[]'); }
+    catch { return []; }
+  }
+  function saveCustomBank(data) {
+    localStorage.setItem(BANK_KEY, JSON.stringify(data));
+  }
+
+  function appBank_close() {
+    if (bankChanged) saveCustomBank(bankData);
+    const overlay = document.getElementById('bank-editor');
+    if (overlay) overlay.style.display = 'none';
+  }
+
+  function bankRenderLists() {
+    const l0 = document.getElementById('bed-listq0');
+    const l1 = document.getElementById('bed-listq1');
+    if (!l0 || !l1) return;
+    l0.innerHTML = '';
+    l1.innerHTML = '';
+    bankData.forEach((q, idx) => {
+      const r0 = document.createElement('div');
+      r0.className = 'bed-listq-row' + (idx === bankSelIdx ? ' bed-listq-sel' : '');
+      r0.textContent = (idx + 1) + ')  ' + q.expr + '=' + q.answer;
+      r0.onclick = () => { bankSelIdx = idx; bankRenderLists(); };
+      l0.appendChild(r0);
+
+      const r1 = document.createElement('div');
+      r1.className = 'bed-listq-row' + (idx === bankSelIdx ? ' bed-listq-sel' : '');
+      r1.textContent = (q.op || '') + ' ' + (q.level || '');
+      r1.onclick = () => { bankSelIdx = idx; bankRenderLists(); };
+      l1.appendChild(r1);
+    });
+    if (bankSelIdx >= 0) {
+      const rows = l0.querySelectorAll('.bed-listq-row');
+      if (rows[bankSelIdx]) rows[bankSelIdx].scrollIntoView({ block: 'nearest' });
+    }
+    // sync scroll
+    l0.onscroll = () => { l1.scrollTop = l0.scrollTop; };
+    l1.onscroll = () => { l0.scrollTop = l1.scrollTop; };
+  }
+
+  function bankClearInputs() {
+    const expr = document.getElementById('bed-expr');
+    const ans  = document.getElementById('bed-answer');
+    const comr = document.getElementById('bed-comr');
+    const coml = document.getElementById('bed-coml');
+    if (expr) expr.value = '';
+    if (ans)  ans.value  = '';
+    if (comr) comr.selectedIndex = 0;
+    if (coml) coml.selectedIndex = 0;
+    bankEditing = false;
+  }
+
+  // Distor(0): load selected item into edit fields
+  function appBank_editSelected() {
+    if (bankSelIdx < 0 || bankSelIdx >= bankData.length) return;
+    const q = bankData[bankSelIdx];
+    const expr = document.getElementById('bed-expr');
+    const ans  = document.getElementById('bed-answer');
+    const comr = document.getElementById('bed-comr');
+    const coml = document.getElementById('bed-coml');
+    if (expr) expr.value = q.expr || '';
+    if (ans)  ans.value  = q.answer || '';
+    if (comr) {
+      const oi = ['+','-','*','/','()'].indexOf(q.op || '+');
+      comr.selectedIndex = oi >= 0 ? oi : 0;
+    }
+    if (coml) {
+      const li = ['א','ב','ג','ד'].indexOf(q.level || 'א');
+      coml.selectedIndex = li >= 0 ? li : 0;
+    }
+    bankEditing = true;
+  }
+
+  // Distor(2)/OK: save edit or add new
+  function appBank_okQ() {
+    const expr = document.getElementById('bed-expr');
+    const ans  = document.getElementById('bed-answer');
+    const comr = document.getElementById('bed-comr');
+    const coml = document.getElementById('bed-coml');
+    if (!expr) return;
+    const exprVal = expr.value.trim();
+    const ansVal  = ans ? ans.value.trim() : '';
+    if (!exprVal || !ansVal) { showTMsg('הכנס תרגיל ותשובה'); return; }
+    const op    = comr ? comr.value : '+';
+    const level = coml ? coml.value : 'א';
+    if (bankEditing && bankSelIdx >= 0 && bankSelIdx < bankData.length) {
+      bankData[bankSelIdx] = { expr: exprVal, answer: ansVal, op, level };
+      bankEditing = false;
+    } else {
+      bankData.push({ expr: exprVal, answer: ansVal, op, level });
+      bankSelIdx = bankData.length - 1;
+    }
+    bankChanged = true;
+    bankRenderLists();
+    bankClearInputs();
+    if (expr) expr.focus();
+  }
+
+  // Distor(1): delete selected item
+  function appBank_deleteQ() {
+    if (bankSelIdx < 0 || bankSelIdx >= bankData.length) return;
+    bankData.splice(bankSelIdx, 1);
+    bankSelIdx  = Math.min(bankSelIdx, bankData.length - 1);
+    bankChanged = true;
+    bankRenderLists();
+    bankClearInputs();
+  }
+
+  // Distor(3): save to localStorage immediately
+  function appBank_save() {
+    saveCustomBank(bankData);
+    bankChanged = false;
+  }
+
+  // TxT(0) change: auto-compute answer from expression
+  function appBank_exprChange() {
+    const expr = document.getElementById('bed-expr');
+    const ans  = document.getElementById('bed-answer');
+    if (!expr || !ans) return;
+    const result = evalSafeExpr(expr.value);
+    ans.value = result !== null ? result : '';
+  }
+
+  // ─── Lesson Editor (VB6 TirgolEd.frm) ──────────────────────────────────
+  let editorId       = null;   // null = new unit; string = editing existing custom unit
+  let editorQuestions = [];    // selected questions for current unit (QuestU equivalent)
+  let editorSelIdx   = -1;     // selected row in ListQ (-1 = none)
+
+  function appEditor_open(uid, unit) {
+    editorId        = uid || null;
+    editorQuestions = unit ? unit.questions.map(q => ({ ...q })) : [];
+    editorSelIdx    = -1;
+    const overlay = document.getElementById('lesson-editor');
+    if (!overlay) return;
+    overlay.style.display = 'block';
+
+    // Nunit title
+    const nunit = document.getElementById('led-nunit');
+    if (nunit) nunit.value = unit ? unit.title : '';
+
+    // Koter: VB6 OpenUed shows "עריכה משלימה ל [name]" for existing, Form_Load default for new
+    editorUpdateKoter(unit ? ('עריכה משלימה ל ' + unit.title) : 'עריכת שיעור חדש');
+
+    // Populate unit selector for question database
+    const sel = document.getElementById('led-unit-sel');
+    if (sel) {
+      sel.innerHTML = '<option value="">— בחר מקור תרגילים —</option>';
+      UNITS_DATA.levels.forEach(lv => {
+        lv.units.forEach(uid => {
+          const u = UNITS_DATA.units[String(uid)];
+          if (!u) return;
+          const name = lv.unitNames?.[String(uid)] || u.title;
+          const opt = document.createElement('option');
+          opt.value = String(uid);
+          opt.textContent = name;
+          sel.appendChild(opt);
+        });
+      });
+    }
+
+    // Clear database list and expression fields
+    const lista = document.getElementById('led-lista');
+    if (lista) lista.innerHTML = '';
+    const expr = document.getElementById('led-expr');
+    if (expr) expr.value = '';
+    const auto = document.getElementById('led-auto');
+    if (auto) auto.value = '';
+
+    editorRenderListQ();
+    editorUpdateCount();
+    editorUpdateSaveVis();
+  }
+
+  function appEditor_close() {
+    const overlay = document.getElementById('lesson-editor');
+    if (overlay) overlay.style.display = 'none';
+    editorId = null;
+    editorQuestions = [];
+    editorSelIdx = -1;
+  }
+
+  function editorUpdateKoter(title) {
+    const k = document.getElementById('led-koter');
+    if (k) k.textContent = title;
+  }
+
+  // VB6 Nunit_Change: always resets Koter to "עריכת שיעור חדש"
+  function appEditor_titleChange() {
+    editorUpdateKoter('עריכת שיעור חדש');
+  }
+
+  // Populate left panel (ListaQ) from selected unit in dropdown
+  function appEditor_populateDb() {
+    const sel = document.getElementById('led-unit-sel');
+    const lista = document.getElementById('led-lista');
+    if (!sel || !lista) return;
+    lista.innerHTML = '';
+    const uid = sel.value;
+    if (!uid) return;
+    const u = UNITS_DATA.units[uid];
+    if (!u) return;
+    u.questions.forEach((q, idx) => {
+      const row = document.createElement('div');
+      const alreadyIn = editorQuestions.some(eq => eq.expr === q.expr && eq.answer === q.answer);
+      row.className = 'led-lista-row' + (alreadyIn ? ' led-lista-added' : '');
+      row.textContent = (idx + 1) + ') ' + q.expr + '=' + q.answer;
+      row.onclick = () => appEditor_dbClick(q, row);
+      lista.appendChild(row);
+    });
+  }
+
+  // Click on left panel row: add question (VB6 ListaQ_Chosed Kind=1)
+  function appEditor_dbClick(q, rowEl) {
+    const alreadyIn = editorQuestions.some(eq => eq.expr === q.expr && eq.answer === q.answer);
+    if (alreadyIn) {
+      // VB6: deselect → remove from ListQ
+      const idx = editorQuestions.findIndex(eq => eq.expr === q.expr && eq.answer === q.answer);
+      if (idx >= 0) editorQuestions.splice(idx, 1);
+      rowEl.classList.remove('led-lista-added');
+    } else {
+      if (editorQuestions.length >= 32) { showTMsg('לא ניתן להוסיף יותר מ-32 תרגילים'); return; }
+      editorQuestions.push({ ...q });
+      rowEl.classList.add('led-lista-added');
+    }
+    editorRenderListQ();
+    editorUpdateCount();
+    editorUpdateSaveVis();
+  }
+
+  // Render right panel list (ListQ)
+  function editorRenderListQ() {
+    const listq = document.getElementById('led-listq');
+    if (!listq) return;
+    listq.innerHTML = '';
+    editorQuestions.forEach((q, idx) => {
+      const row = document.createElement('div');
+      row.className = 'led-listq-row' + (idx === editorSelIdx ? ' led-listq-sel' : '');
+      row.textContent = (idx + 1) + ') ' + q.expr + '=' + q.answer;
+      row.onclick = () => {
+        editorSelIdx = idx;
+        editorRenderListQ();
+      };
+      listq.appendChild(row);
+    });
+    listq.scrollTop = listq.scrollHeight;
+  }
+
+  // VB6 Tcount caption: "מס' - " & nomQu
+  function editorUpdateCount() {
+    const tc = document.getElementById('led-tcount');
+    if (tc) tc.textContent = "מס' - " + editorQuestions.length;
+  }
+
+  function editorUpdateSaveVis() {
+    const show = editorQuestions.length > 7;  // VB6: nomQu > 7
+    const sl = document.getElementById('led-savel');
+    const sr = document.getElementById('led-saver');
+    if (sl) sl.style.display = show ? 'block' : 'none';
+    if (sr) sr.style.display = show ? 'block' : 'none';
+  }
+
+  // Distor(1): delete selected from ListQ
+  function appEditor_deleteSelected() {
+    if (editorSelIdx < 0 || editorSelIdx >= editorQuestions.length) return;
+    editorQuestions.splice(editorSelIdx, 1);
+    editorSelIdx = Math.min(editorSelIdx, editorQuestions.length - 1);
+    editorRenderListQ();
+    editorUpdateCount();
+    editorUpdateSaveVis();
+    // refresh left panel to un-highlight removed question
+    appEditor_populateDb();
+  }
+
+  // Distor(2): clear all (VB6 Case 2) — also resets title and Koter
+  function appEditor_clearAll() {
+    editorQuestions = [];
+    editorSelIdx = -1;
+    editorId = null;
+    const nunit = document.getElementById('led-nunit');
+    if (nunit) nunit.value = '';
+    editorUpdateKoter('עריכת שיעור חדש');
+    editorRenderListQ();
+    editorUpdateCount();
+    editorUpdateSaveVis();
+    appEditor_populateDb();
+  }
+
+  // TxT(0) change: auto-calc answer (VB6 TxT_Change index=0)
+  function appEditor_exprChange() {
+    const exprEl = document.getElementById('led-expr');
+    const autoEl = document.getElementById('led-auto');
+    if (!exprEl || !autoEl) return;
+    const ans = evalSafeExpr(exprEl.value);
+    autoEl.value = ans !== null ? ans : '';
+  }
+
+  // Distor(3): add manually-entered question (VB6 Case 3)
+  function appEditor_addQ() {
+    const exprEl = document.getElementById('led-expr');
+    const autoEl = document.getElementById('led-auto');
+    if (!exprEl) return;
+    const expr = exprEl.value.trim();
+    const ans  = autoEl ? autoEl.value.trim() : evalSafeExpr(expr);
+    if (!expr || !ans) { showTMsg('הכנס תרגיל חשבוני תקני'); return; }
+    editorQuestions.push({ expr, answer: ans, op: inferOp(expr) });
+    exprEl.value = '';
+    if (autoEl) autoEl.value = '';
+    editorRenderListQ();
+    editorUpdateCount();
+    editorUpdateSaveVis();
+    exprEl.focus();
+  }
+
+  // SaveR_Click: validate and save; returns true on success
+  async function appEditor_save() {
+    const nunit = document.getElementById('led-nunit');
+    const title = nunit ? nunit.value.trim() : '';
+    if (!title) { await showTMsg('הכנס שם לשיעור'); if (nunit) nunit.focus(); return false; }
+    if (editorQuestions.length < 8) { await showTMsg('השיעור חייב לכלול לפחות 8 תרגילים'); return false; }
+    const units = getCustomUnits();
+    const id = editorId || ('cu_' + Date.now());
+    units[id] = { title, questions: editorQuestions };
+    saveCustomUnits(units);
+    editorId = id;
+    editorUpdateKoter('עריכה משלימה ל ' + title);
+    renderUnitList(selectedTabIndex);
+    return true;
+  }
+
+  // SaveL_Click: VB6 calls SaveR_Click then only closes if Changed=False (save succeeded)
+  async function appEditor_saveAndClose() {
+    const ok = await appEditor_save();
+    if (ok) appEditor_close();
   }
 
   function appUnits_lamoreh() {
@@ -908,8 +1343,11 @@ const App = (() => {
 
     showScreen('krav');
 
-    GameKrav.init(unit, (score, stats, eggs) => {
-      showScore(score, unit, stats, eggs);
+    GameKrav.init(unit, (score) => {
+      // VB6 CafEx_Click: Unload Me — just save score and return to GList, no score screen
+      score = Math.max(0, Math.round(score));
+      Users.setSlotScore(currentUser, currentUnitId, currentSlot, score);
+      backToGList();
     });
   }
 
@@ -1336,6 +1774,21 @@ const App = (() => {
   window.appUserMgmt_ques_close = appUserMgmt_ques_close;
   window.appTMsg_ok = appTMsg_ok;
   window.appTMsg_cancel = appTMsg_cancel;
+  window.appEditor_close         = appEditor_close;
+  window.appEditor_titleChange   = appEditor_titleChange;
+  window.appEditor_populateDb    = appEditor_populateDb;
+  window.appEditor_deleteSelected = appEditor_deleteSelected;
+  window.appEditor_clearAll      = appEditor_clearAll;
+  window.appEditor_exprChange    = appEditor_exprChange;
+  window.appEditor_addQ          = appEditor_addQ;
+  window.appEditor_save          = appEditor_save;
+  window.appEditor_saveAndClose  = appEditor_saveAndClose;
+  window.appBank_close           = appBank_close;
+  window.appBank_editSelected    = appBank_editSelected;
+  window.appBank_okQ             = appBank_okQ;
+  window.appBank_deleteQ         = appBank_deleteQ;
+  window.appBank_save            = appBank_save;
+  window.appBank_exprChange      = appBank_exprChange;
 
   return { init };
 })();
