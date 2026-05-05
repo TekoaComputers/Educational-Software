@@ -30,6 +30,8 @@ const GameWar = (() => {
   let answered;      // boolean[13] (1-indexed)
 
   let shlav, warScore, tshNom, pagazNum, wrongCount, tarHit;
+  let wrongPerQ;   // wrong-keypress count per question index (qi)
+  let totalTov, totalBe, totalRa;  // cumulative across all 3 waves
 
   // Rooster (TarN)
   let rPx, rPy, rLane;
@@ -66,6 +68,7 @@ const GameWar = (() => {
   let losing, losingLane;
 
   let permFlowers;  // [{x, y}] flowers baked into background — persist across waves
+  let permMisses;   // [{x, y}] miss splashes baked into background (VB6 DrawEggsP)
 
   let tickId, blinkId;
   let keyHandler;
@@ -190,6 +193,11 @@ const GameWar = (() => {
     gameRunning  = true;
     gameOver     = false;
     permFlowers  = [];
+    permMisses   = [];
+    wrongPerQ    = {};
+    totalTov     = 0;
+    totalBe      = 0;
+    totalRa      = 0;
 
     rLane    = 1;
     rPx      = ROOSTER_X;
@@ -363,6 +371,9 @@ const GameWar = (() => {
       const c = creatures[rLane];
       if (c && c.machav === 0) { c.machav = 2; c.ani = 0; }
     } else if (!pagaz.hit && pagaz.px < pagaz.dest) {
+      // VB6: DrawEggsP bakes miss splash into DcMain background at Pagaz.Px+KlK, Pagaz.Py
+      const klk = Math.floor(Math.random() * 5);
+      permMisses.push({ x: pagaz.px + klk, y: pagaz.py });
       pagaz.fly = false;
     }
   }
@@ -536,7 +547,9 @@ const GameWar = (() => {
     clearInterval(blinkId);
     if (keyHandler) { window.removeEventListener('keydown', keyHandler); keyHandler = null; }
     const score = Math.max(0, warScore);
-    if (onComplete) onComplete(score, { tov: tshNom, be: 0, ra: wrongCount }, []);
+    // Only report questions that were actually answered (unanswered are not shown).
+    // Score is 0 on lose (set by triggerEndGame), final warScore on win.
+    if (onComplete) onComplete(score, { tov: totalTov, be: totalBe, ra: totalRa }, []);
   }
 
   // ─── Input ───────────────────────────────────────────────────────────────────
@@ -576,6 +589,11 @@ const GameWar = (() => {
         pagazNum--;
         tshNom++;
         answered[idx] = true;
+        // Categorize this question's result by how many wrong presses it took
+        const mistakes = wrongPerQ[idx] || 0;
+        if (mistakes === 0)      totalTov++;
+        else if (mistakes <= 2)  totalBe++;
+        else                     totalRa++;
         firePagaz(true);
         AudioMgr.play('./assets/war/Fire.wav');
       } else {
@@ -586,6 +604,7 @@ const GameWar = (() => {
       pagazNum--;
       warScore = Math.max(0, warScore - WRONG_DEDUCT);
       wrongCount++;
+      wrongPerQ[idx] = (wrongPerQ[idx] || 0) + 1;
       firePagaz(false);
       AudioMgr.play('./assets/war/Missed.wav');
     }
@@ -641,12 +660,21 @@ const GameWar = (() => {
     }
 
     renderPermFlowers();
+    renderPermMisses();
     for (let i = 1; i <= 4; i++) renderCreature(i);
     renderHens();
     if (pagaz.fly) renderPageaz();
     renderRooster();
     renderQuestion();
     renderHUD();
+  }
+
+  function renderPermMisses() {
+    if (!permMisses || !permMisses.length || !pagazSheet) return;
+    for (const m of permMisses) {
+      ctx.drawImage(pagazSheet, PAG_SHEET_MIS_X, 0, PAG_SHEET_MIS_W, PAG_H,
+                    m.x - PAG_SHEET_MIS_W / 2, m.y - PAG_H / 2, PAG_SHEET_MIS_W, PAG_H);
+    }
   }
 
   function renderPermFlowers() {
