@@ -663,8 +663,32 @@ const App = (() => {
   }
 
   function getCustomBank() {
-    try { return JSON.parse(localStorage.getItem(BANK_KEY) || '[]'); }
-    catch { return []; }
+    try {
+      const stored = localStorage.getItem(BANK_KEY);
+      if (stored) return JSON.parse(stored);
+      return seedBankFromUnits();
+    } catch { return []; }
+  }
+
+  function seedBankFromUnits() {
+    const levelLetters = ['א', 'ב', 'ג', 'ד'];
+    const unitToLevel = {};
+    (UNITS_DATA.levels || []).forEach((lv, li) => {
+      const letter = levelLetters[li] || 'א';
+      (lv.units || []).forEach(uid => { unitToLevel[String(uid)] = letter; });
+    });
+    const seen = new Set();
+    const result = [];
+    Object.entries(UNITS_DATA.units || {}).forEach(([uid, unit]) => {
+      const level = unitToLevel[uid] || 'א';
+      (unit.questions || []).forEach(q => {
+        const key = q.expr + '=' + q.answer;
+        if (seen.has(key)) return;
+        seen.add(key);
+        result.push({ expr: q.expr, answer: String(q.answer), op: q.op || inferOp(q.expr), level });
+      });
+    });
+    return result;
   }
   function saveCustomBank(data) {
     localStorage.setItem(BANK_KEY, JSON.stringify(data));

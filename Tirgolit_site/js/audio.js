@@ -10,17 +10,17 @@ const AudioMgr = (() => {
         current.pause();
         current.currentTime = 0;
       }
-      current = new window.Audio(src);
+      current = new window.Audio(src.replace(/\.wav$/i, '.mp3'));
       current.play().catch(() => {});
     } catch (e) {}
   }
 
   function playAnim(animPath) {
-    play('./assets/anim/' + animPath);
+    play('./assets/anim/' + animPath.replace(/\.wav$/i, '.mp3'));
   }
 
   function playMenu(menuPath) {
-    play('./assets/menu/' + menuPath);
+    play('./assets/menu/' + menuPath.replace(/\.wav$/i, '.mp3'));
   }
 
   function toggle() {
