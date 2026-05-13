@@ -2023,3 +2023,186 @@ img {
   background: #fff;
   cursor: pointer;
 }
+
+/* ─── PRODUCT SELECTOR ─────────────────────── */
+#product-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+}
+.product-back-btn {
+  margin-top: 18px;
+  font-family: 'Frank Ruhl Libre', 'David', serif;
+  font-size: 15px;
+  padding: 6px 22px;
+  border: 1px solid #5080b0;
+  border-radius: 7px;
+  background: #e8f0ff;
+  cursor: pointer;
+  direction: rtl;
+}
+.product-back-btn:hover { background: #c8d8f8; }
+.product-panel {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -52%);
+  background: rgba(255,255,255,0.88);
+  border: 3px solid #5588cc;
+  border-radius: 16px;
+  padding: 28px 36px 32px;
+  text-align: center;
+  min-width: 500px;
+  box-shadow: 0 8px 32px rgba(0,0,80,0.25);
+}
+.product-greeting {
+  font-size: 22px;
+  color: #224488;
+  font-weight: bold;
+  margin-bottom: 6px;
+}
+.product-subtitle {
+  font-size: 18px;
+  color: #446;
+  margin-bottom: 24px;
+}
+.product-cards {
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+}
+.product-card {
+  width: 180px;
+  padding: 20px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform 0.1s, box-shadow 0.1s;
+  user-select: none;
+}
+.product-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 20px rgba(0,0,100,0.2);
+}
+.product-card:active { transform: translateY(0); }
+.product-card-t1 {
+  background: linear-gradient(145deg, #d0e8ff, #a8ccf0);
+  border-color: #5588cc;
+}
+.product-card-t2 {
+  background: linear-gradient(145deg, #d4f0d4, #a8d8a8);
+  border-color: #449944;
+}
+.product-card-icon {
+  font-size: 40px;
+  margin-bottom: 8px;
+}
+.product-card-title {
+  font-size: 20px;
+  font-weight: bold;
+  color: #223;
+  margin-bottom: 4px;
+}
+.product-card-sub {
+  font-size: 14px;
+  color: #445;
+}
+
+/* Product badge in units screen */
+.u-product-badge {
+  position: absolute;
+  left: 8px; bottom: 8px;
+  background: rgba(0,40,120,0.75);
+  color: #fff;
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  z-index: 50;
+  direction: rtl;
+}
+.u-product-badge:hover { background: rgba(0,60,160,0.9); }
+
+/* Sketch button in game-viewport */
+.game-sketch-btn {
+  position: absolute;
+  left: 685px; top: 3px;
+  width: 55px; height: 48px;
+  cursor: pointer; z-index: 10;
+}
+
+/* ─── SKETCH TOOL ──────────────────────────── */
+/* Form: 500×400 px (VB6 ScaleWidth=500, ScaleHeight=400 at 15 twips/px)
+   Canvas: left=4 top=45 (sxy), 400×350 (16×14 cells × 25px)
+   Keyboard panel: left=412 top=99, 80×262 px (SelPic)
+   Direction button: left=416 top=8 (Lang)
+   Expr text (Qtext): left=112 top=10, 273×25 */
+#sketch-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+}
+#sketch-form {
+  position: relative;
+  width: 500px;
+  height: 400px;
+  background: url('../assets/menu/Sketchb.jpg') no-repeat left top;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+#sketch-canvas {
+  position: absolute;
+  left: 4px; top: 45px;
+  width: 400px; height: 350px;
+  cursor: crosshair;
+  display: block;
+}
+#sketch-btn-close {
+  position: absolute;
+  left: 0; top: 0; width: 41px; height: 41px;
+  cursor: pointer;
+}
+#sketch-btn-clear {
+  position: absolute;
+  left: 40px; top: 0; width: 25px; height: 41px;
+  cursor: pointer;
+}
+#sketch-dir-img {
+  position: absolute;
+  left: 416px; top: 8px;
+  width: 63px; height: 31px;
+  cursor: pointer;
+}
+#sketch-expr {
+  position: absolute;
+  left: 112px; top: 10px;
+  width: 273px; height: 25px;
+  font-family: 'David', serif;
+  font-size: 14px;
+  color: #000040;
+  text-align: center;
+  direction: ltr;
+  overflow: hidden;
+  pointer-events: none;
+  white-space: nowrap;
+}
+#sketch-keybd {
+  position: absolute;
+  left: 412px; top: 99px;
+  width: 79px; height: 262px;
+  background: url('../assets/menu/Sketch.jpg') no-repeat top left;
+  overflow: hidden;
+}
+.sk-key {
+  position: absolute;
+  width: 22px; height: 22px;
+  cursor: pointer;
+}
+

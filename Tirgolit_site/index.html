@@ -127,6 +127,33 @@
 </div>
 
 <!-- ═══════════════════════════════════════
+     PRODUCT SELECTION OVERLAY
+════════════════════════════════════════ -->
+<!-- Modal overlay — appears on top of whatever screen is active (login or units) -->
+<div id="product-overlay" style="display:none">
+  <div class="product-panel">
+    <div class="product-greeting" id="product-greeting"></div>
+    <div class="product-subtitle">בחר תכנית לימוד</div>
+    <div class="product-cards">
+
+      <div class="product-card product-card-t1" onclick="appProduct_select('t1')">
+        <div class="product-card-icon">🔢</div>
+        <div class="product-card-title">תרגולית</div>
+        <div class="product-card-sub">מספרים שלמים</div>
+      </div>
+
+      <div class="product-card product-card-t2" onclick="appProduct_select('t2')">
+        <div class="product-card-icon">½</div>
+        <div class="product-card-title">תרגולית 2</div>
+        <div class="product-card-sub">שברים ועשרוניים</div>
+      </div>
+
+    </div>
+    <button class="product-back-btn" onclick="appProduct_back()">חזור</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
      UNIT SELECTION SCREEN
 ════════════════════════════════════════ -->
 <div id="screen-units" class="screen">
@@ -163,6 +190,9 @@
 
       <!-- Username in sky area (animated in on entry) -->
       <div class="u-username" id="units-username"></div>
+
+      <!-- Product badge (bottom-left) — shows current product, click to switch -->
+      <div class="u-product-badge" id="u-product-badge" onclick="appProduct_switchFromUnits()" title="לחץ להחלפת תכנית"></div>
 
       <!-- Custom scrollbar for unit list (right edge of Ulist, x=536) -->
       <img class="ubtn u-scroll-up"
@@ -484,6 +514,13 @@
            data-norm="assets/menu/Ques1.bmp"
            data-hover="assets/menu/Ques2.bmp">
 
+      <!-- Sketch button (T2 only): SketchCmd at (685,3) -->
+      <img class="game-sketch-btn gbtn" id="game-sketch-btn" style="display:none"
+           src="assets/menu/SketchCmd.png" alt=""
+           data-norm="assets/menu/SketchCmd.png"
+           data-hover="assets/menu/SketchCmd.png"
+           onclick="appGame_openSketch()">
+
       <!-- MMenu: 231×68 at (0,0) — shown on exit click, bg=MMenuB.bmp -->
       <div id="mmenu-game" class="mmenu" style="display:none">
         <img class="mmenu-bg" src="assets/menu/MMenuB.bmp" alt="">
@@ -528,6 +565,60 @@
       <!-- Target value (QStxt — what to find) -->
       <div class="target-bar-overlay">
         <span class="target-value" id="game-target-value"></span>
+      </div>
+
+      <!-- ── Sketch overlay (Tirgolit2 only) ── -->
+      <!-- Form is 500×400 px matching Sketchb.jpg.
+           Positions derived from VB6 .frm at 15 twips/px:
+             canvas at (4,45), keyboard panel at (412,99) -->
+      <div id="sketch-overlay" style="display:none">
+        <div id="sketch-form">
+          <!-- Drawing canvas — 16×14 cells × 25px -->
+          <canvas id="sketch-canvas" tabindex="0"></canvas>
+          <!-- Transparent hit areas over baked-in button graphics in Sketchb.jpg -->
+          <div id="sketch-btn-close" onclick="sketchClose()"></div>
+          <div id="sketch-btn-clear" onclick="sketchClear()"></div>
+          <!-- Direction-toggle image (SketchS0=RTL, SketchS2=LTR) -->
+          <img id="sketch-dir-img" src="assets/menu/SketchS0.png" onclick="sketchToggleDir()" alt="">
+          <!-- Expression text (Qtext in VB6) -->
+          <div id="sketch-expr"></div>
+          <!-- Keyboard panel: Sketch.jpg background + transparent key click areas -->
+          <div id="sketch-keybd">
+            <!-- Row 1 y=8:  7, 8, 9 -->
+            <div class="sk-key" style="left:4px;top:8px"   onclick="sketchKeyClick(55)"></div>
+            <div class="sk-key" style="left:28px;top:8px"  onclick="sketchKeyClick(56)"></div>
+            <div class="sk-key" style="left:52px;top:8px"  onclick="sketchKeyClick(57)"></div>
+            <!-- Row 2 y=32: 4, 5, 6 -->
+            <div class="sk-key" style="left:4px;top:32px"  onclick="sketchKeyClick(52)"></div>
+            <div class="sk-key" style="left:28px;top:32px" onclick="sketchKeyClick(53)"></div>
+            <div class="sk-key" style="left:52px;top:32px" onclick="sketchKeyClick(54)"></div>
+            <!-- Row 3 y=56: 1, 2, 3 -->
+            <div class="sk-key" style="left:4px;top:56px"  onclick="sketchKeyClick(49)"></div>
+            <div class="sk-key" style="left:28px;top:56px" onclick="sketchKeyClick(50)"></div>
+            <div class="sk-key" style="left:52px;top:56px" onclick="sketchKeyClick(51)"></div>
+            <!-- Row 4 y=80: =, 0, . -->
+            <div class="sk-key" style="left:4px;top:80px"   onclick="sketchKeyClick(187)"></div>
+            <div class="sk-key" style="left:28px;top:80px"  onclick="sketchKeyClick(48)"></div>
+            <div class="sk-key" style="left:52px;top:80px"  onclick="sketchKeyClick(110)"></div>
+            <!-- Row 5 y=118: × (*), ÷ (/) -->
+            <div class="sk-key" style="left:16px;top:118px" onclick="sketchKeyClick(106)"></div>
+            <div class="sk-key" style="left:42px;top:118px" onclick="sketchKeyClick(111)"></div>
+            <!-- Row 6 y=150: +, - -->
+            <div class="sk-key" style="left:16px;top:150px" onclick="sketchKeyClick(107)"></div>
+            <div class="sk-key" style="left:42px;top:150px" onclick="sketchKeyClick(109)"></div>
+            <!-- Row 7 y=182: Backspace, Up-arrow, Space -->
+            <div class="sk-key" style="left:4px;top:182px"  onclick="sketchKeyClick(8)"></div>
+            <div class="sk-key" style="left:28px;top:182px" onclick="sketchKeyClick(38)"></div>
+            <div class="sk-key" style="left:52px;top:182px" onclick="sketchKeyClick(32)"></div>
+            <!-- Row 8 y=206: Left, Down, Right -->
+            <div class="sk-key" style="left:4px;top:206px"  onclick="sketchKeyClick(37)"></div>
+            <div class="sk-key" style="left:28px;top:206px" onclick="sketchKeyClick(40)"></div>
+            <div class="sk-key" style="left:52px;top:206px" onclick="sketchKeyClick(39)"></div>
+            <!-- Row 9 y=236: B (underline-all), L (underline) -->
+            <div class="sk-key" style="left:15px;top:236px" onclick="sketchKeyClick(66)"></div>
+            <div class="sk-key" style="left:43px;top:236px" onclick="sketchKeyClick(76)"></div>
+          </div>
+        </div>
       </div>
 
     </div>
@@ -793,7 +884,9 @@
 </div>
 
 <!-- Scripts -->
+<script>var UNITS_DATA;</script>
 <script src="js/data.js"></script>
+<script src="js/data2.js"></script>
 <script src="js/users.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/game.js"></script>
@@ -801,6 +894,7 @@
 <script src="js/game3.js"></script>
 <script src="js/gamewar.js"></script>
 <script src="js/gamekrav.js"></script>
+<script src="js/gamesketch.js"></script>
 <script src="js/app.js"></script>
 
 </body>

@@ -3,6 +3,7 @@ const App = (() => {
   let currentUser = null;
   let currentUnit = null;
   let currentUnitId = null;
+  let currentProduct = 't1'; // 't1' = integers, 't2' = fractions/decimals
   let gameKind = 1;
   let gameBg = 1;      // tirgol background (1 or 2), independent of kind
   let currentSlot = 0; // GList slot that was played
@@ -183,7 +184,47 @@ const App = (() => {
     }
     currentUser = name;
     document.getElementById('login-input').value = '';
+    showProductSelect();
+  }
+
+  function showProductSelect() {
+    const el = document.getElementById('product-greeting');
+    if (el) el.textContent = 'שלום, ' + currentUser + '!';
+    const saved = localStorage.getItem('tirgolit_product_' + currentUser);
+    if (saved) currentProduct = saved;
+    const ov = document.getElementById('product-overlay');
+    if (ov) ov.style.display = 'flex';
+  }
+
+  function applyProduct(product) {
+    currentProduct = product;
+    localStorage.setItem('tirgolit_product_' + currentUser, product);
+    window.UNITS_DATA = product === 't2' ? UNITS_DATA_T2 : UNITS_DATA_T1;
+    // show/hide sketch button
+    const skBtn = document.getElementById('game-sketch-btn');
+    if (skBtn) skBtn.style.display = product === 't2' ? 'block' : 'none';
+    // update product badge in units screen
+    const badge = document.getElementById('u-product-badge');
+    if (badge) badge.textContent = product === 't2' ? 'תרגולית 2 ◄' : 'תרגולית ◄';
+  }
+
+  function hideProductOverlay() {
+    const ov = document.getElementById('product-overlay');
+    if (ov) ov.style.display = 'none';
+  }
+
+  function appProduct_select(product) {
+    hideProductOverlay();
+    applyProduct(product);
     showUnits();
+  }
+
+  function appProduct_back() {
+    hideProductOverlay();
+  }
+
+  function appProduct_switchFromUnits() {
+    showProductSelect();
   }
 
   function appLogin_inputChange(val) {
@@ -441,6 +482,8 @@ const App = (() => {
   // ─── Unit Selection Screen ────────────────────────────────────────────────
 
   function showUnits() {
+    applyProduct(currentProduct);
+
     const uname = document.getElementById('units-username');
     uname.textContent = currentUser;
     uname.classList.remove('u-username-anim');
@@ -1763,7 +1806,7 @@ const App = (() => {
   window.appLogin_manual_close = appLogin_manual_close;
   window.appAdmin_unm = appAdmin_unm;
   window.appAdmin_usm = appAdmin_usm;
-  window.appUnits_back = () => { renderLogin(); showScreen('login'); };
+  window.appUnits_back = () => { showProductSelect(); };
   window.appUnits_selectTab = selectTab;
   window.appUnits_play = playSelected;
   window.appUnits_ques = appUnits_ques;
@@ -1813,6 +1856,15 @@ const App = (() => {
   window.appBank_deleteQ         = appBank_deleteQ;
   window.appBank_save            = appBank_save;
   window.appBank_exprChange      = appBank_exprChange;
+  window.appProduct_select       = appProduct_select;
+  window.appProduct_back         = appProduct_back;
+  window.appProduct_switchFromUnits = appProduct_switchFromUnits;
+  window.appGame_openSketch = function() {
+    if (typeof SketchTool !== 'undefined') {
+      const unit = UNITS_DATA && currentUnitId ? UNITS_DATA.units[String(currentUnitId)] : null;
+      SketchTool.show(unit ? unit.title : '');
+    }
+  };
 
   return { init };
 })();

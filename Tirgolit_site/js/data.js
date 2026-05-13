@@ -1,5 +1,5 @@
-// Auto-generated unit data
-const UNITS_DATA = {
+// Auto-generated unit data (Tirgolit - integers)
+const UNITS_DATA_T1 = {
   "units": {
     "43": {
       "title": "כפל - כפולות 6",
