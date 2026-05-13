@@ -1806,7 +1806,7 @@ const App = (() => {
   window.appLogin_manual_close = appLogin_manual_close;
   window.appAdmin_unm = appAdmin_unm;
   window.appAdmin_usm = appAdmin_usm;
-  window.appUnits_back = () => { showProductSelect(); };
+  window.appUnits_back = () => { renderLogin(); showScreen('login'); };
   window.appUnits_selectTab = selectTab;
   window.appUnits_play = playSelected;
   window.appUnits_ques = appUnits_ques;
