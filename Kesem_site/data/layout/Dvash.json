@@ -1,0 +1,93 @@
+{
+  "type": "VB.Form",
+  "name": "FrmSels",
+  "props": {
+    "Caption": "תקוע מחשבים מערכות חינוכיות בע\"מ",
+    "ClientHeight": 6000,
+    "ClientLeft": 48,
+    "ClientTop": 336,
+    "ClientWidth": 6000,
+    "Icon": "FrmSel.frx",
+    "ScaleHeight": 500,
+    "ScaleWidth": 500
+  },
+  "children": [
+    {
+      "type": "Dvash.CmdPlus",
+      "name": "CmdCat",
+      "props": {
+        "Height": 1620,
+        "Left": 1290,
+        "Top": 3450,
+        "Width": 3750
+      },
+      "children": [],
+      "px": {
+        "x": 86.0,
+        "y": 230.0,
+        "w": 250.0,
+        "h": 108.0
+      }
+    },
+    {
+      "type": "Dvash.CmdPlus",
+      "name": "CmdDvash",
+      "props": {
+        "Height": 1815,
+        "Left": 495,
+        "Top": 1215,
+        "Width": 4785
+      },
+      "children": [],
+      "px": {
+        "x": 33.0,
+        "y": 81.0,
+        "w": 319.0,
+        "h": 121.0
+      }
+    },
+    {
+      "type": "Dvash.CmdPlus",
+      "name": "CmdExit",
+      "props": {
+        "Height": 750,
+        "Left": 5160,
+        "Top": 0,
+        "Width": 750
+      },
+      "children": [],
+      "px": {
+        "x": 344.0,
+        "y": 0.0,
+        "w": 50.0,
+        "h": 50.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Label2",
+      "props": {
+        "BackColor": 2147483653,
+        "Caption": "יציאה מהתפריט",
+        "ForeColor": 2147483656,
+        "Height": 255,
+        "Left": 3480,
+        "Top": 240,
+        "Width": 1575
+      },
+      "children": [],
+      "px": {
+        "x": 232.0,
+        "y": 16.0,
+        "w": 105.0,
+        "h": 17.0
+      }
+    }
+  ],
+  "design": {
+    "width": 400,
+    "height": 400,
+    "client_w_twips": 6000,
+    "client_h_twips": 6000
+  }
+}

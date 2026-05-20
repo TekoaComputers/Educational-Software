@@ -1,0 +1,1247 @@
+{
+  "type": "VB.Form",
+  "name": "Games3",
+  "props": {
+    "BackColor": 4210752,
+    "BorderStyle": 1,
+    "ClientHeight": 8760,
+    "ClientLeft": 876,
+    "ClientTop": 1380,
+    "ClientWidth": 9864,
+    "ScaleHeight": 730,
+    "ScaleMode": 3,
+    "ScaleWidth": 822
+  },
+  "children": [
+    {
+      "type": "VB.VScrollBar",
+      "name": "NaviH",
+      "props": {
+        "Height": 5145,
+        "Left": 9405,
+        "Top": 495,
+        "Visible": 0,
+        "Width": 240
+      },
+      "children": [],
+      "px": {
+        "x": 783.8,
+        "y": 41.2,
+        "w": 20.0,
+        "h": 428.8
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "picexi",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 765,
+        "Left": 150,
+        "ScaleHeight": 768,
+        "ScaleWidth": 840,
+        "Top": 150,
+        "Width": 840
+      },
+      "children": [],
+      "px": {
+        "x": 12.5,
+        "y": 12.5,
+        "w": 70.0,
+        "h": 63.8
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "act1",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 390,
+        "Index": 4,
+        "Left": 9270,
+        "ScaleHeight": 396,
+        "ScaleWidth": 336,
+        "Top": 0,
+        "Width": 330
+      },
+      "children": [],
+      "px": {
+        "x": 772.5,
+        "y": 0.0,
+        "w": 27.5,
+        "h": 32.5
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "act1",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 840,
+        "Index": 3,
+        "Left": 7875,
+        "ScaleHeight": 840,
+        "ScaleWidth": 1212,
+        "Top": 6300,
+        "Width": 1215
+      },
+      "children": [],
+      "px": {
+        "x": 656.2,
+        "y": 525.0,
+        "w": 101.2,
+        "h": 70.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "act1",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 840,
+        "Index": 2,
+        "Left": 4875,
+        "ScaleHeight": 840,
+        "ScaleWidth": 1212,
+        "Top": 6150,
+        "Width": 1215
+      },
+      "children": [],
+      "px": {
+        "x": 406.2,
+        "y": 512.5,
+        "w": 101.2,
+        "h": 70.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "act1",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 840,
+        "Index": 1,
+        "Left": 2625,
+        "ScaleHeight": 840,
+        "ScaleWidth": 1212,
+        "Top": 6150,
+        "Visible": 0,
+        "Width": 1215
+      },
+      "children": [],
+      "px": {
+        "x": 218.8,
+        "y": 512.5,
+        "w": 101.2,
+        "h": 70.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "act1",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 840,
+        "Index": 0,
+        "Left": 150,
+        "ScaleHeight": 840,
+        "ScaleWidth": 1212,
+        "Top": 6225,
+        "Width": 1215
+      },
+      "children": [],
+      "px": {
+        "x": 12.5,
+        "y": 518.8,
+        "w": 101.2,
+        "h": 70.0
+      }
+    },
+    {
+      "type": "VB.Timer",
+      "name": "Timer2",
+      "props": {
+        "Left": 1725,
+        "Top": 6435
+      },
+      "children": []
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "PicPlace",
+      "props": {
+        "AutoSize": -1,
+        "BorderStyle": 0,
+        "Height": 3630,
+        "Left": 60,
+        "ScaleHeight": 303,
+        "ScaleMode": 3,
+        "ScaleWidth": 86,
+        "Top": 1575,
+        "Width": 1035
+      },
+      "children": [
+        {
+          "type": "VB.PictureBox",
+          "name": "lblToz",
+          "props": {
+            "AutoSize": -1,
+            "BorderStyle": 0,
+            "Height": 315,
+            "Index": 0,
+            "Left": 315,
+            "ScaleHeight": 312,
+            "ScaleWidth": 420,
+            "Top": 360,
+            "Visible": 0,
+            "Width": 420
+          },
+          "children": [],
+          "px": {
+            "x": 26.2,
+            "y": 30.0,
+            "w": 35.0,
+            "h": 26.2
+          }
+        },
+        {
+          "type": "VB.PictureBox",
+          "name": "lblToz",
+          "props": {
+            "AutoSize": -1,
+            "BorderStyle": 0,
+            "Height": 315,
+            "Index": 1,
+            "Left": 315,
+            "ScaleHeight": 312,
+            "ScaleWidth": 420,
+            "Top": 720,
+            "Visible": 0,
+            "Width": 420
+          },
+          "children": [],
+          "px": {
+            "x": 26.2,
+            "y": 60.0,
+            "w": 35.0,
+            "h": 26.2
+          }
+        },
+        {
+          "type": "VB.PictureBox",
+          "name": "lblToz",
+          "props": {
+            "AutoSize": -1,
+            "BorderStyle": 0,
+            "Height": 315,
+            "Index": 2,
+            "Left": 315,
+            "ScaleHeight": 312,
+            "ScaleWidth": 420,
+            "Top": 1080,
+            "Visible": 0,
+            "Width": 420
+          },
+          "children": [],
+          "px": {
+            "x": 26.2,
+            "y": 90.0,
+            "w": 35.0,
+            "h": 26.2
+          }
+        },
+        {
+          "type": "VB.PictureBox",
+          "name": "lblToz",
+          "props": {
+            "AutoSize": -1,
+            "BorderStyle": 0,
+            "Height": 315,
+            "Index": 3,
+            "Left": 315,
+            "ScaleHeight": 312,
+            "ScaleWidth": 420,
+            "Top": 1440,
+            "Visible": 0,
+            "Width": 420
+          },
+          "children": [],
+          "px": {
+            "x": 26.2,
+            "y": 120.0,
+            "w": 35.0,
+            "h": 26.2
+          }
+        },
+        {
+          "type": "VB.PictureBox",
+          "name": "lblToz",
+          "props": {
+            "AutoSize": -1,
+            "BorderStyle": 0,
+            "Height": 315,
+            "Index": 4,
+            "Left": 315,
+            "ScaleHeight": 312,
+            "ScaleWidth": 420,
+            "Top": 1800,
+            "Visible": 0,
+            "Width": 420
+          },
+          "children": [],
+          "px": {
+            "x": 26.2,
+            "y": 150.0,
+            "w": 35.0,
+            "h": 26.2
+          }
+        },
+        {
+          "type": "VB.PictureBox",
+          "name": "lblToz",
+          "props": {
+            "AutoSize": -1,
+            "BorderStyle": 0,
+            "Height": 315,
+            "Index": 5,
+            "Left": 315,
+            "ScaleHeight": 312,
+            "ScaleWidth": 420,
+            "Top": 2160,
+            "Visible": 0,
+            "Width": 420
+          },
+          "children": [],
+          "px": {
+            "x": 26.2,
+            "y": 180.0,
+            "w": 35.0,
+            "h": 26.2
+          }
+        },
+        {
+          "type": "VB.PictureBox",
+          "name": "lblToz",
+          "props": {
+            "AutoSize": -1,
+            "BorderStyle": 0,
+            "Height": 315,
+            "Index": 6,
+            "Left": 315,
+            "ScaleHeight": 312,
+            "ScaleWidth": 420,
+            "Top": 2520,
+            "Visible": 0,
+            "Width": 420
+          },
+          "children": [],
+          "px": {
+            "x": 26.2,
+            "y": 210.0,
+            "w": 35.0,
+            "h": 26.2
+          }
+        },
+        {
+          "type": "VB.PictureBox",
+          "name": "lblToz",
+          "props": {
+            "AutoSize": -1,
+            "BorderStyle": 0,
+            "Height": 315,
+            "Index": 7,
+            "Left": 315,
+            "ScaleHeight": 312,
+            "ScaleWidth": 420,
+            "Top": 2925,
+            "Visible": 0,
+            "Width": 420
+          },
+          "children": [],
+          "px": {
+            "x": 26.2,
+            "y": 243.8,
+            "w": 35.0,
+            "h": 26.2
+          }
+        },
+        {
+          "type": "VB.PictureBox",
+          "name": "lblToz",
+          "props": {
+            "AutoSize": -1,
+            "BorderStyle": 0,
+            "Height": 315,
+            "Index": 8,
+            "Left": 300,
+            "ScaleHeight": 312,
+            "ScaleWidth": 420,
+            "Top": 2925,
+            "Visible": 0,
+            "Width": 420
+          },
+          "children": [],
+          "px": {
+            "x": 25.0,
+            "y": 243.8,
+            "w": 35.0,
+            "h": 26.2
+          }
+        }
+      ],
+      "px": {
+        "x": 5.0,
+        "y": 131.2,
+        "w": 86.2,
+        "h": 302.5
+      }
+    },
+    {
+      "type": "VB.Timer",
+      "name": "Timer1",
+      "props": {
+        "Left": 450,
+        "Top": 0
+      },
+      "children": []
+    },
+    {
+      "type": "MCI.MMControl",
+      "name": "MMControl2",
+      "props": {
+        "Height": 555,
+        "Left": 1575,
+        "Top": 7575,
+        "Visible": 0,
+        "Width": 3540
+      },
+      "children": [],
+      "px": {
+        "x": 131.2,
+        "y": 631.2,
+        "w": 295.0,
+        "h": 46.2
+      }
+    },
+    {
+      "type": "MCI.MMControl",
+      "name": "recl",
+      "props": {
+        "Height": 405,
+        "Left": 5310,
+        "Top": 7500,
+        "Visible": 0,
+        "Width": 3540
+      },
+      "children": [],
+      "px": {
+        "x": 442.5,
+        "y": 625.0,
+        "w": 295.0,
+        "h": 33.8
+      }
+    },
+    {
+      "type": "VB.HScrollBar",
+      "name": "NaviW",
+      "props": {
+        "Height": 240,
+        "Left": 1530,
+        "Top": 5625,
+        "Visible": 0,
+        "Width": 7770
+      },
+      "children": [],
+      "px": {
+        "x": 127.5,
+        "y": 468.8,
+        "w": 647.5,
+        "h": 20.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Spic1",
+      "props": {
+        "BackColor": 14737632,
+        "BorderStyle": 0,
+        "Height": 5145,
+        "Left": 1530,
+        "ScaleHeight": 429,
+        "ScaleMode": 3,
+        "ScaleWidth": 658,
+        "Top": 495,
+        "Width": 7890
+      },
+      "children": [
+        {
+          "type": "VB.PictureBox",
+          "name": "Picture1",
+          "props": {
+            "AutoSize": -1,
+            "BackColor": 2147483653,
+            "ForeColor": 8388608,
+            "Height": 4905,
+            "Left": 0,
+            "ScaleHeight": 407,
+            "ScaleMode": 3,
+            "ScaleWidth": 654,
+            "Top": 0,
+            "Width": 7875
+          },
+          "children": [
+            {
+              "type": "VB.Label",
+              "name": "Label1",
+              "props": {
+                "Height": 555,
+                "Index": 1,
+                "Left": 720,
+                "MouseIcon": "GAMES3.frx",
+                "Top": 480,
+                "Width": 825
+              },
+              "children": [],
+              "px": {
+                "x": 60.0,
+                "y": 40.0,
+                "w": 68.8,
+                "h": 46.2
+              }
+            }
+          ],
+          "px": {
+            "x": 0.0,
+            "y": 0.0,
+            "w": 656.2,
+            "h": 408.8
+          }
+        }
+      ],
+      "px": {
+        "x": 127.5,
+        "y": 41.2,
+        "w": 657.5,
+        "h": 428.8
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Picture22",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 14737632,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 5175,
+        "Left": 1500,
+        "ScaleHeight": 431,
+        "ScaleMode": 3,
+        "ScaleWidth": 650,
+        "Top": 900,
+        "Visible": 0,
+        "Width": 7800
+      },
+      "children": [
+        {
+          "type": "VB.PictureBox",
+          "name": "Picture2",
+          "props": {
+            "AutoSize": -1,
+            "BackColor": 2147483653,
+            "ForeColor": 2147483656,
+            "Height": 2490,
+            "Left": 2250,
+            "ScaleHeight": 206,
+            "ScaleMode": 3,
+            "ScaleWidth": 243,
+            "Top": 975,
+            "Width": 2940
+          },
+          "children": [],
+          "px": {
+            "x": 187.5,
+            "y": 81.2,
+            "w": 245.0,
+            "h": 207.5
+          }
+        },
+        {
+          "type": "VB.PictureBox",
+          "name": "wa",
+          "props": {
+            "AutoSize": -1,
+            "BorderStyle": 0,
+            "Height": 390,
+            "Index": 5,
+            "Left": 6675,
+            "ScaleHeight": 396,
+            "ScaleWidth": 468,
+            "Top": 150,
+            "Width": 465
+          },
+          "children": [],
+          "px": {
+            "x": 556.2,
+            "y": 12.5,
+            "w": 38.8,
+            "h": 32.5
+          }
+        },
+        {
+          "type": "VB.PictureBox",
+          "name": "wa",
+          "props": {
+            "AutoSize": -1,
+            "BorderStyle": 0,
+            "Height": 390,
+            "Index": 4,
+            "Left": 75,
+            "ScaleHeight": 396,
+            "ScaleWidth": 468,
+            "Top": 75,
+            "Width": 465
+          },
+          "children": [],
+          "px": {
+            "x": 6.2,
+            "y": 6.2,
+            "w": 38.8,
+            "h": 32.5
+          }
+        },
+        {
+          "type": "VB.Timer",
+          "name": "tmwa",
+          "props": {
+            "Left": 6075,
+            "Top": 2100
+          },
+          "children": []
+        },
+        {
+          "type": "VB.PictureBox",
+          "name": "wa",
+          "props": {
+            "AutoSize": -1,
+            "BorderStyle": 0,
+            "Height": 390,
+            "Index": 3,
+            "Left": 150,
+            "ScaleHeight": 396,
+            "ScaleWidth": 468,
+            "Top": 2175,
+            "Width": 465
+          },
+          "children": [],
+          "px": {
+            "x": 12.5,
+            "y": 181.2,
+            "w": 38.8,
+            "h": 32.5
+          }
+        },
+        {
+          "type": "VB.PictureBox",
+          "name": "wa",
+          "props": {
+            "AutoSize": -1,
+            "BorderStyle": 0,
+            "Height": 540,
+            "Index": 2,
+            "Left": 2700,
+            "ScaleHeight": 540,
+            "ScaleWidth": 540,
+            "Top": 4200,
+            "Width": 540
+          },
+          "children": [],
+          "px": {
+            "x": 225.0,
+            "y": 350.0,
+            "w": 45.0,
+            "h": 45.0
+          }
+        },
+        {
+          "type": "VB.PictureBox",
+          "name": "wa",
+          "props": {
+            "AutoSize": -1,
+            "BorderStyle": 0,
+            "Height": 540,
+            "Index": 1,
+            "Left": 3450,
+            "ScaleHeight": 540,
+            "ScaleWidth": 540,
+            "Top": 4200,
+            "Width": 540
+          },
+          "children": [],
+          "px": {
+            "x": 287.5,
+            "y": 350.0,
+            "w": 45.0,
+            "h": 45.0
+          }
+        },
+        {
+          "type": "VB.PictureBox",
+          "name": "wa",
+          "props": {
+            "AutoSize": -1,
+            "BorderStyle": 0,
+            "Height": 540,
+            "Index": 0,
+            "Left": 4200,
+            "ScaleHeight": 540,
+            "ScaleWidth": 540,
+            "Top": 4200,
+            "Width": 540
+          },
+          "children": [],
+          "px": {
+            "x": 350.0,
+            "y": 350.0,
+            "w": 45.0,
+            "h": 45.0
+          }
+        },
+        {
+          "type": "VB.PictureBox",
+          "name": "dif",
+          "props": {
+            "AutoSize": -1,
+            "BorderStyle": 0,
+            "Height": 465,
+            "Index": 1,
+            "Left": 105,
+            "ScaleHeight": 468,
+            "ScaleWidth": 396,
+            "Top": 2580,
+            "Width": 390
+          },
+          "children": [],
+          "px": {
+            "x": 8.8,
+            "y": 215.0,
+            "w": 32.5,
+            "h": 38.8
+          }
+        },
+        {
+          "type": "VB.PictureBox",
+          "name": "dif",
+          "props": {
+            "AutoSize": -1,
+            "BorderStyle": 0,
+            "Height": 525,
+            "Index": 0,
+            "Left": 120,
+            "ScaleHeight": 44,
+            "ScaleMode": 3,
+            "ScaleWidth": 46,
+            "Top": 1665,
+            "Width": 555
+          },
+          "children": [],
+          "px": {
+            "x": 10.0,
+            "y": 138.8,
+            "w": 46.2,
+            "h": 43.8
+          }
+        },
+        {
+          "type": "MCI.MMControl",
+          "name": "rec",
+          "props": {
+            "Height": 405,
+            "Left": 6975,
+            "Top": 4650,
+            "Visible": 0,
+            "Width": 3540
+          },
+          "children": [],
+          "px": {
+            "x": 581.2,
+            "y": 387.5,
+            "w": 295.0,
+            "h": 33.8
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "tipl",
+          "props": {
+            "AutoSize": -1,
+            "BackColor": 4194304,
+            "Caption": "עזרה",
+            "ForeColor": 16761024,
+            "Height": 195,
+            "Index": 8,
+            "Left": 6675,
+            "Top": 1050,
+            "Visible": 0,
+            "Width": 450
+          },
+          "children": [],
+          "px": {
+            "x": 556.2,
+            "y": 87.5,
+            "w": 37.5,
+            "h": 16.2
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "tipl",
+          "props": {
+            "AutoSize": -1,
+            "BackColor": 4194304,
+            "Caption": "למעלה",
+            "ForeColor": 16761024,
+            "Height": 195,
+            "Index": 2,
+            "Left": 6150,
+            "Top": 1350,
+            "Visible": 0,
+            "Width": 630
+          },
+          "children": [],
+          "px": {
+            "x": 512.5,
+            "y": 112.5,
+            "w": 52.5,
+            "h": 16.2
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "tipl",
+          "props": {
+            "AutoSize": -1,
+            "BackColor": 4194304,
+            "Caption": "הסבר",
+            "ForeColor": 16761024,
+            "Height": 192,
+            "Index": 6,
+            "Left": 156,
+            "Top": 1416,
+            "Visible": 0,
+            "Width": 480
+          },
+          "children": [],
+          "px": {
+            "x": 13.0,
+            "y": 118.0,
+            "w": 40.0,
+            "h": 16.0
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "tipl",
+          "props": {
+            "AutoSize": -1,
+            "BackColor": 4194304,
+            "Caption": "יציאה",
+            "ForeColor": 16761024,
+            "Height": 195,
+            "Index": 7,
+            "Left": 75,
+            "Top": 675,
+            "Visible": 0,
+            "Width": 570
+          },
+          "children": [],
+          "px": {
+            "x": 6.2,
+            "y": 56.2,
+            "w": 47.5,
+            "h": 16.2
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "tipl",
+          "props": {
+            "AutoSize": -1,
+            "BackColor": 4194304,
+            "Caption": "שמיעת ההקלטה",
+            "ForeColor": 16761024,
+            "Height": 195,
+            "Index": 5,
+            "Left": 2235,
+            "Top": 4800,
+            "Visible": 0,
+            "Width": 1410
+          },
+          "children": [],
+          "px": {
+            "x": 186.2,
+            "y": 400.0,
+            "w": 117.5,
+            "h": 16.2
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "tipl",
+          "props": {
+            "AutoSize": -1,
+            "BackColor": 4194304,
+            "Caption": "הקלטה",
+            "ForeColor": 16761024,
+            "Height": 195,
+            "Index": 4,
+            "Left": 3375,
+            "Top": 4800,
+            "Visible": 0,
+            "Width": 630
+          },
+          "children": [],
+          "px": {
+            "x": 281.2,
+            "y": 400.0,
+            "w": 52.5,
+            "h": 16.2
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "tipl",
+          "props": {
+            "AutoSize": -1,
+            "BackColor": 4194304,
+            "Caption": "שמיעת המילה",
+            "ForeColor": 16761024,
+            "Height": 195,
+            "Index": 3,
+            "Left": 3825,
+            "Top": 4800,
+            "Visible": 0,
+            "Width": 1260
+          },
+          "children": [],
+          "px": {
+            "x": 318.8,
+            "y": 400.0,
+            "w": 105.0,
+            "h": 16.2
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "tipl",
+          "props": {
+            "AutoSize": -1,
+            "BackColor": 4194304,
+            "Caption": "פריט הבא",
+            "ForeColor": 16761024,
+            "Height": 195,
+            "Index": 1,
+            "Left": 105,
+            "Top": 3180,
+            "Visible": 0,
+            "Width": 900
+          },
+          "children": [],
+          "px": {
+            "x": 8.8,
+            "y": 265.0,
+            "w": 75.0,
+            "h": 16.2
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "tipl",
+          "props": {
+            "AutoSize": -1,
+            "BackColor": 4194304,
+            "Caption": "פריט קודם",
+            "ForeColor": 16761024,
+            "Height": 195,
+            "Index": 0,
+            "Left": 30,
+            "Top": 1320,
+            "Visible": 0,
+            "Width": 960
+          },
+          "children": [],
+          "px": {
+            "x": 2.5,
+            "y": 110.0,
+            "w": 80.0,
+            "h": 16.2
+          }
+        },
+        {
+          "type": "VB.Shape",
+          "name": "Shape2",
+          "props": {
+            "Height": 3015,
+            "Left": 1050,
+            "Top": 825,
+            "Visible": 0,
+            "Width": 5490
+          },
+          "children": [],
+          "px": {
+            "x": 87.5,
+            "y": 68.8,
+            "w": 457.5,
+            "h": 251.2
+          }
+        }
+      ],
+      "px": {
+        "x": 125.0,
+        "y": 75.0,
+        "w": 650.0,
+        "h": 431.2
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 4194304,
+        "BorderStyle": 1,
+        "ForeColor": 16761024,
+        "Height": 225,
+        "Index": 5,
+        "Left": 8625,
+        "Top": 150,
+        "Visible": 0,
+        "Width": 75
+      },
+      "children": [],
+      "px": {
+        "x": 718.8,
+        "y": 12.5,
+        "w": 6.2,
+        "h": 18.8
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "TxtZman",
+      "props": {
+        "BackColor": 4194304,
+        "ForeColor": 4194304,
+        "Height": 330,
+        "Left": 1125,
+        "Top": 0,
+        "Width": 8100
+      },
+      "children": [],
+      "px": {
+        "x": 93.8,
+        "y": 0.0,
+        "w": 675.0,
+        "h": 27.5
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "tak",
+      "props": {
+        "BackColor": 4194304,
+        "Caption": "הגיה",
+        "ForeColor": 16761024,
+        "Height": 192,
+        "Left": 3072,
+        "Top": 5928,
+        "Visible": 0,
+        "Width": 492
+      },
+      "children": [],
+      "px": {
+        "x": 256.0,
+        "y": 494.0,
+        "w": 41.0,
+        "h": 16.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 4194304,
+        "ForeColor": 16761024,
+        "Height": 195,
+        "Index": 4,
+        "Left": 8100,
+        "Top": 6000,
+        "Visible": 0,
+        "Width": 45
+      },
+      "children": [],
+      "px": {
+        "x": 675.0,
+        "y": 500.0,
+        "w": 3.8,
+        "h": 16.2
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 4194304,
+        "ForeColor": 16761024,
+        "Height": 195,
+        "Index": 3,
+        "Left": 5025,
+        "Top": 5925,
+        "Visible": 0,
+        "Width": 45
+      },
+      "children": [],
+      "px": {
+        "x": 418.8,
+        "y": 493.8,
+        "w": 3.8,
+        "h": 16.2
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 4194304,
+        "ForeColor": 16761024,
+        "Height": 195,
+        "Index": 2,
+        "Left": 300,
+        "Top": 5925,
+        "Visible": 0,
+        "Width": 45
+      },
+      "children": [],
+      "px": {
+        "x": 25.0,
+        "y": 493.8,
+        "w": 3.8,
+        "h": 16.2
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 4194304,
+        "ForeColor": 16761024,
+        "Height": 195,
+        "Index": 1,
+        "Left": 150,
+        "Top": 1350,
+        "Visible": 0,
+        "Width": 45
+      },
+      "children": [],
+      "px": {
+        "x": 12.5,
+        "y": 112.5,
+        "w": 3.8,
+        "h": 16.2
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 4194304,
+        "ForeColor": 16761024,
+        "Height": 195,
+        "Index": 0,
+        "Left": 105,
+        "Top": 1050,
+        "Visible": 0,
+        "Width": 45
+      },
+      "children": [],
+      "px": {
+        "x": 8.8,
+        "y": 87.5,
+        "w": 3.8,
+        "h": 16.2
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "N_Bmp",
+      "props": {
+        "BackColor": 2147483653,
+        "Caption": "אלבום תמונות",
+        "ForeColor": 16744576,
+        "Height": 255,
+        "Index": 1,
+        "Left": 7560,
+        "MouseIcon": "GAMES3.frx",
+        "Top": 0,
+        "Width": 1635
+      },
+      "children": [],
+      "px": {
+        "x": 630.0,
+        "y": 0.0,
+        "w": 136.2,
+        "h": 21.2
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "N_Bmp",
+      "props": {
+        "BackColor": 2147483653,
+        "ForeColor": 65535,
+        "Height": 255,
+        "Index": 0,
+        "Left": 1275,
+        "MouseIcon": "GAMES3.frx",
+        "Top": 0,
+        "Width": 1035
+      },
+      "children": [],
+      "px": {
+        "x": 106.2,
+        "y": 0.0,
+        "w": 86.2,
+        "h": 21.2
+      }
+    }
+  ],
+  "design": {
+    "width": 822,
+    "height": 730,
+    "client_w_twips": 9864,
+    "client_h_twips": 8760
+  }
+}

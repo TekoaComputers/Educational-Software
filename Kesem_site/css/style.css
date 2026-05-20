@@ -1,0 +1,370 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+[hidden] { display: none !important; }
+
+body {
+    font-family: "Aharoni", "David", "Arial Hebrew", system-ui, sans-serif;
+    background: #f6f3ea;
+    min-height: 100vh;
+    color: #222;
+}
+
+body.app-mode {
+    background: #000;
+    overflow: hidden;
+}
+
+main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+body.app-mode main {
+    max-width: none;
+    padding: 0;
+    height: 100vh;
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 2rem;
+    font-size: 2.5rem;
+    color: #2c2c2c;
+}
+
+/* === App selector === */
+
+.app-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1.25rem;
+}
+
+.app-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .6rem;
+    padding: 1.25rem;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.1);
+    text-decoration: none;
+    color: inherit;
+    font-size: 1.2rem;
+    transition: transform .15s, box-shadow .15s;
+}
+
+.app-tile:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0,0,0,.2);
+}
+
+.app-tile img {
+    width: 72px;
+    height: 72px;
+    object-fit: contain;
+}
+
+/* === Faithful .frm renderer === */
+
+.frm-wrap {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.frm-stage {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(1);
+    transform-origin: center center;
+    background: #000;
+    /* Controls that fall outside the visible BG region are clipped here —
+       matches VB6's maximize-to-640x480 clipping behaviour. */
+    overflow: hidden;
+}
+
+.frm-bg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+    pointer-events: none;
+    user-select: none;
+}
+
+/* VB6 form.Picture is drawn at natural size at (0,0) — no stretching.
+   This rule mirrors that behavior for our faithful renderer. */
+.frm-bg--native {
+    inset: auto;
+    top: 0;
+    left: 0;
+    width: auto;
+    height: auto;
+    object-fit: none;
+}
+
+.frm-container {
+    /* PictureBox / Frame container that holds child controls.
+       No visual styling — just a positioned wrapper so children
+       inherit absolute positioning relative to it. */
+    background: transparent;
+}
+
+/* Image bound to a control via screenConf.images. Fills its parent control,
+   matching the VB6 PictureBox.Picture stretching behaviour we use here. */
+.frm-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+    pointer-events: none;
+    user-select: none;
+}
+
+/* Picture1 on game forms: receives clicks (wrong-answer detection) and
+   clips the stage image to its bounds. Image is rendered at NATURAL pixel
+   size from (0,0), matching VB6 PictureBox.Picture behaviour, so .RAS
+   hotspot coords (image-pixel space) align directly. */
+.frm-ctrl--Picture1 {
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.stage-hotspot {
+    /* Invisible but clickable. Becomes visible briefly only when game logic
+       calls showHint() / flashGame3Hotspot(). Original VB6 PictureBox has no
+       :hover styling — earlier hover tint here was giving away answers to
+       the player on mouse-over. Removed: see commit history. */
+    transition: background .15s, outline .15s;
+}
+
+/* Game type 4 (place missing parts) — slots are visible empty rectangles.
+   When a piece is placed, the outline goes away and the original image
+   patch is uncovered. */
+.stage-hotspot--empty {
+    background: rgba(255, 255, 255, .35) !important;
+    outline: 2px dashed rgba(255, 255, 255, .75);
+}
+
+.stage-hotspot--placed {
+    background: transparent !important;
+    outline: none;
+}
+
+.stage-hotspot--target.stage-hotspot--empty {
+    outline: 2px solid #fbcf66;
+    background: rgba(251, 207, 102, .25) !important;
+}
+
+/* Game 5 multi-choice Picture2 buttons. Original Games5.frm has no
+   Picture2 hover styling (no MouseMove handler that re-paints them); a
+   scale-on-hover would let the player identify candidates by feel. Keep
+   them static. */
+.stage-game5-choice {
+    border: 2px solid #fbcf66;
+    border-radius: 4px;
+    background: #000;
+}
+
+/* No unconditional Picture2 styling — the original keeps these controls
+   hidden until game logic (Choice_Pic, helek state machine, etc.) reveals
+   them. CSS now applies via inline canvases inside the controls when they
+   become visible. */
+
+
+.frm-ctrl {
+    position: absolute;
+}
+
+.frm-hotspot {
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    color: transparent;
+    font: inherit;
+}
+
+.frm-hotspot:hover {
+    background: rgba(255, 255, 0, .12);
+}
+
+/* Debug mode — visible outlines on every control for layout verification. */
+.frm-stage--debug .frm-ctrl {
+    outline: 1px solid rgba(255, 80, 80, .8);
+    background: rgba(255, 80, 80, .08);
+}
+
+.frm-stage--debug .frm-ctrl::before {
+    content: attr(data-name) attr(data-index);
+    position: absolute;
+    top: -1px;
+    right: 1px;
+    font-size: 9px;
+    color: #fff;
+    background: rgba(0, 0, 0, .7);
+    padding: 0 3px;
+    line-height: 11px;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.frm-tip {
+    background: rgba(255, 255, 220, .95);
+    color: #222;
+    border: 1px solid #c0a000;
+    padding: 2px 6px;
+    font-size: 11px;
+    transition: opacity .15s;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 50;
+}
+
+/* === Misger modal (exit / mid-game stage chooser) === */
+
+.misger-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, .55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.misger-box {
+    /* Inherits inline width/height (240x200 * scale) from JS.
+       Background image set inline. */
+}
+
+/* Legacy exit modal (now unused; left for compat) */
+.exit-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, .55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.exit-modal__box {
+    /* Original misger.frm is 240x200 (299x249 design). We scale up for
+       legibility on modern displays while keeping the same aspect. */
+    width: 360px;
+    min-height: 300px;
+    background: #004000 center/cover no-repeat;
+    border: 3px solid #8a5b13;
+    border-radius: 14px;
+    padding: 1.5rem 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,.5);
+    color: #fff;
+    text-shadow: 0 1px 4px rgba(0,0,0,.9), 0 0 2px rgba(0,0,0,.9);
+}
+
+.exit-modal--game .exit-modal__box {
+    width: 400px;
+    min-height: 340px;
+    gap: 1rem;
+}
+
+.exit-modal__row {
+    display: flex;
+    gap: .5rem;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.exit-modal__label {
+    color: #fbcf66;
+    font-size: 1rem;
+    font-weight: 700;
+    text-shadow: none;
+}
+
+.exit-modal__select {
+    background: rgba(0,0,0,.55);
+    color: #fbcf66;
+    border: 2px solid #fbcf66;
+    border-radius: 6px;
+    padding: .35rem .6rem;
+    font-family: inherit;
+    font-size: 1rem;
+    direction: rtl;
+}
+
+.exit-modal__row button {
+    background: rgba(0,0,0,.55);
+    color: #fbcf66;
+    border: 2px solid #fbcf66;
+    border-radius: 999px;
+    padding: .35rem 1rem;
+    font-family: inherit;
+    font-size: 1rem;
+    cursor: pointer;
+    text-shadow: none;
+}
+
+.exit-modal__row button:hover {
+    background: #fbcf66;
+    color: #1a1408;
+}
+
+.exit-modal__title {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #fff;
+    margin-top: 1.2rem;
+}
+
+.exit-modal__buttons {
+    display: flex;
+    gap: 1.25rem;
+    justify-content: center;
+    margin-bottom: .8rem;
+}
+
+.exit-modal__buttons button {
+    min-width: 90px;
+    padding: .55rem 1.4rem;
+    border: 2px solid #fbcf66;
+    background: rgba(0,0,0,.55);
+    color: #fbcf66;
+    border-radius: 999px;
+    font-family: inherit;
+    font-size: 1.15rem;
+    font-weight: 700;
+    cursor: pointer;
+    text-shadow: none;
+}
+
+.exit-modal__buttons button:hover {
+    background: #fbcf66;
+    color: #1a1408;
+}
+
+.exit-modal__buttons button[data-yes] {
+    border-color: #ff8a8a;
+    color: #ff8a8a;
+}
+
+.exit-modal__buttons button[data-yes]:hover {
+    background: #c84040;
+    color: #fff;
+    border-color: #c84040;
+}

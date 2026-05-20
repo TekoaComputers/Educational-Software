@@ -1,0 +1,928 @@
+{
+  "type": "VB.Form",
+  "name": "Sst",
+  "props": {
+    "BackColor": 0,
+    "Caption": "חגי ישראל",
+    "ClientHeight": 8568,
+    "ClientLeft": 600,
+    "ClientTop": 1152,
+    "ClientWidth": 11628,
+    "Icon": "SST.frx",
+    "ScaleHeight": 714,
+    "ScaleWidth": 969
+  },
+  "children": [
+    {
+      "type": "VB.PictureBox",
+      "name": "mahak",
+      "props": {
+        "BackColor": 2147483653,
+        "ForeColor": 2147483656,
+        "Height": 615,
+        "Left": 240,
+        "ScaleHeight": 612,
+        "ScaleWidth": 648,
+        "Top": 6510,
+        "Width": 645
+      },
+      "children": [],
+      "px": {
+        "x": 13.2,
+        "y": 364.7,
+        "w": 35.5,
+        "h": 34.5
+      }
+    },
+    {
+      "type": "MCI.MMControl",
+      "name": "MMControl1",
+      "props": {
+        "Height": 510,
+        "Left": 7725,
+        "Top": 8175,
+        "Width": 3540
+      },
+      "children": [],
+      "px": {
+        "x": 425.2,
+        "y": 458.0,
+        "w": 194.8,
+        "h": 28.6
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "btnLamp",
+      "props": {
+        "Height": 195,
+        "Index": 5,
+        "Left": 2130,
+        "ScaleHeight": 192,
+        "ScaleWidth": 1416,
+        "Top": 6360,
+        "Width": 1410
+      },
+      "children": [],
+      "px": {
+        "x": 117.2,
+        "y": 356.3,
+        "w": 77.6,
+        "h": 10.9
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "btnLamp",
+      "props": {
+        "Height": 195,
+        "Index": 4,
+        "Left": 4050,
+        "ScaleHeight": 192,
+        "ScaleWidth": 1296,
+        "Top": 6360,
+        "Width": 1290
+      },
+      "children": [],
+      "px": {
+        "x": 222.9,
+        "y": 356.3,
+        "w": 71.0,
+        "h": 10.9
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "btnLamp",
+      "props": {
+        "Height": 195,
+        "Index": 3,
+        "Left": 5985,
+        "ScaleHeight": 192,
+        "ScaleWidth": 1296,
+        "Top": 6360,
+        "Width": 1290
+      },
+      "children": [],
+      "px": {
+        "x": 329.4,
+        "y": 356.3,
+        "w": 71.0,
+        "h": 10.9
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "btnLamp",
+      "props": {
+        "Height": 195,
+        "Index": 2,
+        "Left": 2100,
+        "ScaleHeight": 192,
+        "ScaleWidth": 1416,
+        "Top": 4290,
+        "Width": 1410
+      },
+      "children": [],
+      "px": {
+        "x": 115.6,
+        "y": 240.3,
+        "w": 77.6,
+        "h": 10.9
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "btnLamp",
+      "props": {
+        "Height": 195,
+        "Index": 1,
+        "Left": 4050,
+        "ScaleHeight": 192,
+        "ScaleWidth": 1296,
+        "Top": 4290,
+        "Width": 1290
+      },
+      "children": [],
+      "px": {
+        "x": 222.9,
+        "y": 240.3,
+        "w": 71.0,
+        "h": 10.9
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "btnLamp",
+      "props": {
+        "Height": 195,
+        "Index": 0,
+        "Left": 5955,
+        "ScaleHeight": 192,
+        "ScaleWidth": 1296,
+        "Top": 4290,
+        "Width": 1290
+      },
+      "children": [],
+      "px": {
+        "x": 327.8,
+        "y": 240.3,
+        "w": 71.0,
+        "h": 10.9
+      }
+    },
+    {
+      "type": "VB.Timer",
+      "name": "Timer1",
+      "props": {
+        "Left": 0,
+        "Top": 630
+      },
+      "children": []
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "btnHofshi",
+      "props": {
+        "Height": 735,
+        "Left": 450,
+        "MouseIcon": "SST.frx",
+        "ScaleHeight": 732,
+        "ScaleWidth": 1812,
+        "Top": 75,
+        "Width": 1815
+      },
+      "children": [],
+      "px": {
+        "x": 24.8,
+        "y": 4.2,
+        "w": 99.9,
+        "h": 41.2
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Reka",
+      "props": {
+        "BackColor": 2147483653,
+        "ForeColor": 2147483656,
+        "Height": 645,
+        "Left": 0,
+        "MouseIcon": "SST.frx",
+        "ScaleHeight": 624,
+        "ScaleWidth": 288,
+        "Top": 0,
+        "Width": 315
+      },
+      "children": [],
+      "px": {
+        "x": 0.0,
+        "y": 0.0,
+        "w": 17.3,
+        "h": 36.1
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "CmdMashal",
+      "props": {
+        "Height": 735,
+        "Left": 8280,
+        "Top": 6480,
+        "Width": 1335
+      },
+      "children": [],
+      "px": {
+        "x": 455.7,
+        "y": 363.0,
+        "w": 73.5,
+        "h": 41.2
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "CmdExit",
+      "props": {
+        "Height": 975,
+        "Left": 120,
+        "Top": 0,
+        "Width": 975
+      },
+      "children": [],
+      "px": {
+        "x": 6.6,
+        "y": 0.0,
+        "w": 53.7,
+        "h": 54.6
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "btnIcon",
+      "props": {
+        "Height": 1695,
+        "Index": 5,
+        "Left": 2040,
+        "Top": 4800,
+        "Width": 1695
+      },
+      "children": [],
+      "px": {
+        "x": 112.3,
+        "y": 268.9,
+        "w": 93.3,
+        "h": 95.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "btnIcon",
+      "props": {
+        "Height": 1695,
+        "Index": 4,
+        "Left": 3960,
+        "Top": 4800,
+        "Width": 1695
+      },
+      "children": [],
+      "px": {
+        "x": 218.0,
+        "y": 268.9,
+        "w": 93.3,
+        "h": 95.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "btnIcon",
+      "props": {
+        "Height": 1695,
+        "Index": 3,
+        "Left": 5880,
+        "Top": 4800,
+        "Width": 1695
+      },
+      "children": [],
+      "px": {
+        "x": 323.6,
+        "y": 268.9,
+        "w": 93.3,
+        "h": 95.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "btnIcon",
+      "props": {
+        "Height": 1695,
+        "Index": 2,
+        "Left": 2040,
+        "Top": 2640,
+        "Width": 1695
+      },
+      "children": [],
+      "px": {
+        "x": 112.3,
+        "y": 147.9,
+        "w": 93.3,
+        "h": 95.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "btnIcon",
+      "props": {
+        "Height": 1695,
+        "Index": 1,
+        "Left": 3960,
+        "Top": 2640,
+        "Width": 1695
+      },
+      "children": [],
+      "px": {
+        "x": 218.0,
+        "y": 147.9,
+        "w": 93.3,
+        "h": 95.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "btnIcon",
+      "props": {
+        "Height": 1695,
+        "Index": 0,
+        "Left": 5880,
+        "Top": 2640,
+        "Width": 1695
+      },
+      "children": [],
+      "px": {
+        "x": 323.6,
+        "y": 147.9,
+        "w": 93.3,
+        "h": 95.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Icon_s",
+      "props": {
+        "Height": 615,
+        "Index": 3,
+        "Left": 1680,
+        "MouseIcon": "SST.frx",
+        "Top": 1920,
+        "Width": 1500
+      },
+      "children": [],
+      "px": {
+        "x": 92.5,
+        "y": 107.6,
+        "w": 82.6,
+        "h": 34.5
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Icon_s",
+      "props": {
+        "Height": 615,
+        "Index": 2,
+        "Left": 3285,
+        "MouseIcon": "SST.frx",
+        "Top": 1950,
+        "Width": 1500
+      },
+      "children": [],
+      "px": {
+        "x": 180.8,
+        "y": 109.2,
+        "w": 82.6,
+        "h": 34.5
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "btnSeret",
+      "props": {
+        "Height": 960,
+        "Index": 0,
+        "Left": 8475,
+        "MouseIcon": "SST.frx",
+        "Top": 0,
+        "Width": 915
+      },
+      "children": [],
+      "px": {
+        "x": 466.5,
+        "y": 0.0,
+        "w": 50.4,
+        "h": 53.8
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "BackColor": 12648447,
+        "ForeColor": 2147483656,
+        "Height": 195,
+        "Index": 9,
+        "Left": 6525,
+        "Top": 6825,
+        "Width": 75
+      },
+      "children": [],
+      "px": {
+        "x": 359.1,
+        "y": 382.4,
+        "w": 4.1,
+        "h": 10.9
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "BackColor": 12648447,
+        "ForeColor": 2147483656,
+        "Height": 180,
+        "Index": 8,
+        "Left": 4200,
+        "Top": 6825,
+        "Width": 75
+      },
+      "children": [],
+      "px": {
+        "x": 231.2,
+        "y": 382.4,
+        "w": 4.1,
+        "h": 10.1
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "BackColor": 12648447,
+        "ForeColor": 2147483656,
+        "Height": 195,
+        "Index": 7,
+        "Left": 1575,
+        "Top": 6825,
+        "Width": 75
+      },
+      "children": [],
+      "px": {
+        "x": 86.7,
+        "y": 382.4,
+        "w": 4.1,
+        "h": 10.9
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Icon_s",
+      "props": {
+        "Height": 615,
+        "Index": 1,
+        "Left": 4950,
+        "MouseIcon": "SST.frx",
+        "Top": 1950,
+        "Width": 1380
+      },
+      "children": [],
+      "px": {
+        "x": 272.4,
+        "y": 109.2,
+        "w": 76.0,
+        "h": 34.5
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Icon_s",
+      "props": {
+        "Height": 630,
+        "Index": 0,
+        "Left": 6450,
+        "MouseIcon": "SST.frx",
+        "Top": 1980,
+        "Width": 1425
+      },
+      "children": [],
+      "px": {
+        "x": 355.0,
+        "y": 110.9,
+        "w": 78.4,
+        "h": 35.3
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "BackColor": 12648447,
+        "ForeColor": 2147483656,
+        "Height": 225,
+        "Index": 21,
+        "Left": 9075,
+        "Top": 300,
+        "Width": 75
+      },
+      "children": [],
+      "px": {
+        "x": 499.5,
+        "y": 16.8,
+        "w": 4.1,
+        "h": 12.6
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "BackColor": 12648447,
+        "ForeColor": 0,
+        "Height": 225,
+        "Index": 3,
+        "Left": 6600,
+        "Top": 2550,
+        "Width": 75
+      },
+      "children": [],
+      "px": {
+        "x": 363.3,
+        "y": 142.9,
+        "w": 4.1,
+        "h": 12.6
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "BackColor": 12648447,
+        "ForeColor": 2147483656,
+        "Height": 225,
+        "Index": 0,
+        "Left": 960,
+        "Top": 15,
+        "Width": 75
+      },
+      "children": [],
+      "px": {
+        "x": 52.8,
+        "y": 0.8,
+        "w": 4.1,
+        "h": 12.6
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "BackColor": 12648447,
+        "ForeColor": 2147483656,
+        "Height": 225,
+        "Index": 20,
+        "Left": 8925,
+        "Top": 5550,
+        "Width": 75
+      },
+      "children": [],
+      "px": {
+        "x": 491.2,
+        "y": 310.9,
+        "w": 4.1,
+        "h": 12.6
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "BackColor": 12648447,
+        "ForeColor": 2147483656,
+        "Height": 255,
+        "Index": 19,
+        "Left": 8850,
+        "Top": 5025,
+        "Width": 135
+      },
+      "children": [],
+      "px": {
+        "x": 487.1,
+        "y": 281.5,
+        "w": 7.4,
+        "h": 14.3
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "BackColor": 12648447,
+        "ForeColor": 2147483656,
+        "Height": 225,
+        "Index": 18,
+        "Left": 8850,
+        "Top": 5250,
+        "Width": 75
+      },
+      "children": [],
+      "px": {
+        "x": 487.1,
+        "y": 294.1,
+        "w": 4.1,
+        "h": 12.6
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "BackColor": 12648447,
+        "ForeColor": 2147483656,
+        "Height": 225,
+        "Index": 17,
+        "Left": 225,
+        "Top": 2100,
+        "Width": 75
+      },
+      "children": [],
+      "px": {
+        "x": 12.4,
+        "y": 117.6,
+        "w": 4.1,
+        "h": 12.6
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "BackColor": 12648447,
+        "ForeColor": 2147483656,
+        "Height": 225,
+        "Index": 16,
+        "Left": 8175,
+        "Top": 1125,
+        "Width": 75
+      },
+      "children": [],
+      "px": {
+        "x": 449.9,
+        "y": 63.0,
+        "w": 4.1,
+        "h": 12.6
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "BackColor": 12648447,
+        "ForeColor": 2147483656,
+        "Height": 225,
+        "Index": 15,
+        "Left": 6540,
+        "Top": 4980,
+        "Width": 75
+      },
+      "children": [],
+      "px": {
+        "x": 360.0,
+        "y": 279.0,
+        "w": 4.1,
+        "h": 12.6
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "BackColor": 12648447,
+        "ForeColor": 2147483656,
+        "Height": 225,
+        "Index": 14,
+        "Left": 4530,
+        "Top": 4980,
+        "Width": 75
+      },
+      "children": [],
+      "px": {
+        "x": 249.3,
+        "y": 279.0,
+        "w": 4.1,
+        "h": 12.6
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "BackColor": 12648447,
+        "ForeColor": 2147483656,
+        "Height": 225,
+        "Index": 13,
+        "Left": 1800,
+        "Top": 4980,
+        "Width": 75
+      },
+      "children": [],
+      "px": {
+        "x": 99.1,
+        "y": 279.0,
+        "w": 4.1,
+        "h": 12.6
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "BackColor": 12648447,
+        "ForeColor": 2147483656,
+        "Height": 195,
+        "Index": 12,
+        "Left": 6750,
+        "Top": 2850,
+        "Width": 75
+      },
+      "children": [],
+      "px": {
+        "x": 371.5,
+        "y": 159.7,
+        "w": 4.1,
+        "h": 10.9
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "BackColor": 12648447,
+        "ForeColor": 2147483656,
+        "Height": 195,
+        "Index": 11,
+        "Left": 4575,
+        "Top": 2850,
+        "Width": 75
+      },
+      "children": [],
+      "px": {
+        "x": 251.8,
+        "y": 159.7,
+        "w": 4.1,
+        "h": 10.9
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "BackColor": 12648447,
+        "ForeColor": 2147483656,
+        "Height": 195,
+        "Index": 10,
+        "Left": 1875,
+        "Top": 2850,
+        "Width": 75
+      },
+      "children": [],
+      "px": {
+        "x": 103.2,
+        "y": 159.7,
+        "w": 4.1,
+        "h": 10.9
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "BackColor": 12648447,
+        "ForeColor": 2147483656,
+        "Height": 195,
+        "Index": 6,
+        "Left": 6690,
+        "Top": 4650,
+        "Width": 75
+      },
+      "children": [],
+      "px": {
+        "x": 368.2,
+        "y": 260.5,
+        "w": 4.1,
+        "h": 10.9
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "BackColor": 12648447,
+        "ForeColor": 2147483656,
+        "Height": 195,
+        "Index": 5,
+        "Left": 3930,
+        "Top": 4650,
+        "Width": 75
+      },
+      "children": [],
+      "px": {
+        "x": 216.3,
+        "y": 260.5,
+        "w": 4.1,
+        "h": 10.9
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "BackColor": 12648447,
+        "ForeColor": 2147483656,
+        "Height": 195,
+        "Index": 4,
+        "Left": 1425,
+        "Top": 4650,
+        "Width": 75
+      },
+      "children": [],
+      "px": {
+        "x": 78.4,
+        "y": 260.5,
+        "w": 4.1,
+        "h": 10.9
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "BackColor": 12648447,
+        "ForeColor": 2147483656,
+        "Height": 225,
+        "Index": 1,
+        "Left": 1575,
+        "Top": 2550,
+        "Width": 75
+      },
+      "children": [],
+      "px": {
+        "x": 86.7,
+        "y": 142.9,
+        "w": 4.1,
+        "h": 12.6
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "BackColor": 12648447,
+        "ForeColor": 2147483656,
+        "Height": 225,
+        "Index": 2,
+        "Left": 3900,
+        "Top": 2550,
+        "Width": 75
+      },
+      "children": [],
+      "px": {
+        "x": 214.7,
+        "y": 142.9,
+        "w": 4.1,
+        "h": 12.6
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Label1",
+      "props": {
+        "BackColor": 0,
+        "ForeColor": 65535,
+        "Height": 705,
+        "Left": 150,
+        "Top": 90,
+        "Width": 195
+      },
+      "children": [],
+      "px": {
+        "x": 8.3,
+        "y": 5.0,
+        "w": 10.7,
+        "h": 39.5
+      }
+    }
+  ],
+  "design": {
+    "width": 640,
+    "height": 480,
+    "client_w_twips": 11628,
+    "client_h_twips": 8568
+  }
+}

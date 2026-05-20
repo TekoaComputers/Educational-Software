@@ -1,0 +1,82 @@
+{
+  "type": "VB.Form",
+  "name": "FrmCat",
+  "props": {
+    "BorderStyle": 0,
+    "Caption": "Form1",
+    "ClientHeight": 9000,
+    "ClientLeft": 0,
+    "ClientTop": 0,
+    "ClientWidth": 12000,
+    "Icon": "Catalog.frx",
+    "ScaleHeight": 750,
+    "ScaleMode": 3,
+    "ScaleWidth": 1000
+  },
+  "children": [
+    {
+      "type": "Dvash.CmdPlus",
+      "name": "Icons",
+      "props": {
+        "Height": 1695,
+        "Index": 0,
+        "Left": 720,
+        "Top": 1920,
+        "Visible": 0,
+        "Width": 1695
+      },
+      "children": [],
+      "px": {
+        "x": 60.0,
+        "y": 160.0,
+        "w": 141.2,
+        "h": 141.2
+      }
+    },
+    {
+      "type": "Dvash.CmdPlus",
+      "name": "CmdExit",
+      "props": {
+        "Height": 750,
+        "Left": 11160,
+        "Top": 0,
+        "Width": 750
+      },
+      "children": [],
+      "px": {
+        "x": 930.0,
+        "y": 0.0,
+        "w": 62.5,
+        "h": 62.5
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Label2",
+      "props": {
+        "BackColor": 2147483653,
+        "BorderStyle": 1,
+        "Caption": "יציאה מהקטלוג",
+        "ForeColor": 2147483656,
+        "Height": 255,
+        "Left": 9480,
+        "Top": 240,
+        "Visible": 0,
+        "Width": 1575
+      },
+      "children": [],
+      "px": {
+        "x": 790.0,
+        "y": 20.0,
+        "w": 131.2,
+        "h": 21.2
+      }
+    }
+  ],
+  "design": {
+    "width": 1000,
+    "height": 750,
+    "client_w_twips": 12000,
+    "client_h_twips": 9000
+  }
+}

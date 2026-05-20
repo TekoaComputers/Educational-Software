@@ -1,0 +1,21 @@
+{
+  "type": "VB.Form",
+  "name": "mashal",
+  "props": {
+    "BackColor": 0,
+    "BorderStyle": 0,
+    "ClientHeight": 6675,
+    "ClientLeft": 60,
+    "ClientTop": 360,
+    "ClientWidth": 8625,
+    "ScaleHeight": 445,
+    "ScaleMode": 3,
+    "ScaleWidth": 575
+  },
+  "children": [],
+  "design": {
+    "scaleMode": 3,
+    "width": 575,
+    "height": 445
+  }
+}

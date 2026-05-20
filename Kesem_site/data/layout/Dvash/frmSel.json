@@ -1,0 +1,97 @@
+{
+  "type": "VB.Form",
+  "name": "FrmSels",
+  "props": {
+    "BorderStyle": 1,
+    "Caption": "תקוע מחשבים מערכות חינוכיות בע\"מ",
+    "ClientHeight": 6000,
+    "ClientLeft": 48,
+    "ClientTop": 336,
+    "ClientWidth": 6000,
+    "Icon": "FrmSel.frx",
+    "ScaleHeight": 500,
+    "ScaleMode": 3,
+    "ScaleWidth": 500
+  },
+  "children": [
+    {
+      "type": "Dvash.CmdPlus",
+      "name": "CmdCat",
+      "props": {
+        "Height": 1620,
+        "Left": 1290,
+        "Top": 3450,
+        "Width": 3750
+      },
+      "children": [],
+      "px": {
+        "x": 107.5,
+        "y": 287.5,
+        "w": 312.5,
+        "h": 135.0
+      }
+    },
+    {
+      "type": "Dvash.CmdPlus",
+      "name": "CmdDvash",
+      "props": {
+        "Height": 1815,
+        "Left": 495,
+        "Top": 1215,
+        "Width": 4785
+      },
+      "children": [],
+      "px": {
+        "x": 41.2,
+        "y": 101.2,
+        "w": 398.8,
+        "h": 151.2
+      }
+    },
+    {
+      "type": "Dvash.CmdPlus",
+      "name": "CmdExit",
+      "props": {
+        "Height": 750,
+        "Left": 5160,
+        "Top": 0,
+        "Width": 750
+      },
+      "children": [],
+      "px": {
+        "x": 430.0,
+        "y": 0.0,
+        "w": 62.5,
+        "h": 62.5
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Label2",
+      "props": {
+        "BackColor": 2147483653,
+        "BorderStyle": 1,
+        "Caption": "יציאה מהתפריט",
+        "ForeColor": 2147483656,
+        "Height": 255,
+        "Left": 3480,
+        "Top": 240,
+        "Visible": 0,
+        "Width": 1575
+      },
+      "children": [],
+      "px": {
+        "x": 290.0,
+        "y": 20.0,
+        "w": 131.2,
+        "h": 21.2
+      }
+    }
+  ],
+  "design": {
+    "width": 500,
+    "height": 500,
+    "client_w_twips": 6000,
+    "client_h_twips": 6000
+  }
+}
