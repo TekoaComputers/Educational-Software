@@ -49,6 +49,7 @@ const GameT3 = (() => {
   // ─── Public API ─────────────────────────────────────────────────────────────
 
   function init(unitData, completeCb) {
+    if (window.TDebug) TDebug.log('game', 'game3 init', { unit: unitData?.title, qCount: unitData?.questions?.length });
     destroy();
     unit = unitData;
     onComplete = completeCb;

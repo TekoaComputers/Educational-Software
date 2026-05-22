@@ -114,6 +114,7 @@ const App = (() => {
   }
 
   function showScreen(name) {
+    TDebug.log('screen', 'showScreen', { name, user: currentUser, product: currentProduct });
     if (name === 'game') clearGameDOM();
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     const el = document.getElementById(`screen-${name}`);
@@ -1865,6 +1866,20 @@ const App = (() => {
       SketchTool.show(unit ? unit.title : '');
     }
   };
+
+  // TDebug: wrap every `window.app*` handler so each invocation is logged.
+  // Runs once after all assignments; no-op when debug is disabled.
+  Object.keys(window).forEach(k => {
+    if (!/^app[A-Z]/.test(k)) return;
+    const orig = window[k];
+    if (typeof orig !== 'function' || orig.__tdebugWrapped) return;
+    const wrapped = function(...args) {
+      TDebug.log('button', k, args.length ? { args } : undefined);
+      return orig.apply(this, args);
+    };
+    wrapped.__tdebugWrapped = true;
+    window[k] = wrapped;
+  });
 
   return { init };
 })();

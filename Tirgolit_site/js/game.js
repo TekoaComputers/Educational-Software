@@ -63,6 +63,7 @@ const Game = (() => {
   // ─── Public API ────────────────────────────────────────────────────────────
 
   function init(unitData, kind, completeCb) {
+    TDebug.log('game', 'init', { unit: unitData?.title, kind, qCount: unitData?.questions?.length });
     destroy(); // clean up any previous session
     unit = unitData;
     gameKind = kind;
@@ -247,6 +248,8 @@ const Game = (() => {
       row.dataset.idx = i;
       row.style.top    = ROW_TOPS[i] + 'px';
       row.style.height = ROW_H + 'px';
+      // VB6 RefAll: GFull is drawn only for rows where Choo=True (player answered correctly).
+      // Unanswered rows show the broken plank that's already baked into tirgol1.bmp.
       if (matched[i]) {
         row.classList.add('matched');
         setPlank(i, 'gfull');
@@ -300,8 +303,9 @@ const Game = (() => {
       } else {
         ansEl.textContent = '';
         ansEl.className = 'row-answer hidden';
-        if (!animInterval && charAnim) charAnim.src = './assets/anim/Stati.png';
-        setPlank(rowIdx, null);
+        // Keep the rooster's last gaze pose — do not reset to Stati.png on mouse-leave.
+        // VB6: matched rows keep gfull; unmatched rows show the broken-plank bridge bg.
+        setPlank(rowIdx, matched[rowIdx] ? 'gfull' : null);
       }
     } else {
       // kind=2: preview expression in left span (right span always shows answer)
@@ -316,8 +320,8 @@ const Game = (() => {
       } else {
         exprEl.textContent = '';
         exprEl.className = 'row-expr';
-        if (!animInterval && charAnim) charAnim.src = './assets/anim/Stati.png';
-        setPlank(rowIdx, null);
+        // Keep the rooster's last gaze pose — do not reset to Stati.png on mouse-leave.
+        setPlank(rowIdx, matched[rowIdx] ? 'gfull' : null);
       }
     }
   }
@@ -329,6 +333,11 @@ const Game = (() => {
     const pair = scenePairs[rowIdx];
     const isCorrect = rowIdx === currentTarget.sceneRow ||
       pair.answer === currentTarget.matchAnswer;
+
+    TDebug.log('game', isCorrect ? 'correct' : 'wrong', {
+      kind: gameKind, row: rowIdx, target: currentTarget.value,
+      expected: pair.answer, penalty, wrongStreak,
+    });
 
     if (isCorrect) {
       matched[rowIdx] = true;

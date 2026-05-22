@@ -85,15 +85,24 @@ const GameWar = (() => {
     });
   }
 
-  async function loadSeq(urlFn, max) {
+  async function loadSeq(urlFn, count) {
     const frames = [];
-    for (let f = 1; f <= max; f++) {
+    for (let f = 1; f <= count; f++) {
       const img = await loadImg(urlFn(f));
       if (!img) break;
       frames.push(img);
     }
     return frames;
   }
+
+  // Exact frame counts per sprite — avoids probing 404s in the console.
+  // Derived from `ls` of assets/war/Tar/ and assets/war/Miflach{1,2,3}/.
+  const TAR_FRAMES    = [1, 10, 10, 11, 8, 7, 12, 1, 1, 6, 4, 9];
+  const MFLACH_FRAMES = {
+    1: [7, 1, 5, 7],
+    2: [5, 1, 5, 5],
+    3: [9, 1, 4, 9],
+  };
 
   async function loadAllSprites() {
     bgImg      = await loadImg('./assets/war/Back.jpg');
@@ -105,7 +114,7 @@ const GameWar = (() => {
       if (s === 8) continue;
       const ss = s;
       promises.push(
-        loadSeq(f => `./assets/war/Tar/${ss}Tar${f}.png`, 15).then(fr => { tarSpr[ss] = fr; })
+        loadSeq(f => `./assets/war/Tar/${ss}Tar${f}.png`, TAR_FRAMES[ss]).then(fr => { tarSpr[ss] = fr; })
       );
     }
     // Pagaz count images (Klipa HUD): Pag_0.png … Pag_6.png
@@ -119,7 +128,7 @@ const GameWar = (() => {
       for (let st = 0; st <= 3; st++) {
         const lv2 = lv, st2 = st;
         promises.push(
-          loadSeq(f => `./assets/war/Miflach${lv2}/${st2}Mflach${f}.png`, 20)
+          loadSeq(f => `./assets/war/Miflach${lv2}/${st2}Mflach${f}.png`, MFLACH_FRAMES[lv2][st2])
             .then(fr => { mflSpr[lv2][st2] = fr; })
         );
       }
@@ -131,6 +140,7 @@ const GameWar = (() => {
   // ─── Public API ──────────────────────────────────────────────────────────────
 
   function init(unitData, completeCb) {
+    if (window.TDebug) TDebug.log('game', 'gamewar init', { unit: unitData?.title, qCount: unitData?.questions?.length });
     destroy();
     unit       = unitData;
     onComplete = completeCb;
@@ -249,7 +259,7 @@ const GameWar = (() => {
     if (idx < 1 || idx > allPairs.length) return;
     tshP   = allPairs[idx - 1].answer;
     strAns = tshP[0];
-    yq     = 565;
+    yq     = 557;  // canvas fillText baseline — lifted a few px so it doesn't sit on the bottom edge
     xqQ    = 100;
   }
 

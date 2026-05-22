@@ -52,6 +52,7 @@ const GameT2 = (() => {
   // ─── Public API ──────────────────────────────────────────────────────────────
 
   function init(unitData, kind, completeCb) {
+    if (window.TDebug) TDebug.log('game', 'game2 init', { unit: unitData?.title, kind, qCount: unitData?.questions?.length });
     destroy();
     unit = unitData;
     gameKind = kind;
@@ -267,7 +268,8 @@ const GameT2 = (() => {
   }
 
   function buildTypingHTML(typed, remaining) {
-    let html = '<span style="color:#ffd54f">' + escapeHTML(typed) + '</span>';
+    // VB6 Me.ForeColor=&H800000 = navy (#000080) for typed text on the GTran plank.
+    let html = '<span style="color:#000080">' + escapeHTML(typed) + '</span>';
     if (deMode && remaining.length > 0) {
       // hint: first remaining char bold, rest in red
       html += '<span class="t2-hint">' + escapeHTML(remaining) + '</span>';

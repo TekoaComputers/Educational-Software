@@ -454,11 +454,14 @@ img {
   direction: ltr;
   overflow: hidden;
   cursor: pointer;
+  /* Nudge both text columns up a few px so they sit higher on the plank. */
+  transform: translateY(-4px);
 }
 
-/* Padding ~2 chars: gap between question text (right edge) and answer text (left edge) */
+/* Unmatched: push the two text columns apart for visual breathing room.
+   Matched: drop the padding so expression and answer read as one line on the plank. */
 .q-row:not(.matched) .row-expr   { padding-right: 24px; }
-.q-row:not(.matched) .row-answer { padding-left:  24px; }
+.q-row:not(.matched) .row-answer { padding-left: 36px; }
 
 
 .q-row.matched {
@@ -498,39 +501,39 @@ img {
 }
 
 /* Shel: VB6 Left=201, Width=311px. Tesh.Left=508 → expr col = 508-201=307px, right-justified to x=508 */
+/* VB6 Me.Print uses form-default ForeColor=&H000000 (black) on the GFull plank. */
 .row-expr {
   width: 337px;
   flex-shrink: 0;
-  color: #fff;
+  color: #000;
   font-size: 19px;
   font-weight: bold;
   text-align: right;
-  text-shadow: 0 1px 4px #000, 0 0 8px rgba(0,0,0,0.7);
   white-space: nowrap;
   overflow: hidden;
 }
 
-/* Tesh: VB6 Left=513, Width=151px, Alignment=Left */
+/* Tesh: VB6 Left=513, Width=151px, Alignment=Left, ForeColor=system text (black). */
 .row-answer {
   width: 181px;
   flex-shrink: 0;
-  color: #ffd54f;
+  color: #000;
   font-size: 19px;
   font-weight: bold;
   text-align: left;
-  text-shadow: 0 1px 4px #000, 0 0 8px rgba(0,0,0,0.7);
   white-space: nowrap;
   overflow: hidden;
   transition: opacity 0.15s;
 }
 
 .row-answer.hidden  { opacity: 0; }
-.row-answer.preview { opacity: 0.5; color: #ccc; }
-.row-answer.revealed { opacity: 1; color: #7ddd86; }
+/* Preview/typing: VB6 Me.ForeColor=&H800000 (navy #000080) on the GTran plank. */
+.row-answer.preview { opacity: 0.7; color: #000080; }
+.row-answer.revealed { opacity: 1; color: #000080; }
 
 /* kind=2: expression slot starts empty, previews on hover, reveals on match */
-.row-expr.preview  { opacity: 0.5; color: #ccc; }
-.row-expr.revealed { opacity: 1; color: #7ddd86; }
+.row-expr.preview  { opacity: 0.7; color: #000080; }
+.row-expr.revealed { opacity: 1; color: #000080; }
 
 /* Rooster character nest (BACK.bmp + animated Stati sprite)
    Chik: Left=9525/15=635, Top=885/15=59, Width=Height=2475/15=165 */
@@ -1105,12 +1108,12 @@ img {
 .t2-row:not(.matched) .t2-ans  { padding-left:  24px; }
 
 /* Expression column (same width as .row-expr in game.js) */
+/* VB6 Me.Print on GFull plank: ForeColor=&H000000 (black). */
 .t2-expr {
   width: 337px;
   flex-shrink: 0;
-  color: #fff;
+  color: #000;
   text-align: right;
-  text-shadow: 0 1px 4px #000, 0 0 8px rgba(0,0,0,0.7);
   white-space: nowrap;
   overflow: hidden;
 }
@@ -1119,9 +1122,8 @@ img {
 .t2-ans {
   width: 181px;
   flex-shrink: 0;
-  color: #ffd54f;
+  color: #000;
   text-align: left;
-  text-shadow: 0 1px 4px #000, 0 0 8px rgba(0,0,0,0.7);
   white-space: nowrap;
   overflow: hidden;
 }
@@ -1136,7 +1138,7 @@ img {
   display: inline-block;
   width: 2px;
   height: 1em;
-  background: #fff;
+  background: #000080;
   vertical-align: middle;
   animation: t2blink 0.6s step-end infinite;
 }
@@ -1147,7 +1149,9 @@ img {
 }
 
 /* ─── TIRGOL3 ROW STYLES ─────────────────────────── */
-/* Clickable question rows (absolutely positioned over game-viewport) */
+/* Clickable question rows (absolutely positioned over game-viewport).
+   VB6 Me.Print on GFull plank: ForeColor=&H000000 (black) by default,
+   ForeColor=&H800000 = navy (#000080) for active/typing row. */
 .t3-row {
   position: absolute;
   display: flex;
@@ -1158,8 +1162,7 @@ img {
   direction: ltr;
   font-family: 'Frank Ruhl Libre', 'David', serif;
   font-size: 26px;
-  color: #ffff80;
-  text-shadow: 1px 1px 0 #000;
+  color: #000;
   padding: 0 6px;
   box-sizing: border-box;
 }
@@ -1167,9 +1170,9 @@ img {
 /* expression column: fixed 290px (row left=160 → divider at 450), right-aligned so "=" aligns to fixed column */
 .t3-expr  { flex: 0 0 290px; width: 290px; text-align: right; }
 .t3-sep   { flex: 0 0 auto; white-space: pre; }
-.t3-ans   { flex: 0 0 auto; color: #ffcc66; }
-.t3-typing  { color: #88ffff; border-bottom: 2px solid #88ffff; }
-.t3-correct { color: #88ff88; }
+.t3-ans   { flex: 0 0 auto; color: #000; }
+.t3-typing  { color: #000080; border-bottom: 2px solid #000080; }
+.t3-correct { color: #000080; }
 /* VB6 De=99: expected next char shown in red at cursor after 2+ wrong keys */
 .t3-hint-char { color: #ff4444; text-decoration: underline; }
 

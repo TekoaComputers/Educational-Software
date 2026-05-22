@@ -98,15 +98,19 @@ const GameKrav = (() => {
     });
   }
 
-  async function loadSeq(urlFn, max) {
+  async function loadSeq(urlFn, count) {
     const frames = [];
-    for (let f = 1; f <= max; f++) {
+    for (let f = 1; f <= count; f++) {
       const img = await loadImg(urlFn(f));
       if (!img) break;
       frames.push(img);
     }
     return frames;
   }
+
+  // Exact frame counts per Tar sprite — avoids probing 404s.
+  // Derived from `ls` of assets/krav/Tar/. Index 11 has no files.
+  const KRAV_TAR_FRAMES = [1, 13, 10, 7, 13, 13, 10, 9, 1, 9, 9];
 
   async function loadAllSprites() {
     bgImg             = await loadImg('./assets/krav/Back.jpg');
@@ -119,7 +123,7 @@ const GameKrav = (() => {
     for (let s = 0; s <= 10; s++) {
       const ss = s;
       promises.push(
-        loadSeq(f => `./assets/krav/Tar/${ss}Tar${f}.png`, 15).then(fr => { tarSpr[ss] = fr; })
+        loadSeq(f => `./assets/krav/Tar/${ss}Tar${f}.png`, KRAV_TAR_FRAMES[ss]).then(fr => { tarSpr[ss] = fr; })
       );
     }
     for (let p = 0; p <= 1; p++) {
@@ -135,6 +139,7 @@ const GameKrav = (() => {
 
   // ─── Public API ──────────────────────────────────────────────────────────────
   function init(unitData, completeCb) {
+    if (window.TDebug) TDebug.log('game', 'gamekrav init', { unit: unitData?.title, qCount: unitData?.questions?.length });
     destroy();
     unit       = unitData;
     onComplete = completeCb;

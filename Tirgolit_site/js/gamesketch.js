@@ -108,6 +108,9 @@ const SketchTool = (() => {
   /* ── key handler (mirrors VB6 Form_KeyUp) ───────────────────── */
 
   function handleKeyCode(keyCode) {
+    if (window.TDebug) TDebug.log('sketch', 'key', {
+      vk: keyCode, x: CurrX, y: CurrY, dir: GoNext, checkChar: CheckChar,
+    });
     const Lastxx = CurrX;
     let Lastx = CurrX, Lasty = CurrY;
     let NumPress = false, movePress = false, checkPoint = false;
@@ -364,6 +367,7 @@ const SketchTool = (() => {
   }
 
   function show(expression) {
+    if (window.TDebug) TDebug.log('sketch', 'show', { expression });
     if (!canvas) init();
     const ov = document.getElementById('sketch-overlay');
     if (!ov) return;
