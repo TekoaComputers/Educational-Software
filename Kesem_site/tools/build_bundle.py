@@ -330,67 +330,104 @@ function wireDvashCatalog(state) {
     }
 }
 
-// Brahot/Hagim — mashal.frm has 6 buttons; clicking each plays
-// MASHAL/MASH<index+1>.avi. The form lacks a .frm parse here (we add it as
-// a virtual screen), so we render a simple 2x3 grid wired to the per-app
-// mashal/MASH<N>.mp4 paths from the manifest.
+// Brahot/Hagim FrmMashal.frm port. The layout (6 Mashal PictureBoxes + 1
+// CmdExit Label) is parsed from the original .frm by parse_frm.py, so the
+// renderer already places all 7 controls. We just need to:
+//   1. Set each Mashal tile's image based on the user's progress for the
+//      current rama (anim<N>.png if completed, ani_<N>.png if locked) —
+//      mirrors FrmMashal Form_Load's `If exist(AppPath + "\" & rama & i &
+//      ".txt") Then ... Picture = animN.bmp Else Picture = ani_N.bmp`.
+//   2. Wire Mashal click → playVideo on mashal/MASH<N>.mp4 when unlocked.
+//   3. Override CmdExit (which actionFor maps to "exit" by default — exits
+//      the whole app) to instead return to Sst, matching the original
+//      `Unload Me` which returns to the previous form (Sst).
 function wireMashalScreen(state) {
     const stage = state.stage;
-    stage.querySelectorAll(".mashal-tile, .mashal-back").forEach(function (n) { n.remove(); });
-    // Original mashal.frm Form_Unload returns to Sst.Visible=True. We render a
-    // close button in the top corner since the form has no picexi.
-    const back = document.createElement("button");
-    back.type = "button";
-    back.className = "mashal-back";
-    back.textContent = "× חזרה";
-    Object.assign(back.style, {
-        position: "absolute", top: "8px", left: "8px",
-        background: "rgba(0,0,0,.55)", color: "#fbcf66",
-        border: "2px solid #fbcf66", borderRadius: "999px",
-        padding: ".4rem 1rem", cursor: "pointer", fontFamily: "inherit",
-        fontSize: "1rem",
-    });
-    back.addEventListener("click", function () {
-        klog("CLICK mashal back → sst");
-        setScreen(state, "sst");
-    });
-    stage.appendChild(back);
+    const root = state.config.assetsRoot;
     const videos = state.videoFiles;
-    const assets = state.config.assetsRoot;
-    // 3 cols x 2 rows in the 640x480 design grid, matching original positions.
-    const layout = [
-        { left: 390, top: 156, w: 115, h: 121 }, // index 0 = MASH1
-        { left: 252, top: 156, w: 115, h: 121 },
-        { left: 114, top: 156, w: 115, h: 121 },
-        { left: 390, top: 306, w: 115, h: 121 },
-        { left: 252, top: 306, w: 115, h: 121 },
-        { left: 114, top: 306, w: 115, h: 121 },
-    ];
-    for (let i = 0; i < 6; i++) {
-        const mp4Rel = "mashal/MASH" + (i + 1) + ".mp4";
-        const enabled = !videos || videos.has(mp4Rel);
-        const tile = document.createElement("button");
-        tile.type = "button";
-        tile.className = "mashal-tile";
-        const pos = layout[i];
-        Object.assign(tile.style, {
-            position: "absolute",
-            left:  pos.left + "px",
-            top:   pos.top  + "px",
-            width: pos.w + "px", height: pos.h + "px",
-            padding: "0", border: "2px solid transparent",
-            background: "url('" + assets + "/menu/anim" + (i + 1) + ".png') center/contain no-repeat, #222",
-            cursor: enabled ? "pointer" : "not-allowed",
-            opacity: enabled ? "1" : "0.4",
+    const rama = state.rama;
+    const completed = loadCompletedMap(state.config.id);
+    const ramaDone = completed[rama] || {};
+
+    stage.querySelectorAll(".frm-ctrl--Mashal").forEach(function (tile) {
+        const idx = parseInt(tile.dataset.index, 10);
+        if (isNaN(idx)) return;
+        const isUnlocked = !!ramaDone[idx];
+        const imgName = (isUnlocked ? "anim" : "ani_") + (idx + 1) + ".png";
+
+        // Replace whatever image the renderer added with the locked/unlocked
+        // sprite. anim<N>.bmp and ani_<N>.bmp are both 110×115 — AutoSize keeps
+        // the control sized correctly.
+        const existing = tile.querySelector("img");
+        if (existing) existing.remove();
+        const img = document.createElement("img");
+        img.src = root + "/menu/" + imgName;
+        Object.assign(img.style, {
+            position: "absolute", inset: "0",
+            width: "100%", height: "100%",
+            objectFit: "contain",
+            pointerEvents: "none",
         });
-        if (enabled) {
+        tile.appendChild(img);
+
+        // Click behavior:
+        //   unlocked → playVideo on per-app mashal/MASH<N>.mp4
+        //   locked   → no action (cursor: not-allowed). Same as original
+        //              Mashal(i).Enabled = False (click silently ignored).
+        // Clone the node to drop any default handler from the renderer's
+        // actionFor dispatch (Mashal isn't mapped there, so nothing to strip,
+        // but we attach a fresh handler regardless).
+        tile.onclick = null;
+        const mp4Rel = "mashal/MASH" + (idx + 1) + ".mp4";
+        const hasMp4 = !videos || videos.has(mp4Rel);
+        if (isUnlocked && hasMp4) {
+            tile.style.cursor = "pointer";
+            tile.style.opacity = "1";
             tile.addEventListener("click", function () {
-                klog("CLICK mashal tile[" + (i + 1) + "] → " + mp4Rel);
-                playVideo(assets + "/" + mp4Rel);
+                klog("CLICK mashal Mashal[" + idx + "] → " + mp4Rel);
+                playVideo(root + "/" + mp4Rel);
             });
+        } else {
+            tile.style.cursor = "not-allowed";
+            tile.style.opacity = isUnlocked ? "1" : ".85";
         }
-        stage.appendChild(tile);
+    });
+
+    // CmdExit on this screen returns to Sst, NOT the launcher. The renderer's
+    // default actionFor maps CmdExit → "exit" (whole-app exit confirmation),
+    // which is wrong here. Strip the existing listener by cloning the node.
+    const cmdOld = stage.querySelector(".frm-ctrl--CmdExit");
+    if (cmdOld) {
+        const cmd = cmdOld.cloneNode(true);
+        cmdOld.replaceWith(cmd);
+        cmd.style.cursor = "pointer";
+        cmd.title = "חזרה";
+        cmd.addEventListener("click", function () {
+            klog("CLICK mashal CmdExit → sst");
+            setScreen(state, "sst");
+        });
     }
+}
+
+// === Completion tracking (Brahot/Hagim FrmMashal lock state) ============
+// Original VB writes "<AppPath>\<rama><n_masl>.txt" after a path completes;
+// FrmMashal Form_Load checks `If exist(...) Then unlocked`. We persist the
+// same fact in localStorage so the user's progress survives reloads.
+// Shape: kesem.<App>.completed = { "<rama>": { "<masl_idx>": true } }
+function completedKey(appId) { return "kesem." + appId + ".completed"; }
+function loadCompletedMap(appId) {
+    try { return JSON.parse(localStorage.getItem(completedKey(appId)) || "{}") || {}; }
+    catch (e) { return {}; }
+}
+function markPathCompleted(state) {
+    if (!state || state.currentPath == null) return;
+    const m = loadCompletedMap(state.config.id);
+    const r = String(state.rama);
+    if (!m[r]) m[r] = {};
+    m[r][state.currentPath] = true;
+    try { localStorage.setItem(completedKey(state.config.id), JSON.stringify(m)); }
+    catch (e) { klog("completed save failed:", e); }
+    klog("path completed → unlock mashal[" + state.currentPath + "] for rama " + r);
 }
 
 function handleAction(appId, action /*, ctrl */) {
@@ -407,10 +444,24 @@ function handleAction(appId, action /*, ctrl */) {
         if (!currentSession) return;
         confirmGameBack(
             function () {
-                currentSession.currentPath = null;
-                currentSession.currentStageIdx = 0;
-                currentSession.activeStage = null;
-                setScreen(currentSession, "sst");
+                // Original Sst.StartGames falls through to `niko` after the
+                // loop regardless of why the loop exited — including StopMaslul
+                // (picexi → yes). The only skip is `If ShlavNahehi = 0` (no
+                // stage completed). We mirror: show nikod when state.pathScore
+                // has at least one stage logged.
+                const showScore = currentSession.pathScore && currentSession.pathScore.length > 0;
+                const slots = currentRamaSlots(currentSession);
+                const slot  = slots && currentSession.currentPath != null
+                            ? slots[currentSession.currentPath] : null;
+                const goSst = function () {
+                    currentSession.currentPath = null;
+                    currentSession.currentStageIdx = 0;
+                    currentSession.activeStage = null;
+                    currentSession.pathScore = null;
+                    setScreen(currentSession, "sst");
+                };
+                if (showScore && slot) showNikod(currentSession, slot, goSst);
+                else                    goSst();
             },
             null,
             // Jump to selected stage index (0-based)
@@ -807,13 +858,15 @@ function playVideo(url, opts) {
         b.type = "button";
         b.title = title;
         b.textContent = glyph;
+        // Each button gets ~30 px width inside the 101-px bar so 3 visible
+        // buttons fill the row neatly.
         Object.assign(b.style, w9xRaised, {
-            width:  "24px",
+            width:  "30px",
             height: "27px",
             padding: "0",
             color: "#000",
-            fontSize: "10px", lineHeight: "1",
-            fontFamily: "Marlett, 'MS Sans Serif', sans-serif",
+            fontSize: "13px", lineHeight: "1",
+            fontFamily: "'MS Sans Serif', 'Tahoma', sans-serif",
             cursor: "pointer",
             display: "inline-flex", alignItems: "center", justifyContent: "center",
         });
@@ -830,12 +883,12 @@ function playVideo(url, opts) {
         b.addEventListener("click", handler);
         return b;
     }
-    // MCI32.OCX defaults visible: Prev, Play, Pause, Stop (PrevEnabled..StopEnabled
-    // = True; everything else Visible=False). Glyphs use Unicode geometric
-    // shapes which read cleanly at the small size.
-    mci.appendChild(mciBtn("◄◄", "התחלה",  function () { klog("CLICK video MCI prev");  vid.currentTime = 0; }));
-    mci.appendChild(mciBtn("►",   "נגן",     function () { klog("CLICK video MCI play");  vid.play(); }));
-    mci.appendChild(mciBtn("‖",   "השהיה",   function () { klog("CLICK video MCI pause"); vid.pause(); }));
+    // The .frm explicitly sets PrevVisible=NextVisible=BackVisible=
+    // StepVisible=RecordVisible=EjectVisible=0. Play/Pause/Stop default to
+    // True. So MCI32.OCX renders THREE buttons in this configuration, each
+    // ~33 px wide across the 101-px bar.
+    mci.appendChild(mciBtn("▶",   "נגן",     function () { klog("CLICK video MCI play");  vid.play(); }));
+    mci.appendChild(mciBtn("❚❚",  "השהיה",   function () { klog("CLICK video MCI pause"); vid.pause(); }));
     mci.appendChild(mciBtn("■",   "עצור",    function () { klog("CLICK video MCI stop");  vid.pause(); vid.currentTime = 0; }));
     box.appendChild(mci);
 
@@ -1028,6 +1081,7 @@ function startPath(state, pathIdx) {
          "stages=" + slot.stages.length, "rama=" + state.rama);
     state.currentPath = pathIdx;
     state.currentStageIdx = 0;
+    state.pathScore = [];          // accumulator for nikod (one entry per completed stage)
     // Original Dvash Sst.StartGames2:
     //   If Video_Start <> "" Then VideoFile = Video_Start: VideoBox.Show 1
     // Same pattern for Brahot/Hagim (where Video_Start often points at the
@@ -1087,6 +1141,7 @@ function initGameTurn(state, stage) {
     state._cursorPiece = null;
     state.Tek_N = 1;               // game 5 round counter
     state.game2Revealed = {};      // Game 2: which hotspot covers have been removed this stage
+    state._stageScore = { green: 0, yellow: 0, red: 0 };  // per-stage tally feeds nikod
     const n = stage.hotspots ? stage.hotspots.length : 0;
     state.maxTurn = Math.min(n, KOL_LBL_TOZAOT);
     klog("enter stage:", stageTag(state), "hotspots=" + n, "maxTurn=" + state.maxTurn);
@@ -1151,11 +1206,29 @@ function shuffleIndices(n, seedStr) {
 // All 9 lblToz are Visible=0 at design time — they're unhidden in code. Our
 // renderer respects design-time Visible, so we MUST flip them on here, or the
 // side score column never appears.
+// Build an array of the 9 lblToz controls indexed by their VB Index (0..8),
+// NOT by DOM order. The .frm lists them in reverse-Index order (Index=8 first,
+// Index=0 last), so a naive `querySelectorAll` walk would paint slots starting
+// from the BOTTOM tile and the topmost ones would never light up.
+//   Original game: lblToz(0) is the topmost tile, lblToz(N-1) is below it.
+//   First correct answer paints lblToz(0). My old code was painting lblToz(8).
+function lblTozByIndex(state) {
+    const els = state.stage.querySelectorAll(".frm-ctrl--lblToz");
+    const out = [];
+    els.forEach(function (el) {
+        const idx = parseInt(el.dataset.index, 10);
+        if (!isNaN(idx)) out[idx] = el;
+    });
+    return out;
+}
+
 function initStageIndicators(state) {
-    const tozEls = state.stage.querySelectorAll(".frm-ctrl--lblToz");
-    if (!tozEls.length) return;
+    const toz = lblTozByIndex(state);
+    if (!toz.length) return;
     const off = state.config.assetsRoot + "/menu/caftoff.png";
-    tozEls.forEach(function (el, i) {
+    for (let i = 0; i < 9; i++) {
+        const el = toz[i];
+        if (!el) continue;
         const old = el.querySelector(".toz-dot, .toz-img");
         if (old) old.remove();
         if (i < state.maxTurn) {
@@ -1171,7 +1244,7 @@ function initStageIndicators(state) {
         } else {
             el.style.display = "none";
         }
-    });
+    }
 }
 
 function paintStagePicture(state, stage) {
@@ -1737,6 +1810,16 @@ function onCorrectClickGame2(state) {
     state.game2Revealed[idx] = true;
     const cover = state.stage.querySelector('.stage-cover[data-idx="' + idx + '"]');
     if (cover) cover.remove();
+    // Original Picture1_MouseDown correct branch:
+    //   Picture3.Visible = False
+    //   Picture3.Left = 100 : Picture3.Top = 100
+    // — hide the floating cursor piece NOW so it doesn't linger over the
+    // image while the Tguva/affirmation/mus chain plays. paintHotspots will
+    // create a new one for the next round.
+    if (state._cursorPiece) {
+        state._cursorPiece.remove();
+        state._cursorPiece = null;
+    }
     runCorrectChain(state, idx, function () {
         state.wrongCount = 0;
         state.Pobeda += 1;
@@ -1992,6 +2075,13 @@ function onCorrectClickGame4Place(state) {
     const idx = state.Pr_N;
     klog("CLICK game4 Picture1 hotspot[" + idx + "] = placement target (correct)");
     markStageProgressAt(state, state.Pobeda);
+    // Original Games4 Picture1_MouseDown correct branch hides the Picture3
+    // cursor piece (Picture3.Visible = False, Picture3.Left/Top = 100). Mirror
+    // that so the piece doesn't linger over the image during the audio chain.
+    if (state._cursorPiece) {
+        state._cursorPiece.remove();
+        state._cursorPiece = null;
+    }
     runCorrectChain(state, idx, function () {
         state.wrongCount = 0;
         state.Pobeda += 1;
@@ -2044,9 +2134,8 @@ function flashElement(el) {
 // Per Games3.frm Label1_MouseDown: lblToz(Gg_N).Picture = caftblu, Gg_N++
 // (Gg_N here is a CLICK counter, not the target index.)
 function markInspectProgress(state) {
-    const tozEls = state.stage.querySelectorAll(".frm-ctrl--lblToz");
-    if (!tozEls.length) return;
-    const slot = tozEls[state.inspectCount];
+    const toz = lblTozByIndex(state);
+    const slot = toz[state.inspectCount];
     if (!slot) return;
     let img = slot.querySelector(".toz-img");
     if (!img) {
@@ -2131,9 +2220,15 @@ function pickAlt(state, opts) {
 //   Game 1: slotIdx = Gg_N - 1 (vbIdx - 1)
 //   Games 2/4/5: slotIdx = Pobeda (zero-based round counter)
 function markStageProgressAt(state, slotIdx) {
-    const tozEls = state.stage.querySelectorAll(".frm-ctrl--lblToz");
-    if (!tozEls.length) return;
-    const slot = tozEls[slotIdx];
+    // Tally this answer's bucket into the current-stage score (nikod feeds off it).
+    // Buckets match Tguva1/2/3 in original: 0 wrong = green, 1-2 wrong = yellow, 3+ = red.
+    if (!state._stageScore) state._stageScore = { green: 0, yellow: 0, red: 0 };
+    if (state.wrongCount === 0)      state._stageScore.green++;
+    else if (state.wrongCount < 3)   state._stageScore.yellow++;
+    else                              state._stageScore.red++;
+
+    const toz = lblTozByIndex(state);
+    const slot = toz[slotIdx];
     if (!slot) return;
     let img = slot.querySelector(".toz-img");
     if (!img) {
@@ -2155,23 +2250,455 @@ function advanceStage(state) {
     const slots = currentRamaSlots(state);
     if (!slots || state.currentPath == null) { setScreen(state, "sst"); return; }
     const slot = slots[state.currentPath];
+
+    // Snapshot the stage we just finished into the path score before moving on.
+    // nikod (the score board) walks state.pathScore to render per-stage rows.
+    if (state.activeStage && state._stageScore) {
+        state.pathScore = state.pathScore || [];
+        state.pathScore.push({
+            gameNumber: state.activeStage.gameNumber,
+            green:  state._stageScore.green  || 0,
+            yellow: state._stageScore.yellow || 0,
+            red:    state._stageScore.red    || 0,
+        });
+    }
+
     state.currentStageIdx = (state.currentStageIdx || 0) + 1;
     if (!slot.stages || state.currentStageIdx >= slot.stages.length) {
-        klog("end of path — play Video_End then back to Sst");
-        // Original Dvash Sst.Form_Activate / StartGames2 (after final stage):
-        //   If Video_End <> "" Then VideoFile = Video_End: VideoBox.Show 1
-        // For Brahot/Hagim this is the mashal (parable) video; for Dvash it's
-        // <N>end.avi; for Yeled it's an /AVI/<N>.AVI clip.
+        klog("end of path — play Video_End then show nikod (score board)");
+        // Original Sst.StartGames after the path loop:
+        //   1. If Video_End <> "" Then VideoFile = Video_End: VideoBox.Show 1
+        //   2. niko  →  nikod.Visible = True
+        //   3. Creates AppPath\<rama><n_masl>.txt to mark the activity done
+        //      → FrmMashal Form_Load reads that file to decide locked/unlocked
+        // Sequence: outro video first (if any), then score board, then back to Sst.
+        markPathCompleted(state);
         playSlotVideo(state, slot, "end", function () {
-            state.currentPath = null;
-            state.currentStageIdx = 0;
-            state.activeStage = null;
-            setScreen(state, "sst");
+            showNikod(state, slot, function () {
+                state.currentPath = null;
+                state.currentStageIdx = 0;
+                state.activeStage = null;
+                state.pathScore = null;
+                setScreen(state, "sst");
+            });
         });
         return;
     }
     klog("advanceStage: → next stage", state.currentStageIdx + 1, "of", slot.stages.length);
     enterStage(state);
+}
+
+// === Nikod (score board) ================================================
+// Faithful port of nikod.frm. Form dims: 576x510 px, BackColor &H400000.
+//
+// Top row (form-level):
+//   Command1 — return-to-Sst button   (15, 10)  41x41   custom cursor
+//   koter    — path title (Hebrew)    (60, 80)  321x26  David 24pt white
+//   adv      — toggle button          (180,35)  101x21  scho2 idle / scho1 toggled
+//   clea     — clear-scores button    (400,15)  46x41   (disabled here)
+//
+// Center: two PictureBoxes at (32, 120), 395x269, alternating visibility.
+//
+// Picture1 (summary, visible first):
+//   bg = score2.png  (has dark sphere + RTL counter labels baked in)
+//   ggg   (23, 29)  big green decorative number   David 72pt bold #006B00-ish
+//   ltott (15, 25)  big pink animated percentage  David 72pt #FFC0C0
+//   catov (10,125)  verdict text                  David 48pt #800000
+//   toch[0] (305,135) total questions             gray
+//   toch[1] (200,170) green count                 white
+//   toch[2] (200,194) yellow count                white
+//   toch[3] (200,220) red count                   white
+//   toch[4] (200,243) not-answered count          white
+//   + pie chart drawn dynamically at (315, 62) inside the dark sphere area
+//
+// picture2 (detail, toggled by adv):
+//   bg = score3.png   (empty cloth)
+//   Label2[0..N-1]  — column header pills, RTL (column 0 = right)
+//   tovis[wq*10..wq*10+9] — 10 lamp slots per column, stacked vertical
+//     - lam1cl.png if stage was never started
+//     - lam1.png   if stage opened but not answered (default dim)
+//     - lamg/lamy/lamr.png for answered (green/yellow/red)
+//
+// adv_Click swaps the active panel + the button image (scho2 ↔ scho1).
+// Command1_Click closes the form + returns to Sst.
+//
+// Score formula:
+//   mispar = ((green*5 + yellow*2 + red) * 20) / total
+//   < 55  → "תרגיל וחזרה" + xtry.wav
+//   55-64 → "כמעט שם"    + xallmost.wav
+//   65-84 → "טוב"        + xgood.wav
+//   85-94 → "טוב מאוד"   + xvgood.wav
+//   ≥ 95  → "מצוין"      + xexelent.wav
+function showNikod(state, slot, onClose) {
+    const stages = state.pathScore || [];
+    klog("nikod: show for path", slot.name, "stages=" + stages.length);
+    const root = state.config.assetsRoot;
+
+    let totGreen = 0, totYellow = 0, totRed = 0, totQ = 0;
+    stages.forEach(function (s) {
+        totGreen += s.green; totYellow += s.yellow; totRed += s.red;
+        totQ += s.green + s.yellow + s.red;
+    });
+    const mispar = totQ === 0 ? 0 :
+        Math.floor(((totGreen * 5 + totYellow * 2 + totRed) * 20) / totQ);
+    let verdict, wav;
+    if (mispar < 55)      { verdict = "תרגיל וחזרה"; wav = "xtry.wav"; }
+    else if (mispar < 65) { verdict = "כמעט שם";     wav = "xallmost.wav"; }
+    else if (mispar < 85) { verdict = "טוב";         wav = "xgood.wav"; }
+    else if (mispar < 95) { verdict = "טוב מאוד";    wav = "xvgood.wav"; }
+    else                  { verdict = "מצוין";       wav = "xexelent.wav"; }
+
+    // === Outer overlay + scaled form box =================================
+    const overlay = document.createElement("div");
+    overlay.className = "nikod-overlay";
+    Object.assign(overlay.style, {
+        position: "fixed", inset: "0",
+        background: "rgba(0,0,0,.78)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        zIndex: "1800",
+    });
+
+    // nikod.frm ClientWidth=6912, ClientHeight=6120 twips. At 96 DPI runtime
+    // (15 twips/px, which is where FixDpi short-circuits) that's 461×408 px.
+    // score.png is 461×410 — natively sized to fill the form. Use those dims.
+    const W = 461, H = 410;
+    const box = document.createElement("div");
+    Object.assign(box.style, {
+        position: "relative",
+        width: W + "px", height: H + "px",
+        // Form bg = score.png (wooden frame with "לוח תוצאות" title bar,
+        // warning triangle bottom-left, trash bin top-right baked in).
+        backgroundColor: "#400000",
+        backgroundImage: "url('" + root + "/menu/score.png')",
+        backgroundSize: W + "px " + H + "px",
+        backgroundRepeat: "no-repeat",
+        direction: "rtl",
+        fontFamily: "'David', 'Arial Hebrew', 'Times New Roman', serif",
+    });
+
+    function fit() {
+        const m = 32;
+        const s = Math.min((window.innerWidth - m) / W, (window.innerHeight - m) / H, 2.2);
+        box.style.transform = "scale(" + Math.max(0.4, s) + ")";
+        box.style.transformOrigin = "center center";
+    }
+    fit();
+    const onResize = function () { fit(); };
+    window.addEventListener("resize", onResize);
+
+    function el(tag, css) {
+        const n = document.createElement(tag);
+        Object.assign(n.style, css);
+        return n;
+    }
+    function place(x, y, w, h) {
+        return { position: "absolute", left: x + "px", top: y + "px",
+                 width: w + "px", height: h + "px" };
+    }
+
+    // === Form-level click overlays =======================================
+    // Command1 — return-to-Sst. Original is a Label with no Picture, just a
+    // custom MouseIcon. The warning-triangle icon at (15,10) is BAKED INTO
+    // score.png; we make a transparent click target on top.
+    const cmd1 = el("button", place(15, 10, 41, 41));
+    Object.assign(cmd1.style, {
+        background: "transparent",
+        border: "none",
+        padding: "0",
+        cursor: "pointer",
+    });
+    cmd1.type = "button";
+    cmd1.title = "חזרה אל המסלולים";
+    box.appendChild(cmd1);
+
+    // clea — clear scores. Same pattern: trash-bin icon is in score.png; we
+    // overlay a transparent click target. Original is Enabled=False unless
+    // ni=2 (editor mode). We don't have that — keep it visually present but
+    // do nothing on click.
+    const clea = el("button", place(400, 15, 46, 41));
+    Object.assign(clea.style, {
+        background: "transparent",
+        border: "none",
+        padding: "0",
+        cursor: "not-allowed",
+    });
+    clea.type = "button";
+    clea.title = "ניקוי כל הניקוד";
+    clea.disabled = true;
+    box.appendChild(clea);
+
+    // adv — toggle button at (180, 35). Real image asset (scho2 = "כללי",
+    // scho1 = "פירוט"). Initial image is scho2 per Form_Load.
+    const adv = el("button", place(180, 35, 101, 21));
+    Object.assign(adv.style, {
+        padding: "0",
+        background: "transparent",
+        border: "none",
+        cursor: "pointer",
+        backgroundImage: "url('" + root + "/menu/scho2.png')",
+        backgroundSize: "100% 100%",
+        backgroundRepeat: "no-repeat",
+    });
+    adv.type = "button";
+    adv.title = "החלף תצוגה";
+    box.appendChild(adv);
+
+    // koter — path title (Hebrew). Sits below the baked title bar.
+    const koter = el("div", place(60, 80, W - 120, 28));
+    Object.assign(koter.style, {
+        textAlign: "center",
+        color: "#FFFFFF",
+        fontSize: "20px",
+        lineHeight: "28px",
+        fontWeight: "400",
+        textShadow: "0 1px 2px rgba(0,0,0,.7)",
+        pointerEvents: "none",
+        fontFamily: "inherit",
+    });
+    koter.textContent = slot.name || "";
+    box.appendChild(koter);
+
+    // === Picture1 (summary panel) + picture2 (detail panel) ==============
+    // Both at (32, 120) size 395×269 — they alternate via adv toggle.
+    function makePanel(bgFile) {
+        const p = el("div", place(32, 120, 395, 269));
+        Object.assign(p.style, {
+            backgroundImage: "url('" + root + "/menu/" + bgFile + "')",
+            backgroundSize: "100% 100%",
+            backgroundRepeat: "no-repeat",
+            backgroundColor: "#808080",  // Picture1.BackColor = &H00808080&
+            overflow: "hidden",
+        });
+        return p;
+    }
+    const picture1 = makePanel("score2.png");
+    box.appendChild(picture1);
+
+    // -- Inside Picture1 ---------------------------------------------------
+    // Coordinates here are Picture1-relative (395x269 panel).
+
+    // Pie chart canvas — overlays the dark sphere baked into score2.png at
+    // (315, 62) Picture1-relative. Original `Picture1.Circle (315, 62), ro`
+    // grows radius from 8 → 47 over 40 Timg ticks.
+    const pie = document.createElement("canvas");
+    pie.width = 100; pie.height = 100;
+    Object.assign(pie.style, place(315 - 50, 62 - 50, 100, 100));
+    pie.style.pointerEvents = "none";
+    picture1.appendChild(pie);
+
+    // ltott — big animated percentage. Original: David 72pt #FFC0C0 at
+    // (15, 25) size 146×91. 72pt = 96 px which doesn't fit 91 tall; we use
+    // 76 px font and let it sit at the natural baseline.
+    const ltott = el("div", place(15, 25, 146, 91));
+    Object.assign(ltott.style, {
+        textAlign: "center",
+        color: "#FFC0C0",
+        fontSize: "76px",
+        lineHeight: "91px",
+        fontWeight: "400",
+        textShadow: "1px 1px 0 #800000, -1px -1px 0 rgba(255,255,255,.2)",
+        pointerEvents: "none",
+        direction: "ltr",
+        fontFamily: "inherit",
+    });
+    ltott.textContent = "0";
+    picture1.appendChild(ltott);
+
+    // catov — verdict text in maroon David. Original: 48pt #800000 at (10, 125)
+    // size 171×126. Mirrors VB Label1 (same position, dual-render for shadow).
+    const catov = el("div", place(10, 125, 171, 126));
+    Object.assign(catov.style, {
+        textAlign: "center",
+        color: "#800000",
+        fontSize: "42px",
+        lineHeight: "126px",
+        fontWeight: "400",
+        textShadow: "1px 1px 0 rgba(255,255,255,.4)",
+        pointerEvents: "none",
+        whiteSpace: "nowrap",
+        fontFamily: "inherit",
+    });
+    catov.textContent = verdict;
+    picture1.appendChild(catov);
+
+    // toch counters — 5 small labels beside the baked Hebrew labels in
+    // score2.png (which read: "סך הכל / שאלות", "בלי טעויות", "טעות אחת או
+    // שתים", "יותר משתי טעויות", "לא ענינו"). Original Picture1-relative
+    // positions are right-aligned because the labels are at the right edge.
+    //   toch[0] (305, 135) 31×21 #E0E0E0  → total questions
+    //   toch[1] (200, 170) 66×31 #FFFFFF  → green count
+    //   toch[2] (200, 194) 66×31 #FFFFFF  → yellow count
+    //   toch[3] (200, 220) 66×31 #FFFFFF  → red count
+    //   toch[4] (200, 243) 66×31 #FFFFFF  → unanswered (we report 0)
+    function mkToch(x, y, w, h, txt, color, fontSize) {
+        const t = el("div", place(x, y, w, h));
+        Object.assign(t.style, {
+            textAlign: "center",
+            color: color,
+            fontSize: fontSize + "px",
+            lineHeight: h + "px",
+            fontWeight: "700",
+            pointerEvents: "none",
+            direction: "ltr",
+            fontFamily: "'MS Sans Serif', sans-serif",
+        });
+        t.textContent = String(txt);
+        picture1.appendChild(t);
+    }
+    mkToch(305, 135, 31, 21, totQ,        "#E0E0E0", 14);
+    mkToch(200, 170, 66, 31, totGreen,    "#FFFFFF", 16);
+    mkToch(200, 194, 66, 31, totYellow,   "#FFFFFF", 16);
+    mkToch(200, 220, 66, 31, totRed,      "#FFFFFF", 16);
+    mkToch(200, 243, 66, 31, 0,           "#FFFFFF", 16);
+
+    // === picture2 (detail panel) — starts hidden =========================
+    const picture2 = makePanel("score3.png");
+    picture2.style.display = "none";
+    box.appendChild(picture2);
+
+    // Original Form_Load layout for the per-stage view:
+    //   Label2(wq).Left = 380 - (335 / (shlavend + 1)) - (wq * 320 / shlavend)
+    //   Label2(wq).Top   = 225 (Picture2-relative, ~bottom edge)
+    //   Label2(wq) size 31×26  BackColor #FFC0C0
+    //   tovis(wq*10..wq*10+9) — 10 lamp slots above the column header,
+    //     each 31×21, stacked 20 px apart upward.
+    //   Lamp order (filled from BOTTOM up):
+    //     tovis[1..gs]              → lamg.bmp (green)
+    //     tovis[gs+1..gs+ys]        → lamy.bmp (yellow)
+    //     tovis[gs+ys+1..gs+ys+rs]  → lamr.bmp (red)
+    //     remaining slots           → lam1cl.bmp (closed/dim)
+    const shlavend = stages.length;
+    if (shlavend > 0) {
+        // Original tovis array uses indices 1..9 per stage (tovis[0] is at
+        // Left=6900 = off-panel, unused). So 9 lamp slots per column. Tops
+        // are at 205, 185, 165, 145, 125, 105, 85, 65, 45 — 20px step UPWARD
+        // from labelTop=225. Lamp dims 31×21.
+        const SLOTS = 9;
+        const lampH = 21;
+        const lampW = 31;
+        const lampStep = 20;
+        const labelTop = 225;
+        const colTopFirst = 205;                        // top of bottommost lamp = tovis[1] Top
+        for (let wq = 0; wq < shlavend; wq++) {
+            // RTL layout — column 0 (= stage 1) on the right. Convert
+            // original formula to design px.
+            const colLeftPx = 380 - (335 / (shlavend + 1)) - (wq * 320 / shlavend);
+
+            // Label2 — column header pill (pink, raised border, stage #)
+            const lbl = el("button", place(colLeftPx, labelTop, lampW, 26));
+            Object.assign(lbl.style, {
+                background: "#FFC0C0",
+                border: "1px outset #C09090",
+                fontSize: "11px",
+                fontWeight: "700",
+                color: "#000",
+                cursor: "default",
+                fontFamily: "'MS Sans Serif', sans-serif",
+                padding: "0",
+                direction: "ltr",
+            });
+            lbl.type = "button";
+            lbl.textContent = String(wq + 1);
+            picture2.appendChild(lbl);
+
+            // tovis lamps — bottom-up fill: green, then yellow, then red,
+            // then closed (lam1cl) for the rest.
+            const s = stages[wq];
+            for (let k = 0; k < SLOTS; k++) {
+                let lampImg;
+                if (k < s.green) lampImg = "lamg.png";
+                else if (k < s.green + s.yellow) lampImg = "lamy.png";
+                else if (k < s.green + s.yellow + s.red) lampImg = "lamr.png";
+                else lampImg = "lam1cl.png";
+                const img = document.createElement("img");
+                img.src = root + "/menu/" + lampImg;
+                Object.assign(img.style, place(colLeftPx, colTopFirst - k * lampStep, lampW, lampH));
+                picture2.appendChild(img);
+            }
+        }
+    }
+
+    // === adv toggle: alternate Picture1 / picture2 ========================
+    let showingSummary = true;
+    adv.addEventListener("click", function () {
+        showingSummary = !showingSummary;
+        picture1.style.display = showingSummary ? "" : "none";
+        picture2.style.display = showingSummary ? "none" : "";
+        adv.style.backgroundImage = "url('" + root + "/menu/" + (showingSummary ? "scho2.png" : "scho1.png") + "')";
+        klog("CLICK nikod adv → " + (showingSummary ? "summary" : "detail"));
+    });
+
+    // === Pie chart + count-up animation (Timg_Timer port) ================
+    // Original runs Timg every 30ms for 40 ticks, drawing a green/yellow/red
+    // pie at (315, 62) on Picture1 and counting ltott/ggg from 0 → mispar.
+    let tick = 0;
+    const TIMG_TICKS = 40;
+    function drawPie(progress) {
+        const ctx = pie.getContext("2d");
+        ctx.clearRect(0, 0, 100, 100);
+        if (totQ === 0) return;
+        // Original radius grows 8 → 47 over 40 ticks; we draw at the FINAL
+        // radius (R=42) while the slice arc grows. Cleaner visually than the
+        // VB version which kept stamping circles on top of each other.
+        const cx = 50, cy = 50, R = 42;
+        const slices = [
+            { v: totGreen,  color: "rgb(80, 220, 80)" },
+            { v: totYellow, color: "rgb(240, 220, 80)" },
+            { v: totRed,    color: "rgb(220, 80, 80)" },
+        ];
+        let start = -Math.PI / 2;
+        slices.forEach(function (s) {
+            if (s.v <= 0) return;
+            const frac = (s.v / totQ) * progress;
+            const end = start + frac * Math.PI * 2;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.arc(cx, cy, R, start, end, false);
+            ctx.closePath();
+            ctx.fillStyle = s.color;
+            ctx.fill();
+            start = end;
+        });
+        ctx.beginPath();
+        ctx.arc(cx, cy, R, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(0,0,0,.5)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+    const timg = setInterval(function () {
+        tick++;
+        const progress = Math.min(1, tick / TIMG_TICKS);
+        const v = Math.floor(mispar * progress);
+        ltott.textContent = String(v);
+        // Original Timg_Timer sets ltott.ForeColor dynamically as it animates;
+        // we use a single resting color but ease the brightness up.
+        drawPie(progress);
+        if (tick >= TIMG_TICKS) {
+            ltott.textContent = String(mispar);
+            drawPie(1);
+            clearInterval(timg);
+        }
+    }, 30);
+
+    function dismiss() {
+        klog("CLICK nikod Command1 → return");
+        clearInterval(timg);
+        stopAllAudio(state);
+        overlay.remove();
+        window.removeEventListener("resize", onResize);
+        document.removeEventListener("keydown", onKey);
+        if (onClose) onClose();
+    }
+    function onKey(e) { if (e.key === "Escape" || e.key === "Enter") dismiss(); }
+    cmd1.addEventListener("click", dismiss);
+    document.addEventListener("keydown", onKey);
+
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    // Play the verdict wav. Manifest is per-app — if the file wasn't shipped
+    // (most apps have all five), playAudio silently skips.
+    playAudio(state, root + "/wav/" + wav);
 }
 
 // Keyboard shortcuts. The original VB6 game forms don't bind keyboard, but

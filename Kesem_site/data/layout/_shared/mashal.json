@@ -1,21 +1,184 @@
 {
   "type": "VB.Form",
-  "name": "mashal",
+  "name": "FrmMashal",
   "props": {
-    "BackColor": 0,
     "BorderStyle": 0,
-    "ClientHeight": 6675,
-    "ClientLeft": 60,
-    "ClientTop": 360,
-    "ClientWidth": 8625,
-    "ScaleHeight": 445,
+    "Caption": "Form1",
+    "ClientHeight": 7236,
+    "ClientLeft": 0,
+    "ClientTop": 0,
+    "ClientWidth": 9588,
+    "ScaleHeight": 603,
     "ScaleMode": 3,
-    "ScaleWidth": 575
+    "ScaleWidth": 799
   },
-  "children": [],
+  "children": [
+    {
+      "type": "VB.PictureBox",
+      "name": "Mashal",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 12632256,
+        "BorderStyle": 0,
+        "Height": 1725,
+        "Index": 5,
+        "Left": 2160,
+        "ScaleHeight": 144,
+        "ScaleMode": 3,
+        "ScaleWidth": 138,
+        "Top": 4560,
+        "Width": 1650
+      },
+      "children": [],
+      "px": {
+        "x": 180.0,
+        "y": 380.0,
+        "w": 137.5,
+        "h": 143.8
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Mashal",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 12632256,
+        "BorderStyle": 0,
+        "Height": 1725,
+        "Index": 4,
+        "Left": 4080,
+        "ScaleHeight": 144,
+        "ScaleMode": 3,
+        "ScaleWidth": 138,
+        "Top": 4560,
+        "Width": 1650
+      },
+      "children": [],
+      "px": {
+        "x": 340.0,
+        "y": 380.0,
+        "w": 137.5,
+        "h": 143.8
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Mashal",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 12632256,
+        "BorderStyle": 0,
+        "Height": 1725,
+        "Index": 3,
+        "Left": 5985,
+        "ScaleHeight": 144,
+        "ScaleMode": 3,
+        "ScaleWidth": 138,
+        "Top": 4560,
+        "Width": 1650
+      },
+      "children": [],
+      "px": {
+        "x": 498.8,
+        "y": 380.0,
+        "w": 137.5,
+        "h": 143.8
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Mashal",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 12632256,
+        "BorderStyle": 0,
+        "Height": 1725,
+        "Index": 2,
+        "Left": 2055,
+        "ScaleHeight": 144,
+        "ScaleMode": 3,
+        "ScaleWidth": 138,
+        "Top": 2280,
+        "Width": 1650
+      },
+      "children": [],
+      "px": {
+        "x": 171.2,
+        "y": 190.0,
+        "w": 137.5,
+        "h": 143.8
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Mashal",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 12632256,
+        "BorderStyle": 0,
+        "Height": 1725,
+        "Index": 1,
+        "Left": 3975,
+        "ScaleHeight": 144,
+        "ScaleMode": 3,
+        "ScaleWidth": 138,
+        "Top": 2280,
+        "Width": 1650
+      },
+      "children": [],
+      "px": {
+        "x": 331.2,
+        "y": 190.0,
+        "w": 137.5,
+        "h": 143.8
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Mashal",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 12632256,
+        "BorderStyle": 0,
+        "Height": 1725,
+        "Index": 0,
+        "Left": 5880,
+        "ScaleHeight": 144,
+        "ScaleMode": 3,
+        "ScaleWidth": 138,
+        "Top": 2280,
+        "Width": 1650
+      },
+      "children": [],
+      "px": {
+        "x": 490.0,
+        "y": 190.0,
+        "w": 137.5,
+        "h": 143.8
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "CmdExit",
+      "props": {
+        "Height": 975,
+        "Left": 0,
+        "Top": 0,
+        "Width": 975
+      },
+      "children": [],
+      "px": {
+        "x": 0.0,
+        "y": 0.0,
+        "w": 81.2,
+        "h": 81.2
+      }
+    }
+  ],
   "design": {
-    "scaleMode": 3,
-    "width": 575,
-    "height": 445
+    "width": 799,
+    "height": 603,
+    "client_w_twips": 9588,
+    "client_h_twips": 7236
   }
 }

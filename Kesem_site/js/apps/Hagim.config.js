@@ -16,7 +16,7 @@ export default {
         game4:  { layoutFile: "data/layout/_shared/games4.json", background: "assets/Hagim/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Hagim/menu/hetz7.png" } },
         game5:  { layoutFile: "data/layout/_shared/games5.json", background: "assets/Hagim/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Hagim/menu/hetz7.png" } },
         misger: { layoutFile: "data/layout/_shared/misger.json", background: "assets/Hagim/menu/misger.png", designSize: [240, 200], images: { picexi: "assets/Hagim/menu/hetz7.png" } },
-        mashal: { layoutFile: "data/layout/_shared/mashal.json", background: "assets/Hagim/menu/mashal.png", designSize: [575, 445] },
+        mashal: { layoutFile: "data/layout/_shared/mashal.json", background: "assets/Hagim/menu/mashal.png", designSize: [640, 480] },
     },
     tafroshFile: "data/tafrosh/Hagim.json",
     defaultRama: 1,

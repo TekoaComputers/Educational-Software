@@ -102,9 +102,18 @@ function lookupAct1Image(state, idx) {
 }
 
 function imageFor(ctrl, screenConf) {
-    const imgs = screenConf && screenConf.images;
-    if (!imgs) return null;
-    const entry = imgs[ctrl.name];
+    return lookupConfImage(ctrl, screenConf, "images");
+}
+
+// VB6 third-party PictureBox (Dvash.CmdPlus) has Picture, MovePic, MaskPicture.
+// We model them as three parallel config maps:
+//   screens.<id>.images       — idle Picture
+//   screens.<id>.imagesHover  — hover MovePic
+//   screens.<id>.masks        — MaskPicture (luminance mask: white=keep, black=cut)
+function lookupConfImage(ctrl, screenConf, key) {
+    const tbl = screenConf && screenConf[key];
+    if (!tbl) return null;
+    const entry = tbl[ctrl.name];
     if (!entry) return null;
     if (typeof entry === "string") return entry;
     const idx = ctrl.props.Index;
@@ -188,6 +197,28 @@ function buildSubtree(ctrl, scale, state, screenConf) {
             };
             if (img.complete) applyNatural();
             else img.addEventListener("load", applyNatural);
+        }
+
+        // Dvash.CmdPlus (and similar third-party controls) used MovePic to
+        // swap the Picture on hover and MaskPicture for transparency. We
+        // model these via screens.<id>.imagesHover and screens.<id>.masks.
+        const hoverSrc = lookupConfImage(ctrl, screenConf, "imagesHover");
+        if (hoverSrc) {
+            node.addEventListener("mouseenter", function () { img.src = hoverSrc; });
+            node.addEventListener("mouseleave", function () { img.src = imgSrc; });
+        }
+        const maskSrc = lookupConfImage(ctrl, screenConf, "masks");
+        if (maskSrc) {
+            // White pixels in the mask remain opaque, black pixels become
+            // transparent — same convention CmdPlus.MaskPicture used.
+            const maskUrl = "url('" + maskSrc + "')";
+            img.style.maskImage = maskUrl;
+            img.style.maskMode = "luminance";
+            img.style.maskSize = "100% 100%";
+            img.style.maskRepeat = "no-repeat";
+            img.style.webkitMaskImage = maskUrl;
+            img.style.webkitMaskSize = "100% 100%";
+            img.style.webkitMaskRepeat = "no-repeat";
         }
     }
 

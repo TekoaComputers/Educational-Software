@@ -9,6 +9,14 @@ export default {
             layoutFile: "data/layout/Dvash/frmSel.json",
             background: "assets/Dvash/menu/enter.png",
             designSize: [400, 400],
+            // CmdExit (FrmSel.CmdExit_MouseDown) uses the same Dvash.CmdPlus
+            // triangle treatment as the Sst CmdExit.
+            // exit2/exit1 pre-baked with exit3 luminance as alpha (see
+            // tools/bake_masks.sh) so the triangle shows on transparent
+            // corners without a runtime CSS mask — CSS mask-image fails CORS
+            // on file:// pages.
+            images:      { CmdExit: "assets/Dvash/menu/exit2_masked.png" },
+            imagesHover: { CmdExit: "assets/Dvash/menu/exit1_masked.png" },
         },
         sst: {
             layoutFile: "data/layout/Dvash/sst.json",
@@ -20,9 +28,13 @@ export default {
             designSize: [640, 480],
             images: {
                 Picture1: "assets/Dvash/menu/sta1.png",
-                // Sst.frm sets CmdExit.Picture = \menu\exit2.bmp (idle) and
-                // CmdExit.MovePic = \menu\exit1.bmp (hover) at Form_Load.
-                CmdExit:  "assets/Dvash/menu/exit2.png",
+                // Sst.frm Form_Load:
+                //   CmdExit.Picture     = \menu\exit2.bmp   (idle)
+                //   CmdExit.MovePic     = \menu\exit1.bmp   (hover swap)
+                //   CmdExit.MaskPicture = \menu\exit3.bmp   (transparency mask)
+                // exit2/exit1 are pre-baked with exit3 as alpha → *_masked.png
+                // because CSS mask-image url() fails CORS on file:// pages.
+                CmdExit:  "assets/Dvash/menu/exit2_masked.png",
                 btnLamp: [
                     "assets/Dvash/menu/lamp1.png",
                     "assets/Dvash/menu/lamp1.png",
@@ -33,11 +45,20 @@ export default {
                     "assets/Dvash/menu/lamp1.png",
                 ],
             },
+            imagesHover: {
+                CmdExit: "assets/Dvash/menu/exit1_masked.png",
+            },
         },
         catalog: {
             layoutFile: "data/layout/Dvash/catalog.json",
             background: "assets/Dvash/menu/catback.png",
             designSize: [800, 600],
+            // exit2/exit1 pre-baked with exit3 luminance as alpha (see
+            // tools/bake_masks.sh) so the triangle shows on transparent
+            // corners without a runtime CSS mask — CSS mask-image fails CORS
+            // on file:// pages.
+            images:      { CmdExit: "assets/Dvash/menu/exit2_masked.png" },
+            imagesHover: { CmdExit: "assets/Dvash/menu/exit1_masked.png" },
         },
         game1:  { layoutFile: "data/layout/_shared/games.json",  background: "assets/Dvash/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Dvash/menu/hetz7.png" } },
         game2:  { layoutFile: "data/layout/_shared/games2.json", background: "assets/Dvash/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Dvash/menu/hetz7.png" } },

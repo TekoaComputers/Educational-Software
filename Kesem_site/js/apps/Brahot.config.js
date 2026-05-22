@@ -19,7 +19,9 @@ export default {
         // mashal.frm — 6-button parable selector. Each button plays
         // MASHAL/MASH<index+1>.avi via VideoBox. We render the tiles
         // dynamically in wireMashalScreen (no per-control layout needed).
-        mashal: { layoutFile: "data/layout/_shared/mashal.json", background: "assets/Brahot/menu/mashal.png", designSize: [575, 445] },
+        // FrmMashal.frm: ClientWidth=9588, ClientHeight=7236 twips → 639×482
+        // at 96 DPI runtime. mashal.png is 640×480 native; use that as design.
+        mashal: { layoutFile: "data/layout/_shared/mashal.json", background: "assets/Brahot/menu/mashal.png", designSize: [640, 480] },
     },
     tafroshFile: "data/tafrosh/Brahot.json",
     defaultRama: 1,
