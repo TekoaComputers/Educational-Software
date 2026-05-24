@@ -7,17 +7,32 @@ from pathlib import Path
 
 SOURCE_ENCODING = "cp1255"
 
-APPS = {
-    "Brahot": "Brahot",
-    "Hagim":  "Hagim",
-    "Yeled":  "Yeled",
-    "Dvash":  "Dvash",
-}
+def _discover_apps():
+    """Each *.config.js under js/apps/ corresponds to one Kesem-suite app."""
+    here = Path(__file__).resolve().parent.parent
+    cfg_dir = here / "js" / "apps"
+    fallback = {a: a for a in ("Brahot", "Hagim", "Yeled", "Dvash")}
+    if not cfg_dir.is_dir():
+        return fallback
+    apps = sorted(p.stem.split(".")[0] for p in cfg_dir.glob("*.config.js"))
+    return {a: a for a in apps} if apps else fallback
+
+APPS = _discover_apps()
 
 
 def find_tips_dir(master_clean: Path, app: str) -> Path | None:
+    # App folder name varies in case (Master/Clean/KolkoreA vs config's
+    # KolKoreA); resolve by walking the directory case-insensitively.
+    app_dir = None
+    if master_clean.is_dir():
+        for d in master_clean.iterdir():
+            if d.is_dir() and d.name.lower() == app.lower():
+                app_dir = d
+                break
+    if app_dir is None:
+        return None
     for cand in ("TIPS", "Tips", "tips"):
-        p = master_clean / app / cand
+        p = app_dir / cand
         if p.is_dir():
             return p
     return None

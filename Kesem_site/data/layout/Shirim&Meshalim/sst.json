@@ -1,0 +1,723 @@
+{
+  "type": "VB.Form",
+  "name": "Sst",
+  "props": {
+    "BackColor": 0,
+    "BorderStyle": 0,
+    "Caption": "חלונות קסם",
+    "ClientHeight": 9930,
+    "ClientLeft": 0,
+    "ClientTop": 0,
+    "ClientWidth": 10755,
+    "Icon": "SST.frx",
+    "ScaleHeight": 662,
+    "ScaleMode": 3,
+    "ScaleWidth": 717
+  },
+  "children": [
+    {
+      "type": "VB.PictureBox",
+      "name": "stik",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 2265,
+        "Left": 4125,
+        "ScaleHeight": 2265,
+        "ScaleWidth": 1140,
+        "Top": 3900,
+        "Visible": 0,
+        "Width": 1140
+      },
+      "children": [],
+      "px": {
+        "x": 275.0,
+        "y": 260.0,
+        "w": 76.0,
+        "h": 151.0
+      }
+    },
+    {
+      "type": "MCI.MMControl",
+      "name": "MMControl1",
+      "props": {
+        "Height": 510,
+        "Left": 7725,
+        "Top": 7650,
+        "Visible": 0,
+        "Width": 3540
+      },
+      "children": [],
+      "px": {
+        "x": 515.0,
+        "y": 510.0,
+        "w": 236.0,
+        "h": 34.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "OpenPage",
+      "props": {
+        "BackColor": 14737632,
+        "BorderStyle": 0,
+        "Height": 7200,
+        "Left": 0,
+        "ScaleHeight": 480,
+        "ScaleMode": 3,
+        "ScaleWidth": 640,
+        "Top": 0,
+        "Visible": 0,
+        "Width": 9600
+      },
+      "children": [
+        {
+          "type": "VB.Label",
+          "name": "ShowNikod",
+          "props": {
+            "Height": 615,
+            "Index": 4,
+            "Left": 2640,
+            "Top": 5160,
+            "Width": 1335
+          },
+          "children": [],
+          "px": {
+            "x": 176.0,
+            "y": 344.0,
+            "w": 89.0,
+            "h": 41.0
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "ShowName",
+          "props": {
+            "ForeColor": 8388608,
+            "Height": 615,
+            "Index": 4,
+            "Left": 4080,
+            "Top": 5160,
+            "Width": 4935
+          },
+          "children": [],
+          "px": {
+            "x": 272.0,
+            "y": 344.0,
+            "w": 329.0,
+            "h": 41.0
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "ShowMasNum",
+          "props": {
+            "Caption": "5",
+            "Height": 615,
+            "Index": 4,
+            "Left": 9120,
+            "Top": 5040,
+            "Width": 375
+          },
+          "children": [],
+          "px": {
+            "x": 608.0,
+            "y": 336.0,
+            "w": 25.0,
+            "h": 41.0
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "MahakK",
+          "props": {
+            "Height": 1575,
+            "Left": 240,
+            "Top": 5400,
+            "Width": 1455
+          },
+          "children": [],
+          "px": {
+            "x": 16.0,
+            "y": 360.0,
+            "w": 97.0,
+            "h": 105.0
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "ShowNikod",
+          "props": {
+            "Height": 615,
+            "Index": 3,
+            "Left": 2640,
+            "Top": 4200,
+            "Width": 1335
+          },
+          "children": [],
+          "px": {
+            "x": 176.0,
+            "y": 280.0,
+            "w": 89.0,
+            "h": 41.0
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "ShowNikod",
+          "props": {
+            "Height": 615,
+            "Index": 2,
+            "Left": 2640,
+            "Top": 3240,
+            "Width": 1335
+          },
+          "children": [],
+          "px": {
+            "x": 176.0,
+            "y": 216.0,
+            "w": 89.0,
+            "h": 41.0
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "ShowNikod",
+          "props": {
+            "Height": 615,
+            "Index": 1,
+            "Left": 2640,
+            "Top": 2280,
+            "Width": 1335
+          },
+          "children": [],
+          "px": {
+            "x": 176.0,
+            "y": 152.0,
+            "w": 89.0,
+            "h": 41.0
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "ShowNikod",
+          "props": {
+            "Height": 615,
+            "Index": 0,
+            "Left": 2640,
+            "Top": 1320,
+            "Width": 1335
+          },
+          "children": [],
+          "px": {
+            "x": 176.0,
+            "y": 88.0,
+            "w": 89.0,
+            "h": 41.0
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "ShowMasNum",
+          "props": {
+            "Caption": "4",
+            "Height": 615,
+            "Index": 3,
+            "Left": 9120,
+            "Top": 4080,
+            "Width": 375
+          },
+          "children": [],
+          "px": {
+            "x": 608.0,
+            "y": 272.0,
+            "w": 25.0,
+            "h": 41.0
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "ShowMasNum",
+          "props": {
+            "Caption": "3",
+            "Height": 615,
+            "Index": 2,
+            "Left": 9120,
+            "Top": 3120,
+            "Width": 375
+          },
+          "children": [],
+          "px": {
+            "x": 608.0,
+            "y": 208.0,
+            "w": 25.0,
+            "h": 41.0
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "ShowMasNum",
+          "props": {
+            "Caption": "2",
+            "Height": 615,
+            "Index": 1,
+            "Left": 9120,
+            "Top": 2160,
+            "Width": 375
+          },
+          "children": [],
+          "px": {
+            "x": 608.0,
+            "y": 144.0,
+            "w": 25.0,
+            "h": 41.0
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "ShowMasNum",
+          "props": {
+            "Caption": "1",
+            "Height": 615,
+            "Index": 0,
+            "Left": 9120,
+            "Top": 1200,
+            "Width": 375
+          },
+          "children": [],
+          "px": {
+            "x": 608.0,
+            "y": 80.0,
+            "w": 25.0,
+            "h": 41.0
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "ShowName",
+          "props": {
+            "ForeColor": 8388608,
+            "Height": 615,
+            "Index": 3,
+            "Left": 4080,
+            "Top": 4200,
+            "Width": 4935
+          },
+          "children": [],
+          "px": {
+            "x": 272.0,
+            "y": 280.0,
+            "w": 329.0,
+            "h": 41.0
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "ShowName",
+          "props": {
+            "ForeColor": 8388608,
+            "Height": 615,
+            "Index": 2,
+            "Left": 4080,
+            "Top": 3240,
+            "Width": 4935
+          },
+          "children": [],
+          "px": {
+            "x": 272.0,
+            "y": 216.0,
+            "w": 329.0,
+            "h": 41.0
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "ShowName",
+          "props": {
+            "ForeColor": 8388608,
+            "Height": 615,
+            "Index": 1,
+            "Left": 4080,
+            "Top": 2280,
+            "Width": 4935
+          },
+          "children": [],
+          "px": {
+            "x": 272.0,
+            "y": 152.0,
+            "w": 329.0,
+            "h": 41.0
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "ShowName",
+          "props": {
+            "ForeColor": 8388608,
+            "Height": 615,
+            "Index": 0,
+            "Left": 4080,
+            "Top": 1320,
+            "Width": 4935
+          },
+          "children": [],
+          "px": {
+            "x": 272.0,
+            "y": 88.0,
+            "w": 329.0,
+            "h": 41.0
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "ExitPage",
+          "props": {
+            "Height": 975,
+            "Left": 120,
+            "Top": 120,
+            "Width": 1095
+          },
+          "children": [],
+          "px": {
+            "x": 8.0,
+            "y": 8.0,
+            "w": 73.0,
+            "h": 65.0
+          }
+        }
+      ],
+      "px": {
+        "x": 0.0,
+        "y": 0.0,
+        "w": 640.0,
+        "h": 480.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "BookIndex",
+      "props": {
+        "BackColor": 16761024,
+        "BorderStyle": 0,
+        "Height": 7200,
+        "Left": 0,
+        "ScaleHeight": 480,
+        "ScaleMode": 3,
+        "ScaleWidth": 640,
+        "Top": 0,
+        "Width": 9600
+      },
+      "children": [
+        {
+          "type": "VB.Label",
+          "name": "SelectZ",
+          "props": {
+            "Height": 2445,
+            "Index": 10,
+            "Left": 4200,
+            "Top": 2280,
+            "Width": 1695
+          },
+          "children": [],
+          "px": {
+            "x": 280.0,
+            "y": 152.0,
+            "w": 113.0,
+            "h": 163.0
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "SelectZ",
+          "props": {
+            "Height": 2445,
+            "Index": 9,
+            "Left": 4320,
+            "Top": 4560,
+            "Width": 1695
+          },
+          "children": [],
+          "px": {
+            "x": 288.0,
+            "y": 304.0,
+            "w": 113.0,
+            "h": 163.0
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "SelectZ",
+          "props": {
+            "Height": 2445,
+            "Index": 8,
+            "Left": 5880,
+            "Top": 2280,
+            "Width": 1695
+          },
+          "children": [],
+          "px": {
+            "x": 392.0,
+            "y": 152.0,
+            "w": 113.0,
+            "h": 163.0
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "SelectZ",
+          "props": {
+            "Height": 2235,
+            "Index": 7,
+            "Left": 7440,
+            "Top": 120,
+            "Width": 1695
+          },
+          "children": [],
+          "px": {
+            "x": 496.0,
+            "y": 8.0,
+            "w": 113.0,
+            "h": 149.0
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "SelectZ",
+          "props": {
+            "Height": 2445,
+            "Index": 6,
+            "Left": 7800,
+            "Top": 4680,
+            "Width": 1815
+          },
+          "children": [],
+          "px": {
+            "x": 520.0,
+            "y": 312.0,
+            "w": 121.0,
+            "h": 163.0
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "SelectZ",
+          "props": {
+            "Height": 2445,
+            "Index": 5,
+            "Left": 6000,
+            "Top": 4680,
+            "Width": 1695
+          },
+          "children": [],
+          "px": {
+            "x": 400.0,
+            "y": 312.0,
+            "w": 113.0,
+            "h": 163.0
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "SelectZ",
+          "props": {
+            "Height": 2355,
+            "Index": 4,
+            "Left": 7560,
+            "Top": 2280,
+            "Width": 2055
+          },
+          "children": [],
+          "px": {
+            "x": 504.0,
+            "y": 152.0,
+            "w": 137.0,
+            "h": 157.0
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "SelectZ",
+          "props": {
+            "Height": 2325,
+            "Index": 3,
+            "Left": 2400,
+            "Top": 4680,
+            "Width": 1575
+          },
+          "children": [],
+          "px": {
+            "x": 160.0,
+            "y": 312.0,
+            "w": 105.0,
+            "h": 155.0
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "SelectZ",
+          "props": {
+            "Height": 2355,
+            "Index": 2,
+            "Left": 2400,
+            "Top": 2280,
+            "Width": 1695
+          },
+          "children": [],
+          "px": {
+            "x": 160.0,
+            "y": 152.0,
+            "w": 113.0,
+            "h": 157.0
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "SelectZ",
+          "props": {
+            "Height": 2205,
+            "Index": 1,
+            "Left": 480,
+            "Top": 2520,
+            "Width": 1815
+          },
+          "children": [],
+          "px": {
+            "x": 32.0,
+            "y": 168.0,
+            "w": 121.0,
+            "h": 147.0
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "SelectZ",
+          "props": {
+            "Height": 615,
+            "Index": 12,
+            "Left": 360,
+            "Top": 2040,
+            "Width": 495
+          },
+          "children": [],
+          "px": {
+            "x": 24.0,
+            "y": 136.0,
+            "w": 33.0,
+            "h": 41.0
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "SelectZ",
+          "props": {
+            "Height": 855,
+            "Index": 22,
+            "Left": 240,
+            "Top": 1080,
+            "Width": 855
+          },
+          "children": [],
+          "px": {
+            "x": 16.0,
+            "y": 72.0,
+            "w": 57.0,
+            "h": 57.0
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "SelectZ",
+          "props": {
+            "Height": 1095,
+            "Index": 20,
+            "Left": 120,
+            "Top": 0,
+            "Width": 975
+          },
+          "children": [],
+          "px": {
+            "x": 8.0,
+            "y": 0.0,
+            "w": 65.0,
+            "h": 73.0
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "SelectZ",
+          "props": {
+            "Height": 2325,
+            "Index": 0,
+            "Left": 360,
+            "Top": 4650,
+            "Width": 1815
+          },
+          "children": [],
+          "px": {
+            "x": 24.0,
+            "y": 310.0,
+            "w": 121.0,
+            "h": 155.0
+          }
+        }
+      ],
+      "px": {
+        "x": 0.0,
+        "y": 0.0,
+        "w": 640.0,
+        "h": 480.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 12648447,
+        "BorderStyle": 1,
+        "ForeColor": 2147483656,
+        "Height": 225,
+        "Index": 21,
+        "Left": 8550,
+        "Top": 30,
+        "Visible": 0,
+        "Width": 75
+      },
+      "children": [],
+      "px": {
+        "x": 570.0,
+        "y": 2.0,
+        "w": 5.0,
+        "h": 15.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Label1",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 0,
+        "ForeColor": 65535,
+        "Height": 705,
+        "Left": 150,
+        "Top": 90,
+        "Width": 195
+      },
+      "children": [],
+      "px": {
+        "x": 10.0,
+        "y": 6.0,
+        "w": 13.0,
+        "h": 47.0
+      }
+    }
+  ],
+  "design": {
+    "width": 717,
+    "height": 662,
+    "client_w_twips": 10755,
+    "client_h_twips": 9930
+  }
+}

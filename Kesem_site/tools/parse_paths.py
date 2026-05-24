@@ -30,12 +30,23 @@ Each `slot` corresponds to one btnIcon on the Sst main screen.
 """
 from __future__ import annotations
 import json
+import re
 import struct
 from pathlib import Path
 
 SOURCE_ENCODING = "cp1255"
 
-APPS = ["Brahot", "Hagim", "Yeled", "Dvash"]
+def _discover_apps():
+    """Apps to process = every .config.js under js/apps/. Lets us add new
+    Kesem-suite ports without touching this file."""
+    here = Path(__file__).resolve().parent.parent
+    cfg_dir = here / "js" / "apps"
+    if not cfg_dir.is_dir():
+        return ["Brahot", "Hagim", "Yeled", "Dvash"]
+    apps = sorted(p.stem.split(".")[0] for p in cfg_dir.glob("*.config.js"))
+    return apps or ["Brahot", "Hagim", "Yeled", "Dvash"]
+
+APPS = _discover_apps()
 
 # .RAS record format (LEV.BAS: Type FileStru, 68 bytes):
 #   Name_of_Rasb As String * 30   bytes  0..29  (cp1255 Hebrew, space-padded)
@@ -67,14 +78,14 @@ def parse_ras(path: Path) -> list:
 
 
 def find_rasb_dir(app: str) -> Path | None:
-    for cand in (
-        Path(f"/home/levlavy/Documents/Tekoa_Computers/Master/{app}/DAPEY_KE/RASB"),
-        Path(f"/home/levlavy/Documents/Tekoa_Computers/Master/{app}/dapey_ke/RASB"),
-        Path(f"/home/levlavy/Documents/Tekoa_Computers/Master/{app}/DAPEY_KE/Rasb"),
-        Path(f"/home/levlavy/Documents/Tekoa_Computers/Master/{app}/dapey_ke/Rasb"),
-    ):
-        if cand.is_dir():
-            return cand
+    # Distributions vary in case. Probe every reasonable combination of
+    # dapey_ke (or DAPEY_KE) × rasb (RASB / Rasb / rasb).
+    root = Path(f"/home/levlavy/Documents/Tekoa_Computers/Master/{app}")
+    for dk in ("DAPEY_KE", "dapey_ke", "Dapey_Ke"):
+        for rb in ("RASB", "Rasb", "rasb"):
+            cand = root / dk / rb
+            if cand.is_dir():
+                return cand
     return None
 
 
@@ -175,7 +186,20 @@ def main():
         result = {"app": app, "ramas": {}}
         total_hot = 0
         stage_count = 0
-        for rama in (1, 2, 3, 4):
+        # Discover every CHBOX<N>.INI in the app's clean root. Standard apps
+        # only ship rama 1..4; Shirim ships chapters 0..9; Shirim&Meshalim
+        # ships 0..10. Match a literal trailing digit so we skip CHBOX.INI
+        # (the active-state file) without coupling to a fixed range.
+        rama_keys = []
+        if base.is_dir():
+            for p in sorted(base.iterdir()):
+                m = re.fullmatch(r"(?i)chbox(\d+)\.ini", p.name)
+                if m:
+                    rama_keys.append(m.group(1))
+        rama_keys = sorted(set(rama_keys), key=lambda s: int(s))
+        if not rama_keys:
+            rama_keys = ["1", "2", "3", "4"]   # fallback for legacy callers
+        for rama in rama_keys:
             ini = base / f"CHBOX{rama}.INI"
             if not ini.exists():
                 ini = base / f"ChBox{rama}.ini"
@@ -213,7 +237,7 @@ def main():
                                     break
                 rama_slots.append(entry)
             if rama_slots:
-                result["ramas"][str(rama)] = {"slots": rama_slots}
+                result["ramas"][rama] = {"slots": rama_slots}
         out = out_dir / f"{app}.json"
         out.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
         total = sum(len(r["slots"]) for r in result["ramas"].values())

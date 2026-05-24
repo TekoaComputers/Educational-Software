@@ -14,7 +14,15 @@ from pathlib import Path
 SITE = Path(__file__).resolve().parent.parent
 JS = SITE / "js"
 DATA = SITE / "data"
-APPS = ["Brahot", "Hagim", "Yeled", "Dvash"]
+
+def _discover_apps():
+    """Each *.config.js under js/apps/ is one bundled app. Lets us add new
+    Kesem-suite ports without editing this file."""
+    cfg_dir = JS / "apps"
+    apps = sorted(p.stem.split(".")[0] for p in cfg_dir.glob("*.config.js"))
+    return apps or ["Brahot", "Hagim", "Yeled", "Dvash"]
+
+APPS = _discover_apps()
 
 
 def strip_imports(src: str) -> str:
@@ -43,7 +51,7 @@ def main():
     parts.append("const CONFIGS = {")
     for app in APPS:
         cfg = parse_config_literal(JS / "apps" / f"{app}.config.js")
-        parts.append(f"  {app}: {cfg},")
+        parts.append(f"  \"{app}\": {cfg},")
     parts.append("};")
 
     # 2) Layouts — every screen of every app, indexed by app + screen id.
@@ -57,7 +65,7 @@ def main():
         # Locate the entire `screens: { ... }` block via balanced braces.
         sm = re.search(r"screens\s*:\s*\{", cfg_text)
         if not sm:
-            parts.append(f"  {app}: {{}},")
+            parts.append(f"  \"{app}\": {{}},")
             continue
         start = sm.end()
         depth = 1
@@ -82,7 +90,7 @@ def main():
                 print(f"  WARN: {app}.{screen_id} -> {layout_path} (missing)")
                 continue
             screens[screen_id] = json.loads(layout_path.read_text(encoding="utf-8"))
-        parts.append(f"  {app}: {json.dumps(screens, ensure_ascii=False)},")
+        parts.append(f"  \"{app}\": {json.dumps(screens, ensure_ascii=False)},")
     parts.append("};")
 
     # 3) Tafrosh tooltips.
@@ -90,7 +98,7 @@ def main():
     for app in APPS:
         path = DATA / "tafrosh" / f"{app}.json"
         data = json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
-        parts.append(f"  {app}: {json.dumps(data, ensure_ascii=False)},")
+        parts.append(f"  \"{app}\": {json.dumps(data, ensure_ascii=False)},")
     parts.append("};")
 
     # 4) Per-app stage/path data (parsed from CHBOX*.INI + .MAS files).
@@ -98,7 +106,7 @@ def main():
     for app in APPS:
         path = DATA / "paths" / f"{app}.json"
         data = json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
-        parts.append(f"  {app}: {json.dumps(data, ensure_ascii=False)},")
+        parts.append(f"  \"{app}\": {json.dumps(data, ensure_ascii=False)},")
     parts.append("};")
 
     # Video manifest per app — every .mp4 under catalog/, avi/, and mashal/.
@@ -116,7 +124,7 @@ def main():
                 for f in sub_dir.rglob("*.mp4"):
                     rels.append(f"{sub}/{str(f.relative_to(sub_dir)).replace(chr(92), '/')}")
         rels.sort()
-        parts.append(f"  {app}: {json.dumps(rels)},")
+        parts.append(f"  \"{app}\": {json.dumps(rels)},")
     parts.append("};")
 
     # 5) Audio manifest per app — every .wav under wav/ and rasb_wav/.
@@ -137,7 +145,7 @@ def main():
                 for f in sub_dir.rglob("*.wav"):
                     rels.append(f"{sub}/{str(f.relative_to(sub_dir)).replace(chr(92), '/')}")
         rels.sort()
-        parts.append(f"  {app}: {json.dumps(rels)},")
+        parts.append(f"  \"{app}\": {json.dumps(rels)},")
     parts.append("};")
 
     # 4) Engine.
@@ -147,8 +155,8 @@ def main():
 
     # 5) App entry adapted from app.js (no fetch/import).
     parts.append("// === app entry ===")
+    parts.append(f"const APPS = {json.dumps(APPS)};")
     parts.append(r"""
-const APPS = ["Brahot", "Hagim", "Yeled", "Dvash"];
 const selector = document.querySelector(".app-grid");
 const heading = document.querySelector("h1");
 const root = document.getElementById("app-root");
@@ -237,7 +245,504 @@ function onScreenChange(state, screenId) {
     } else if (screenId === "sst") {
         unhideRuntimeButtons(state);
         wireSstLamps(state);
+        if (state.config.book) wireSstBook(state);
+        if (state.config.ivritDefaultView) wireSstIvrit(state);
     }
+}
+
+// Ivrit Sst.frm has Picture1 + Picture2 sharing the (0,0) area. Original
+// Form_Load leaves Picture2 (song picker) visible and Picture1 hidden;
+// activ_Click(1) shows Picture1 + bac, bac_Click reverses the swap. We
+// mirror that toggle in showIvritView() and wire it from activ/bac actions.
+function wireSstIvrit(state) {
+    const stage = state.stage;
+    // Pre-build the Picture1 grid (btnIcon thumbs from first-stage pics)
+    // even before the user switches views — Form_Load calls btnHofshi_Click
+    // unconditionally, so the activity icons should be ready immediately.
+    paintIvritActivityIcons(state);
+    // Build the song picker list inside Picture2 (List1 + pri preview +
+    // activ buttons). Per Form_Load → ListSubDirs(MASLUL/).
+    populateIvritSongList(state);
+    // Pick the initial view. The original defaults to Picture2 (the song
+    // picker) — Form_Load doesn't show Picture1 or bac.
+    const view = state.ivritView || state.config.ivritDefaultView || "picker";
+    showIvritView(state, view);
+}
+
+function showIvritView(state, view) {
+    state.ivritView = view;
+    const stage = state.stage;
+    const p1  = stage.querySelector(".frm-ctrl--Picture1");
+    const p2  = stage.querySelector(".frm-ctrl--Picture2");
+    const bac = stage.querySelector(".frm-ctrl--bac");
+    const ramaTabs = stage.querySelectorAll(".frm-ctrl--Icon_s");
+    if (view === "activities") {
+        if (p2)  p2.style.display = "none";
+        if (p1)  p1.style.display = "";
+        // bac sits on Picture1 (vis=None by design); ensure it's shown.
+        if (bac) bac.style.display = "";
+        // btnHofshi has Visible=0 design-time but is a runtime entry; we
+        // don't actually need a click target since the grid is the default
+        // experience, so just keep it hidden as the user expects.
+        if (p1) {
+            p1.querySelectorAll(".frm-ctrl--btnIcon, .frm-ctrl--btnLamp")
+              .forEach(function (el) { if (el.style.display === "none") el.style.display = ""; });
+        }
+        // Re-expose the rama tabs. Original Sst.frm puts Icon_s at design
+        // Y=8700 twips (Y≈580 px — off the 480-tall stage), with Visible=0,
+        // so the user never sees them. Reposition into a slim footer band
+        // so all four ramas (1/2/3 via tabs + 4 via the default load) are
+        // actually reachable in the port.
+        positionIvritRamaTabs(state, ramaTabs);
+        highlightIvritRamaTab(state);
+    } else {
+        // Song picker (Picture2)
+        if (p1)  p1.style.display = "none";
+        if (p2)  p2.style.display = "";
+        if (bac) bac.style.display = "none";
+        // Hide rama tabs while the picker is showing — they belong to
+        // Picture1 conceptually even though they sit at the form root.
+        ramaTabs.forEach(function (el) { el.style.display = "none"; });
+    }
+}
+
+// The three Icon_s controls in Ivrit's .frm are positioned off-stage
+// (Y≈580 twips/15 = below the 480-tall form area) and Visible=False at
+// design time. Original VB6 never made them visible at runtime either
+// (BeginGame sets them False; the picture-loads are commented out). Port:
+// move them into a visible footer strip on the activities view so the
+// rama is selectable instead of pinned at 4. Tabs read 1/2/3, with the
+// current rama highlighted; the btnHofshi-loaded rama=4 stays the default.
+function positionIvritRamaTabs(state, tabs) {
+    const ds = state.designSize || { width: 640, height: 480 };
+    const tabW = 60, tabH = 36, gap = 10;
+    const totalW = tabs.length * tabW + (tabs.length - 1) * gap;
+    let x = Math.round((ds.width - totalW) / 2);
+    // Lay out tabs left→right at the bottom of the stage. Index ordering in
+    // the parsed layout is Icon_s 0,1,2 → ramas 1,2,3 (Sst.Icon_s_Click sets
+    // rama = Format(Str(Index + 1))). Sort by Index so DOM order != .frm
+    // declaration order doesn't break the strip.
+    const sorted = Array.prototype.slice.call(tabs).sort(function (a, b) {
+        return parseInt(a.dataset.index, 10) - parseInt(b.dataset.index, 10);
+    });
+    sorted.forEach(function (el, i) {
+        const idx = parseInt(el.dataset.index, 10);
+        const rama = String(idx + 1);
+        el.style.display = "";
+        el.style.left   = x + "px";
+        el.style.top    = (ds.height - tabH - 4) + "px";
+        el.style.width  = tabW + "px";
+        el.style.height = tabH + "px";
+        el.style.borderRadius = "4px";
+        el.style.fontFamily = "Arial, sans-serif";
+        el.style.fontSize = "14px";
+        el.style.fontWeight = "bold";
+        el.style.color = "#111";
+        el.style.display = "flex";
+        el.style.alignItems = "center";
+        el.style.justifyContent = "center";
+        // Replace any prior caption span and write the rama label.
+        let cap = el.querySelector(".ivrit-rama-cap");
+        if (!cap) {
+            cap = document.createElement("span");
+            cap.className = "ivrit-rama-cap";
+            cap.style.pointerEvents = "none";
+            el.appendChild(cap);
+        }
+        cap.textContent = "רמה " + rama;
+        // Reroute its click: the renderer's actionFor doesn't map Icon_s in
+        // Ivrit to anything (it would emit "rama:N" by default). Hook our
+        // own listener that respects the song-picker context.
+        if (!el.dataset.ivritRamaWired) {
+            el.dataset.ivritRamaWired = "1";
+            el.addEventListener("click", function (e) {
+                e.stopPropagation();
+                state.rama = rama;
+                paintIvritActivityIcons(state);
+                highlightIvritRamaTab(state);
+                klog("ivrit: rama →", rama);
+            });
+        }
+        x += tabW + gap;
+    });
+}
+
+function highlightIvritRamaTab(state) {
+    const cur = String(state.rama);
+    state.stage.querySelectorAll(".frm-ctrl--Icon_s").forEach(function (el) {
+        const idx = parseInt(el.dataset.index, 10);
+        const rama = String(idx + 1);
+        const active = (rama === cur);
+        el.style.background = active ? "#fff4a3" : "rgba(255,255,255,.7)";
+        el.style.boxShadow = active
+            ? "0 0 0 2px #c08000 inset"
+            : "0 0 0 1px rgba(0,0,0,.3) inset";
+    });
+}
+
+function paintIvritActivityIcons(state) {
+    const stage = state.stage;
+    const slots = currentRamaSlots(state) || [];
+    const root  = state.config.assetsRoot;
+    stage.querySelectorAll(".frm-ctrl--btnIcon").forEach(function (el) {
+        const idx = parseInt(el.dataset.index, 10);
+        const slot = !isNaN(idx) ? slots[idx] : null;
+        const stages = slot && slot.stages;
+        const pic = stages && stages.length ? stages[0].pic : null;
+        if (!pic) return;
+        let img = el.querySelector("img.frm-img");
+        if (!img) {
+            img = document.createElement("img");
+            img.className = "frm-img";
+            el.appendChild(img);
+        }
+        img.src = root + "/bmp/" + pic.toLowerCase().replace(/\.bmp$/, ".png");
+    });
+}
+
+// Build the List1 song picker from paths data. The original scans
+// MASLUL/<*.MAS> via ListSubDirs and pairs each filename with the song's
+// title (5th line of the .MAS). Our parse_paths already extracted those
+// triples into paths.json — flatten across ramas and dedupe by masFile.
+function populateIvritSongList(state) {
+    const stage = state.stage;
+    const list = stage.querySelector(".frm-ctrl--List1");
+    if (!list) return;
+
+    const paths = state.paths;
+    const seen = {};
+    const items = [];
+    if (paths && paths.ramas) {
+        Object.keys(paths.ramas).forEach(function (ramaKey) {
+            const slots = paths.ramas[ramaKey].slots || [];
+            slots.forEach(function (s) {
+                const mas = (s.masFile || "").toLowerCase();
+                if (!mas || seen[mas]) return;
+                seen[mas] = true;
+                items.push({
+                    rama: ramaKey,
+                    idx: s.idx,
+                    masFile: s.masFile,
+                    name: s.name || (s.header && s.header.pathName) || mas,
+                    pic: (s.stages && s.stages.length) ? s.stages[0].pic : null,
+                });
+            });
+        });
+    }
+    items.sort(function (a, b) {
+        // Sort by numeric prefix of masFile (e.g. "00.mas" < "10.mas").
+        const ai = parseInt(a.masFile, 10);
+        const bi = parseInt(b.masFile, 10);
+        if (!isNaN(ai) && !isNaN(bi)) return ai - bi;
+        return a.masFile.localeCompare(b.masFile);
+    });
+    state.ivritSongs = items;
+
+    // Render the list as a scrollable <ul> filling the List1 control. The
+    // original VB6 ListBox shows mas-without-ext + tab + song title; we
+    // keep the same shape: "<id>   <title>".
+    list.innerHTML = "";
+    Object.assign(list.style, {
+        background: "rgba(255,255,255,.85)", overflow: "auto",
+        font: "13px Arial, sans-serif", color: "#000",
+        textAlign: "right", direction: "rtl", boxSizing: "border-box",
+        padding: "4px",
+    });
+    const ul = document.createElement("ul");
+    Object.assign(ul.style, { listStyle: "none", margin: "0", padding: "0" });
+    items.forEach(function (it, i) {
+        const li = document.createElement("li");
+        const id = it.masFile.replace(/\.mas$/i, "");
+        li.textContent = id + "   " + it.name;
+        li.dataset.idx = String(i);
+        Object.assign(li.style, {
+            padding: "2px 6px", cursor: "pointer", userSelect: "none",
+        });
+        li.addEventListener("click", function () {
+            selectIvritSong(state, i);
+        });
+        li.addEventListener("dblclick", function () {
+            selectIvritSong(state, i);
+            startIvritSelectedSong(state);
+        });
+        ul.appendChild(li);
+    });
+    list.appendChild(ul);
+
+    // Preserve the previously focused row across re-renders (e.g. when
+    // returning from a path play). Falls back to 0 on first paint.
+    const prev = state.ivritSelected;
+    const initial = (prev != null && prev >= 0 && prev < items.length) ? prev : 0;
+    if (items.length) selectIvritSong(state, initial);
+}
+
+function selectIvritSong(state, i) {
+    const list = state.stage.querySelector(".frm-ctrl--List1");
+    if (!list) return;
+    state.ivritSelected = i;
+    list.querySelectorAll("li").forEach(function (li) {
+        li.style.background = (parseInt(li.dataset.idx, 10) === i) ? "#fff4a3" : "";
+    });
+    // Update the preview image (pri) with the first-stage thumbnail —
+    // port of Sst.priview(d(idx)) which opens the maslul's .MAS and pulls
+    // out the first stage's pic to populate Pics_F2.
+    const item = (state.ivritSongs || [])[i];
+    const stage = state.stage;
+    const pri = stage.querySelector(".frm-ctrl--pri");
+    if (pri && item && item.pic) {
+        let img = pri.querySelector("img.frm-img");
+        if (!img) {
+            img = document.createElement("img");
+            img.className = "frm-img";
+            pri.appendChild(img);
+        }
+        img.src = state.config.assetsRoot + "/bmp/" + item.pic.toLowerCase().replace(/\.bmp$/, ".png");
+    }
+    // Update lblPirut caption with mas + title (the original sets it on
+    // List1_Click → Mhshv_Pirut). Useful as a status line beneath the list.
+    const pirut = stage.querySelector(".frm-ctrl--lblPirut");
+    if (pirut && item) {
+        let cap = pirut.querySelector(".ivrit-pirut");
+        if (!cap) {
+            cap = document.createElement("span");
+            cap.className = "ivrit-pirut";
+            Object.assign(cap.style, {
+                position: "absolute", inset: "0",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                color: "#222", font: "bold 13px Arial, sans-serif",
+                pointerEvents: "none", direction: "rtl",
+            });
+            pirut.appendChild(cap);
+        }
+        cap.textContent = item.name;
+    }
+}
+
+function startIvritSelectedSong(state) {
+    const item = (state.ivritSongs || [])[state.ivritSelected];
+    if (!item) { klog("ivrit: no song selected"); return; }
+    state.rama = item.rama;
+    startPath(state, item.idx);
+}
+
+// Shirim / Shirim&Meshalim: initial Sst view shows BookIndex (chapter
+// picker). Per Form_Load the OpenPage container is .Visible=False at
+// design time — the renderer already honors that. If we're returning
+// from a path play and a chapter was open, re-open it (Sst.ShowMasNum_Click
+// ends with SelectZ_Click Int(rama) for the same reason).
+function wireSstBook(state) {
+    const resumeChapter = state.currentChapter;
+    const stage = state.stage;
+    // Clear any leftover row captions before either re-opening or going
+    // back to the chapter picker.
+    stage.querySelectorAll(".frm-ctrl--ShowName, .frm-ctrl--ShowMasNum, .frm-ctrl--ShowNikod").forEach(function (el) {
+        clearBookRow(el);
+    });
+    installBookHoverPaint(state);
+    if (resumeChapter != null) {
+        openBookChapter(state, resumeChapter);
+    } else {
+        const bi = stage.querySelector(".frm-ctrl--BookIndex");
+        const op = stage.querySelector(".frm-ctrl--OpenPage");
+        if (bi) bi.style.display = "";
+        if (op) op.style.display = "none";
+    }
+}
+
+// Port of Sst.SelectZ_MouseMove (Shirim/Shirim&Meshalim):
+//   BookIndex.PaintPicture PicBook(1), SelectZ(Index).Left, SelectZ(Index).Top,
+//       SelectZ(Index).Width, SelectZ(Index).Height, SelectZ(Index).Left, ...
+// Conceptually: while a SelectZ tab is hovered, the corresponding rectangle
+// of BookIndex.Picture (books1.png) is replaced with the matching rectangle
+// from PicBook(1) = books2.png — a gold-overlay variant. Achieved here via
+// the per-tab `background-image` showing the same slice of books2.png as
+// the tab covers on the page. The hover-out reverts via display:'' default.
+function installBookHoverPaint(state) {
+    const book = state.config.book || {};
+    if (!book.hoverImage) return;
+    const stage = state.stage;
+    const tabs = stage.querySelectorAll(".frm-ctrl--SelectZ");
+    if (!tabs.length) return;
+    const ds = state.designSize || { width: 640, height: 480 };
+    tabs.forEach(function (el) {
+        if (el.dataset.bookHoverWired === "1") return;
+        el.dataset.bookHoverWired = "1";
+        const onEnter = function () {
+            // el.style.left / top are set by the renderer as "<n>px". Read
+            // them back to align the books2 slice to the tab's stage spot.
+            const left = parseFloat(el.style.left) || 0;
+            const top  = parseFloat(el.style.top)  || 0;
+            el.style.backgroundImage = "url('" + book.hoverImage + "')";
+            el.style.backgroundPosition = "-" + left + "px -" + top + "px";
+            el.style.backgroundSize = ds.width + "px " + ds.height + "px";
+            el.style.backgroundRepeat = "no-repeat";
+        };
+        const onLeave = function () {
+            el.style.backgroundImage = "";
+        };
+        el.addEventListener("mouseenter", onEnter);
+        el.addEventListener("mouseleave", onLeave);
+    });
+}
+
+function clearBookRow(el) {
+    const cap = el.querySelector(".book-caption");
+    if (cap) cap.remove();
+    el.style.display = "none";
+}
+
+function setBookCaption(el, text, color) {
+    let cap = el.querySelector(".book-caption");
+    if (!cap) {
+        cap = document.createElement("span");
+        cap.className = "book-caption";
+        Object.assign(cap.style, {
+            position: "absolute", inset: "0",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontFamily: "Arial, sans-serif", fontWeight: "bold",
+            pointerEvents: "none", textAlign: "center",
+        });
+        el.appendChild(cap);
+    }
+    cap.textContent = text;
+    cap.style.color = color || "#000";
+}
+
+// Open chapter N: hide BookIndex, show OpenPage, populate Show* rows.
+// Mirrors Sst.SelectZ_Click(0..K-1): rama=Index, OpenPage.Visible=True,
+// then reads chbox<rama>.ini and fills up to 4/5 rows with name+score.
+function openBookChapter(state, chapter) {
+    state.currentChapter = chapter;
+    state.rama = chapter;          // chapter IS the rama key for paths lookup
+
+    const stage = state.stage;
+    const bi = stage.querySelector(".frm-ctrl--BookIndex");
+    const op = stage.querySelector(".frm-ctrl--OpenPage");
+    if (bi) bi.style.display = "none";
+    if (op) op.style.display = "";
+
+    const slots = currentRamaSlots(state) || [];
+    const scoresMap = loadScoresMap(state.config.id);
+    const completed = loadCompletedMap(state.config.id)[String(chapter)] || {};
+
+    // Iterate the design-time row indices present in this Sst layout.
+    // Each row = three sibling controls (ShowName, ShowMasNum, ShowNikod)
+    // sharing an Index. We update by index, not by slot count, so rows that
+    // exist past the slot count get cleared.
+    const allRows = new Set();
+    stage.querySelectorAll(".frm-ctrl--ShowName, .frm-ctrl--ShowMasNum, .frm-ctrl--ShowNikod").forEach(function (el) {
+        const i = parseInt(el.dataset.index, 10);
+        if (!isNaN(i)) allRows.add(i);
+    });
+
+    allRows.forEach(function (i) {
+        const nameEl    = stage.querySelector('.frm-ctrl--ShowName[data-index="'    + i + '"]');
+        const masNumEl  = stage.querySelector('.frm-ctrl--ShowMasNum[data-index="'  + i + '"]');
+        const nikodEl   = stage.querySelector('.frm-ctrl--ShowNikod[data-index="'   + i + '"]');
+        const slot = slots[i];
+        if (!slot) {
+            if (nameEl)   clearBookRow(nameEl);
+            if (masNumEl) clearBookRow(masNumEl);
+            if (nikodEl)  clearBookRow(nikodEl);
+            return;
+        }
+        if (nameEl) {
+            nameEl.style.display = "";
+            setBookCaption(nameEl, slot.name || ("שיר " + (i + 1)), "#000");
+        }
+        if (masNumEl) {
+            masNumEl.style.display = "";
+            setBookCaption(masNumEl, String(i + 1), "#000");
+        }
+        if (nikodEl) {
+            // Score color thresholds copied from Sst.SelectZ_Click:
+            //   <=50 red, 51..60 orange, 61..80 blue, >80 green.
+            const ramaScores = scoresMap[String(chapter)] || {};
+            const entry = ramaScores[String(i)];
+            if (entry && entry.stages && entry.stages.length && completed[String(i)]) {
+                // Score formula port of Sst.SelectZ_Click (Shirim):
+                //   v = Int(((bx*5 + cx + dX) * 20) / ax)
+                // where bx=green, cx=yellow, dX=red, ax=total questions.
+                // Saved-score fields use the JS shape from snapStageScore.
+                const stages = entry.stages;
+                let ax = 0, bx = 0, cx = 0, dX = 0;
+                stages.forEach(function (s) {
+                    ax += (s.total  || 0);
+                    bx += (s.green  || 0);
+                    cx += (s.yellow || 0);
+                    dX += (s.red    || 0);
+                });
+                const v = ax > 0 ? Math.floor(((bx * 5 + cx + dX) * 20) / ax) : 0;
+                let color = "#FF0000";
+                if (v > 50) color = "#FFC800";
+                if (v > 60) color = "#1414FF";
+                if (v > 80) color = "#14CD00";
+                nikodEl.style.display = "";
+                setBookCaption(nikodEl, String(v), color);
+            } else {
+                clearBookRow(nikodEl);
+            }
+        }
+    });
+}
+
+function closeBookChapter(state) {
+    state.currentChapter = null;
+    const stage = state.stage;
+    const bi = stage.querySelector(".frm-ctrl--BookIndex");
+    const op = stage.querySelector(".frm-ctrl--OpenPage");
+    if (bi) bi.style.display = "";
+    if (op) op.style.display = "none";
+}
+
+function handleBookAction(state, action) {
+    const parts = action.split(":");
+    const kind = parts[1];
+    const idx  = parts[2] != null ? parseInt(parts[2], 10) : null;
+    const book = state.config.book || {};
+    if (kind === "select") {
+        if (idx === book.exit)    { confirmExit(exitToLauncher); return; }
+        if (idx === book.credit)  { klog("book: credits stub — original showed Credit.Show 1"); return; }
+        if (idx === book.help && book.helpVideo) {
+            const rel = resolveVideoPath(state, book.helpVideo);
+            if (rel) playVideo(state.config.assetsRoot + "/" + rel);
+            else klog("book: help video missing (" + book.helpVideo + ")");
+            return;
+        }
+        // Otherwise treat as a chapter selection.
+        if (book.chapters && book.chapters.indexOf(idx) < 0) {
+            klog("book: SelectZ idx " + idx + " not mapped");
+            return;
+        }
+        openBookChapter(state, idx);
+        return;
+    }
+    if (kind === "start") {
+        if (state.currentChapter == null) {
+            klog("book: start without open chapter");
+            return;
+        }
+        startPath(state, idx);
+        return;
+    }
+    if (kind === "score") {
+        if (state.currentChapter == null) {
+            klog("book: score without open chapter");
+            return;
+        }
+        const completed = loadCompletedMap(state.config.id)[String(state.rama)] || {};
+        if (!completed[String(idx)]) {
+            klog("book: score ignored — slot " + (idx + 1) + " not completed yet");
+            return;
+        }
+        showSavedScores(state, idx);
+        return;
+    }
+    if (kind === "close") {
+        closeBookChapter(state);
+        return;
+    }
+    klog("book: unknown action", action);
 }
 
 // Sst.Lampas() port — per-btnLamp visibility + image based on which
@@ -648,12 +1153,63 @@ function handleAction(appId, action /*, ctrl */) {
             if (appId === "Brahot") return "\\avi\\BRADHIS.avi";
             if (appId === "Hagim")  return "\\avi\\HAG.avi";
             if (appId === "Yeled")  return idx === 1 ? "\\avi\\kescre1.avi" : "\\avi\\KESEM.AVI";
+            // EnglishA Sst.btnSeret_Click:
+            //   idx 0 → PathFilm + "\_tafnew.avi" (per-app intro tour)
+            //   idx 1 → CD_Dir + "\avi\kescre1.avi" (Kesem-suite credits)
+            if (appId === "EnglishA") return idx === 1 ? "\\avi\\kescre1.avi" : "\\help\\_tafnew.avi";
+            if (appId === "EnglishB") return idx === 1 ? "\\avi\\kescre1.avi" : "\\help\\_tafnew.avi";
+            if (appId === "EnglishC") return idx === 1 ? "\\avi\\kescre1.avi" : "\\help\\_tafnew.avi";
+            if (appId === "Heshbon")  return idx === 1 ? "\\avi\\kescre1.avi" : "\\help\\_tafnew.avi";
             return null;
         })();
         if (!vbPath) { klog("seret: no video mapped for " + appId + " idx=" + idx); return; }
         const rel = resolveVideoPath(currentSession, vbPath);
         if (!rel) { klog("seret: video missing (" + vbPath + ")"); return; }
         playVideo(currentSession.config.assetsRoot + "/" + rel);
+        return;
+    }
+    if (action && action.indexOf("activ:") === 0) {
+        // Ivrit Sst.activ_Click — primary buttons on Picture2 (song picker).
+        //   0: start the song currently highlighted in List1
+        //   1: switch to Picture1 (activity grid)
+        //   2: Main.Show (back to root menu — treated as exit-to-launcher)
+        //   3,4: path editor / Start_Maslul (authoring tools; not ported)
+        //   5: \avi\_kescre1.avi (Kesem-suite credits video)
+        //   6: PathFilm + \_tafnew.avi (per-app intro tour)
+        if (!currentSession) return;
+        const idx = parseInt(action.split(":")[1], 10);
+        if (idx === 0) { startIvritSelectedSong(currentSession); return; }
+        if (idx === 1) { showIvritView(currentSession, "activities"); return; }
+        if (idx === 2) { confirmExit(exitToLauncher); return; }
+        if (idx === 5 || idx === 6) {
+            const vbPath = idx === 5 ? "\\avi\\_kescre1.avi" : "\\help\\_tafnew.avi";
+            const rel = resolveVideoPath(currentSession, vbPath);
+            if (rel) playVideo(currentSession.config.assetsRoot + "/" + rel);
+            else klog("activ: video missing (" + vbPath + ")");
+            return;
+        }
+        klog("activ: index " + idx + " not implemented (authoring tool)");
+        return;
+    }
+    if (action === "ivrit:back") {
+        // bac_Click: Picture1.Visible=False, picture2.Visible=True. Take
+        // the user back to the song picker.
+        if (!currentSession) return;
+        showIvritView(currentSession, "picker");
+        return;
+    }
+    if (action && action.indexOf("book:") === 0) {
+        // Shirim / Shirim&Meshalim song-book navigation. Sst.frm has two
+        // overlapping PictureBox containers (BookIndex + OpenPage). The
+        // initial view shows BookIndex (a books1.jpg illustration with 13
+        // invisible SelectZ tabs); clicking a chapter tab swaps to OpenPage
+        // which lists up to N maslulim with ShowName/ShowMasNum/ShowNikod.
+        //
+        // Ports Sst.SelectZ_Click / ShowName_Click / ShowNikod_Click /
+        // ExitPage_Click. The original keeps both containers in the form
+        // and toggles .Visible — we mirror that via display:none/'.
+        if (!currentSession) return;
+        handleBookAction(currentSession, action);
         return;
     }
     if (action && action.indexOf("act1:") === 0) {
@@ -2996,8 +3552,9 @@ function handleKey(e) {
 
 function route() {
     const hash = location.hash || "";
-    const m = hash.match(/^#\/(\w+)/);
-    if (m) showApp(m[1]); else showSelector();
+    // App ids may contain & (Shirim&Meshalim) — allow anything non-special.
+    const m = hash.match(/^#\/([^?#\s]+)/);
+    if (m) showApp(decodeURIComponent(m[1])); else showSelector();
 }
 
 window.addEventListener("hashchange", route);

@@ -39,7 +39,7 @@ function actionFor(ctrl, appId) {
         return idx != null ? `seret:${idx}` : "seret";
     }
     if (name === "CmdMashal") return "mashal";
-    if (name === "CmdExit")   return "exit";
+    if (name === "CmdExit" || name === "BtnExit") return "exit";
     if (name === "Icon_s")    return `rama:${idx + 1}`;
     if (name === "CmdDvash")  return "open:main";
     if (name === "CmdCat")    return "open:catalog";
@@ -50,6 +50,21 @@ function actionFor(ctrl, appId) {
     // are non-contiguous (0=replay/startgame, 1=audio, 4=exit). We pass
     // through the raw index so the handler can dispatch correctly.
     if (name === "act1")      return `act1:${idx}`;
+    // Shirim / Shirim&Meshalim song-book navigation (BookIndex/OpenPage on
+    // Sst.frm). SelectZ tabs sit on top of BookIndex.Picture; the high
+    // indices (Shirim: 10/11/12, S&M: 20/22/12) are Exit/Help/Credit.
+    // Treat any SelectZ as a generic `book:select:N` and let the bundle
+    // map per-app special indices, since the boundaries differ.
+    if (name === "SelectZ")   return `book:select:${idx}`;
+    if (name === "ShowName" || name === "ShowMasNum") return `book:start:${idx}`;
+    if (name === "ShowNikod")  return `book:score:${idx}`;
+    if (name === "ExitPage")   return "book:close";
+    // Ivrit Sst.frm: activ(0..6) on Picture2 (song picker) and bac on
+    // Picture1 (activity grid). activ_Click dispatches per-index in the
+    // original; bac_Click toggles Picture1.Visible / picture2.Visible.
+    if (name === "activ")      return `activ:${idx}`;
+    if (name === "bac")        return "ivrit:back";
+    if (name === "cmdexit")    return "exit";
     return null;
 }
 
@@ -62,13 +77,17 @@ function isContainer(ctrl) {
 function backgroundUrl(screenConf, rama, config) {
     const bg = screenConf.background;
     if (!bg) return null;
-    if (bg.indexOf("{rama}") === -1) return bg;
     // Clamp rama for BG lookup so apps with fewer BG images don't 404.
     // (Brahot only ships brahot1/2.png even though btnHofshi sets rama=4.)
     let effective = rama;
     if (config && config.bgRamaMax && effective > config.bgRamaMax) {
         effective = config.bgRamaMax;
     }
+    // Object form lets apps map ramas to arbitrary filenames when the
+    // per-rama BG names don't fit the `{rama}` template (e.g. KolKoreB
+    // pairs rama1 → kol2.png and rama2 → kol1.png).
+    if (typeof bg === "object") return bg[String(effective)] || bg[effective] || null;
+    if (bg.indexOf("{rama}") === -1) return bg;
     return bg.replace("{rama}", String(effective));
 }
 
@@ -104,8 +123,22 @@ function lookupAct1Image(state, idx) {
     return null;
 }
 
-function imageFor(ctrl, screenConf) {
-    return lookupConfImage(ctrl, screenConf, "images");
+function imageFor(ctrl, screenConf, state) {
+    return lookupConfImage(ctrl, screenConf, "images", state);
+}
+
+// Apply the same {rama} substitution backgroundUrl uses, so per-rama image
+// sets (e.g. EnglishA `tem_<i><rama>.png`) can be declared with a single
+// template string per entry. Honors bgRamaMax for apps that ship fewer
+// images than ramas (clamp instead of 404).
+function applyRamaSub(s, state) {
+    if (typeof s !== "string" || s.indexOf("{rama}") === -1) return s;
+    let effective = state.rama;
+    const cfg = state.config;
+    if (cfg && cfg.bgRamaMax && effective > cfg.bgRamaMax) {
+        effective = cfg.bgRamaMax;
+    }
+    return s.replace(/\{rama\}/g, String(effective));
 }
 
 // VB6 third-party PictureBox (Dvash.CmdPlus) has Picture, MovePic, MaskPicture.
@@ -113,15 +146,15 @@ function imageFor(ctrl, screenConf) {
 //   screens.<id>.images       — idle Picture
 //   screens.<id>.imagesHover  — hover MovePic
 //   screens.<id>.masks        — MaskPicture (luminance mask: white=keep, black=cut)
-function lookupConfImage(ctrl, screenConf, key) {
+function lookupConfImage(ctrl, screenConf, key, state) {
     const tbl = screenConf && screenConf[key];
     if (!tbl) return null;
     const entry = tbl[ctrl.name];
     if (!entry) return null;
-    if (typeof entry === "string") return entry;
+    if (typeof entry === "string") return applyRamaSub(entry, state);
     const idx = ctrl.props.Index;
-    if (Array.isArray(entry) && idx != null) return entry[idx] || null;
-    if (typeof entry === "object" && idx != null) return entry[idx] || null;
+    if (Array.isArray(entry) && idx != null) return applyRamaSub(entry[idx] || null, state);
+    if (typeof entry === "object" && idx != null) return applyRamaSub(entry[idx] || null, state);
     return null;
 }
 
@@ -130,7 +163,7 @@ function buildSubtree(ctrl, scale, state, screenConf) {
     const isHotspot = action != null;
     const isTip = ctrl.name === "lbtip";
     const hasKids = isContainer(ctrl);
-    const imgSrc = imageFor(ctrl, screenConf);
+    const imgSrc = imageFor(ctrl, screenConf, state);
     // Respect the original .frm Visible property. VB6 `Visible = 0 'False`
     // means the control is hidden at design time. Game logic later may toggle
     // it on (e.g. Games2 Picture2 only appears when Choice_Pic populates it).
@@ -205,12 +238,12 @@ function buildSubtree(ctrl, scale, state, screenConf) {
         // Dvash.CmdPlus (and similar third-party controls) used MovePic to
         // swap the Picture on hover and MaskPicture for transparency. We
         // model these via screens.<id>.imagesHover and screens.<id>.masks.
-        const hoverSrc = lookupConfImage(ctrl, screenConf, "imagesHover");
+        const hoverSrc = lookupConfImage(ctrl, screenConf, "imagesHover", state);
         if (hoverSrc) {
             node.addEventListener("mouseenter", function () { img.src = hoverSrc; });
             node.addEventListener("mouseleave", function () { img.src = imgSrc; });
         }
-        const maskSrc = lookupConfImage(ctrl, screenConf, "masks");
+        const maskSrc = lookupConfImage(ctrl, screenConf, "masks", state);
         if (maskSrc) {
             // White pixels in the mask remain opaque, black pixels become
             // transparent — same convention CmdPlus.MaskPicture used.
@@ -310,8 +343,12 @@ function renderScreen(state) {
 
     const bgSrc = backgroundUrl(screenConf, state.rama, state.config);
     if (bgSrc) {
-        // BG fills the stage exactly (config'd designSize matches BG natural).
-        const bg = el("img", { class: "frm-bg", src: bgSrc, alt: "" });
+        // Default: BG fills the stage exactly (config'd designSize matches
+        // BG natural). Some apps (KolKoreC/D) instead use a small banner
+        // strip drawn at top-left over a solid BackColor — declare
+        // `bgMode: "native"` in the screen config to honor that layout.
+        const bgClass = screenConf.bgMode === "native" ? "frm-bg frm-bg--native" : "frm-bg";
+        const bg = el("img", { class: bgClass, src: bgSrc, alt: "" });
         state.stage.appendChild(bg);
         state.bg = bg;
     } else {
