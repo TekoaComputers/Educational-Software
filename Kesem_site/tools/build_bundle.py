@@ -236,7 +236,73 @@ function onScreenChange(state, screenId) {
         wireMashalScreen(state);
     } else if (screenId === "sst") {
         unhideRuntimeButtons(state);
+        wireSstLamps(state);
     }
+}
+
+// Sst.Lampas() port — per-btnLamp visibility + image based on which
+// activities have been completed in the current rama:
+//
+//   Brahot/Hagim (no Lamp1.bmp shipped):
+//     completed → Lamp2.bmp + Visible=True + Enabled=True (clickable)
+//     not done  → Visible=False + Enabled=False (HIDDEN entirely)
+//
+//   Yeled/Dvash:
+//     completed → Lamp2.bmp + Enabled=True
+//     not done  → Lamp1.bmp (dim) + Enabled=False
+//
+// Run on every sst screen entry so the lamp state stays in sync with the
+// completed-map after a path finishes or the rama tab changes.
+function wireSstLamps(state) {
+    const appId = state.config.id;
+    const completed = (loadCompletedMap(appId)[String(state.rama)] || {});
+    // Dvash uses {n_masl}.txt (no rama prefix) — the completed map I store
+    // keys by rama too, but Dvash's activities are rama-invariant per
+    // activityRamaPin=4. So lookups just use rama="4".
+    const hideWhenLocked = (appId === "Brahot" || appId === "Hagim");
+    const root = state.config.assetsRoot;
+
+    const lamps = state.stage.querySelectorAll(".frm-ctrl--btnLamp");
+    lamps.forEach(function (el) {
+        const idx = parseInt(el.dataset.index, 10);
+        if (isNaN(idx)) return;
+        const isDone = !!completed[String(idx)];
+        const existing = el.querySelector("img");
+        if (existing) existing.remove();
+
+        if (isDone) {
+            el.style.display = "";
+            el.style.cursor = "pointer";
+            el.disabled = false;
+            const img = document.createElement("img");
+            img.src = root + "/menu/lamp2.png";
+            Object.assign(img.style, {
+                position: "absolute", inset: "0",
+                width: "100%", height: "100%",
+                objectFit: "contain", pointerEvents: "none",
+            });
+            el.appendChild(img);
+            // Click already wired by the renderer's actionFor → "score:N".
+        } else if (hideWhenLocked) {
+            // Brahot/Hagim: Lampas hides the lamp entirely. Click on the
+            // empty spot has no target → no score board pop. Matches original.
+            el.style.display = "none";
+            el.disabled = true;
+        } else {
+            // Yeled/Dvash: dim Lamp1 sprite, not clickable.
+            el.style.display = "";
+            el.style.cursor = "not-allowed";
+            el.disabled = true;
+            const img = document.createElement("img");
+            img.src = root + "/menu/lamp1.png";
+            Object.assign(img.style, {
+                position: "absolute", inset: "0",
+                width: "100%", height: "100%",
+                objectFit: "contain", pointerEvents: "none",
+            });
+            el.appendChild(img);
+        }
+    });
 }
 
 // Stops the persistent state._audio element and detaches any pending onended
@@ -409,25 +475,77 @@ function wireMashalScreen(state) {
     }
 }
 
-// === Completion tracking (Brahot/Hagim FrmMashal lock state) ============
-// Original VB writes "<AppPath>\<rama><n_masl>.txt" after a path completes;
-// FrmMashal Form_Load checks `If exist(...) Then unlocked`. We persist the
-// same fact in localStorage so the user's progress survives reloads.
-// Shape: kesem.<App>.completed = { "<rama>": { "<masl_idx>": true } }
+// === Completion + score persistence ====================================
+// Original VB writes per-stage scores to `<rama><n_masl>.txt` after the path
+// loop (savescore) and FrmMashal checks `If exist(...) Then unlocked`. We
+// mirror BOTH facts in localStorage:
+//   kesem.<App>.completed = { "<rama>": { "<n_masl>": true } }
+//   kesem.<App>.scores    = { "<rama>": { "<n_masl>": { stages: [...] } } }
+// `completed` keeps the mashal-tile lock query cheap (boolean check).
+// `scores` is what btnLamp_Click → niko consumes to redraw a finished
+// activity's score board on demand.
 function completedKey(appId) { return "kesem." + appId + ".completed"; }
+function scoresKey(appId)    { return "kesem." + appId + ".scores"; }
 function loadCompletedMap(appId) {
     try { return JSON.parse(localStorage.getItem(completedKey(appId)) || "{}") || {}; }
     catch (e) { return {}; }
 }
+function loadScoresMap(appId) {
+    try { return JSON.parse(localStorage.getItem(scoresKey(appId)) || "{}") || {}; }
+    catch (e) { return {}; }
+}
+// Replay nikod for a previously-played activity. Ports Sst.btnLamp_Click:
+//   PutGFile n_masl   (load slot metadata — name + .MAS data)
+//   getscorefile      (load <rama><n_masl>.txt scores)
+//   niko              (show nikod.frm)
+// If no scores were saved for this {rama, n_masl} yet, we show an empty
+// score board (verdict = "תרגיל וחזרה", 0%) — matches the original which
+// reads zeros from the unmodified score struct when no file exists.
+function showSavedScores(state, pathIdx) {
+    const slots = currentRamaSlots(state);
+    if (!slots || !slots[pathIdx]) {
+        klog("score: no slot at idx " + pathIdx);
+        return;
+    }
+    const slot = slots[pathIdx];
+    const map = loadScoresMap(state.config.id);
+    const r = String(state.rama);
+    const entry = (map[r] && map[r][String(pathIdx)]) || {};
+    const stages = entry.stages || [];
+    klog("score: replay nikod for", slot.name, "(" + stages.length + " stages saved)");
+
+    // Temporarily swap pathScore so showNikod reads the saved data, then
+    // restore. State.currentPath / currentStageIdx aren't touched — the user
+    // is still "on Sst" from the engine's perspective.
+    const savedPath = state.pathScore;
+    state.pathScore = stages;
+    showNikod(state, slot, function () {
+        state.pathScore = savedPath;
+    });
+}
+
 function markPathCompleted(state) {
     if (!state || state.currentPath == null) return;
-    const m = loadCompletedMap(state.config.id);
+    const appId = state.config.id;
     const r = String(state.rama);
+    const n = String(state.currentPath);
+
+    // Completed flag (mashal lock).
+    const m = loadCompletedMap(appId);
     if (!m[r]) m[r] = {};
-    m[r][state.currentPath] = true;
-    try { localStorage.setItem(completedKey(state.config.id), JSON.stringify(m)); }
+    m[r][n] = true;
+    try { localStorage.setItem(completedKey(appId), JSON.stringify(m)); }
     catch (e) { klog("completed save failed:", e); }
-    klog("path completed → unlock mashal[" + state.currentPath + "] for rama " + r);
+
+    // Per-stage scores (btnLamp → niko replay).
+    const s = loadScoresMap(appId);
+    if (!s[r]) s[r] = {};
+    s[r][n] = { stages: (state.pathScore || []).map(function (x) { return x; }) };
+    try { localStorage.setItem(scoresKey(appId), JSON.stringify(s)); }
+    catch (e) { klog("scores save failed:", e); }
+
+    klog("path completed → unlock mashal[" + n + "] + saved " +
+         (state.pathScore || []).length + " stage scores for rama " + r);
 }
 
 function handleAction(appId, action /*, ctrl */) {
@@ -444,11 +562,12 @@ function handleAction(appId, action /*, ctrl */) {
         if (!currentSession) return;
         confirmGameBack(
             function () {
-                // Original Sst.StartGames falls through to `niko` after the
-                // loop regardless of why the loop exited — including StopMaslul
-                // (picexi → yes). The only skip is `If ShlavNahehi = 0` (no
-                // stage completed). We mirror: show nikod when state.pathScore
-                // has at least one stage logged.
+                // picexi → yes → Unload Games. The form's Form_Unload runs
+                // scorelev to write the partial play into the score struct.
+                // Mirror that snapshot here so the verdict on the score board
+                // reflects what the user actually did before bailing.
+                snapStageScore(currentSession);
+
                 const showScore = currentSession.pathScore && currentSession.pathScore.length > 0;
                 const slots = currentRamaSlots(currentSession);
                 const slot  = slots && currentSession.currentPath != null
@@ -464,8 +583,12 @@ function handleAction(appId, action /*, ctrl */) {
                 else                    goSst();
             },
             null,
-            // Jump to selected stage index (0-based)
+            // Jump to selected stage index (0-based).
+            // Original picexi → jump runs Form_Unload (scorelev) before
+            // re-entering at the chosen stage, so the score from the stage
+            // they're leaving counts too.
             function (idx) {
+                snapStageScore(currentSession);
                 currentSession.currentStageIdx = idx;
                 enterStage(currentSession);
             }
@@ -485,12 +608,29 @@ function handleAction(appId, action /*, ctrl */) {
         return;
     }
     if (action && action.indexOf("maslul:") === 0) {
-        // Clicking a path activity (btnIcon/btnLamp) on Sst.
-        // Original: StartGames(n_masl) iterates the path's stages and
-        // shows the appropriate Games*.frm per stage. We mirror that.
+        // btnIcon click on Sst (Sst.btnIcon_Click → PutGFile + BeginGame
+        // + StartGames(n_masl)). Iterates the path's stages and shows the
+        // appropriate Games*.frm per stage.
         if (!currentSession) return;
         const pathIdx = parseInt(action.split(":")[1], 10) - 1;
         startPath(currentSession, pathIdx);
+        return;
+    }
+    if (action && action.indexOf("score:") === 0) {
+        // btnLamp click on Sst (Sst.btnLamp_Click → PutGFile + getscorefile
+        // + niko). Loads the saved per-stage scores for this activity and
+        // shows the score board without re-playing the path.
+        // Original Lampas() makes the lamp clickable ONLY when the activity
+        // is completed. Re-check here in case some other code path dispatches
+        // a score: action against a locked activity.
+        if (!currentSession) return;
+        const pathIdx = parseInt(action.split(":")[1], 10) - 1;
+        const completed = loadCompletedMap(appId)[String(currentSession.rama)] || {};
+        if (!completed[String(pathIdx)]) {
+            klog("score: ignored — activity " + (pathIdx + 1) + " not yet completed");
+            return;
+        }
+        showSavedScores(currentSession, pathIdx);
         return;
     }
     if (action && action.indexOf("seret:") === 0) {
@@ -1252,6 +1392,28 @@ function paintStagePicture(state, stage) {
     const root = state.stage;
     const pic1 = root && root.querySelector(".frm-ctrl--Picture1");
     if (!pic1) return;
+
+    // games1/2/3/4: Picture1 is a child of Spic1 (the scrollable viewport
+    // at form-coord (102, 33) size 526×343). The per-form Picture1 design
+    // width/height varies 458..525 × 314..339 — that variance makes the
+    // displayed image rectangle shift between stages.
+    //
+    // Normalize by forcing Picture1 to FILL its Spic1 parent (left/top stay
+    // at 0 — they're Spic1-relative — width/height = 100% of Spic1). End
+    // result: consistent 526×343 image region for game1/2/3/4. Spic1 itself
+    // stays at the form's design (102, 33).
+    //
+    // Game 5 has no Spic1; Picture1 is a direct child of the form at
+    // (96, 75) 531×281 — leave alone, the Picture2 thumbnail row above it
+    // takes vertical space.
+    if (state.activeStage && state.activeStage.gameNumber !== 5
+        && pic1.parentElement && pic1.parentElement.classList.contains("frm-ctrl--Spic1")) {
+        pic1.style.left   = "0";
+        pic1.style.top    = "0";
+        pic1.style.width  = "100%";
+        pic1.style.height = "100%";
+    }
+
     let img = pic1.querySelector(".stage-img");
     if (!img) {
         img = document.createElement("img");
@@ -1263,7 +1425,8 @@ function paintStagePicture(state, stage) {
         img.style.height = "100%";
         // object-fit: contain — image scales to fit Picture1 while keeping
         // its aspect ratio, letterboxed in the larger axis. Hotspot coords
-        // (in original-image px) get projected through the same transform.
+        // (in original-image px) get projected through the same transform
+        // (pic1Transform → scale, offsetX, offsetY).
         img.style.objectFit = "contain";
         img.style.pointerEvents = "none";
         pic1.appendChild(img);
@@ -1423,8 +1586,12 @@ function renderGame2(state, stage, pic1, t) {
 }
 
 // === Game 3 — inspect (all hotspots clickable) ===========================
+// Renders EVERY hotspot from the .RAS file (not capped at maxTurn). maxTurn
+// is the lblToz column size (9 max); inspect mode is free exploration and
+// can have more hotspots than indicator tiles.
 function renderGame3Hotspots(state, stage, pic1, t) {
-    for (let vbIdx = 1; vbIdx <= state.maxTurn; vbIdx++) {
+    const n = stage.hotspots.length;
+    for (let vbIdx = 1; vbIdx <= n; vbIdx++) {
         const rec = stage.hotspots[vbIdx - 1];
         if (!rec) continue;
         const btn = makeHotspotButton(rec, vbIdx, t);
@@ -1849,10 +2016,18 @@ function onInspectClick(state, vbIdx) {
 // Drives a sequential walk through the stage's hotspots — same audio chain
 // as a manual hotspot click, just advances the cursor for you. The lblToz
 // fill (caftblu) and Picture1 PaintPicture flash both happen in startgame.
+//
+// Note on cycle bound: the original `If GG_NN = nomer Then` resets the
+// moment GG_NN reaches `nomer` (the total hotspot count), which means the
+// LAST hotspot (index nomer) is never visited via this button — an off-by-
+// one in the source. We cycle over every hotspot (1..hotspots.length) so
+// the last item is reachable too. Cap independent of state.maxTurn so a
+// stage with 10 records (maxTurn capped at 9 for lblToz) still cycles all
+// 10 audio prompts.
 function cycleGame3Hotspot(state) {
     const stage = state.activeStage;
     if (!stage || !stage.hotspots || !stage.hotspots.length) return;
-    const max = state.maxTurn || stage.hotspots.length;
+    const max = stage.hotspots.length;
     let next = (state.game3CycleIdx || 0) + 1;
     if (next > max) next = 1;
     klog("CLICK game3 act1(2) Sever cycle → vbIdx=" + next);
@@ -2246,22 +2421,59 @@ function markStageProgressAt(state, slotIdx) {
     else                              name = "caftred.png";
     img.src = state.config.assetsRoot + "/menu/" + name;
 }
+// scorelev() port — push the current stage's tally into pathScore. Each
+// entry mirrors the per-stage score struct in the original:
+//   .alls   total questions in the stage (= mistotal = nomer, capped at 9)
+//   .gs/.ys/.rs   first-try / 1-2 wrong / 3+ wrong counters
+// Original `scorelev` keeps the best-ever (gs*5+ys*2+rs) when called for an
+// already-played stage; we push every visit and dedupe by currentStageIdx
+// so a replay overwrites instead of appending.
+//
+// Called from advanceStage (natural end-of-stage) AND from confirmGameBack /
+// jump-to-stage paths (so partial play counts toward the verdict, matching
+// the original where Form_Unload always invokes scorelev).
+function snapStageScore(state) {
+    if (!state || !state.activeStage) return;
+    // Game 3 (inspect mode) — original Games3.frm has NO Form_Unload and
+    // NO scorelev call. score3.alls stays 0 forever. mispar's denominator
+    // would otherwise be inflated by game3 stages contributing total>0
+    // with green=yellow=red=0, dragging the percentage to 0 even when the
+    // user played the answer-tracked stages perfectly. Skip pushing game3
+    // entirely so they don't affect the verdict.
+    if (state.activeStage.gameNumber === 3) return;
+
+    const score = state._stageScore || { green: 0, yellow: 0, red: 0 };
+    state.pathScore = state.pathScore || [];
+    const slotIdx = state.currentStageIdx;
+    const entry = {
+        gameNumber: state.activeStage.gameNumber,
+        green:  score.green  || 0,
+        yellow: score.yellow || 0,
+        red:    score.red    || 0,
+        // total questions IN the stage (scorelev's `tot` arg = mistotal =
+        // nomer capped at 9). state.maxTurn already encodes that cap.
+        total:  state.maxTurn || 0,
+    };
+    // Original scorelev "only overwrite if better": replays keep best run.
+    if (state.pathScore[slotIdx]) {
+        const old = state.pathScore[slotIdx];
+        const oldVal = (old.green || 0) * 5 + (old.yellow || 0) * 2 + (old.red || 0);
+        const newVal = entry.green * 5 + entry.yellow * 2 + entry.red;
+        if (newVal > oldVal) state.pathScore[slotIdx] = entry;
+        else                  state.pathScore[slotIdx].total = entry.total;  // alls always updated
+    } else {
+        state.pathScore[slotIdx] = entry;
+    }
+}
+
 function advanceStage(state) {
     const slots = currentRamaSlots(state);
     if (!slots || state.currentPath == null) { setScreen(state, "sst"); return; }
     const slot = slots[state.currentPath];
 
-    // Snapshot the stage we just finished into the path score before moving on.
-    // nikod (the score board) walks state.pathScore to render per-stage rows.
-    if (state.activeStage && state._stageScore) {
-        state.pathScore = state.pathScore || [];
-        state.pathScore.push({
-            gameNumber: state.activeStage.gameNumber,
-            green:  state._stageScore.green  || 0,
-            yellow: state._stageScore.yellow || 0,
-            red:    state._stageScore.red    || 0,
-        });
-    }
+    // Snapshot the just-finished stage. nikod walks state.pathScore to
+    // render per-stage rows; sum of `total` becomes mispar's denominator.
+    snapStageScore(state);
 
     state.currentStageIdx = (state.currentStageIdx || 0) + 1;
     if (!slot.stages || state.currentStageIdx >= slot.stages.length) {
@@ -2330,17 +2542,58 @@ function advanceStage(state) {
 //   85-94 → "טוב מאוד"   + xvgood.wav
 //   ≥ 95  → "מצוין"      + xexelent.wav
 function showNikod(state, slot, onClose) {
-    const stages = state.pathScore || [];
-    klog("nikod: show for path", slot.name, "stages=" + stages.length);
+    const playedRaw = state.pathScore || [];
     const root = state.config.assetsRoot;
 
-    let totGreen = 0, totYellow = 0, totRed = 0, totQ = 0;
+    // Original showsco renders one column per slot stage, using lam1cl.bmp
+    // (dim) when score.alls = 0 (stage never played) and color lamps for
+    // ones with results. Pad the played list to the slot's stage count so
+    // skipped stages (e.g. after misger jump-stage) still render their
+    // column with closed lamps instead of being silently dropped.
+    const totalStages = (slot && slot.stages) ? slot.stages.length : playedRaw.length;
+    const stages = [];
+    for (let i = 0; i < totalStages; i++) {
+        const played = playedRaw[i];
+        if (played) {
+            stages.push(played);
+        } else {
+            // Unvisited stage — matches scorelev not being called: alls=0
+            // so this stage contributes nothing to the mispar denominator,
+            // and the per-stage lamp column draws as all-closed (lam1cl).
+            const sd = slot && slot.stages && slot.stages[i];
+            stages.push({
+                gameNumber: sd ? sd.gameNumber : 0,
+                green: 0, yellow: 0, red: 0,
+                total: 0,
+                played: false,
+            });
+        }
+    }
+    klog("nikod: show for path", slot.name,
+         "stages=" + stages.length, "played=" + playedRaw.length);
+
+    // Original getscore() in Global.bas:
+    //   ax = sum(score1..10.alls)   ' total questions in VISITED stages
+    //   bx = sum(score1..10.gs)
+    //   cx = sum(score1..10.ys)
+    //   dx = sum(score1..10.rs)
+    //   toch(4) = ax - bx - cx - dx     ' "not answered" remainder
+    // And in nikod.frm Form_Load:
+    //   mispar = ((toch(1)*5 + toch(2)*2 + toch(3)) * 20) / toch(0)
+    // → denominator is the per-stage TOTAL question count, not just the
+    // answered ones. Unanswered questions therefore drag the score down,
+    // which is the original behaviour (incomplete play → lower verdict).
+    // Stages the user never visited contribute total=0 and don't count.
+    let totGreen = 0, totYellow = 0, totRed = 0, totAlls = 0;
     stages.forEach(function (s) {
-        totGreen += s.green; totYellow += s.yellow; totRed += s.red;
-        totQ += s.green + s.yellow + s.red;
+        totGreen  += s.green  || 0;
+        totYellow += s.yellow || 0;
+        totRed    += s.red    || 0;
+        totAlls   += s.total  || 0;
     });
-    const mispar = totQ === 0 ? 0 :
-        Math.floor(((totGreen * 5 + totYellow * 2 + totRed) * 20) / totQ);
+    const totUnanswered = Math.max(0, totAlls - totGreen - totYellow - totRed);
+    const mispar = totAlls === 0 ? 0 :
+        Math.floor(((totGreen * 5 + totYellow * 2 + totRed) * 20) / totAlls);
     let verdict, wav;
     if (mispar < 55)      { verdict = "תרגיל וחזרה"; wav = "xtry.wav"; }
     else if (mispar < 65) { verdict = "כמעט שם";     wav = "xallmost.wav"; }
@@ -2545,11 +2798,13 @@ function showNikod(state, slot, onClose) {
         t.textContent = String(txt);
         picture1.appendChild(t);
     }
-    mkToch(305, 135, 31, 21, totQ,        "#E0E0E0", 14);
-    mkToch(200, 170, 66, 31, totGreen,    "#FFFFFF", 16);
-    mkToch(200, 194, 66, 31, totYellow,   "#FFFFFF", 16);
-    mkToch(200, 220, 66, 31, totRed,      "#FFFFFF", 16);
-    mkToch(200, 243, 66, 31, 0,           "#FFFFFF", 16);
+    // toch(0)=ax (total questions across visited stages), toch(1)=gs green,
+    // toch(2)=ys yellow, toch(3)=rs red, toch(4)=ax-bx-cx-dx (unanswered).
+    mkToch(305, 135, 31, 21, totAlls,       "#E0E0E0", 14);
+    mkToch(200, 170, 66, 31, totGreen,      "#FFFFFF", 16);
+    mkToch(200, 194, 66, 31, totYellow,     "#FFFFFF", 16);
+    mkToch(200, 220, 66, 31, totRed,        "#FFFFFF", 16);
+    mkToch(200, 243, 66, 31, totUnanswered, "#FFFFFF", 16);
 
     // === picture2 (detail panel) — starts hidden =========================
     const picture2 = makePanel("score3.png");
@@ -2636,10 +2891,11 @@ function showNikod(state, slot, onClose) {
     function drawPie(progress) {
         const ctx = pie.getContext("2d");
         ctx.clearRect(0, 0, 100, 100);
-        if (totQ === 0) return;
-        // Original radius grows 8 → 47 over 40 ticks; we draw at the FINAL
-        // radius (R=42) while the slice arc grows. Cleaner visually than the
-        // VB version which kept stamping circles on top of each other.
+        if (totAlls === 0) return;
+        // Pie slices are sized by fraction-of-total-questions, matching the
+        // original `ax = sum(score.alls)` denominator. Unanswered portion of
+        // the circle is left transparent (no slice drawn), so the visible
+        // pie equals the fraction of questions actually answered.
         const cx = 50, cy = 50, R = 42;
         const slices = [
             { v: totGreen,  color: "rgb(80, 220, 80)" },
@@ -2649,7 +2905,7 @@ function showNikod(state, slot, onClose) {
         let start = -Math.PI / 2;
         slices.forEach(function (s) {
             if (s.v <= 0) return;
-            const frac = (s.v / totQ) * progress;
+            const frac = (s.v / totAlls) * progress;
             const end = start + frac * Math.PI * 2;
             ctx.beginPath();
             ctx.moveTo(cx, cy);

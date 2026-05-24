@@ -28,7 +28,10 @@ function el(tag, attrs = {}, children = []) {
 function actionFor(ctrl, appId) {
     const name = ctrl.name;
     const idx = ctrl.props.Index;
-    if (name === "btnLamp")   return `maslul:${idx + 1}`;
+    // btnIcon = start the activity (Sst.btnIcon_Click → PutGFile + StartGames).
+    // btnLamp = show the score board for a previously-played activity
+    //   (Sst.btnLamp_Click → PutGFile + getscorefile + niko). Separate actions.
+    if (name === "btnLamp")   return `score:${idx + 1}`;
     if (name === "btnIcon")   return `maslul:${idx + 1}`;
     if (name === "btnHofshi") return "hofshi";
     if (name === "btnSeret") {
