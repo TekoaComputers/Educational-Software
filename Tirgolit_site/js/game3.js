@@ -112,11 +112,8 @@ const GameT3 = (() => {
 
     renderRows();
 
-    // Brief question-mark animation per scene (VB6: qStart pose)
-    stopAnim();
-    const charImg = document.getElementById('char-img');
-    if (charImg) charImg.src = './assets/anim/qStart6.png';
-    setTimeout(() => setGaze(targetRow + 2), 500);
+    // VB6 doesn't show a "qStart" pose per scene; gaze sweeps via ChikSta=4.
+    transitionGazeTo(targetRow + 2);
   }
 
   function pickFake(scene, allQs) {
@@ -345,9 +342,28 @@ const GameT3 = (() => {
     });
   }
 
+  // Tracks the last Stati index actually shown (mirrors VB6 `Ani` in state 4).
+  let currentGaze = 0;
+
   function setGaze(rowIdx) {
     const img = document.getElementById('char-img');
-    if (img) img.src = `./assets/anim/Stati${Math.max(0, Math.min(7, rowIdx))}.png`;
+    const n = Math.max(0, Math.min(7, rowIdx));
+    if (img) img.src = `./assets/anim/Stati${n}.png`;
+    currentGaze = n;
+  }
+
+  // VB6 ChikSta=4 equivalent: step Ani ±1 per 50ms toward target row.
+  function transitionGazeTo(targetIdx) {
+    stopAnim();
+    const target = Math.max(0, Math.min(7, targetIdx));
+    if (currentGaze === target) { setGaze(target); return; }
+    const img = document.getElementById('char-img');
+    animInterval = setInterval(() => {
+      if (currentGaze < target) currentGaze++;
+      else if (currentGaze > target) currentGaze--;
+      if (img) img.src = `./assets/anim/Stati${currentGaze}.png`;
+      if (currentGaze === target) stopAnim();
+    }, 50);
   }
 
   function playCorrectAnim() {
@@ -365,7 +381,7 @@ const GameT3 = (() => {
   function startAnim(type) {
     stopAnim();
     const frames = ANIM_SEQUENCES[type];
-    if (!frames) { setGaze(targetRow + 2); return; }
+    if (!frames) { transitionGazeTo(targetRow + 2); return; }
     animFrame = 0;
     const charImg = document.getElementById('char-img');
     animInterval = setInterval(() => {
@@ -373,7 +389,11 @@ const GameT3 = (() => {
         charImg.src = `./assets/anim/${frames[animFrame].replace('.bmp', '.png')}`;
       }
       animFrame++;
-      if (animFrame >= frames.length) { stopAnim(); setGaze(targetRow + 2); }
+      if (animFrame >= frames.length) {
+        stopAnim();
+        // VB6: after tov/ra ends, ChikSta=4 sweeps gaze back to active row.
+        transitionGazeTo(targetRow + 2);
+      }
     }, 50);
   }
 

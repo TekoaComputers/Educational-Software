@@ -147,10 +147,11 @@ const GameT2 = (() => {
       intshp(pair.expr);
     }
 
-    // Brief question-mark pose before showing cursor (VB6: qStart animation)
-    stopAnim();
-    if (charAnim) charAnim.src = './assets/anim/qStart6.png';
-    setTimeout(() => setGaze(tshNom), 500);
+    // VB6 doesn't have a per-row "question-mark" pose; after a tov ends the
+    // gaze sweeps gradually to the next row via ChikSta=4 (see startAnim end).
+    // Only kick off a transition here if we aren't already mid-animation
+    // (which would happen on game start while the 'start' sequence is playing).
+    if (!animInterval) transitionGazeTo(tshNom);
   }
 
   // ─── intshp: find numeric substrings in expr, pick one (VB6 Intshp) ─────────
@@ -469,18 +470,38 @@ const GameT2 = (() => {
 
   // ─── Character Animation & Gaze ──────────────────────────────────────────────
 
-  // In Tirgol2 the rooster always looks at the current active row (tshNom)
+  // In Tirgol2 the rooster always looks at the current active row (tshNom).
+  // currentGaze tracks the last Stati index actually shown so transitions
+  // know where to start sweeping from (mirrors VB6 `Ani` in state 4).
+  let currentGaze = 0;
+
   function setGaze(rowIdx) {
     if (charAnim) {
       const n = Math.max(0, Math.min(7, rowIdx ?? 0));
       charAnim.src = `./assets/anim/Stati${n}.png`;
+      currentGaze = n;
     }
+  }
+
+  // Mirrors VB6 ChikSta=4: step Ani ±1 per 50ms tick toward TshNom, showing
+  // ChikLook(Ani) at each step, until Ani == TshNom.
+  function transitionGazeTo(targetRow) {
+    stopAnim();
+    const target = Math.max(0, Math.min(7, targetRow ?? 0));
+    if (currentGaze === target) { setGaze(target); return; }
+
+    animInterval = setInterval(() => {
+      if (currentGaze < target) currentGaze++;
+      else if (currentGaze > target) currentGaze--;
+      if (charAnim) charAnim.src = `./assets/anim/Stati${currentGaze}.png`;
+      if (currentGaze === target) stopAnim();
+    }, 50);
   }
 
   function startAnim(type) {
     stopAnim();
     const frames = ANIM_SEQUENCES[type];
-    if (!frames) { setGaze(tshNom); return; }
+    if (!frames) { transitionGazeTo(tshNom); return; }
     animFrame = 0;
     const interval = 50;
 
@@ -491,7 +512,9 @@ const GameT2 = (() => {
       animFrame++;
       if (animFrame >= frames.length) {
         stopAnim();
-        setGaze(tshNom); // always return to look at active row
+        // After tov/ra/start ends, VB6 enters ChikSta=4 and gradually
+        // sweeps the gaze back to the active row instead of snapping.
+        transitionGazeTo(tshNom);
       }
     }, interval);
   }
