@@ -65,6 +65,19 @@ function actionFor(ctrl, appId) {
     if (name === "activ")      return `activ:${idx}`;
     if (name === "bac")        return "ivrit:back";
     if (name === "cmdexit")    return "exit";
+    // Heshbon Sst.hyju_Click → Ezia. hyju is a small "power off" Label
+    // tucked at the top-right of the form. Its tooltip is "כיבוי" (shutdown).
+    if (name === "hyju")       return "exit";
+    // Heshbon Sst.avi_Click: plays \avi\_<rama><idx+1>.avi. One label per
+    // path tile (5 of them); idx maps to btnIcon idx.
+    if (name === "avi")        return `avi:${idx}`;
+    // KolKoreC/D Sst.btnexi_Click:
+    //   Index 2 → Ezia (exit app); Index 0 → Hidy form (minimize — no-op
+    //   on the web port since the launcher is the same window).
+    if (name === "btnexi") {
+        if (idx === 2) return "exit";
+        return `btnexi:${idx}`;
+    }
     return null;
 }
 
@@ -394,11 +407,45 @@ function fitStage(wrap, dw, dh) {
 
 function setRama(state, rama) {
     state.rama = rama;
+    const screenConf = state.config.screens[state.currentScreen];
     if (state.bg) {
-        state.bg.src = backgroundUrl(
-            state.config.screens[state.currentScreen], rama, state.config);
+        state.bg.src = backgroundUrl(screenConf, rama, state.config);
     }
+    refreshRamaImages(state, screenConf);
     applyTooltips(state);
+    // Per-app post-rama hook — lets the bundle re-run rama-conditional
+    // layout fixes (EnglishC hides btnIcon 4/9, KolKoreA hides 5..11, etc.)
+    // on every rama switch instead of only at the initial screen mount.
+    if (typeof state.onRamaChange === "function") state.onRamaChange(state);
+}
+
+// Re-resolve every per-control image that uses the {rama} template against
+// the new rama and patch the rendered <img>. Without this, apps whose
+// btnIcon picture changes per rama (EnglishA/B/C, Heshbon, KolKoreA/C/D)
+// keep showing the prior rama's thumbnails until the screen is re-mounted.
+// Mirrors the original Sst.Icon_s_Click loop:
+//     For i = 0 To N: btnIcon(i).Picture = LoadPicture(... & rama & ...)
+function refreshRamaImages(state, screenConf) {
+    const imgs = screenConf && screenConf.images;
+    if (!imgs) return;
+    Object.keys(imgs).forEach(function (name) {
+        const entry = imgs[name];
+        const ctrls = state.stage.querySelectorAll(`.frm-ctrl--${name}`);
+        ctrls.forEach(function (el) {
+            const idx = parseInt(el.dataset.index, 10);
+            let raw = null;
+            if (typeof entry === "string") raw = entry;
+            else if (Array.isArray(entry) && !isNaN(idx)) raw = entry[idx];
+            else if (typeof entry === "object" && !isNaN(idx)) raw = entry[idx];
+            if (raw == null) return;
+            const resolved = applyRamaSub(raw, state);
+            if (typeof resolved !== "string" || resolved.indexOf("{rama}") !== -1) return;
+            const img = el.querySelector("img.frm-img");
+            if (img && img.src !== resolved && !img.src.endsWith(resolved)) {
+                img.src = resolved;
+            }
+        });
+    });
 }
 
 function showTipFor(state) {

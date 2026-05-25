@@ -15,6 +15,7 @@ export default {
             bgMode: "native",
             designSize: [640, 480],
             images: {
+                mahak: "assets/KolKoreC/menu/mhak.png",
                 btnIcon: [
                     "assets/KolKoreC/menu/tem_1{rama}.png",
                     "assets/KolKoreC/menu/tem_2{rama}.png",
@@ -30,7 +31,7 @@ export default {
         game1:  { layoutFile: "data/layout/_shared/games.json",  background: "assets/KolKoreC/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreC/menu/hetz7.png" } },
         game2:  { layoutFile: "data/layout/_shared/games2.json", background: "assets/KolKoreC/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreC/menu/hetz7.png" } },
         game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/KolKoreC/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreC/menu/hetz7.png" } },
-        game4:  { layoutFile: "data/layout/_shared/games4.json", background: "assets/KolKoreC/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreC/menu/hetz7.png" } },
+        game4:  { layoutFile: "data/layout/_shared/games4.json", background: "assets/KolKoreC/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreC/menu/hetz7.png", btnArw: ["assets/KolKoreC/menu/hetz6.png", "assets/KolKoreC/menu/hetz5.png"] } },
         game5:  { layoutFile: "data/layout/_shared/games5.json", background: "assets/KolKoreC/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreC/menu/hetz7.png" } },
         misger: { layoutFile: "data/layout/_shared/misger.json", background: "assets/KolKoreC/menu/misger.png", designSize: [240, 200], images: { picexi: "assets/KolKoreC/menu/hetz7.png" } },
     },
@@ -38,6 +39,15 @@ export default {
     defaultRama: 1,
     maxRama: 2,
     bgRamaMax: 2,
+    // Page-flip animation between rama 1 and rama 2 (Sst.FlipClock_Timer).
+    // polaNum=8 in Form_Load → 8 frames Daf1..Daf8 painted at 70 ms each.
+    flipBook: {
+        frames: [
+            "bmp/daf1.png", "bmp/daf2.png", "bmp/daf3.png", "bmp/daf4.png",
+            "bmp/daf5.png", "bmp/daf6.png", "bmp/daf7.png", "bmp/daf8.png",
+        ],
+        interval: 70,
+    },
     act1Images: {
         default: {
             0: { idle: "assets/KolKoreC/menu/sanb1.png", hover: "assets/KolKoreC/menu/sanb3.png" },

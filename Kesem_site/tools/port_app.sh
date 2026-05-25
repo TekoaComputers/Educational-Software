@@ -48,7 +48,7 @@ fi
 raw="$SITE/_raw/master/$app"
 assets="$SITE/assets/$app"
 layout_dir="$SITE/data/layout/$app"
-mkdir -p "$raw" "$assets/bmp" "$assets/wav" "$assets/rasb" "$assets/rasb_wav" "$assets/menu" "$assets/avi" "$layout_dir"
+mkdir -p "$raw" "$assets/bmp" "$assets/wav" "$assets/rasb" "$assets/rasb_wav" "$assets/menu" "$assets/avi" "$assets/help" "$layout_dir"
 
 echo "===================="
 echo "Porting: $app"
@@ -110,6 +110,47 @@ copy_content_dir BMP bmp
 copy_content_dir WAV wav
 copy_content_dir RASB rasb
 copy_content_dir RASB_WAV rasb_wav
+
+# VB6 audio files often ship without extensions (LoadPicture / mciSendString
+# pulled them by full path including the trailing "." or via a Type/Open
+# Random reference). Browsers refuse to autoplay <audio src> without a known
+# extension, and our AUDIO_FILES manifest only enumerates *.wav. Rename any
+# extensionless RIFF WAV files in place so the runtime can find them.
+ensure_wav_ext() {
+    local dir="$1"
+    [[ -d "$dir" ]] || return 0
+    # Extensionless RIFF files: add .wav.
+    while IFS= read -r f; do
+        [[ -z "$f" ]] && continue
+        case "$f" in
+            *.wav|*.WAV|*.mp3|*.MP3) continue ;;
+        esac
+        local hdr
+        hdr=$(head -c 4 "$f" 2>/dev/null)
+        if [[ "$hdr" == "RIFF" ]]; then
+            mv -- "$f" "$f.wav"
+        fi
+    done < <(find "$dir" -type f ! -name "*.*")
+    # Lowercase any .WAV → .wav so the AUDIO_FILES manifest is case-
+    # consistent with the lowercase paths the runtime asks for.
+    while IFS= read -r f; do
+        [[ -z "$f" ]] && continue
+        mv -- "$f" "${f%.WAV}.wav"
+    done < <(find "$dir" -type f -name "*.WAV")
+    # Also lowercase the basename — VB6 hardcoded e.g. STOPMAS.WAV but the
+    # JS runtime asks for stopmas.wav. file:// on Linux is case-sensitive.
+    while IFS= read -r f; do
+        [[ -z "$f" ]] && continue
+        local d base lower
+        d=$(dirname "$f"); base=$(basename "$f")
+        lower=$(echo "$base" | tr 'A-Z' 'a-z')
+        if [[ "$base" != "$lower" && ! -f "$d/$lower" ]]; then
+            mv -- "$f" "$d/$lower"
+        fi
+    done < <(find "$dir" -type f -name "*.wav")
+}
+ensure_wav_ext "$assets/wav"
+ensure_wav_ext "$assets/rasb_wav"
 # Some apps (KolKoreC/D, Shirim) store an additional BMP set at the
 # clean.dat root (e.g. \bmp\Daf.bmp). The renderer references it via
 # assetsRoot/bmp/, so merge raw/BMP into assets/<App>/bmp/ alongside the
@@ -160,27 +201,58 @@ for sub in "$assets/menu/jpg" "$assets/menu/JPG" "$assets/menu/Jpg"; do
 done
 
 # ----------------------------------------------------------------------
-# 4. Transcode AVI → MP4 (skip if no avi folder)
+# 4. Transcode AVI → MP4 from every dir that ships .avi files. Apps put
+#    intro/banner videos under dapey_ke/AVI, but per-app help reels live
+#    under dapey_ke/help/ (e.g. _tafnew.avi). The Sst.btnSeret_Click
+#    handler reads `\help\_tafnew.avi`, so we keep that path under the
+#    assets root: assets/<App>/help/<name>.mp4.
 # ----------------------------------------------------------------------
 echo "[4/6] transcoding AVI → MP4 …"
-avi_src=""
-for cand in "$master/dapey_ke/AVI" "$master/dapey_ke/avi" "$master/DAPEY_KE/AVI" "$master/DAPEY_KE/avi"; do
-    [[ -d "$cand" ]] && avi_src="$cand" && break
-done
-if [[ -n "$avi_src" ]]; then
+transcode_dir() {
+    local src="$1" dst="$2"
+    [[ -d "$src" ]] || return 0
+    mkdir -p "$dst"
     while IFS= read -r f; do
         stem="$(basename "${f%.*}")"
-        out="$assets/avi/$stem.mp4"
+        out="$dst/$stem.mp4"
         [[ -f "$out" ]] && continue
         ffmpeg -y -loglevel error -i "$f" \
             -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" \
             -c:v libx264 -crf 23 -preset medium -pix_fmt yuv420p \
             -c:a aac -b:a 96k -ac 1 -movflags +faststart \
             "$out" || echo "    transcode failed: $f"
-    done < <(find "$avi_src" -maxdepth 1 -type f \( -iname "*.avi" \))
-else
-    echo "  no AVI folder, skip"
-fi
+    done < <(find "$src" -maxdepth 1 -type f \( -iname "*.avi" \))
+}
+# avi/
+for cand in "$master/dapey_ke/AVI" "$master/dapey_ke/avi" "$master/DAPEY_KE/AVI" "$master/DAPEY_KE/avi"; do
+    [[ -d "$cand" ]] && transcode_dir "$cand" "$assets/avi" && break
+done
+# help/  (Sst.btnSeret(0) plays this; Shirim/S&M book help reads CD_Dir
+# + "\avi\_help.avi" but the per-app reel is under dapey_ke/help/.)
+for cand in "$master/dapey_ke/help" "$master/dapey_ke/Help" "$master/dapey_ke/HELP" \
+            "$master/DAPEY_KE/help" "$master/DAPEY_KE/Help" "$master/DAPEY_KE/HELP"; do
+    [[ -d "$cand" ]] && transcode_dir "$cand" "$assets/help" && break
+done
+# Suite-wide _kescre1.avi (Kesem credits reel) lives under Master/Kesem/
+# and is referenced by every app's btnSeret(1) via CD_Dir+"\avi\kescre1.avi"
+# (CD_Dir is the original CD root). Drop a copy into this app's avi/
+# folder so the path lookup resolves locally.
+for kescre_src in "$MASTER/Kesem/dapey_ke/AVI/_kescre1.avi" \
+                  "$MASTER/Kesem/dapey_ke/avi/_kescre1.avi" \
+                  "$master/dapey_ke/AVI/_kescre1.avi" \
+                  "$master/dapey_ke/avi/_kescre1.avi"; do
+    if [[ -f "$kescre_src" && ! -f "$assets/avi/_kescre1.mp4" && ! -f "$assets/avi/kescre1.mp4" ]]; then
+        ffmpeg -y -loglevel error -i "$kescre_src" \
+            -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" \
+            -c:v libx264 -crf 23 -preset medium -pix_fmt yuv420p \
+            -c:a aac -b:a 96k -ac 1 -movflags +faststart \
+            "$assets/avi/_kescre1.mp4" || true
+        # Also produce an alias matching the bare-name lookup the
+        # original Sst.btnSeret_Click uses ("\avi\kescre1.avi").
+        [[ -f "$assets/avi/_kescre1.mp4" ]] && cp -n "$assets/avi/_kescre1.mp4" "$assets/avi/kescre1.mp4"
+        break
+    fi
+done
 
 # ----------------------------------------------------------------------
 # 5. Parse Sst.frm → layout JSON

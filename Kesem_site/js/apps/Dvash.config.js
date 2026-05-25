@@ -44,6 +44,9 @@ export default {
                     "assets/Dvash/menu/lamp1.png",
                     "assets/Dvash/menu/lamp1.png",
                 ],
+                // mahak (eraser): Visible=0 design time; Lampas() flips it
+                // True once any activity is completed.
+                mahak: "assets/Dvash/menu/mhak.png",
             },
             imagesHover: {
                 CmdExit: "assets/Dvash/menu/exit1_masked.png",
@@ -63,7 +66,7 @@ export default {
         game1:  { layoutFile: "data/layout/_shared/games.json",  background: "assets/Dvash/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Dvash/menu/hetz7.png" } },
         game2:  { layoutFile: "data/layout/_shared/games2.json", background: "assets/Dvash/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Dvash/menu/hetz7.png" } },
         game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/Dvash/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Dvash/menu/hetz7.png" } },
-        game4:  { layoutFile: "data/layout/_shared/games4.json", background: "assets/Dvash/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Dvash/menu/hetz7.png" } },
+        game4:  { layoutFile: "data/layout/_shared/games4.json", background: "assets/Dvash/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Dvash/menu/hetz7.png", btnArw: ["assets/Dvash/menu/hetz6.png", "assets/Dvash/menu/hetz5.png"] } },
         game5:  { layoutFile: "data/layout/_shared/games5.json", background: "assets/Dvash/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Dvash/menu/hetz7.png" } },
         misger: { layoutFile: "data/layout/_shared/misger.json", background: "assets/Dvash/menu/misger.png", designSize: [240, 200], images: { picexi: "assets/Dvash/menu/hetz7.png" } },
     },

@@ -9,11 +9,14 @@ export default {
             layoutFile: "data/layout/Hagim/sst.json",
             background: "assets/Hagim/menu/hagim{rama}.png",
             designSize: [640, 480],
+            // mahak (eraser): Visible=0 at design time; Lampas() flips it
+            // True once any activity is completed.
+            images: { mahak: "assets/Hagim/menu/mhak.png" },
         },
         game1:  { layoutFile: "data/layout/_shared/games.json",  background: "assets/Hagim/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Hagim/menu/hetz7.png" } },
         game2:  { layoutFile: "data/layout/_shared/games2.json", background: "assets/Hagim/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Hagim/menu/hetz7.png" } },
         game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/Hagim/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Hagim/menu/hetz7.png" } },
-        game4:  { layoutFile: "data/layout/_shared/games4.json", background: "assets/Hagim/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Hagim/menu/hetz7.png" } },
+        game4:  { layoutFile: "data/layout/_shared/games4.json", background: "assets/Hagim/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Hagim/menu/hetz7.png", btnArw: ["assets/Hagim/menu/hetz6.png", "assets/Hagim/menu/hetz5.png"] } },
         game5:  { layoutFile: "data/layout/_shared/games5.json", background: "assets/Hagim/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Hagim/menu/hetz7.png" } },
         misger: { layoutFile: "data/layout/_shared/misger.json", background: "assets/Hagim/menu/misger.png", designSize: [240, 200], images: { picexi: "assets/Hagim/menu/hetz7.png" } },
         mashal: { layoutFile: "data/layout/_shared/mashal.json", background: "assets/Hagim/menu/mashal.png", designSize: [640, 480] },

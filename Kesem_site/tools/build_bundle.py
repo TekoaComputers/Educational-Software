@@ -118,7 +118,10 @@ def main():
     for app in APPS:
         rels = []
         base = SITE / "assets" / app
-        for sub in ("catalog", "avi", "mashal"):
+        # Include `help/` — Sst.btnSeret(0) plays "\help\_tafnew.avi" (the
+        # per-app intro tour), which port_app.sh now transcodes alongside
+        # the standard avi/ + mashal/ + catalog/ video subtrees.
+        for sub in ("catalog", "avi", "mashal", "help"):
             sub_dir = base / sub
             if sub_dir.is_dir():
                 for f in sub_dir.rglob("*.mp4"):
@@ -220,6 +223,15 @@ function showApp(appId) {
     // Dvash's dynamically-populated Icons array (FrmCat.Form_Load) or the
     // Mashal video buttons — those need JS that lives next to the gameplay.
     currentSession._onScreenChange = function (screenId) { onScreenChange(currentSession, screenId); };
+    // Per-rama post-process hook. Apps with rama-conditional layouts (EnglishC
+    // hides btnIcon 4/9, KolKoreA hides 5..11) need their layout-fix function
+    // re-run on every rama swap, not only at the initial sst mount. setRama
+    // in frmRenderer calls state.onRamaChange after updating state.rama.
+    currentSession.onRamaChange = function (state) {
+        if (state.currentScreen !== "sst") return;
+        if (state.config.id === "EnglishC") applyEnglishCRamaLayout(state);
+        if (state.config.id === "KolKoreA") applyKolKoreARamaLayout(state);
+    };
     onScreenChange(currentSession, currentSession.currentScreen);
 }
 
@@ -247,7 +259,228 @@ function onScreenChange(state, screenId) {
         wireSstLamps(state);
         if (state.config.book) wireSstBook(state);
         if (state.config.ivritDefaultView) wireSstIvrit(state);
+        if (state.config.flipBook) wireFlipBookAnimation(state);
+        if (state.config.id === "EnglishC") applyEnglishCRamaLayout(state);
+        if (state.config.id === "KolKoreA") applyKolKoreARamaLayout(state);
+        if (state.config.id === "KolKoreB") wireKolKoreBRamaToggle(state);
     }
+}
+
+// KolKoreB has a single Icon_s control (idx=0); each click toggles between
+// rama 1 and rama 2 (Sst.Icon_s_Click: "If rama=1 Then rama=2 Else rama=1").
+// The renderer's default actionFor emits "rama:1" for idx 0, so without
+// this intercept the rama stays pinned at 1. We mirror the KolKoreC/D
+// approach (sans flip animation): capture-phase listener computes the
+// toggle target and reuses setRamaUtil to swap state + repaint icons.
+function wireKolKoreBRamaToggle(state) {
+    if (state._kkbRamaWired) return;
+    state._kkbRamaWired = true;
+    state.stage.querySelectorAll(".frm-ctrl--Icon_s").forEach(function (el) {
+        el.addEventListener("click", function (e) {
+            e.stopImmediatePropagation();
+            const target = (String(state.rama) === "1") ? 2 : 1;
+            setRamaUtil(state, target);
+        }, true);   // capture: fires before renderer's default rama:1 listener
+    });
+}
+
+// KolKoreA Sst.Icon_s_Click swaps the entire grid between two layouts:
+//   rama 1: 5 btnIcons (0..4) only — tem_11..tem_51.bmp ship.
+//   rama 2: 12 btnIcons (0..11)    — tem_12..tem_122.bmp ship.
+// The original also reshuffles per-button Left/Top (the documented
+// "known layout-shift limitation"), but the immediate breakage is the
+// 404s on tem_61..tem_121 in rama 1. Hide btnIcon(5..11) + btnLamp(5..11)
+// for rama 1 and clear their <img src> so the browser doesn't re-fetch.
+function applyKolKoreARamaLayout(state) {
+    const stage = state.stage;
+    const fiveOnly = (String(state.rama) === "1");
+    [".frm-ctrl--btnIcon", ".frm-ctrl--btnLamp"].forEach(function (sel) {
+        stage.querySelectorAll(sel).forEach(function (el) {
+            const idx = parseInt(el.dataset.index, 10);
+            if (isNaN(idx)) return;
+            const hide = fiveOnly && idx >= 5;
+            if (hide) {
+                el.style.display = "none";
+                const img = el.querySelector("img.frm-img");
+                if (img) img.removeAttribute("src");
+            } else {
+                el.style.display = "";
+            }
+        });
+    });
+}
+
+// EnglishC Sst.Icon_s_Click reshuffles the activity grid per rama:
+//   Rama 1 & 2: 4 columns × 2 rows (8 visible). btnIcon(4)/(9) and
+//               btnLamp(4)/(9) are hidden; the others reposition to
+//               Left = 24 + i*160 px (1.6x the design spacing).
+//   Rama 3:     5 columns × 2 rows (10 visible). Original Left =
+//               24 + i*120 px — already the design-time layout.
+// Without this fix the runtime tries to load tem_15/tem_110/tem_25/
+// tem_210 (which don't ship) and the hidden slots leave broken images.
+function applyEnglishCRamaLayout(state) {
+    const stage = state.stage;
+    const ramaStr = String(state.rama);
+    const fourCols = (ramaStr === "1" || ramaStr === "2");
+    const stepPx = fourCols ? 160 : 120;
+    const baseLeftPx = 24;
+    // Slots 4 and 9 are the rightmost in each row. Hidden in rama 1/2.
+    [".frm-ctrl--btnIcon", ".frm-ctrl--btnLamp"].forEach(function (sel) {
+        stage.querySelectorAll(sel).forEach(function (el) {
+            const idx = parseInt(el.dataset.index, 10);
+            if (isNaN(idx)) return;
+            const hide = fourCols && (idx === 4 || idx === 9);
+            if (hide) {
+                el.style.display = "none";
+                // Suppress refresh-rama-images fetch for this slot to
+                // avoid the missing-image 404 (the renderer will leave the
+                // <img> with the stale src; clear it so the browser stops
+                // refetching tem_<rama>5 / tem_<rama>10).
+                const img = el.querySelector("img.frm-img");
+                if (img) img.removeAttribute("src");
+                return;
+            }
+            el.style.display = "";
+            // Reposition: column = idx within its row (idx 0..4 → row 0,
+            // idx 5..9 → row 1). With fourCols the rightmost col (4/9) is
+            // hidden, so the remaining 4 spread further apart.
+            const col = idx % 5;
+            el.style.left = (baseLeftPx + col * stepPx) + "px";
+        });
+    });
+}
+
+// KolKoreC/D Sst.frm runs an 8/7-frame page-flip animation when the user
+// toggles between rama 1 and rama 2. Original (Sst.Icon_s_Click):
+//   If rama="1" Then Sides=1 Else Sides=-1
+//   TimeF = TimeF * -1     ' flip direction
+//   FlipClock.Enabled = True
+//   …then on the next click, rama toggles 1↔2 and a new flip plays.
+// FlipClock_Timer steps TimeF by ±1 every 70 ms and paints Pola(TimeF)
+// (or Pola(N+1+TimeF) for negative) into PolaPic.PaintPicture, settling
+// when |TimeF| == polaNum.
+//
+// In the port, Icon_s is a single button (idx=0) — clicks TOGGLE between
+// rama 1 and rama 2, NOT set rama=1 every time. We bypass the renderer's
+// default `rama:N` setRama path and drive the toggle + flip ourselves.
+function wireFlipBookAnimation(state) {
+    if (!state.config.flipBook) return;
+    if (state._flipWired) return;
+    state._flipWired = true;
+    state.stage.querySelectorAll(".frm-ctrl--Icon_s").forEach(function (el) {
+        el.addEventListener("click", function (e) {
+            // Suppress the renderer's regular `rama:N` listener — we'll
+            // call setRama ourselves with the right toggled target.
+            e.stopImmediatePropagation();
+            // VB6: Sides = 1 when current rama is "1", else -1.
+            const sides = (String(state.rama) === "1") ? 1 : -1;
+            // Toggle: 1 → 2, 2 → 1 (rama 5 / other initial value → 1).
+            const target = (String(state.rama) === "1") ? 2 : 1;
+            runFlipBook(state, sides, function () {
+                setRamaUtil(state, target);
+            });
+        }, true);   // capture phase: fires before the renderer's listener
+    });
+    // Initial PolaPic.Picture = Pola(1) per Form_Load. Make sure the first
+    // frame is visible before the user clicks anything.
+    primeFlipBookInitial(state);
+}
+
+// frmRenderer.setRama isn't on `window`, but we exposed it via state.onAction
+// indirectly — instead just re-implement the small set-rama-and-refresh
+// path here so we can drive it from outside the renderer module.
+function setRamaUtil(state, rama) {
+    state.rama = rama;
+    const screenConf = state.config.screens[state.currentScreen];
+    if (state.bg) state.bg.src = screenConf.background
+        ? (typeof screenConf.background === "object"
+            ? screenConf.background[String(rama)] || state.bg.src
+            : screenConf.background.replace("{rama}", String(rama)))
+        : state.bg.src;
+    // Re-resolve {rama} in per-control images so btnIcon thumbs swap to
+    // the new rama's tem_<i><rama>.png set. Walk the screen's `images`
+    // table directly — mirrors refreshRamaImages in frmRenderer.
+    const imgs = screenConf && screenConf.images;
+    if (imgs) Object.keys(imgs).forEach(function (name) {
+        const entry = imgs[name];
+        state.stage.querySelectorAll(".frm-ctrl--" + name).forEach(function (el) {
+            const idx = parseInt(el.dataset.index, 10);
+            let raw = null;
+            if (typeof entry === "string") raw = entry;
+            else if (Array.isArray(entry) && !isNaN(idx)) raw = entry[idx];
+            else if (typeof entry === "object" && !isNaN(idx)) raw = entry[idx];
+            if (raw == null || raw.indexOf("{rama}") === -1) return;
+            const resolved = raw.replace(/\{rama\}/g, String(rama));
+            const img = el.querySelector("img.frm-img");
+            if (img && !img.src.endsWith(resolved)) img.src = resolved;
+        });
+    });
+    // Re-run sst wiring so lamp images + mahak visibility reflect new rama.
+    if (state.currentScreen === "sst") {
+        wireSstLamps(state);
+    }
+}
+
+function primeFlipBookInitial(state) {
+    const cfg = state.config.flipBook;
+    const pola = state.stage.querySelector(".frm-ctrl--PolaPic");
+    if (!pola || !cfg || !cfg.frames || !cfg.frames.length) return;
+    let img = pola.querySelector("img.frm-flip");
+    if (!img) {
+        img = document.createElement("img");
+        img.className = "frm-flip";
+        Object.assign(img.style, {
+            position: "absolute", inset: "0",
+            width: "100%", height: "100%",
+            objectFit: "fill", pointerEvents: "none",
+        });
+        pola.appendChild(img);
+    }
+    // Form_Load: Set PolaPic.Picture = Pola(1).
+    img.src = state.config.assetsRoot + "/" + cfg.frames[0];
+}
+
+function runFlipBook(state, sides, onDone) {
+    const cfg = state.config.flipBook;
+    const pola = state.stage.querySelector(".frm-ctrl--PolaPic");
+    if (!pola || !cfg.frames || !cfg.frames.length) {
+        if (onDone) onDone();
+        return;
+    }
+    if (state._flipTimer) clearInterval(state._flipTimer);
+    let img = pola.querySelector("img.frm-flip");
+    if (!img) {
+        img = document.createElement("img");
+        img.className = "frm-flip";
+        Object.assign(img.style, {
+            position: "absolute", inset: "0",
+            width: "100%", height: "100%",
+            objectFit: "fill", pointerEvents: "none",
+        });
+        pola.appendChild(img);
+    }
+    pola.style.display = "";
+
+    const N = cfg.frames.length;       // polaNum
+    let timeF = 0;
+    state._flipTimer = setInterval(function () {
+        timeF += sides;
+        // Original: Pola(N+1+TimeF) for negative timeF (Pola is 1-indexed).
+        // Our frames[] is 0-indexed, so subtract 1.
+        let frameIdx;
+        if (timeF < 0) frameIdx = (N + 1 + timeF) - 1;
+        else           frameIdx = timeF - 1;
+        if (frameIdx < 0) frameIdx = 0;
+        if (frameIdx >= N) frameIdx = N - 1;
+        img.src = state.config.assetsRoot + "/" + cfg.frames[frameIdx];
+        if (timeF === N || timeF === -N) {
+            // Settle: Pola(N) when Sides=1, Pola(1) when Sides=-1.
+            img.src = state.config.assetsRoot + "/" + (sides > 0 ? cfg.frames[N - 1] : cfg.frames[0]);
+            clearInterval(state._flipTimer);
+            state._flipTimer = null;
+            if (onDone) onDone();
+        }
+    }, cfg.interval || 70);
 }
 
 // Ivrit Sst.frm has Picture1 + Picture2 sharing the (0,0) area. Original
@@ -256,6 +489,26 @@ function onScreenChange(state, screenId) {
 // mirror that toggle in showIvritView() and wire it from activ/bac actions.
 function wireSstIvrit(state) {
     const stage = state.stage;
+    // The original Sst.frm declares Picture2 at 10200x7575 twips = 680x505
+    // px — wider than the 640x480 stage — while its BG image sta1.jpg is
+    // a true 640x480. Without a clamp, .frm-img with object-fit:fill
+    // stretches sta1 over the oversized container and the inner controls
+    // drift away from their painted-in-the-bg counterparts. Same fix
+    // applies to Picture1 (9600x7200 twips = 640x480, but be defensive).
+    const ds = state.designSize || { width: 640, height: 480 };
+    [".frm-ctrl--Picture1", ".frm-ctrl--Picture2"].forEach(function (sel) {
+        const el = stage.querySelector(sel);
+        if (!el) return;
+        el.style.left = "0px";
+        el.style.top  = "0px";
+        el.style.width  = ds.width  + "px";
+        el.style.height = ds.height + "px";
+    });
+    // Render Label captions that have text (e.g. lblPirut shows the column
+    // headers "אנגלית   עברית   חשבון" above the song list). The renderer
+    // doesn't paint Label.Caption itself, so we drop a span in for any Sst
+    // child with a Caption prop set in the parsed layout.
+    paintIvritLabelCaptions(state);
     // Pre-build the Picture1 grid (btnIcon thumbs from first-stage pics)
     // even before the user switches views — Form_Load calls btnHofshi_Click
     // unconditionally, so the activity icons should be ready immediately.
@@ -267,6 +520,40 @@ function wireSstIvrit(state) {
     // picker) — Form_Load doesn't show Picture1 or bac.
     const view = state.ivritView || state.config.ivritDefaultView || "picker";
     showIvritView(state, view);
+}
+
+// Inject Label.Caption text for any Ivrit Sst Label that has one. lblPirut
+// is the column-header strip above List1 ("אנגלית   עברית   חשבון"); without
+// it the list looks unlabeled.
+function paintIvritLabelCaptions(state) {
+    const layout = state.layouts && state.layouts.sst;
+    if (!layout) return;
+    function walk(c) {
+        const name = c.name;
+        const cap = c.props && c.props.Caption;
+        if (name && cap && (name === "lblPirut" || name === "Credit" || name === "Label1")) {
+            const sel = ".frm-ctrl--" + name;
+            const el = state.stage.querySelector(sel);
+            if (el && !el.querySelector(".ivrit-caption")) {
+                const span = document.createElement("span");
+                span.className = "ivrit-caption";
+                Object.assign(span.style, {
+                    position: "absolute", inset: "0",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    pointerEvents: "none",
+                    fontFamily: "Arial, sans-serif",
+                    fontSize: "12px", fontWeight: "bold",
+                    color: c.props.ForeColor === 16777215 ? "#fff" : "#000",
+                    textAlign: "center", direction: "rtl",
+                    whiteSpace: "pre",
+                });
+                span.textContent = cap;
+                el.appendChild(span);
+            }
+        }
+        (c.children || []).forEach(walk);
+    }
+    walk(layout);
 }
 
 function showIvritView(state, view) {
@@ -695,6 +982,32 @@ function closeBookChapter(state) {
     if (op) op.style.display = "none";
 }
 
+// Ports Credit.frm — a tiny modal popup loaded from \menu\jpg\meida.jpg.
+// Original .frm: ClientWidth=5688, ClientHeight=4308 twips → 379x287 px,
+// BorderStyle=0 (none), StartUpPosition=CenterScreen. A transparent
+// Label1 at (0,0,41x41) catches a click to Unload Me — but in practice
+// the user just clicks the popup body to dismiss it.
+function showCreditPopup(state) {
+    const root = state.config.assetsRoot;
+    const overlay = document.createElement("div");
+    Object.assign(overlay.style, {
+        position: "fixed", inset: "0",
+        background: "rgba(0,0,0,.55)",
+        zIndex: "1000",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        cursor: "pointer",
+    });
+    const img = document.createElement("img");
+    img.src = root + "/menu/meida.png";
+    Object.assign(img.style, {
+        boxShadow: "0 8px 24px rgba(0,0,0,.4)", maxWidth: "90vw", maxHeight: "90vh",
+        userSelect: "none",
+    });
+    overlay.appendChild(img);
+    overlay.addEventListener("click", function () { overlay.remove(); });
+    document.body.appendChild(overlay);
+}
+
 function handleBookAction(state, action) {
     const parts = action.split(":");
     const kind = parts[1];
@@ -702,7 +1015,7 @@ function handleBookAction(state, action) {
     const book = state.config.book || {};
     if (kind === "select") {
         if (idx === book.exit)    { confirmExit(exitToLauncher); return; }
-        if (idx === book.credit)  { klog("book: credits stub — original showed Credit.Show 1"); return; }
+        if (idx === book.credit)  { showCreditPopup(state); return; }
         if (idx === book.help && book.helpVideo) {
             const rel = resolveVideoPath(state, book.helpVideo);
             if (rel) playVideo(state.config.assetsRoot + "/" + rel);
@@ -764,7 +1077,10 @@ function wireSstLamps(state) {
     // Dvash uses {n_masl}.txt (no rama prefix) — the completed map I store
     // keys by rama too, but Dvash's activities are rama-invariant per
     // activityRamaPin=4. So lookups just use rama="4".
-    const hideWhenLocked = (appId === "Brahot" || appId === "Hagim");
+    // Apps whose Lampas() hides locked lamps entirely (Visible=False) instead
+    // of showing a dimmed Lamp1.bmp. The original .frm for these apps either
+    // doesn't ship Lamp1.bmp at all or has the dim-load commented out.
+    const hideWhenLocked = (appId === "Brahot" || appId === "Hagim" || appId === "Shabat");
     const root = state.config.assetsRoot;
 
     const lamps = state.stage.querySelectorAll(".frm-ctrl--btnLamp");
@@ -808,6 +1124,16 @@ function wireSstLamps(state) {
             el.appendChild(img);
         }
     });
+
+    // mahak (eraser) — Sst.frm has it Visible=0 at design time; Sst.Lampas()
+    // flips it Visible=True inside the "if save file exists" branch, i.e.
+    // exposes the reset control once at least one activity in the current
+    // rama has been completed. Honor that gating here.
+    const mahak = state.stage.querySelector(".frm-ctrl--mahak");
+    if (mahak) {
+        const anyDone = Object.keys(completed).length > 0;
+        mahak.style.display = anyDone ? "" : "none";
+    }
 }
 
 // Stops the persistent state._audio element and detaches any pending onended
@@ -1160,6 +1486,19 @@ function handleAction(appId, action /*, ctrl */) {
             if (appId === "EnglishB") return idx === 1 ? "\\avi\\kescre1.avi" : "\\help\\_tafnew.avi";
             if (appId === "EnglishC") return idx === 1 ? "\\avi\\kescre1.avi" : "\\help\\_tafnew.avi";
             if (appId === "Heshbon")  return idx === 1 ? "\\avi\\kescre1.avi" : "\\help\\_tafnew.avi";
+            // KolKoreA/B/C/D all use the same Sst.btnSeret_Click pattern:
+            //   idx 0 → PathFilm + "\_tafnew.avi" (per-app intro tour)
+            //   idx 1 → CD_Dir + "\avi\kescre1.avi" (Kesem credits reel)
+            if (appId === "KolKoreA") return idx === 1 ? "\\avi\\kescre1.avi" : "\\help\\_tafnew.avi";
+            if (appId === "KolKoreB") return idx === 1 ? "\\avi\\kescre1.avi" : "\\help\\_tafnew.avi";
+            if (appId === "KolKoreC") return idx === 1 ? "\\avi\\kescre1.avi" : "\\help\\_tafnew.avi";
+            if (appId === "KolKoreD") return idx === 1 ? "\\avi\\kescre1.avi" : "\\help\\_tafnew.avi";
+            // Shabat Sst.btnSeret_Click: both indices play \avi\SHAB.avi
+            // (no _tafnew/_kescre1 in Shabat's distribution — the original
+            // explicitly hardcodes SHAB.avi for both branches).
+            if (appId === "Shabat")   return "\\avi\\SHAB.avi";
+            if (appId === "Shirim")          return idx === 1 ? "\\avi\\kescre1.avi" : "\\help\\_tafnew.avi";
+            if (appId === "Shirim&Meshalim") return idx === 1 ? "\\avi\\kescre1.avi" : "\\help\\_tafnew.avi";
             return null;
         })();
         if (!vbPath) { klog("seret: no video mapped for " + appId + " idx=" + idx); return; }
@@ -1189,6 +1528,30 @@ function handleAction(appId, action /*, ctrl */) {
             return;
         }
         klog("activ: index " + idx + " not implemented (authoring tool)");
+        return;
+    }
+    if (action && action.indexOf("avi:") === 0) {
+        // Heshbon Sst.avi_Click(Index):
+        //   dam = CD_Dir + "\avi\_" & rama & Index+1 & ".avi"
+        //   If exist(dam) Then VideoFile = dam: VideoBox.Show 1
+        // One avi label per path tile (5 of them); index maps to btnIcon idx.
+        if (!currentSession) return;
+        const idx = parseInt(action.split(":")[1], 10);
+        const vbPath = "\\avi\\_" + currentSession.rama + (idx + 1) + ".avi";
+        const rel = resolveVideoPath(currentSession, vbPath);
+        if (rel) playVideo(currentSession.config.assetsRoot + "/" + rel);
+        else klog("avi: missing (" + vbPath + ")");
+        return;
+    }
+    if (action && action.indexOf("btnexi:") === 0) {
+        // KolKoreC/D Sst.btnexi_Click:
+        //   Index 2 → Ezia (exit) — already mapped to "exit" in actionFor.
+        //   Index 0 → Me.Visible=False / Hidy.WindowState=1 / Hidy.Visible=True
+        //   Hidy.frm is an empty 26-line form used purely as a "minimize"
+        //   target on Windows. The web port has no minimize semantics; this
+        //   is a faithful no-op (matches what the user would see: the app
+        //   "disappears" — but on the web we'd just be hiding our own page).
+        klog("btnexi: minimize stub —", action);
         return;
     }
     if (action === "ivrit:back") {
@@ -1837,6 +2200,7 @@ function initGameTurn(state, stage) {
     state._cursorPiece = null;
     state.Tek_N = 1;               // game 5 round counter
     state.game2Revealed = {};      // Game 2: which hotspot covers have been removed this stage
+    state.game4Revealed = {};      // Game 4: which red Label1 covers stay hidden after a correct placement
     state._stageScore = { green: 0, yellow: 0, red: 0 };  // per-stage tally feeds nikod
     const n = stage.hotspots ? stage.hotspots.length : 0;
     state.maxTurn = Math.min(n, KOL_LBL_TOZAOT);
@@ -2166,13 +2530,48 @@ function renderGame3Hotspots(state, stage, pic1, t) {
 //          Label1(Gg_N==Pr_N) → correct placement.
 function renderGame4(state, stage, pic1, t) {
     if (state.helek === 1) {
-        renderGame4Pick(state, stage);
+        renderGame4Pick(state, stage, pic1, t);
     } else {
         renderGame4Place(state, stage, pic1, t);
     }
 }
 
-function renderGame4Pick(state, stage) {
+function renderGame4Pick(state, stage, pic1, t) {
+    // Paint a red Label1 cover at every hotspot's location on Picture1.
+    // Original Games4.DeTrace dynamically Loads Shape1(n) + Label1(n) for
+    // each .RAS record, sets Shape1.FillColor=&HFF& (red), Label1.BackStyle
+    // =1 (opaque, BackColor=&H000000FF red), so the user sees every "hole"
+    // as a red rectangle during the piece-pick phase. In helek=2 only
+    // Label1(Pr_N) stays visible as the placement target.
+    if (pic1 && t && stage.hotspots) {
+        if (!state.game4Revealed) state.game4Revealed = {};
+        for (let vbIdx = 1; vbIdx <= stage.hotspots.length; vbIdx++) {
+            // Skip cells the user already placed correctly — Sst.frm flips
+            // those Label1's Visible to False permanently after the
+            // correct-chain runs, so the revealed image stays exposed
+            // across all subsequent helek=1 / helek=2 transitions.
+            if (state.game4Revealed[vbIdx]) continue;
+            const rec = stage.hotspots[vbIdx - 1];
+            if (!rec) continue;
+            const cover = document.createElement("div");
+            cover.className = "stage-cover stage-cover--game4";
+            cover.dataset.idx = String(vbIdx);
+            Object.assign(cover.style, {
+                position: "absolute",
+                left:   (t.offsetX + rec.x * t.scale) + "px",
+                top:    (t.offsetY + rec.y * t.scale) + "px",
+                width:  (rec.w * t.scale) + "px",
+                height: (rec.h * t.scale) + "px",
+                // VB6: Shape1.FillColor = &H0000FF (BGR) = pure red.
+                background: "#FF0000",
+                border: "1px solid #800",
+                pointerEvents: "none",
+                zIndex: "1",
+            });
+            pic1.appendChild(cover);
+        }
+    }
+
     // Show Picture2 cropped at Label1(Gg_N), wired to btnArw cycling.
     const pic2 = state.stage.querySelector(".frm-ctrl--Picture2");
     if (pic2) {
@@ -2183,8 +2582,12 @@ function renderGame4Pick(state, stage) {
         pic2.onclick = function () { onGame4PieceClick(state); };
     }
     // Show btnArw — cycle Gg_N. Original: btnArw(0) increments, btnArw(1) decrements.
+    // Form_Load loads btnArw(0).Picture = Hetz6.bmp, btnArw(1).Picture =
+    // Hetz5.bmp; config.images.btnArw provides the same pair (idx 0 → hetz6,
+    // idx 1 → hetz5) so the buttons aren't blank squares.
     const arwEls = state.stage.querySelectorAll(".frm-ctrl--btnArw");
-    arwEls.forEach(function (el, slot) {
+    arwEls.forEach(function (el) {
+        const slot = parseInt(el.dataset.index, 10);
         el.style.display = "block";
         el.style.cursor = "pointer";
         el.onclick = function () {
@@ -2203,6 +2606,33 @@ function renderGame4Place(state, stage, pic1, t) {
     const arwEls = state.stage.querySelectorAll(".frm-ctrl--btnArw");
     arwEls.forEach(function (el) { el.style.display = "none"; });
 
+    // Keep the red Label1 covers on every hotspot EXCEPT the ones the user
+    // has already solved this stage. Original Games4: Label1(n) starts
+    // BackStyle=1 (opaque red) and only Label1(Gg_N).Visible flips to False
+    // once the placement is correct. Without this paint, helek=2 looked
+    // like every cover vanished the moment the user picked the right piece.
+    if (!state.game4Revealed) state.game4Revealed = {};
+    for (let vbIdx = 1; vbIdx <= stage.hotspots.length; vbIdx++) {
+        if (state.game4Revealed[vbIdx]) continue;
+        const rec = stage.hotspots[vbIdx - 1];
+        if (!rec) continue;
+        const cover = document.createElement("div");
+        cover.className = "stage-cover stage-cover--game4";
+        cover.dataset.idx = String(vbIdx);
+        Object.assign(cover.style, {
+            position: "absolute",
+            left:   (t.offsetX + rec.x * t.scale) + "px",
+            top:    (t.offsetY + rec.y * t.scale) + "px",
+            width:  (rec.w * t.scale) + "px",
+            height: (rec.h * t.scale) + "px",
+            background: "#FF0000",
+            border: "1px solid #800",
+            pointerEvents: "none",
+            zIndex: "1",
+        });
+        pic1.appendChild(cover);
+    }
+
     const target = stage.hotspots[state.Pr_N - 1];
     if (!target) return;
     const piece = makeCursorPiece(state, target, t);
@@ -2210,8 +2640,12 @@ function renderGame4Place(state, stage, pic1, t) {
     state._cursorPiece = piece;
 
     const btn = makeHotspotButton(target, state.Pr_N, t);
+    btn.style.zIndex = "2";   // above the red cover for hit-testing
     btn.addEventListener("click", function (e) {
         e.stopPropagation();
+        // Mark this hotspot as revealed so the next renderGame4Place pass
+        // (after the correct-chain reset) doesn't repaint a cover on it.
+        state.game4Revealed[state.Pr_N] = true;
         onCorrectClickGame4Place(state);
     });
     pic1.appendChild(btn);

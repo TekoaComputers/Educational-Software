@@ -9,11 +9,16 @@ export default {
             layoutFile: "data/layout/Brahot/sst.json",
             background: "assets/Brahot/menu/brahot{rama}.png",
             designSize: [640, 480],
+            // mahak is the reset/eraser button. .frm has Visible=0 at design
+            // time; Sst.Lampas() flips Visible=True after at least one
+            // activity is completed. We bind the image so it shows when
+            // wireSstLamps exposes the control.
+            images: { mahak: "assets/Brahot/menu/mhak.png" },
         },
         game1:  { layoutFile: "data/layout/_shared/games.json",  background: "assets/Brahot/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Brahot/menu/hetz7.png" } },
         game2:  { layoutFile: "data/layout/_shared/games2.json", background: "assets/Brahot/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Brahot/menu/hetz7.png" } },
         game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/Brahot/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Brahot/menu/hetz7.png" } },
-        game4:  { layoutFile: "data/layout/_shared/games4.json", background: "assets/Brahot/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Brahot/menu/hetz7.png" } },
+        game4:  { layoutFile: "data/layout/_shared/games4.json", background: "assets/Brahot/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Brahot/menu/hetz7.png", btnArw: ["assets/Brahot/menu/hetz6.png", "assets/Brahot/menu/hetz5.png"] } },
         game5:  { layoutFile: "data/layout/_shared/games5.json", background: "assets/Brahot/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Brahot/menu/hetz7.png" } },
         misger: { layoutFile: "data/layout/_shared/misger.json", background: "assets/Brahot/menu/misger.png", designSize: [240, 200], images: { picexi: "assets/Brahot/menu/hetz7.png" } },
         // mashal.frm — 6-button parable selector. Each button plays

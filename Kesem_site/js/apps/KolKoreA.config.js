@@ -18,6 +18,7 @@ export default {
             background: "assets/KolKoreA/menu/arm{rama}.png",
             designSize: [640, 480],
             images: {
+                mahak: "assets/KolKoreA/menu/mhak.png",
                 btnIcon: [
                     "assets/KolKoreA/menu/tem_1{rama}.png",
                     "assets/KolKoreA/menu/tem_2{rama}.png",
@@ -37,7 +38,7 @@ export default {
         game1:  { layoutFile: "data/layout/_shared/games.json",  background: "assets/KolKoreA/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreA/menu/hetz7.png" } },
         game2:  { layoutFile: "data/layout/_shared/games2.json", background: "assets/KolKoreA/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreA/menu/hetz7.png" } },
         game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/KolKoreA/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreA/menu/hetz7.png" } },
-        game4:  { layoutFile: "data/layout/_shared/games4.json", background: "assets/KolKoreA/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreA/menu/hetz7.png" } },
+        game4:  { layoutFile: "data/layout/_shared/games4.json", background: "assets/KolKoreA/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreA/menu/hetz7.png", btnArw: ["assets/KolKoreA/menu/hetz6.png", "assets/KolKoreA/menu/hetz5.png"] } },
         game5:  { layoutFile: "data/layout/_shared/games5.json", background: "assets/KolKoreA/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreA/menu/hetz7.png" } },
         misger: { layoutFile: "data/layout/_shared/misger.json", background: "assets/KolKoreA/menu/misger.png", designSize: [240, 200], images: { picexi: "assets/KolKoreA/menu/hetz7.png" } },
     },

@@ -37,7 +37,7 @@ export default {
         game1:  { layoutFile: "data/layout/_shared/games.json",  background: "assets/EnglishC/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/EnglishC/menu/hetz7.png" } },
         game2:  { layoutFile: "data/layout/_shared/games2.json", background: "assets/EnglishC/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/EnglishC/menu/hetz7.png" } },
         game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/EnglishC/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/EnglishC/menu/hetz7.png" } },
-        game4:  { layoutFile: "data/layout/_shared/games4.json", background: "assets/EnglishC/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/EnglishC/menu/hetz7.png" } },
+        game4:  { layoutFile: "data/layout/_shared/games4.json", background: "assets/EnglishC/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/EnglishC/menu/hetz7.png", btnArw: ["assets/EnglishC/menu/hetz6.png", "assets/EnglishC/menu/hetz5.png"] } },
         game5:  { layoutFile: "data/layout/_shared/games5.json", background: "assets/EnglishC/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/EnglishC/menu/hetz7.png" } },
         misger: { layoutFile: "data/layout/_shared/misger.json", background: "assets/EnglishC/menu/misger.png", designSize: [240, 200], images: { picexi: "assets/EnglishC/menu/hetz7.png" } },
     },
