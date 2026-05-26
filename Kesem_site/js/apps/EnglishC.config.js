@@ -1,6 +1,6 @@
 export default {
     id: "EnglishC",
-    title: "אנגלית-ג",
+    title: "אנגלית בראשית ג'",
     assetsRoot: "assets/EnglishC",
     initialScreen: "sst",
     screens: {

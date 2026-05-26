@@ -1,6 +1,6 @@
 export default {
     id: "Ivrit",
-    title: "עברית",
+    title: "עברית מבית טוב",
     assetsRoot: "assets/Ivrit",
     initialScreen: "sst",
     // Ivrit's Sst.frm has two overlapping containers:

@@ -1,6 +1,6 @@
 export default {
     id: "Shirim",
-    title: "שירים",
+    title: "שירי ילדים",
     assetsRoot: "assets/Shirim",
     initialScreen: "sst",
     // Sst.frm is a song-book: two overlapping PictureBox containers

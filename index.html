@@ -1,149 +1,188 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tekoa Computers</title>
+    <title>תקוע מחשבים — Tekoa Computers</title>
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            background: #fff;
+            /* Sky gradient sampled from banner.jpg dominant tones:
+               #E3EEF5 (near-white) → #B2D8F2 (medium sky) → #82B7DC (deeper). */
+            background: linear-gradient(180deg, #E3EEF5 0%, #B2D8F2 45%, #82B7DC 100%);
+            background-attachment: fixed;
             min-height: 100vh;
-            display: flex;
-            align-items: stretch;
-            font-family: sans-serif;
+            font-family: "Arial Hebrew", "Heebo", "Segoe UI", Arial, sans-serif;
+            color: #1d3a52;
+            line-height: 1.4;
         }
-
-        .left {
-            width: 50%;
+        .banner-row {
+            display: flex;
+            justify-content: center;
+            padding: 0.75rem 0.75rem 0;
+        }
+        .banner-link {
+            display: block;
+            line-height: 0;
+            width: 30vw;             /* ~30% of viewport width */
+            min-width: 260px;
+            max-width: 560px;
+        }
+        .banner-link img {
+            display: block;
+            width: 100%;
+            height: auto;            /* aspect 1893×542 ≈ 3.5:1 preserved */
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1.5rem 1rem 3rem;
+        }
+        h2 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin: 1.5rem 0 1rem;
+            color: #154069;
+            border-bottom: 2px solid rgba(21, 64, 105, 0.35);
+            padding-bottom: 0.4rem;
+            text-align: right;
+        }
+        h2:first-of-type { margin-top: 0; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+        .card {
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 1.5rem;
-        }
-
-        .left header {
-            margin-bottom: 1.5rem;
-        }
-
-        .left header img {
-            display: block;
-            width: min(153px, 100%);
-            height: auto;
-            margin: 0 auto;
-        }
-
-        nav {
-            display: flex;
-            gap: 1rem;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-
-        nav a {
-            display: block;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(2px);
             border-radius: 12px;
-            overflow: hidden;
+            padding: 0.85rem 0.6rem 1rem;
+            text-decoration: none;
+            color: inherit;
+            box-shadow: 0 2px 8px rgba(21, 64, 105, 0.12);
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
             border: 2px solid transparent;
-            transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
         }
-
-        nav a:hover {
-            border-color: #888;
+        .card:hover {
             transform: translateY(-4px);
-            box-shadow: 0 8px 28px rgba(0,0,0,0.35);
+            background: #fff;
+            box-shadow: 0 8px 22px rgba(21, 64, 105, 0.25);
+            border-color: #4a90c2;
         }
-
-        nav a img {
-            display: block;
-            max-width: 100%;
-            height: auto;
+        .card-icon {
+            width: 110px;
+            height: 82px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 0.6rem;
+            background: #DBEFFB;
+            border: 1px solid rgba(74, 144, 194, 0.4);
         }
-
-        .right {
-            width: 50%;
+        .card-title {
+            font-size: 0.98rem;
+            font-weight: 600;
+            text-align: center;
+            color: #1d3a52;
         }
-
-        .right img {
-            display: block;
-            width: 100%;
-            height: auto;
+        /* Tirgolit / Peledor GIFs have transparent regions and need
+           object-fit:contain rather than cover so they don't get
+           awkwardly cropped like the Kesem-app thumbnails. */
+        .card[href*="Tirgolit_site"] .card-icon,
+        .card[href*="old-games.org"]  .card-icon {
+            object-fit: contain;
+            background: #fff;
         }
     </style>
 </head>
 <body>
-    <div class="left">
-        <header>
-            <a href="https://he.wikipedia.org/wiki/%D7%AA%D7%A7%D7%95%D7%A2_%D7%9E%D7%97%D7%A9%D7%91%D7%99%D7%9D">
-                <img src="main_site_assets/logo_optimized.gif" alt="Tekoa Computers">
-            </a>
-        </header>
-        <nav>
-            <a href="Tirgolit_site/index.html">
-                <img src="main_site_assets/Tirgolit.gif" alt="Tirgolit Site">
-            </a>
-            <a href="Kesem_site/index.html#/Brahot">
-                <img src="main_site_assets/Brahot.png" alt="ברכות">
-            </a>
-            <a href="Kesem_site/index.html#/Hagim">
-                <img src="main_site_assets/Hagim.png" alt="חגי ישראל">
-            </a>
-            <a href="Kesem_site/index.html#/Yeled">
-                <img src="main_site_assets/Yeled.png" alt="עולם הילד">
-            </a>
-            <a href="Kesem_site/index.html#/Dvash">
-                <img src="main_site_assets/Dvash.png" alt="חלונות קסם">
-            </a>
-            <a href="Kesem_site/index.html#/EnglishA">
-                <img src="main_site_assets/EnglishA.png" alt="אנגלית-א">
-            </a>
-            <a href="Kesem_site/index.html#/EnglishB">
-                <img src="main_site_assets/EnglishB.png" alt="אנגלית-ב">
-            </a>
-            <a href="Kesem_site/index.html#/EnglishC">
-                <img src="main_site_assets/EnglishC.png" alt="אנגלית-ג">
-            </a>
-            <a href="Kesem_site/index.html#/Heshbon">
-                <img src="main_site_assets/Heshbon.png" alt="חשבון">
-            </a>
-            <a href="Kesem_site/index.html#/Shabat">
-                <img src="main_site_assets/Shabat.png" alt="שבת">
-            </a>
-            <a href="Kesem_site/index.html#/KolKoreA">
-                <img src="main_site_assets/KolKoreA.png" alt="קול קורא-א">
-            </a>
-            <a href="Kesem_site/index.html#/KolKoreB">
-                <img src="main_site_assets/KolKoreB.png" alt="קול קורא-ב">
-            </a>
-            <a href="Kesem_site/index.html#/KolKoreC">
-                <img src="main_site_assets/KolKoreC.png" alt="קול קורא-ג">
-            </a>
-            <a href="Kesem_site/index.html#/KolKoreD">
-                <img src="main_site_assets/KolKoreD.png" alt="קול קורא-ד">
-            </a>
-            <a href="Kesem_site/index.html#/Shirim">
-                <img src="main_site_assets/Shirim.png" alt="שירים">
-            </a>
-            <a href="Kesem_site/index.html#/Shirim&Meshalim">
-                <img src="main_site_assets/Shirim&Meshalim.png" alt="שירים ומשלים">
-            </a>
-            <a href="Kesem_site/index.html#/Ivrit">
-                <img src="main_site_assets/Ivrit.png" alt="עברית">
-            </a>
-            <a href="https://www.old-games.org/misc/peledor/">
-                <img src="main_site_assets/Peledor.gif" alt="Peledor">
-            </a>
-        </nav>
+    <div class="banner-row">
+        <a class="banner-link" href="https://he.wikipedia.org/wiki/%D7%AA%D7%A7%D7%95%D7%A2_%D7%9E%D7%97%D7%A9%D7%91%D7%99%D7%9D">
+            <img src="main_site_assets/banner.jpg" alt="תקוע מחשבים">
+        </a>
     </div>
 
-    <div class="right">
-        <img src="main_site_assets/מרדכי.jpg" alt="מרדכי">
-    </div>
+    <main>
+        <h2>קטלוג לומדות חינוכיות</h2>
+        <div class="grid">
+            <a class="card" href="Tirgolit_site/index.html">
+                <img class="card-icon" src="main_site_assets/Tirgolit.gif" alt="">
+                <div class="card-title">תרגולית</div>
+            </a>
+            <a class="card" href="https://www.old-games.org/misc/peledor/">
+                <img class="card-icon" src="main_site_assets/Peledor.gif" alt="">
+                <div class="card-title">פלא-דור</div>
+            </a>
+            <a class="card" href="Kesem_site/index.html#/Brahot">
+                <img class="card-icon" src="main_site_assets/Brahot.jpg" alt="">
+                <div class="card-title">ברכות</div>
+            </a>
+            <a class="card" href="Kesem_site/index.html#/Hagim">
+                <img class="card-icon" src="main_site_assets/Hagim.jpg" alt="">
+                <div class="card-title">חגי ישראל</div>
+            </a>
+            <a class="card" href="Kesem_site/index.html#/Yeled">
+                <img class="card-icon" src="main_site_assets/Yeled.jpg" alt="">
+                <div class="card-title">עולם הילד</div>
+            </a>
+            <a class="card" href="Kesem_site/index.html#/Dvash">
+                <img class="card-icon" src="main_site_assets/Dvash.jpg" alt="">
+                <div class="card-title">מן הפרח אל הדבש</div>
+            </a>
+            <a class="card" href="Kesem_site/index.html#/Shabat">
+                <img class="card-icon" src="main_site_assets/Shabat.jpg" alt="">
+                <div class="card-title">שבת</div>
+            </a>
+            <a class="card" href="Kesem_site/index.html#/Heshbon">
+                <img class="card-icon" src="main_site_assets/Heshbon.jpg" alt="">
+                <div class="card-title">ארמון החשבון</div>
+            </a>
+            <a class="card" href="Kesem_site/index.html#/Ivrit">
+                <img class="card-icon" src="main_site_assets/Ivrit.jpg" alt="">
+                <div class="card-title">עברית מבית טוב</div>
+            </a>
+            <a class="card" href="Kesem_site/index.html#/EnglishA">
+                <img class="card-icon" src="main_site_assets/EnglishA.jpg" alt="">
+                <div class="card-title">אנגלית בראשית א'</div>
+            </a>
+            <a class="card" href="Kesem_site/index.html#/EnglishB">
+                <img class="card-icon" src="main_site_assets/EnglishB.jpg" alt="">
+                <div class="card-title">אנגלית בראשית ב'</div>
+            </a>
+            <a class="card" href="Kesem_site/index.html#/EnglishC">
+                <img class="card-icon" src="main_site_assets/EnglishC.jpg" alt="">
+                <div class="card-title">אנגלית בראשית ג'</div>
+            </a>
+            <a class="card" href="Kesem_site/index.html#/KolKoreA">
+                <img class="card-icon" src="main_site_assets/KolKoreA.jpg" alt="">
+                <div class="card-title">קול קורא א'</div>
+            </a>
+            <a class="card" href="Kesem_site/index.html#/KolKoreB">
+                <img class="card-icon" src="main_site_assets/KolKoreB.jpg" alt="">
+                <div class="card-title">קול קורא ב'</div>
+            </a>
+            <a class="card" href="Kesem_site/index.html#/KolKoreC">
+                <img class="card-icon" src="main_site_assets/KolKoreC.jpg" alt="">
+                <div class="card-title">קול קורא ג'</div>
+            </a>
+            <a class="card" href="Kesem_site/index.html#/KolKoreD">
+                <img class="card-icon" src="main_site_assets/KolKoreD.jpg" alt="">
+                <div class="card-title">קול קורא ד'</div>
+            </a>
+            <a class="card" href="Kesem_site/index.html#/Shirim">
+                <img class="card-icon" src="main_site_assets/Shirim.jpg" alt="">
+                <div class="card-title">שירי ילדים</div>
+            </a>
+            <a class="card" href="Kesem_site/index.html#/Shirim&Meshalim">
+                <img class="card-icon" src="main_site_assets/Shirim&Meshalim.jpg" alt="">
+                <div class="card-title">שירים ומשלים</div>
+            </a>
+        </div>
+    </main>
 </body>
 </html>

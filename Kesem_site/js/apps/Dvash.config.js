@@ -1,6 +1,6 @@
 export default {
     id: "Dvash",
-    title: "חלונות קסם",
+    title: "מן הפרח אל הדבש",
     icon: "assets/common/icons/Dvash.ico",
     assetsRoot: "assets/Dvash",
     initialScreen: "frmSel",

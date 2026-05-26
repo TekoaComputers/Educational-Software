@@ -1,6 +1,6 @@
 export default {
     id: "Heshbon",
-    title: "חשבון",
+    title: "ארמון החשבון",
     assetsRoot: "assets/Heshbon",
     initialScreen: "sst",
     screens: {

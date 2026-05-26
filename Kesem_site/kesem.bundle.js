@@ -62,7 +62,7 @@ const CONFIGS = {
 },
   "Dvash": {
     id: "Dvash",
-    title: "חלונות קסם",
+    title: "מן הפרח אל הדבש",
     icon: "assets/common/icons/Dvash.ico",
     assetsRoot: "assets/Dvash",
     initialScreen: "frmSel",
@@ -157,7 +157,7 @@ const CONFIGS = {
 },
   "EnglishA": {
     id: "EnglishA",
-    title: "אנגלית-א",
+    title: "אנגלית בראשית א'",
     assetsRoot: "assets/EnglishA",
     initialScreen: "sst",
     screens: {
@@ -208,7 +208,7 @@ const CONFIGS = {
 },
   "EnglishB": {
     id: "EnglishB",
-    title: "אנגלית-ב",
+    title: "אנגלית בראשית ב'",
     assetsRoot: "assets/EnglishB",
     initialScreen: "sst",
     screens: {
@@ -260,7 +260,7 @@ const CONFIGS = {
 },
   "EnglishC": {
     id: "EnglishC",
-    title: "אנגלית-ג",
+    title: "אנגלית בראשית ג'",
     assetsRoot: "assets/EnglishC",
     initialScreen: "sst",
     screens: {
@@ -364,7 +364,7 @@ const CONFIGS = {
 },
   "Heshbon": {
     id: "Heshbon",
-    title: "חשבון",
+    title: "ארמון החשבון",
     assetsRoot: "assets/Heshbon",
     initialScreen: "sst",
     screens: {
@@ -414,7 +414,7 @@ const CONFIGS = {
 },
   "Ivrit": {
     id: "Ivrit",
-    title: "עברית",
+    title: "עברית מבית טוב",
     assetsRoot: "assets/Ivrit",
     initialScreen: "sst",
     // Ivrit's Sst.frm has two overlapping containers:
@@ -808,7 +808,7 @@ const CONFIGS = {
 },
   "Shirim": {
     id: "Shirim",
-    title: "שירים",
+    title: "שירי ילדים",
     assetsRoot: "assets/Shirim",
     initialScreen: "sst",
     // Sst.frm is a song-book: two overlapping PictureBox containers
