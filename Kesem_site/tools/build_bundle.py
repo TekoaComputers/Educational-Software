@@ -2425,6 +2425,7 @@ function initGameTurn(state, stage) {
     state.Tek_N = 1;               // game 5 round counter
     state.game2Revealed = {};      // Game 2: which hotspot covers have been removed this stage
     state.game4Revealed = {};      // Game 4: which red Label1 covers stay hidden after a correct placement
+    state.inputLocked = false;     // cleared at every new stage so a back-out mid-chain doesn't pin the lock
     state._stageScore = { green: 0, yellow: 0, red: 0 };  // per-stage tally feeds nikod
     const n = stage.hotspots ? stage.hotspots.length : 0;
     state.maxTurn = Math.min(n, KOL_LBL_TOZAOT);
@@ -3164,7 +3165,16 @@ function playResponse(state, n, onEnded) {
 // Tguva chain — same for games 1/2/4/5 on a correct answer: response wav
 // (rotated 1/2, 3/4, 5/6 by MspTaut), then affirmation, then mus.wav, then
 // advance. `idx` is the hotspot whose affirmation we want.
+//
+// Original Games2.frm gates Picture1_MouseDown on `If act1(0).Enabled =
+// True Then`, and Timer2_Timer toggles act1(0).Enabled = False whenever
+// the MCI control is in play-mode (526). Net effect: every Picture1
+// click is ignored while a response/affirmation/mus audio is playing.
+// We mirror that with state.inputLocked — onWrongClick + the per-game
+// hotspot handlers bail out while it's true, so a stray click during
+// the correct-answer celebration can't get logged as a wrong answer.
 function runCorrectChain(state, idx, onComplete) {
+    state.inputLocked = true;
     let resp;
     if (state.wrongCount === 0)      resp = pickAlt(state, [1, 2]);
     else if (state.wrongCount < 3)   resp = pickAlt(state, [3, 4]);
@@ -3172,7 +3182,10 @@ function runCorrectChain(state, idx, onComplete) {
     klog("correct chain → Tguva " + resp + " → affirmation(" + idx + ") → mus → next");
     playResponse(state, resp, function () {
         playAffirmation(state, idx, function () {
-            playAudio(state, audioBase(state) + "/wav/mus.wav", onComplete || function () {});
+            playAudio(state, audioBase(state) + "/wav/mus.wav", function () {
+                state.inputLocked = false;
+                if (onComplete) onComplete();
+            });
         });
     });
 }
@@ -3180,6 +3193,7 @@ function runCorrectChain(state, idx, onComplete) {
 // === Per-game click handlers ==============================================
 
 function onCorrectClickGame1(state, vbIdx) {
+    if (state.inputLocked) { klog("game1 hotspot click ignored — input locked"); return; }
     klog("CLICK game1 hotspot[" + vbIdx + "] = target (correct)");
     markStageProgressAt(state, vbIdx - 1);
     runCorrectChain(state, vbIdx, function () {
@@ -3193,6 +3207,9 @@ function onCorrectClickGame1(state, vbIdx) {
 }
 
 function onCorrectClickGame2(state) {
+    // Ignore taps that arrive during the audio chain — matches original
+    // Picture1_MouseDown guard (`If act1(0).Enabled = True Then ...`).
+    if (state.inputLocked) { klog("game2 hotspot click ignored — input locked"); return; }
     const idx = state.Gg_N;
     klog("CLICK game2 hotspot[" + idx + "] = target (Pobeda=" + state.Pobeda + ")");
     markStageProgressAt(state, state.Pobeda);
@@ -3472,6 +3489,7 @@ function onGame4PieceClick(state) {
 
 // Game 4 helek=2: click on Picture1 inside Label1(Pr_N) places the piece.
 function onCorrectClickGame4Place(state) {
+    if (state.inputLocked) { klog("game4 place click ignored — input locked"); return; }
     const idx = state.Pr_N;
     klog("CLICK game4 Picture1 hotspot[" + idx + "] = placement target (correct)");
     markStageProgressAt(state, state.Pobeda);
@@ -3498,6 +3516,7 @@ function onCorrectClickGame4Place(state) {
 
 // Game 5: click a Picture2 thumbnail. slotIdx is 1-based.
 function onGame5PieceClick(state, slotIdx, vbIdx) {
+    if (state.inputLocked) { klog("game5 click ignored — input locked"); return; }
     klog("CLICK game5 Picture2[" + slotIdx + "] vbIdx=" + vbIdx + " Pr_N=" + state.Pr_N);
     if (slotIdx === state.Pr_N) {
         markStageProgressAt(state, state.Pobeda);
@@ -3552,6 +3571,11 @@ function markInspectProgress(state) {
 }
 
 function onWrongClick(state) {
+    // Games2.frm Picture1_MouseDown is guarded by `If act1(0).Enabled = True`,
+    // and act1(0).Enabled is forced False whenever an audio chain is playing.
+    // So a click between the correct answer and the next round's setup is a
+    // no-op in the original. Mirror that here.
+    if (state.inputLocked) { klog("click ignored — input locked (audio chain)"); return; }
     // Games.frm Tguva_Taut: MspTaut++; 1st → 7/8.wav, 2nd → 9/10.wav, 3rd → Remez.
     state.wrongCount = (state.wrongCount || 0) + 1;
     klog("CLICK Picture1 wrong-area (count=" + state.wrongCount + ")");
