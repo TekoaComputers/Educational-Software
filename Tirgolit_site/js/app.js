@@ -261,11 +261,12 @@ const App = (() => {
   }
 
   function appLoginExit_yes() {
-    if (document.referrer) {
-      window.location.href = document.referrer;
-    } else {
-      window.close();
-    }
+    // Browsers block window.close() unless this tab was opened by a
+    // script (window.open). Users always reach Tirgolit by following an
+    // <a href> from the main catalog, so navigate back there explicitly.
+    // document.referrer is sometimes stripped by Referrer-Policy, so we
+    // don't rely on it as a primary path.
+    window.location.href = "../index.html";
   }
 
   function appLoginExit_no() {
