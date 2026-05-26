@@ -68,6 +68,9 @@ function actionFor(ctrl, appId) {
     // Heshbon Sst.hyju_Click → Ezia. hyju is a small "power off" Label
     // tucked at the top-right of the form. Its tooltip is "כיבוי" (shutdown).
     if (name === "hyju")       return "exit";
+    // Sst.mahak_Click → MsgBox confirm → ResetKlali (wipe scores) → Lampas.
+    // Visible only when Lampas finds at least one saved activity.
+    if (name === "mahak")      return "reset";
     // Heshbon Sst.avi_Click: plays \avi\_<rama><idx+1>.avi. One label per
     // path tile (5 of them); idx maps to btnIcon idx.
     if (name === "avi")        return `avi:${idx}`;

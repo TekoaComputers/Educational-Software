@@ -16,6 +16,11 @@ export default {
             designSize: [640, 480],
             images: {
                 mahak: "assets/KolKoreC/menu/mhak.png",
+                // Icon_s (the rama toggle) — Sst.Icon_s_Click sets
+                // Icon_s(0).Picture = DafM2.bmp when rama="1" (about to
+                // become 2) and DafM1.bmp when rama="2" (about to become 1).
+                // Net mapping after toggle: rama N → dafm<N>.png.
+                Icon_s: "assets/KolKoreC/bmp/dafm{rama}.png",
                 btnIcon: [
                     "assets/KolKoreC/menu/tem_1{rama}.png",
                     "assets/KolKoreC/menu/tem_2{rama}.png",

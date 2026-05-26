@@ -634,6 +634,11 @@ const CONFIGS = {
             designSize: [640, 480],
             images: {
                 mahak: "assets/KolKoreC/menu/mhak.png",
+                // Icon_s (the rama toggle) — Sst.Icon_s_Click sets
+                // Icon_s(0).Picture = DafM2.bmp when rama="1" (about to
+                // become 2) and DafM1.bmp when rama="2" (about to become 1).
+                // Net mapping after toggle: rama N → dafm<N>.png.
+                Icon_s: "assets/KolKoreC/bmp/dafm{rama}.png",
                 btnIcon: [
                     "assets/KolKoreC/menu/tem_1{rama}.png",
                     "assets/KolKoreC/menu/tem_2{rama}.png",
@@ -702,6 +707,9 @@ const CONFIGS = {
             designSize: [640, 480],
             images: {
                 mahak: "assets/KolKoreD/menu/mhak.png",
+                // Icon_s (rama toggle) — per-rama image set by
+                // Sst.Icon_s_Click. After the toggle, rama N shows dafm<N>.png.
+                Icon_s: "assets/KolKoreD/bmp/dafm{rama}.png",
                 btnIcon: [
                     "assets/KolKoreD/menu/tem_1{rama}.png",
                     "assets/KolKoreD/menu/tem_2{rama}.png",
@@ -1126,6 +1134,9 @@ function actionFor(ctrl, appId) {
     // Heshbon Sst.hyju_Click → Ezia. hyju is a small "power off" Label
     // tucked at the top-right of the form. Its tooltip is "כיבוי" (shutdown).
     if (name === "hyju")       return "exit";
+    // Sst.mahak_Click → MsgBox confirm → ResetKlali (wipe scores) → Lampas.
+    // Visible only when Lampas finds at least one saved activity.
+    if (name === "mahak")      return "reset";
     // Heshbon Sst.avi_Click: plays \avi\_<rama><idx+1>.avi. One label per
     // path tile (5 of them); idx maps to btnIcon idx.
     if (name === "avi")        return `avi:${idx}`;
@@ -1636,6 +1647,7 @@ function showApp(appId) {
         if (state.currentScreen !== "sst") return;
         if (state.config.id === "EnglishC") applyEnglishCRamaLayout(state);
         if (state.config.id === "KolKoreA") applyKolKoreARamaLayout(state);
+        if (state.config.id === "KolKoreD") applyKolKoreDRamaLayout(state);
     };
     onScreenChange(currentSession, currentSession.currentScreen);
 }
@@ -1668,7 +1680,76 @@ function onScreenChange(state, screenId) {
         if (state.config.id === "EnglishC") applyEnglishCRamaLayout(state);
         if (state.config.id === "KolKoreA") applyKolKoreARamaLayout(state);
         if (state.config.id === "KolKoreB") wireKolKoreBRamaToggle(state);
+        if (state.config.id === "KolKoreD") applyKolKoreDRamaLayout(state);
     }
+}
+
+// KolKoreD Sst.Icon_s_Click per-rama layout (alongside the FlipClock
+// page-turn). Careful trace of the original .frm logic:
+//
+//   Form_Load (state: rama=5, FirsT=False) calls Icon_s_Click(0). Inside,
+//   the "If rama=1 Then rama=2 Else rama=1" toggle hits the Else branch
+//   (rama=5 is not "1"), so rama is set to "1". Select Case rama → Case 1.
+//   The +65/-65 shifts are gated by `If FirsT = True Then` — and FirsT
+//   is False — so NO shift applies. At end of click FirsT becomes True.
+//   So **the design Left IS the rama 1 layout** (with all 12 visible).
+//
+//   Subsequent user clicks (FirsT=True now) shift by net deltas:
+//     Case 1 (→ rama 1): For i=0..11 Left -=65 ; For i=8..11 Left +=65
+//                       ⇒ net: btnIcon(0..7) -=65 ; 8..11 unchanged.
+//     Case 2 (→ rama 2): For i=0..11 Left +=65 ; For i=8..11 Left -=65
+//                       ⇒ net: btnIcon(0..7) +=65 ; 8..11 unchanged.
+//
+//   Walking through 1→2→1→2 clicks from the post-Form_Load state proves
+//   the stable equilibrium is:
+//     Rama 1: btnIcon(0..7) at designLeft        ; btnIcon(8..11) at design.
+//     Rama 2: btnIcon(0..7) at designLeft + 65   ; btnIcon(8..11) at design.
+//
+//   Visibility: rama 2 hides btnIcon(11)+btnLamp(11); rama 1 shows all 12.
+function applyKolKoreDRamaLayout(state) {
+    const stage = state.stage;
+    const ramaStr = String(state.rama);
+    const icons = {};
+    const lamps = {};
+    stage.querySelectorAll(".frm-ctrl--btnIcon").forEach(function (el) {
+        icons[parseInt(el.dataset.index, 10)] = el;
+    });
+    stage.querySelectorAll(".frm-ctrl--btnLamp").forEach(function (el) {
+        lamps[parseInt(el.dataset.index, 10)] = el;
+    });
+
+    // Cache the design Left once per element so repeated rama swaps stay
+    // anchored to the layout file's coords rather than accumulating shifts.
+    Object.keys(icons).forEach(function (k) {
+        const el = icons[k];
+        if (el.dataset.designLeft == null) el.dataset.designLeft = el.style.left || "";
+        if (lamps[k] && lamps[k].dataset.designLeft == null) lamps[k].dataset.designLeft = lamps[k].style.left || "";
+    });
+
+    // Rama 1 = design Left for 0..7; Rama 2 = design + 65 for 0..7.
+    // btnIcon(8..11) stay at design Left always.
+    const shiftLeft = (ramaStr === "2") ? 65 : 0;
+    Object.keys(icons).forEach(function (kStr) {
+        const i = parseInt(kStr, 10);
+        const el = icons[i];
+        const designLeft = parseFloat(el.dataset.designLeft || "0");
+        if (!isNaN(designLeft)) {
+            const newLeft = (i <= 7) ? (designLeft + shiftLeft) : designLeft;
+            el.style.left = newLeft + "px";
+        }
+        const lampEl = lamps[i];
+        if (lampEl) {
+            const lampDesignLeft = parseFloat(lampEl.dataset.designLeft || "0");
+            if (!isNaN(lampDesignLeft)) {
+                const newLampLeft = (i <= 7) ? (lampDesignLeft + shiftLeft) : lampDesignLeft;
+                lampEl.style.left = newLampLeft + "px";
+            }
+        }
+        // Rama 2 hides btnIcon(11)+btnLamp(11). Rama 1 shows all 12.
+        const hide11 = (ramaStr === "2" && i === 11);
+        if (el) el.style.display = hide11 ? "none" : "";
+        if (lampEl) lampEl.style.display = hide11 ? "none" : "";
+    });
 }
 
 // KolKoreB has a single Icon_s control (idx=0); each click toggles between
@@ -1689,30 +1770,118 @@ function wireKolKoreBRamaToggle(state) {
     });
 }
 
-// KolKoreA Sst.Icon_s_Click swaps the entire grid between two layouts:
-//   rama 1: 5 btnIcons (0..4) only — tem_11..tem_51.bmp ship.
-//   rama 2: 12 btnIcons (0..11)    — tem_12..tem_122.bmp ship.
-// The original also reshuffles per-button Left/Top (the documented
-// "known layout-shift limitation"), but the immediate breakage is the
-// 404s on tem_61..tem_121 in rama 1. Hide btnIcon(5..11) + btnLamp(5..11)
-// for rama 1 and clear their <img src> so the browser doesn't re-fetch.
+// KolKoreA Sst.Icon_s_Click swaps the entire grid between two layouts.
+// The original positions are PIXEL values (form ScaleMode=Pixel) — direct
+// copies from the .frm event handler, taking the form's design width of
+// 670 px to fit our 640x480 stage closely (factor ≈ 0.955, treated as 1
+// since the BG art was downscaled to 640 to match).
+//
+// Rama 1 (Case 0 in original):
+//   5 btnIcons visible (0..4), Width=136, Pic2/arm1.bmp BG
+//   btnIcon(0): Left=367, Top=208     btnIcon(1): Top=363
+//   btnIcon(2): Left=127               btnIcon(3): Left=468, Top=363
+//   btnIcon(4): Left=40,  Top=363
+//   btnLamp(i).Top = btnIcon(i).Top + Height + 3
+//   btnLamp(i).Left = btnIcon(i).Left + 40
+//
+// Rama 2 (Case 1):
+//   12 btnIcons visible (0..11), Width=62, Pic1/arm2.bmp BG
+//   btnIcon(0): Left=454, Top=btnIcon(5).Top   btnIcon(1): Top=213
+//   btnIcon(2): Left=45                         btnIcon(3): Left=461, Top=365
+//   btnIcon(4): Left=44,  Top=367
+//   btnLamp(i).Top = btnIcon(i).Top + Height + 3
+//   btnLamp(i).Left = btnIcon(i).Left + 5
 function applyKolKoreARamaLayout(state) {
     const stage = state.stage;
     const fiveOnly = (String(state.rama) === "1");
-    [".frm-ctrl--btnIcon", ".frm-ctrl--btnLamp"].forEach(function (sel) {
-        stage.querySelectorAll(sel).forEach(function (el) {
-            const idx = parseInt(el.dataset.index, 10);
-            if (isNaN(idx)) return;
-            const hide = fiveOnly && idx >= 5;
-            if (hide) {
-                el.style.display = "none";
-                const img = el.querySelector("img.frm-img");
-                if (img) img.removeAttribute("src");
-            } else {
-                el.style.display = "";
-            }
+    const icons = {};
+    const lamps = {};
+    stage.querySelectorAll(".frm-ctrl--btnIcon").forEach(function (el) {
+        icons[parseInt(el.dataset.index, 10)] = el;
+    });
+    stage.querySelectorAll(".frm-ctrl--btnLamp").forEach(function (el) {
+        lamps[parseInt(el.dataset.index, 10)] = el;
+    });
+
+    // Reset all to design defaults via inline-style clear so we don't bleed
+    // rama-1 overrides into rama 2 and vice versa.
+    [icons, lamps].forEach(function (set) {
+        Object.keys(set).forEach(function (k) {
+            const el = set[k];
+            el.style.left = ""; el.style.top = ""; el.style.width = ""; el.style.height = "";
+            el.style.display = "";
         });
     });
+
+    if (fiveOnly) {
+        // Hide btnIcon/btnLamp 5..11 entirely; clear their src so we don't
+        // 404 trying to load tem_61..tem_121 (those files don't ship).
+        for (let i = 5; i <= 11; i++) {
+            if (icons[i]) {
+                icons[i].style.display = "none";
+                const img = icons[i].querySelector("img.frm-img");
+                if (img) img.removeAttribute("src");
+            }
+            if (lamps[i]) lamps[i].style.display = "none";
+        }
+        // Explicit per-button positions per Sst.frm Case 0.
+        const r1 = {
+            0: { left: 367, top: 208 },
+            1: { top: 363 },
+            2: { left: 127 },
+            3: { left: 468, top: 363 },
+            4: { left:  40, top: 363 },
+        };
+        for (let i = 0; i <= 4; i++) {
+            const el = icons[i];
+            if (!el) continue;
+            const ov = r1[i] || {};
+            if (ov.left != null) el.style.left = ov.left + "px";
+            if (ov.top  != null) el.style.top  = ov.top  + "px";
+            el.style.width = "136px";
+            const lampEl = lamps[i];
+            if (lampEl) {
+                // Lamp.Top = icon.Top + icon.Height + 3
+                const iconTop = parseFloat(el.style.top || "0");
+                const iconH = el.offsetHeight || 100;
+                lampEl.style.top = (iconTop + iconH + 3) + "px";
+                const iconLeft = parseFloat(el.style.left || "0");
+                lampEl.style.left = (iconLeft + 40) + "px";
+            }
+        }
+    } else {
+        // Rama 2 — 12 visible, narrower (Width=62).
+        const r2 = {
+            1: { top: 213 },
+            2: { left: 45 },
+            3: { left: 461, top: 365 },
+            4: { left:  44, top: 367 },
+        };
+        for (let i = 0; i <= 11; i++) {
+            const el = icons[i];
+            if (!el) continue;
+            const ov = r2[i] || {};
+            if (ov.left != null) el.style.left = ov.left + "px";
+            if (ov.top  != null) el.style.top  = ov.top  + "px";
+            el.style.width = "62px";
+        }
+        // btnIcon(0).Top = btnIcon(5).Top  — must run AFTER btnIcon(5)'s top
+        // is locked-in. icons[5] uses design Left/Top via the renderer.
+        if (icons[0] && icons[5]) {
+            icons[0].style.left = "454px";
+            const top5 = icons[5].style.top || (window.getComputedStyle(icons[5]).top);
+            icons[0].style.top = top5;
+        }
+        for (let i = 0; i <= 11; i++) {
+            const el = icons[i]; if (!el) continue;
+            const lampEl = lamps[i]; if (!lampEl) continue;
+            const iconTop = parseFloat(el.style.top || (window.getComputedStyle(el).top) || "0");
+            const iconH = el.offsetHeight || 100;
+            lampEl.style.top = (iconTop + iconH + 3) + "px";
+            const iconLeft = parseFloat(el.style.left || (window.getComputedStyle(el).left) || "0");
+            lampEl.style.left = (iconLeft + 5) + "px";
+        }
+    }
 }
 
 // EnglishC Sst.Icon_s_Click reshuffles the activity grid per rama:
@@ -1781,8 +1950,13 @@ function wireFlipBookAnimation(state) {
             const sides = (String(state.rama) === "1") ? 1 : -1;
             // Toggle: 1 → 2, 2 → 1 (rama 5 / other initial value → 1).
             const target = (String(state.rama) === "1") ? 2 : 1;
+            // Explicit log — stopImmediatePropagation prevented the
+            // renderer's default "[kesem] CLICK ... action=rama:N" line,
+            // so emit our own so the rama swap is visible in the console.
+            klog("CLICK sst Icon_s → flip rama " + state.rama + " → " + target);
             runFlipBook(state, sides, function () {
                 setRamaUtil(state, target);
+                klog("rama set:", target);
             });
         }, true);   // capture phase: fires before the renderer's listener
     });
@@ -2479,6 +2653,8 @@ function handleBookAction(state, action) {
 function wireSstLamps(state) {
     const appId = state.config.id;
     const completed = (loadCompletedMap(appId)[String(state.rama)] || {});
+    const scoresMap = loadScoresMap(appId);
+    const ramaScores = scoresMap[String(state.rama)] || {};
     // Dvash uses {n_masl}.txt (no rama prefix) — the completed map I store
     // keys by rama too, but Dvash's activities are rama-invariant per
     // activityRamaPin=4. So lookups just use rama="4".
@@ -2486,6 +2662,15 @@ function wireSstLamps(state) {
     // of showing a dimmed Lamp1.bmp. The original .frm for these apps either
     // doesn't ship Lamp1.bmp at all or has the dim-load commented out.
     const hideWhenLocked = (appId === "Brahot" || appId === "Hagim" || appId === "Shabat");
+    // KolKoreC/D Lampas: per-rama lamp art (Lamp1<rama>.bmp / Lamp2<rama>.bmp)
+    // AND prints the score value v on top of Lamp2 with rama-conditional
+    // ForeColor — rama 1 → RGB(0,22,177) blue, rama 2 → RGB(199,77,0) orange.
+    // Score formula: v = Int(((bx*5 + cx + dX) * 20) / ax).
+    const perRamaLamp = (appId === "KolKoreC" || appId === "KolKoreD");
+    const ramaSuffix = perRamaLamp ? String(state.rama) : "";
+    const scoreColor = perRamaLamp
+        ? (String(state.rama) === "1" ? "#0016B1" : "#C74D00")
+        : null;
     const root = state.config.assetsRoot;
 
     const lamps = state.stage.querySelectorAll(".frm-ctrl--btnLamp");
@@ -2495,19 +2680,50 @@ function wireSstLamps(state) {
         const isDone = !!completed[String(idx)];
         const existing = el.querySelector("img");
         if (existing) existing.remove();
+        // Wipe any prior printed score overlay from a previous rama swap.
+        const oldOverlay = el.querySelector(".lamp-score");
+        if (oldOverlay) oldOverlay.remove();
 
         if (isDone) {
             el.style.display = "";
             el.style.cursor = "pointer";
             el.disabled = false;
             const img = document.createElement("img");
-            img.src = root + "/menu/lamp2.png";
+            img.src = root + "/menu/lamp2" + ramaSuffix + ".png";
             Object.assign(img.style, {
                 position: "absolute", inset: "0",
                 width: "100%", height: "100%",
                 objectFit: "contain", pointerEvents: "none",
             });
             el.appendChild(img);
+            if (perRamaLamp) {
+                // Compute score v from saved per-stage entries and stamp it
+                // on the lamp (mirrors btnLamp(i).Print v in original Lampas).
+                const entry = ramaScores[String(idx)];
+                if (entry && entry.stages && entry.stages.length) {
+                    let ax = 0, bx = 0, cx = 0, dX = 0;
+                    entry.stages.forEach(function (s) {
+                        ax += (s.total  || 0);
+                        bx += (s.green  || 0);
+                        cx += (s.yellow || 0);
+                        dX += (s.red    || 0);
+                    });
+                    const v = ax > 0 ? Math.floor(((bx * 5 + cx + dX) * 20) / ax) : 0;
+                    const score = document.createElement("span");
+                    score.className = "lamp-score";
+                    Object.assign(score.style, {
+                        position: "absolute",
+                        // Original: btnLamp(i).CurrentX = 30, CurrentY = 60 (twips).
+                        left: (30 / 15) + "px", top: (60 / 15) + "px",
+                        color: scoreColor,
+                        fontFamily: "Arial, sans-serif", fontWeight: "bold",
+                        fontSize: "14px",
+                        pointerEvents: "none",
+                    });
+                    score.textContent = String(v);
+                    el.appendChild(score);
+                }
+            }
             // Click already wired by the renderer's actionFor → "score:N".
         } else if (hideWhenLocked) {
             // Brahot/Hagim: Lampas hides the lamp entirely. Click on the
@@ -2515,12 +2731,12 @@ function wireSstLamps(state) {
             el.style.display = "none";
             el.disabled = true;
         } else {
-            // Yeled/Dvash: dim Lamp1 sprite, not clickable.
+            // Yeled/Dvash/KolKore: dim Lamp1 sprite, not clickable.
             el.style.display = "";
             el.style.cursor = "not-allowed";
             el.disabled = true;
             const img = document.createElement("img");
-            img.src = root + "/menu/lamp1.png";
+            img.src = root + "/menu/lamp1" + ramaSuffix + ".png";
             Object.assign(img.style, {
                 position: "absolute", inset: "0",
                 width: "100%", height: "100%",
@@ -2933,6 +3149,25 @@ function handleAction(appId, action /*, ctrl */) {
             return;
         }
         klog("activ: index " + idx + " not implemented (authoring tool)");
+        return;
+    }
+    if (action === "reset") {
+        // Sst.mahak_Click in every app:
+        //   kj = MsgBox("?למחוק את כל התוצאות", vbYesNo)
+        //   If kj = 6 Then ResetKlali: mahak.Visible = False: Lampas
+        // ResetKlali wipes Toz(rama,n).Sagur = 0 for every (rama, n) AND
+        // deletes every <rama><n_masl>.txt score file under AppPath. Port
+        // = clear the localStorage completed-map + scores-map for this app.
+        if (!currentSession) return;
+        const yes = window.confirm("?למחוק את כל התוצאות");
+        if (!yes) { klog("reset: cancelled"); return; }
+        try {
+            localStorage.removeItem(completedKey(appId));
+            localStorage.removeItem(scoresKey(appId));
+        } catch (e) { klog("reset save-clear failed:", e); }
+        klog("reset: wiped completed + scores for " + appId);
+        // Re-run Sst wiring so lamps go dim again and mahak hides itself.
+        wireSstLamps(currentSession);
         return;
     }
     if (action && action.indexOf("avi:") === 0) {
@@ -4048,9 +4283,20 @@ function renderGame4Place(state, stage, pic1, t) {
     btn.style.zIndex = "2";   // above the red cover for hit-testing
     btn.addEventListener("click", function (e) {
         e.stopPropagation();
-        // Mark this hotspot as revealed so the next renderGame4Place pass
-        // (after the correct-chain reset) doesn't repaint a cover on it.
+        // Mark this hotspot as revealed so any subsequent renderGame4
+        // pass doesn't repaint a cover on it.
         state.game4Revealed[state.Pr_N] = true;
+        // Remove the live red cover NOW so the answer image is exposed
+        // before the correct-chain audio (Tguva → affirmation → mus →
+        // next) plays — original Sst.frm does Label1(Gg_N).Visible=False
+        // immediately on correct match, then runs the audio chain.
+        const live = pic1.querySelector('.stage-cover--game4[data-idx="' + state.Pr_N + '"]');
+        if (live) live.remove();
+        // The cursor piece (Picture3) also goes away once placed.
+        if (state._cursorPiece) {
+            state._cursorPiece.remove();
+            state._cursorPiece = null;
+        }
         onCorrectClickGame4Place(state);
     });
     pic1.appendChild(btn);

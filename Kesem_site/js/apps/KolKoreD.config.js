@@ -19,6 +19,9 @@ export default {
             designSize: [640, 480],
             images: {
                 mahak: "assets/KolKoreD/menu/mhak.png",
+                // Icon_s (rama toggle) — per-rama image set by
+                // Sst.Icon_s_Click. After the toggle, rama N shows dafm<N>.png.
+                Icon_s: "assets/KolKoreD/bmp/dafm{rama}.png",
                 btnIcon: [
                     "assets/KolKoreD/menu/tem_1{rama}.png",
                     "assets/KolKoreD/menu/tem_2{rama}.png",
