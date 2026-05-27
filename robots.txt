@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+# Block crawling of large raw asset trees that aren't useful in search.
+Disallow: /*/assets/*/sounds/
+Disallow: /*/data/*/unit_*/wave/
+Disallow: /*/_raw/
+
+Sitemap: https://tekoacomputers.github.io/Educational-Software/sitemap.xml

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+
+    <!-- Catalog (root) -->
+    <url>
+        <loc>https://tekoacomputers.github.io/Educational-Software/</loc>
+        <changefreq>monthly</changefreq>
+        <priority>1.0</priority>
+        <xhtml:link rel="alternate" hreflang="he" href="https://tekoacomputers.github.io/Educational-Software/"/>
+    </url>
+
+    <!-- Tirgolit (standalone app) -->
+    <url>
+        <loc>https://tekoacomputers.github.io/Educational-Software/Tirgolit_site/index.html</loc>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+
+    <!-- Kesem suite — Google generally ignores hash fragments so the
+         search-indexable URL is the Kesem_site root. Sub-apps are
+         enumerated below so any crawler that does follow hash routes
+         (Bing handles them in some cases) sees them, and the JSON-LD
+         on the catalog page also surfaces them. -->
+    <url>
+        <loc>https://tekoacomputers.github.io/Educational-Software/Kesem_site/index.html</loc>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    <url><loc>https://tekoacomputers.github.io/Educational-Software/Kesem_site/index.html#/Brahot</loc><priority>0.6</priority></url>
+    <url><loc>https://tekoacomputers.github.io/Educational-Software/Kesem_site/index.html#/Hagim</loc><priority>0.6</priority></url>
+    <url><loc>https://tekoacomputers.github.io/Educational-Software/Kesem_site/index.html#/Yeled</loc><priority>0.6</priority></url>
+    <url><loc>https://tekoacomputers.github.io/Educational-Software/Kesem_site/index.html#/Dvash</loc><priority>0.6</priority></url>
+    <url><loc>https://tekoacomputers.github.io/Educational-Software/Kesem_site/index.html#/Shabat</loc><priority>0.6</priority></url>
+    <url><loc>https://tekoacomputers.github.io/Educational-Software/Kesem_site/index.html#/Heshbon</loc><priority>0.6</priority></url>
+    <url><loc>https://tekoacomputers.github.io/Educational-Software/Kesem_site/index.html#/Ivrit</loc><priority>0.6</priority></url>
+    <url><loc>https://tekoacomputers.github.io/Educational-Software/Kesem_site/index.html#/EnglishA</loc><priority>0.6</priority></url>
+    <url><loc>https://tekoacomputers.github.io/Educational-Software/Kesem_site/index.html#/EnglishB</loc><priority>0.6</priority></url>
+    <url><loc>https://tekoacomputers.github.io/Educational-Software/Kesem_site/index.html#/EnglishC</loc><priority>0.6</priority></url>
+    <url><loc>https://tekoacomputers.github.io/Educational-Software/Kesem_site/index.html#/KolKoreA</loc><priority>0.6</priority></url>
+    <url><loc>https://tekoacomputers.github.io/Educational-Software/Kesem_site/index.html#/KolKoreB</loc><priority>0.6</priority></url>
+    <url><loc>https://tekoacomputers.github.io/Educational-Software/Kesem_site/index.html#/KolKoreC</loc><priority>0.6</priority></url>
+    <url><loc>https://tekoacomputers.github.io/Educational-Software/Kesem_site/index.html#/KolKoreD</loc><priority>0.6</priority></url>
+    <url><loc>https://tekoacomputers.github.io/Educational-Software/Kesem_site/index.html#/Shirim</loc><priority>0.6</priority></url>
+    <url><loc>https://tekoacomputers.github.io/Educational-Software/Kesem_site/index.html#/Shirim&amp;Meshalim</loc><priority>0.6</priority></url>
+
+    <!-- Hemed / Nivim apps (separate two-app suite) -->
+    <url>
+        <loc>https://tekoacomputers.github.io/Educational-Software/hemed_nivim_site/index.html</loc>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    <url><loc>https://tekoacomputers.github.io/Educational-Software/hemed_nivim_site/index.html#/Hemed</loc><priority>0.6</priority></url>
+    <url><loc>https://tekoacomputers.github.io/Educational-Software/hemed_nivim_site/index.html#/Nivim</loc><priority>0.6</priority></url>
+
+</urlset>
