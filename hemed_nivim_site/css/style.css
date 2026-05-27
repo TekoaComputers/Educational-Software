@@ -1,0 +1,1469 @@
+/* Hemed / Nivim — fixed 800×600 stage rendered against the original
+   VB6 hand-painted backgrounds. Controls overlay at .frm pixel coords
+   (twips/15) so the layout matches the source forms 1:1. */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+    background: #000;
+    color: #2a1d0a;
+    font-family: "David CLM", "Arial Hebrew", "Heebo", "Segoe UI", Arial, sans-serif;
+    overflow: hidden;
+}
+
+/* Stage = the original 800×600 form canvas. fit-to-viewport via JS so
+   the BG art stays sharp without distortion. */
+#app {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.stage {
+    position: relative;
+    width: 800px;
+    height: 600px;
+    background-color: #87b9d6;
+    background-position: center;
+    background-size: 800px 600px;
+    background-repeat: no-repeat;
+    transform-origin: center center;
+    overflow: hidden;
+    direction: rtl;
+    color: #2a1d0a;
+    font-size: 16px;
+    user-select: none;
+}
+
+/* Every overlay control is absolutely positioned in design pixels. */
+.ctrl {
+    position: absolute;
+    box-sizing: border-box;
+}
+
+/* Round corner buttons used for CmdExit / CmdHelp on every screen.
+   Original is the Tzemed_Hemed.CmdPlus custom control — a rounded
+   wood-tone button. The exit/help PNG images live under Main/. */
+.cmd-icon {
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    z-index: 50;
+}
+.cmd-icon:hover { filter: brightness(1.08); }
+
+/* Game-overlay container — must not swallow clicks aimed at the corner
+   nav icons. Children opt back into pointer events. */
+.game-root { pointer-events: none; }
+.game-root > * { pointer-events: auto; }
+
+.exit-icon {
+    /* Hardcoded position from MainForm.frm CmdExit (L=75, T=30, W=825, H=825).
+       At twips/15 → (5, 2, 55, 55) px. */
+    left: 5px; top: 2px; width: 55px; height: 55px;
+}
+.exit-icon[data-app="Hemed"], .exit-icon[data-app="Nivim"] {
+    background-image: url("../assets/Hemed/pictures/exit_on.png");
+}
+.exit-icon[data-app="Hemed"]:hover, .exit-icon[data-app="Nivim"]:hover {
+    background-image: url("../assets/Hemed/pictures/exit_down.png");
+}
+.help-icon {
+    /* CmdHelp (L=11100, T=30, W=825, H=825). */
+    left: 740px; top: 2px; width: 55px; height: 55px;
+    background-image: url("../assets/Hemed/pictures/help_on.png");
+}
+.help-icon:hover {
+    background-image: url("../assets/Hemed/pictures/help_down.png");
+}
+
+/* Text overlays sitting on top of the painted scenes. The leaf
+   background already holds the labels for "name", "rama", "entry";
+   the inputs/selectors just need to drop in at the matching pixel. */
+.field-input,
+.field-select {
+    background: rgba(255,255,255,0.85);
+    border: 1px solid #5b3a14;
+    border-radius: 6px;
+    padding: 4px 10px;
+    color: #2a1d0a;
+    font: inherit;
+    font-size: 1rem;
+    text-align: center;
+    outline: none;
+}
+.field-input:focus, .field-select:focus { background: #fff; border-color: #b88840; }
+
+/* "כניסה לתרגול" entry-arrow button (CmdShowUnits L=3840 T=4560
+   W=4215 H=855 → 256, 304, 281, 57). Original is a transparent
+   click-through with the leaf art showing the arrow. */
+.entry-btn {
+    background: transparent;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    color: transparent;   /* the arrow is in the leaf BG */
+}
+.entry-btn:hover { border-color: rgba(255, 215, 100, 0.9); background: rgba(255, 220, 120, 0.15); }
+
+.sub-btn {
+    background: transparent;
+    border: 1px dashed transparent;
+    cursor: pointer;
+    color: transparent;
+}
+.sub-btn:hover { border-color: rgba(255, 215, 100, 0.7); background: rgba(255, 220, 120, 0.1); }
+
+/* --- Unit list (parchment scroll) -----------------------------------
+   Original: ListPlus UnitList renders subject headers in RGB(0,20,90) at
+   24pt, unit rows in RGB(50,100,0) at 20pt. ScoreList sits to the left
+   and stays scroll-locked with UnitList. */
+.unit-scroll {
+    /* UnitList L=3600 T=1920 W=5295 H=6900 → 240, 128, 353, 460 */
+    left: 240px; top: 128px; width: 353px; height: 460px;
+    overflow-y: auto;
+    padding: 4px 8px;
+    direction: rtl;
+    scrollbar-width: thin;
+}
+/* Both columns share the same per-row heights so the scores line up
+   exactly with their unit row. Header = subject divider (taller),
+   unit = playable row (shorter). Both lists step in lockstep. */
+.unit-scroll .row,
+.score-col   .cell {
+    box-sizing: border-box;
+    padding: 2px 6px;
+    cursor: default;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.1;
+}
+.unit-scroll .row.header,
+.score-col   .cell.header {
+    height: 38px;        /* same for both columns → no drift */
+    padding-top: 10px;
+    padding-bottom: 4px;
+    font-size: 1.4rem;
+    font-weight: 700;
+}
+.unit-scroll .row.header { color: rgb(0, 20, 90); text-align: right; }
+.score-col   .cell.header { color: rgb(0, 20, 90); text-align: center; }
+.unit-scroll .row.unit,
+.score-col   .cell.unit {
+    height: 26px;        /* matched height ensures score lines up */
+    padding-top: 3px;
+    padding-bottom: 3px;
+    font-size: 1.15rem;
+}
+.unit-scroll .row.unit  {
+    color: rgb(50, 100, 0); cursor: pointer;
+    display: flex; align-items: center; gap: 4px;
+    direction: rtl;
+}
+.unit-scroll .row.unit .row-name { flex: 1; text-align: right; overflow: hidden; text-overflow: ellipsis; }
+.unit-scroll .row.unit .row-idx  { flex: 0 0 auto; font-size: 0.85rem; opacity: 0.7; direction: ltr; }
+.score-col   .cell.unit { color: rgb(50, 100, 0); font-weight: 700; text-align: center; }
+.unit-scroll .row.unit:hover  { background: rgba(184, 136, 64, 0.15); }
+.unit-scroll .row.unit.sel    { background: rgba(184, 136, 64, 0.35); color: rgb(35, 70, 0); }
+.score-col   .cell.unit.sel   { color: rgb(35, 70, 0); }
+
+/* Score column (ScoreList L=2760 T=1920 W=855 H=6900 → 184,128, 57,460) */
+.score-col {
+    left: 184px; top: 128px; width: 57px; height: 460px;
+    overflow-y: hidden;            /* driven by .unit-scroll */
+    padding: 4px 4px;
+    direction: rtl;
+    scrollbar-width: none;
+}
+.score-col::-webkit-scrollbar { display: none; }
+
+/* CmdGameMenu (the "התחל!" entry button). Original paints start.bmp as-is;
+   sky-blue corners pre-blend with the back.png sky. AniStart_Timer runs
+   only between MouseOn/MouseOff per UnitListForm.frm — translated here as
+   a hover-scoped CSS animation. */
+.game-menu-btn {
+    /* CmdGameMenu L=9960 T=4590 W=1680 H=1530 → 664, 306, 112, 102 */
+    left: 664px; top: 306px; width: 112px; height: 102px;
+    background-image: url("../assets/Hemed/pictures/UnitList/start.png");
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    background-color: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    color: transparent;
+}
+.game-menu-btn:hover {
+    background-image: url("../assets/Hemed/pictures/UnitList/startdown.png");
+    animation: gameMenuJiggle 0.45s ease-in-out infinite;
+}
+.game-menu-btn:active { background-image: url("../assets/Hemed/pictures/UnitList/startdown.png"); }
+@keyframes gameMenuJiggle {
+    0%, 100% { transform: translate(0, 0); }
+    25%      { transform: translate(2px, -1px); }
+    50%      { transform: translate(0, 1px); }
+    75%      { transform: translate(-2px, 0); }
+}
+
+/* --- Game menu (hanging wooden signs) -------------------------------
+   Original GameMenu.frm: 9 CmdPlus1 slots positioned in a vertical stack,
+   each painted with kora<i>.bmp (the sign + Hebrew label baked in). The
+   .frm sets only Top and the BMP is the visual. */
+.game-sign {
+    height: 54px;
+    background-color: transparent;
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    color: transparent;            /* label is baked into the BMP */
+}
+/* setBack_Timer slides the hovered sign Left -= 4/tick until Left < xStart-10. */
+.game-sign { transition: transform 0.2s ease-out; }
+.game-sign:hover  { filter: brightness(1.1); transform: translateX(-10px); }
+.game-sign.k0 { background-image: url("../assets/Hemed/pictures/GameMenu/kora0.png"); }
+.game-sign.k1 { background-image: url("../assets/Hemed/pictures/GameMenu/kora1.png"); }
+.game-sign.k2 { background-image: url("../assets/Hemed/pictures/GameMenu/kora2.png"); }
+.game-sign.k3 { background-image: url("../assets/Hemed/pictures/GameMenu/kora3.png"); }
+.game-sign.k4 { background-image: url("../assets/Hemed/pictures/GameMenu/kora4.png"); }
+.game-sign.k5 { background-image: url("../assets/Hemed/pictures/GameMenu/kora5.png"); }
+.game-sign.k6 { background-image: url("../assets/Hemed/pictures/GameMenu/kora6.png"); }
+.game-sign.k7 { background-image: url("../assets/Hemed/pictures/GameMenu/kora7.png"); }
+.game-sign.k8 { background-image: url("../assets/Hemed/pictures/GameMenu/kora8.png"); }
+/* Score painted directly on each kora sign — per drawScore() sub:
+   DrawString StringToByte(Tag), hdc, 36, 10, RGB(200, 250, 160), vbCenter
+   at FontSize 22. The "36, 10" is centered around the sign's left edge. */
+.game-sign-score {
+    position: absolute;
+    left: 14px; top: 8px;
+    width: 56px;
+    color: rgb(200, 250, 160);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+    font-size: 1.4rem;
+    font-weight: 700;
+    text-align: center;
+    line-height: 1;
+    pointer-events: none;
+}
+
+/* Title bar — Form_Paint draws this at y=8 in RGB(90,131,252) over a
+   pale-lavender RGB(220,221,252) shadow row at y=9, centered x=400. */
+.game-menu-title {
+    left: 0; top: 6px; width: 800px;
+    text-align: center;
+    color: rgb(90, 131, 252);
+    text-shadow:
+        0 1px 0 rgb(220, 221, 252),
+        1px 0 0 rgb(220, 221, 252),
+        -1px 0 0 rgb(220, 221, 252);
+    font-size: 1.15rem;
+    font-weight: 700;
+    direction: rtl;
+    pointer-events: none;
+}
+
+/* windowPic preview — L=285 T=2865 W=3075 H=2700 → 19,191,205,180.
+   Hidden until a sign is hovered (CmdPlus1_MouseOn). */
+.game-menu-preview {
+    left: 19px; top: 191px; width: 205px; height: 180px;
+    background-color: transparent;
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    background-position: center;
+    opacity: 0;
+    transition: opacity 0.18s;
+    pointer-events: none;
+}
+.game-menu-preview.visible { opacity: 1; }
+
+/* GoatArow — 2-frame goat sprite at x=712, drawn 90×70 per the BitBlt
+   call in setBack_Timer. Slides vertically to GoatY = avg(GoatY, target).
+   FrameN toggles 0↔1 while moving (arrow1.png / arrow2.png); single
+   frame (arrow1) when settled. */
+.goat {
+    left: 712px; width: 90px; height: 70px;
+    background-image: url("../assets/Hemed/pictures/GameMenu/arrow1.png");
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    transition: top 0.3s ease-out;
+    pointer-events: none;
+}
+.goat.moving { animation: goatStep 0.18s steps(1) infinite; }
+@keyframes goatStep {
+    0%   { background-image: url("../assets/Hemed/pictures/GameMenu/arrow1.png"); }
+    50%  { background-image: url("../assets/Hemed/pictures/GameMenu/arrow2.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameMenu/arrow1.png"); }
+}
+
+/* ShakePic — grass tufts at L=6735 T=7980 → x=449 y=532. AutoSize=True
+   in the .frm so we use the BMP's natural size. setBack_Timer cycles
+   shake0..shake3 every ~150ms (CInt(shakePicIndex/3.5)) while moving. */
+.shake-pic {
+    left: 449px; top: 532px; width: 177px; height: 48px;
+    background-image: url("../assets/Hemed/pictures/GameMenu/shake0.png");
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    pointer-events: none;
+}
+.shake-pic.shaking { animation: grassShake 0.6s steps(1) infinite; }
+@keyframes grassShake {
+    0%   { background-image: url("../assets/Hemed/pictures/GameMenu/shake0.png"); }
+    25%  { background-image: url("../assets/Hemed/pictures/GameMenu/shake1.png"); }
+    50%  { background-image: url("../assets/Hemed/pictures/GameMenu/shake2.png"); }
+    75%  { background-image: url("../assets/Hemed/pictures/GameMenu/shake3.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameMenu/shake0.png"); }
+}
+
+/* --- Match / Hatama (GameHatama.frm) -----------------------------
+   Pixel-faithful port of RePaintLine() composition:
+     Each row is 660px wide at left=60, height=42, y=110+i*42.
+     linesfull.png (660×430) sliced into 10 rows of 43px via LinePicOrder.
+     linesleft.png / linesright.png (40×430) are the ragged inner edges.
+   Three visible states per row:
+     NotAnswered: only right paper (X=317→660) + RightLinePic ragged edge at X=317.
+     InFocus:     both papers slightly offset (CurrX=3) with both edges meeting.
+     Answered:    both papers overlap (CurrX=-6) into one strip, tinted green. */
+.hat-lines-layer,
+.hat-flowers-layer { left: 0; top: 0; width: 800px; height: 600px; }
+.hat-flowers-layer { pointer-events: none; }
+
+.hat-line {
+    left: 60px; width: 660px; height: 42px;
+}
+/* Each row uses linesfull.png as its FULL background, sliced to the row's
+   pic-N strip (rows 0..9 of the 660×430 sprite sheet, 43px each). For the
+   NotAnswered state we clip-path to show only the right half; on InFocus
+   /Answered the clip expands to reveal the whole strip. Much simpler than
+   composing two paper halves + edge sprites. */
+.hat-paper {
+    position: absolute; top: 0; left: 0; width: 660px; height: 42px;
+    background-image: url("../assets/Hemed/pictures/GameHatama/linesfull.png");
+    background-repeat: no-repeat;
+    background-size: 660px 430px;
+    /* default: full strip visible (Answered state) */
+    clip-path: inset(0 0 0 0);
+    transition: clip-path 0.3s ease-out, filter 0.3s;
+}
+/* Hide the unused half/edge elements — kept as no-ops so the JS that
+   appends them still compiles. */
+.hat-paper-left, .hat-edge, .hat-edge-left, .hat-edge-right { display: none; }
+
+/* pic-N slices: row N of the 10-row sprite-sheet at y = -N*43px. */
+.pic-0 .hat-paper { background-position-y:   0px; }
+.pic-1 .hat-paper { background-position-y: -43px; }
+.pic-2 .hat-paper { background-position-y: -86px; }
+.pic-3 .hat-paper { background-position-y: -129px; }
+.pic-4 .hat-paper { background-position-y: -172px; }
+.pic-5 .hat-paper { background-position-y: -215px; }
+.pic-6 .hat-paper { background-position-y: -258px; }
+.pic-7 .hat-paper { background-position-y: -301px; }
+.pic-8 .hat-paper { background-position-y: -344px; }
+.pic-9 .hat-paper { background-position-y: -387px; }
+
+/* Text — ask is on RIGHT, answer is on LEFT (Hebrew layout). */
+.hat-text {
+    position: absolute; top: 0; height: 42px;
+    display: flex; align-items: center;
+    color: #2a1d0a; font-size: 0.95rem; font-weight: 700;
+    white-space: nowrap; overflow: hidden;
+    text-shadow: 0 1px 1px rgba(255,255,255,0.6);
+    direction: rtl;
+}
+.hat-text-right {
+    left: 360px; right: 14px;
+    justify-content: center;
+    padding: 0 8px;
+}
+.hat-text-left {
+    left: 14px; width: 290px;
+    justify-content: center;
+    padding: 0 8px;
+}
+
+/* State: NotAnswered — only right paper + right edge + ask text visible. */
+.hat-line.not-answered .hat-paper-left,
+.hat-line.not-answered .hat-edge-left,
+.hat-line.not-answered .hat-text-left { display: none; }
+.hat-line.not-answered           { cursor: pointer; }
+.hat-line.not-answered:hover .hat-paper-right { filter: brightness(1.05); }
+
+/* State: InFocus — both papers with a slight CurrX=3 inward shift. */
+.hat-line.in-focus .hat-paper-left  { left: 6px;   filter: hue-rotate(10deg) brightness(1.02); }
+.hat-line.in-focus .hat-paper-right { left: 320px; filter: hue-rotate(10deg) brightness(1.02); }
+.hat-line.in-focus .hat-edge-left   { left: 276px; }
+.hat-line.in-focus .hat-edge-right  { left: 314px; }
+
+/* State: Answered — papers overlap (CurrX=-6) into one strip, green tint. */
+.hat-line.answered .hat-paper-left,
+.hat-line.answered .hat-paper-right { filter: hue-rotate(60deg) saturate(0.85) brightness(0.95); }
+.hat-line.answered .hat-paper-left  { left: -3px; }
+.hat-line.answered .hat-paper-right { left: 311px; }
+.hat-line.answered .hat-edge-left,
+.hat-line.answered .hat-edge-right  { display: none; }
+.hat-line.answered                  { cursor: default; }
+
+.hat-line.wrong-flash .hat-paper-right {
+    animation: hatWrongFlash 0.5s steps(1) 2;
+}
+@keyframes hatWrongFlash {
+    0%, 50%, 100% { filter: none; }
+    25%, 75%      { filter: hue-rotate(-40deg) brightness(0.85); }
+}
+
+/* Header — UnitName · UserName, light-blue text at top of stage. */
+.hat-header {
+    left: 60px; top: 10px; width: 680px;
+    text-align: center; font-size: 1rem; font-weight: 700;
+    color: rgb(20, 40, 190);
+    text-shadow:
+        0 1px 0 rgb(180, 220, 255),
+        0 -1px 0 rgb(130, 180, 255);
+    pointer-events: none;
+}
+
+/* Penalty number at (740,350) in red. */
+.hat-penalty {
+    left: 740px; top: 350px; width: 60px; height: 40px;
+    text-align: center;
+    font-size: 1.7rem; font-weight: 700;
+    color: rgb(190, 80, 20);
+    text-shadow:
+        0 1px 1px rgb(255, 220, 180),
+        0 -1px 0 rgb(255, 180, 130);
+    pointer-events: none;
+}
+
+/* Hint text below the header (y=60), painted when error count ≥ ErrorForHint. */
+.hat-hint {
+    left: 60px; top: 60px; width: 680px;
+    text-align: center; font-size: 0.95rem; font-style: italic;
+    color: rgb(30, 50, 210); min-height: 20px;
+    pointer-events: none;
+}
+.hat-start-hint {
+    left: 60px; top: 320px; width: 680px;
+    text-align: center; font-size: 1.5rem; font-weight: 700;
+    color: #fff;
+    background: rgba(91, 58, 20, 0.85);
+    border: 3px solid #f6e7c2;
+    border-radius: 12px; padding: 16px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    z-index: 20;
+    pointer-events: none;
+}
+
+/* Goat at GoatPic L=10725 T=1620 → (715,108), 85×173 native. */
+.hat-goat {
+    left: 715px; top: 108px; width: 85px; height: 173px;
+    background-image: url("../assets/Hemed/pictures/GameHatama/goatlook.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent;
+    z-index: 5;
+    pointer-events: none;
+}
+.hat-goat.f0 { background-image: url("../assets/Hemed/pictures/GameHatama/goatlook0.png"); }
+.hat-goat.f1 { background-image: url("../assets/Hemed/pictures/GameHatama/goatlook1.png"); }
+.hat-goat.f2 { background-image: url("../assets/Hemed/pictures/GameHatama/goatlook2.png"); }
+.hat-goat.f3 { background-image: url("../assets/Hemed/pictures/GameHatama/goatlook3.png"); }
+.hat-goat.f4 { background-image: url("../assets/Hemed/pictures/GameHatama/goatlook4.png"); }
+.hat-goat.f5 { background-image: url("../assets/Hemed/pictures/GameHatama/goatlook5.png"); }
+.hat-goat.f6 { background-image: url("../assets/Hemed/pictures/GameHatama/goatlook6.png"); }
+.hat-goat.f7 { background-image: url("../assets/Hemed/pictures/GameHatama/goatlook7.png"); }
+.hat-goat.f8 { background-image: url("../assets/Hemed/pictures/GameHatama/goatlook8.png"); }
+.hat-goat.cheer { animation: hatGoatCheer 0.72s steps(1); }
+@keyframes hatGoatCheer {
+    0%   { background-image: url("../assets/Hemed/pictures/GameHatama/goatgood_1_0.png"); }
+    11%  { background-image: url("../assets/Hemed/pictures/GameHatama/goatgood_1_1.png"); }
+    22%  { background-image: url("../assets/Hemed/pictures/GameHatama/goatgood_1_2.png"); }
+    33%  { background-image: url("../assets/Hemed/pictures/GameHatama/goatgood_1_3.png"); }
+    44%  { background-image: url("../assets/Hemed/pictures/GameHatama/goatgood_1_4.png"); }
+    55%  { background-image: url("../assets/Hemed/pictures/GameHatama/goatgood_1_5.png"); }
+    66%  { background-image: url("../assets/Hemed/pictures/GameHatama/goatgood_1_6.png"); }
+    77%  { background-image: url("../assets/Hemed/pictures/GameHatama/goatgood_1_7.png"); }
+    88%  { background-image: url("../assets/Hemed/pictures/GameHatama/goatgood_1_8.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameHatama/goatlook.png"); }
+}
+.hat-goat.win { animation: hatGoatWin 2s steps(1) infinite; }
+@keyframes hatGoatWin {
+    0%   { background-image: url("../assets/Hemed/pictures/GameHatama/goatwin0.png"); }
+    4%   { background-image: url("../assets/Hemed/pictures/GameHatama/goatwin2.png"); }
+    8%   { background-image: url("../assets/Hemed/pictures/GameHatama/goatwin4.png"); }
+    12%  { background-image: url("../assets/Hemed/pictures/GameHatama/goatwin6.png"); }
+    16%  { background-image: url("../assets/Hemed/pictures/GameHatama/goatwin8.png"); }
+    20%  { background-image: url("../assets/Hemed/pictures/GameHatama/goatwin10.png"); }
+    25%  { background-image: url("../assets/Hemed/pictures/GameHatama/goatwin12.png"); }
+    30%  { background-image: url("../assets/Hemed/pictures/GameHatama/goatwin14.png"); }
+    35%  { background-image: url("../assets/Hemed/pictures/GameHatama/goatwin16.png"); }
+    42%  { background-image: url("../assets/Hemed/pictures/GameHatama/goatwin18.png"); }
+    50%  { background-image: url("../assets/Hemed/pictures/GameHatama/goatwin20.png"); }
+    62%  { background-image: url("../assets/Hemed/pictures/GameHatama/goatwin22.png"); }
+    75%  { background-image: url("../assets/Hemed/pictures/GameHatama/goatwin24.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameHatama/goatwin0.png"); }
+}
+
+/* Flowers on the left stem — Y = 485 - 390/QCount*i; X from FloweX.txt. */
+.hat-flower {
+    position: absolute; width: 50px; height: 50px;
+    background-image: url("../assets/Hemed/pictures/GameHatama/flower0_0.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent;
+    z-index: 4;
+}
+.hat-flower.kind-0.growing { animation: hatFlower0 0.75s steps(1) forwards; }
+.hat-flower.kind-1.growing { animation: hatFlower1 0.75s steps(1) forwards; }
+.hat-flower.kind-2.growing { animation: hatFlower2 0.55s steps(1) forwards; }
+@keyframes hatFlower0 {
+    0%  { background-image: url("../assets/Hemed/pictures/GameHatama/flower0_0.png"); }
+    11% { background-image: url("../assets/Hemed/pictures/GameHatama/flower0_1.png"); }
+    22% { background-image: url("../assets/Hemed/pictures/GameHatama/flower0_2.png"); }
+    33% { background-image: url("../assets/Hemed/pictures/GameHatama/flower0_3.png"); }
+    44% { background-image: url("../assets/Hemed/pictures/GameHatama/flower0_4.png"); }
+    55% { background-image: url("../assets/Hemed/pictures/GameHatama/flower0_5.png"); }
+    66% { background-image: url("../assets/Hemed/pictures/GameHatama/flower0_6.png"); }
+    77% { background-image: url("../assets/Hemed/pictures/GameHatama/flower0_7.png"); }
+    88% { background-image: url("../assets/Hemed/pictures/GameHatama/flower0_8.png"); }
+    100%{ background-image: url("../assets/Hemed/pictures/GameHatama/flower0_9.png"); }
+}
+@keyframes hatFlower1 {
+    0%  { background-image: url("../assets/Hemed/pictures/GameHatama/flower1_0.png"); }
+    11% { background-image: url("../assets/Hemed/pictures/GameHatama/flower1_1.png"); }
+    22% { background-image: url("../assets/Hemed/pictures/GameHatama/flower1_2.png"); }
+    33% { background-image: url("../assets/Hemed/pictures/GameHatama/flower1_3.png"); }
+    44% { background-image: url("../assets/Hemed/pictures/GameHatama/flower1_4.png"); }
+    55% { background-image: url("../assets/Hemed/pictures/GameHatama/flower1_5.png"); }
+    66% { background-image: url("../assets/Hemed/pictures/GameHatama/flower1_6.png"); }
+    77% { background-image: url("../assets/Hemed/pictures/GameHatama/flower1_7.png"); }
+    88% { background-image: url("../assets/Hemed/pictures/GameHatama/flower1_8.png"); }
+    100%{ background-image: url("../assets/Hemed/pictures/GameHatama/flower1_9.png"); }
+}
+@keyframes hatFlower2 {
+    0%  { background-image: url("../assets/Hemed/pictures/GameHatama/flower2_0.png"); }
+    14% { background-image: url("../assets/Hemed/pictures/GameHatama/flower2_1.png"); }
+    28% { background-image: url("../assets/Hemed/pictures/GameHatama/flower2_2.png"); }
+    42% { background-image: url("../assets/Hemed/pictures/GameHatama/flower2_3.png"); }
+    57% { background-image: url("../assets/Hemed/pictures/GameHatama/flower2_4.png"); }
+    71% { background-image: url("../assets/Hemed/pictures/GameHatama/flower2_5.png"); }
+    100%{ background-image: url("../assets/Hemed/pictures/GameHatama/flower2_6.png"); }
+}
+.hat-flower.seed {
+    background-image: url("../assets/Hemed/pictures/GameHatama/flower0_0.png");
+    opacity: 0.7;
+}
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+
+/* --- American (GameAmerican.frm) -----------------------------------
+   QSpot   L=150 T=80  W=500 H=60 — uses text.bmp frame.
+   HotSpot L=170 W=500 H=60       — 4 stacked, Top=160+i*62.
+   Hetz    X=80, Y=mid-45         — green arrow indicator left of option.
+   Sound   L = QSpot.Right+10     — speaker button.
+   Header  (400,10) RGB(20,40,200) light-blue shadow.
+   Penalty (2,487) RGB(190,80,20) orange shadow.
+   Flowers snaking 3 rows at y=462/487/512, 65px apart. */
+.am-flower-layer { left: 0; top: 0; width: 800px; height: 600px;
+                   pointer-events: none; }
+.am-options-layer { left: 0; top: 0; width: 800px; height: 600px; }
+
+.am-header {
+    left: 0; right: 0; top: 8px;
+    text-align: center; font-size: 1.1rem; font-weight: 700;
+    color: rgb(20, 40, 200);
+    text-shadow:
+        0 1px 0 rgb(160, 190, 245),
+        0 -1px 0 rgb(110, 110, 225);
+    pointer-events: none;
+}
+
+.am-penalty {
+    left: 2px; top: 487px; width: 50px; height: 25px;
+    text-align: center; font-size: 1.4rem; font-weight: 700;
+    color: rgb(190, 80, 20);
+    text-shadow:
+        0 1px 1px rgb(255, 220, 180),
+        0 -1px 0 rgb(255, 180, 130);
+    pointer-events: none;
+}
+
+.am-flower {
+    position: absolute; width: 38px; height: 60px;
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent;
+}
+.am-flower.seed {
+    background-image: url("../assets/Hemed/pictures/GameHaklada/flower1_0.png");
+    opacity: 0.5;
+}
+.am-flower.kind-0.growing { animation: hakFlower1 0.75s steps(1) forwards; }
+.am-flower.kind-1.growing { animation: hakFlower2 0.75s steps(1) forwards; }
+.am-flower.kind-2.growing { animation: hakFlower3 0.75s steps(1) forwards; }
+.am-q-frame {
+    left: 150px; top: 80px; width: 500px; height: 60px;
+    background-image: url("../assets/Hemed/pictures/GameAmerican/text.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    padding: 0 30px;
+}
+.am-q-frame:hover {
+    background-image: url("../assets/Hemed/pictures/GameAmerican/textfocus.png");
+}
+.am-q-text { color: #2a1d0a; font-size: 1.3rem; font-weight: 700; text-align: center; }
+
+.am-option {
+    left: 170px; width: 500px; height: 60px;
+    background-image: url("../assets/Hemed/pictures/GameAmerican/text.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    padding: 0 30px;
+    transition: filter 0.15s;
+}
+.am-option:hover,
+.am-option.focus {
+    background-image: url("../assets/Hemed/pictures/GameAmerican/textfocus.png");
+}
+.am-option.done {
+    background-image: url("../assets/Hemed/pictures/GameAmerican/textfocus.png");
+    filter: hue-rotate(60deg) brightness(1.05);
+}
+.am-option.wrong { animation: shake 0.4s; filter: hue-rotate(-40deg) brightness(0.95); }
+.am-option.reveal { animation: amRevealFlash 0.6s; }
+@keyframes amRevealFlash {
+    0%, 100% { filter: none; }
+    25%, 75% { filter: hue-rotate(30deg) brightness(1.2); }
+}
+.am-option-text { color: #2a1d0a; font-size: 1.15rem; font-weight: 600; text-align: center; }
+
+.am-hetz {
+    left: 80px; width: 70px; height: 50px;
+    background-image: url("../assets/Hemed/pictures/GameAmerican/hetzright0_1.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    opacity: 0;
+    transition: opacity 0.18s;
+    pointer-events: none;
+}
+.am-hetz.on   {
+    opacity: 1;
+    animation: amHetzCycle 0.4s steps(1) infinite;
+}
+@keyframes amHetzCycle {
+    0%   { background-image: url("../assets/Hemed/pictures/GameAmerican/hetzright1_1.png"); }
+    20%  { background-image: url("../assets/Hemed/pictures/GameAmerican/hetzright1_2.png"); }
+    40%  { background-image: url("../assets/Hemed/pictures/GameAmerican/hetzright1_3.png"); }
+    60%  { background-image: url("../assets/Hemed/pictures/GameAmerican/hetzright1_4.png"); }
+    80%  { background-image: url("../assets/Hemed/pictures/GameAmerican/hetzright1_5.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameAmerican/hetzright1_1.png"); }
+}
+.am-hetz.done {
+    opacity: 1;
+    animation: amHetzWin 0.6s steps(1) infinite;
+}
+@keyframes amHetzWin {
+    0%   { background-image: url("../assets/Hemed/pictures/GameAmerican/hetzright2_1.png"); }
+    12%  { background-image: url("../assets/Hemed/pictures/GameAmerican/hetzright2_2.png"); }
+    25%  { background-image: url("../assets/Hemed/pictures/GameAmerican/hetzright2_3.png"); }
+    37%  { background-image: url("../assets/Hemed/pictures/GameAmerican/hetzright2_4.png"); }
+    50%  { background-image: url("../assets/Hemed/pictures/GameAmerican/hetzright2_5.png"); }
+    62%  { background-image: url("../assets/Hemed/pictures/GameAmerican/hetzright2_6.png"); }
+    75%  { background-image: url("../assets/Hemed/pictures/GameAmerican/hetzright2_7.png"); }
+    87%  { background-image: url("../assets/Hemed/pictures/GameAmerican/hetzright2_8.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameAmerican/hetzright2_1.png"); }
+}
+
+.am-sound {
+    /* QSpot.Right + 10 = 660; QSpot.Top = 80 */
+    left: 660px; top: 80px; width: 55px; height: 55px;
+    background-image: url("../assets/Hemed/pictures/GameAmerican/sound.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent;
+    border: none; padding: 0; cursor: pointer;
+}
+.am-sound:hover { background-image: url("../assets/Hemed/pictures/GameAmerican/sound_on.png"); }
+
+
+/* --- Apple (GameApple.frm) --------------------------------------
+   Tree spans the canopy (back.png). Q_Corner.Y = A_Corner.Y = 540
+   with MiddlePic divider between them. Goat at (629, 335).
+   Header at y=5-9 in RGB(50,100,210) light-blue. */
+.apple-canopy    { left: 0; top: 0; width: 800px; height: 600px; pointer-events: none; }
+.apple-tree-layer{ left: 0; top: 0; width: 800px; height: 600px; pointer-events: none; }
+.apple-fall-layer { left: 0; top: 0; width: 800px; height: 600px;
+                    pointer-events: none; z-index: 8; }
+
+/* Static tree apple — visible by default on each Q at ApplePos[i].
+   The original calls PaintApple(i, 1) before any user input. */
+.apple-static {
+    position: absolute;
+    width: 50px; height: 37px;
+    background-image: url("../assets/Hemed/pictures/GameApple/applered1.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    pointer-events: none;
+}
+
+.apple-header {
+    left: 0; right: 0; top: 5px;
+    text-align: center; font-size: 1.1rem; font-weight: 700;
+    color: rgb(50, 100, 210);
+    text-shadow:
+        0 1px 0 rgb(180, 220, 255),
+        0 -1px 0 rgb(150, 200, 255);
+    pointer-events: none;
+}
+
+.apple-divider {
+    left: 396px; top: 528px; width: 8px; height: 60px;
+    background-image: url("../assets/Hemed/pictures/GameApple/middle.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    pointer-events: none;
+}
+
+.apple-q {
+    /* Q text on right side of divider, vbCenter @ Q_Corner.X≈600, Y=540 */
+    left: 410px; right: 30px; top: 540px; height: 50px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem; font-weight: 700; color: #2a1d0a;
+    direction: rtl;
+    pointer-events: none;
+}
+.apple-a {
+    /* Answer area on left side of divider, char-by-char with q_mark cursors */
+    left: 30px; right: 410px; top: 540px; height: 50px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem; color: #2a1d0a;
+    direction: rtl;
+    cursor: pointer;
+}
+.apple-char {
+    display: inline-block;
+    min-width: 0.5em;
+    margin: 0 1px;
+    text-align: center;
+}
+.apple-char.non-letter { color: rgba(80,50,20,0.7); }
+.apple-char.filled     { color: #2a1d0a; font-weight: 700; }
+.apple-char.qmark {
+    /* Animated q_mark cursor for unfilled letter positions. */
+    width: 22px; height: 30px; vertical-align: middle;
+    background-size: 100% 100%; background-repeat: no-repeat;
+    animation: appleQMark 0.6s steps(1) infinite;
+}
+@keyframes appleQMark {
+    0%   { background-image: url("../assets/Hemed/pictures/GameApple/q_mark0.png"); }
+    14%  { background-image: url("../assets/Hemed/pictures/GameApple/q_mark1.png"); }
+    28%  { background-image: url("../assets/Hemed/pictures/GameApple/q_mark2.png"); }
+    42%  { background-image: url("../assets/Hemed/pictures/GameApple/q_mark3.png"); }
+    57%  { background-image: url("../assets/Hemed/pictures/GameApple/q_mark4.png"); }
+    71%  { background-image: url("../assets/Hemed/pictures/GameApple/q_mark5.png"); }
+    85%  { background-image: url("../assets/Hemed/pictures/GameApple/q_mark6.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameApple/q_mark0.png"); }
+}
+
+.apple-sound {
+    left: 732px; top: 540px; width: 40px; height: 40px;
+    background-image: url("../assets/Hemed/pictures/GameApple/sound.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent;
+    border: none; padding: 0; cursor: pointer;
+}
+
+/* Falling apple — spawned on wrong keypress, lands with the wrong char. */
+.apple-fall {
+    position: absolute; width: 50px; height: 50px;
+    background-image: url("../assets/Hemed/pictures/GameApple/applered1.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    display: flex; align-items: center; justify-content: center;
+    color: rgb(220, 0, 0);
+    font-weight: 700; font-size: 1.2rem;
+    text-shadow: 0 1px 1px rgba(255,255,255,0.7);
+    animation: appleFallSpin 0.4s steps(1),
+               appleFallDrop 1.5s ease-in forwards;
+    pointer-events: none;
+}
+@keyframes appleFallSpin {
+    0%   { background-image: url("../assets/Hemed/pictures/GameApple/applered0.png"); }
+    20%  { background-image: url("../assets/Hemed/pictures/GameApple/applered2.png"); }
+    40%  { background-image: url("../assets/Hemed/pictures/GameApple/applered4.png"); }
+    60%  { background-image: url("../assets/Hemed/pictures/GameApple/applered6.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameApple/applered7.png"); }
+}
+@keyframes appleFallDrop {
+    0%   { transform: translateY(0)    rotate(0deg);   opacity: 1; }
+    80%  { transform: translateY(280px) rotate(360deg); opacity: 1; }
+    100% { transform: translateY(310px) rotate(360deg); opacity: 0; }
+}
+
+/* Goat at GoatX=629, GoatY=335 — 170×178 native. */
+.apple-goat {
+    left: 629px; top: 335px; width: 170px; height: 178px;
+    background-image: url("../assets/Hemed/pictures/GameApple/goat_stand1.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent;
+    z-index: 4;
+    pointer-events: none;
+}
+.apple-goat.enter { animation: appleGoatEnter 0.72s steps(1); }
+.apple-goat.stand { background-image: url("../assets/Hemed/pictures/GameApple/goat_stand1.png"); }
+.apple-goat.sad   { background-image: url("../assets/Hemed/pictures/GameApple/goat_sad1.png"); }
+.apple-goat.yes   { animation: appleGoatYes 0.64s steps(1); }
+.apple-goat.no    { animation: appleGoatNo  0.72s steps(1); }
+.apple-goat.eat   { animation: appleGoatEat 0.56s steps(1); }
+.apple-goat.pick  { animation: appleGoatPick 0.6s steps(1); }
+.apple-goat.win   { animation: appleGoatWin 1.2s steps(1) infinite; }
+
+@keyframes appleGoatEnter {
+    0%   { background-image: url("../assets/Hemed/pictures/GameApple/goat_enter1.png"); }
+    11%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_enter2.png"); }
+    22%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_enter3.png"); }
+    33%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_enter4.png"); }
+    44%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_enter5.png"); }
+    55%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_enter6.png"); }
+    66%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_enter7.png"); }
+    77%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_enter8.png"); }
+    88%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_enter9.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameApple/goat_stand1.png"); }
+}
+@keyframes appleGoatYes {
+    0%   { background-image: url("../assets/Hemed/pictures/GameApple/goat_yes1.png"); }
+    12%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_yes2.png"); }
+    25%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_yes3.png"); }
+    37%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_yes4.png"); }
+    50%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_yes5.png"); }
+    62%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_yes6.png"); }
+    75%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_yes7.png"); }
+    87%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_yes8.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameApple/goat_stand1.png"); }
+}
+@keyframes appleGoatNo {
+    0%   { background-image: url("../assets/Hemed/pictures/GameApple/goat_no1.png"); }
+    11%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_no2.png"); }
+    22%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_no3.png"); }
+    33%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_no4.png"); }
+    44%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_no5.png"); }
+    55%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_no6.png"); }
+    66%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_no7.png"); }
+    77%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_no8.png"); }
+    88%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_no9.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameApple/goat_stand1.png"); }
+}
+@keyframes appleGoatEat {
+    0%   { background-image: url("../assets/Hemed/pictures/GameApple/goat_eat1.png"); }
+    14%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_eat2.png"); }
+    28%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_eat3.png"); }
+    42%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_eat4.png"); }
+    57%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_eat5.png"); }
+    71%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_eat6.png"); }
+    85%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_eat7.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameApple/goat_stand1.png"); }
+}
+@keyframes appleGoatPick {
+    0%   { background-image: url("../assets/Hemed/pictures/GameApple/goat_pick1.png"); }
+    20%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_pick2.png"); }
+    40%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_pick3.png"); }
+    60%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_pick4.png"); }
+    80%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_pick5.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameApple/goat_stand1.png"); }
+}
+@keyframes appleGoatWin {
+    0%   { background-image: url("../assets/Hemed/pictures/GameApple/goat_win1.png"); }
+    12%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_win2.png"); }
+    25%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_win3.png"); }
+    37%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_win4.png"); }
+    50%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_win5.png"); }
+    62%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_win6.png"); }
+    75%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_win7.png"); }
+    87%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_win8.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameApple/goat_win1.png"); }
+}
+
+/* WinGame's BigApple.jpg at (192, 0) — celebration sprite. */
+.apple-big {
+    left: 192px; top: 0; width: 410px; height: 384px;
+    background-image: url("../assets/Hemed/pictures/GameApple/bigapple.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    z-index: 10;
+    pointer-events: none;
+    animation: appleBigPop 0.5s ease-out;
+}
+@keyframes appleBigPop {
+    0%   { transform: scale(0.1); opacity: 0; }
+    70%  { transform: scale(1.1); opacity: 1; }
+    100% { transform: scale(1);   opacity: 1; }
+}
+
+/* Goat at GoatX=629 GoatY=335 (Apple .frm Form_Load). 170×178 native. */
+.apple-goat {
+    left: 629px; top: 335px; width: 170px; height: 178px;
+    background-image: url("../assets/Hemed/pictures/GameApple/goat_stand1.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent;
+    z-index: 4;
+    pointer-events: none;
+}
+.apple-goat.enter { animation: appleGoatEnter 0.72s steps(1); }
+@keyframes appleGoatEnter {
+    0%   { background-image: url("../assets/Hemed/pictures/GameApple/goat_enter1.png"); }
+    11%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_enter2.png"); }
+    22%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_enter3.png"); }
+    33%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_enter4.png"); }
+    44%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_enter5.png"); }
+    55%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_enter6.png"); }
+    66%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_enter7.png"); }
+    77%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_enter8.png"); }
+    88%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_enter9.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameApple/goat_stand1.png"); }
+}
+.apple-goat.yes { animation: appleGoatYes 0.64s steps(1); }
+@keyframes appleGoatYes {
+    0%   { background-image: url("../assets/Hemed/pictures/GameApple/goat_yes1.png"); }
+    12%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_yes2.png"); }
+    25%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_yes3.png"); }
+    37%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_yes4.png"); }
+    50%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_yes5.png"); }
+    62%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_yes6.png"); }
+    75%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_yes7.png"); }
+    87%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_yes8.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameApple/goat_stand1.png"); }
+}
+.apple-goat.no { animation: appleGoatNo 0.72s steps(1); }
+@keyframes appleGoatNo {
+    0%   { background-image: url("../assets/Hemed/pictures/GameApple/goat_no1.png"); }
+    11%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_no2.png"); }
+    22%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_no3.png"); }
+    33%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_no4.png"); }
+    44%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_no5.png"); }
+    55%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_no6.png"); }
+    66%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_no7.png"); }
+    77%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_no8.png"); }
+    88%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_no9.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameApple/goat_stand1.png"); }
+}
+.apple-goat.win { animation: appleGoatWin 1.2s steps(1) infinite; }
+@keyframes appleGoatWin {
+    0%   { background-image: url("../assets/Hemed/pictures/GameApple/goat_win1.png"); }
+    12%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_win2.png"); }
+    25%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_win3.png"); }
+    37%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_win4.png"); }
+    50%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_win5.png"); }
+    62%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_win6.png"); }
+    75%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_win7.png"); }
+    87%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_win8.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameApple/goat_win1.png"); }
+}
+
+.apple-status {
+    left: 100px; top: 4px; width: 600px;
+    text-align: center; font-size: 0.95rem; color: #2a1d0a; font-weight: 700;
+    text-shadow: 0 1px 2px rgba(255,255,255,0.5);
+}
+.apple-finish {
+    left: 80px; top: 220px; width: 640px;
+    text-align: center; font-size: 1.4rem; font-weight: 700; color: #2b5e22;
+    background: rgba(255,255,255,0.92);
+    border: 3px solid #4a8d3a; border-radius: 12px;
+    padding: 1rem;
+}
+
+/* --- Connect (GameConnect.frm) ----------------------------------
+   Dark wood BG. Each Q/A label uses box.png as its plank background;
+   pairs are linked by a "rope" line (SVG <line>). */
+.connect-box {
+    background-image: url("../assets/Hemed/pictures/GameConnect/box.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.95rem; font-weight: 700;
+    color: #f6e7c2;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+    padding: 0 10px;
+    cursor: pointer;
+    /* Width is set inline per-box (calculated from text length to mirror
+       original LoadBox's GetStringWidth*1.2). Let text wrap if needed. */
+    white-space: normal;
+    text-align: center;
+    line-height: 1.15;
+}
+.connect-box.kind-a {
+    background-image: url("../assets/Hemed/pictures/GameConnect/box2.png");
+}
+.connect-box:hover { filter: brightness(1.15); }
+.connect-box.sel   { filter: brightness(1.3) drop-shadow(0 0 8px #ffd76a); }
+.connect-box.done  { filter: brightness(0.85) hue-rotate(80deg); cursor: default; }
+.connect-box.wrong { animation: shake 0.4s; filter: hue-rotate(-30deg) brightness(0.9); }
+
+/* Star burst — 5-frame smallstar sprite, expand outward + fade. */
+.connect-star {
+    width: 25px; height: 25px;
+    background-image: url("../assets/Hemed/pictures/GameConnect/smallstar_0.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent;
+    pointer-events: none;
+    animation: connectStarSpin 0.5s steps(1),
+               connectStarFly 0.9s ease-out forwards;
+}
+@keyframes connectStarSpin {
+    0%   { background-image: url("../assets/Hemed/pictures/GameConnect/smallstar_0.png"); }
+    25%  { background-image: url("../assets/Hemed/pictures/GameConnect/smallstar_1.png"); }
+    50%  { background-image: url("../assets/Hemed/pictures/GameConnect/smallstar_2.png"); }
+    75%  { background-image: url("../assets/Hemed/pictures/GameConnect/smallstar_3.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameConnect/smallstar_4.png"); }
+}
+@keyframes connectStarFly {
+    0%   { transform: translate(0,0) scale(0.4); opacity: 1; }
+    100% { transform: translate(var(--dx), var(--dy)) scale(1.2); opacity: 0; }
+}
+
+.connect-header {
+    left: 0; right: 0; top: 6px;
+    text-align: center; color: #f6e7c2;
+    font-size: 1.05rem; font-weight: 700;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+    pointer-events: none;
+}
+
+/* Win celebration stars — bigger star_0..3 cycle flying upward. */
+.connect-bigstar {
+    width: 35px; height: 35px;
+    background-image: url("../assets/Hemed/pictures/GameConnect/star_0.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    pointer-events: none;
+    animation: connectBigStarSpin 0.4s steps(1) infinite,
+               connectBigStarFly 1.8s ease-out forwards;
+    z-index: 9;
+}
+@keyframes connectBigStarSpin {
+    0%   { background-image: url("../assets/Hemed/pictures/GameConnect/star_0.png"); }
+    25%  { background-image: url("../assets/Hemed/pictures/GameConnect/star_1.png"); }
+    50%  { background-image: url("../assets/Hemed/pictures/GameConnect/star_2.png"); }
+    75%  { background-image: url("../assets/Hemed/pictures/GameConnect/star_3.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameConnect/star_0.png"); }
+}
+@keyframes connectBigStarFly {
+    0%   { transform: translate(0,0) scale(0.4); opacity: 1; }
+    100% { transform: translate(var(--tx), var(--ty)) scale(1.5); opacity: 0; }
+}
+
+.connect-status {
+    left: 50px; bottom: 8px; width: 700px;
+    text-align: center; color: #f6e7c2; font-size: 0.95rem; font-weight: 700;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+}
+.connect-status.done {
+    left: 80px; top: 240px; width: 640px;
+    background: rgba(255,255,255,0.92); color: #2b5e22;
+    border: 3px solid #4a8d3a; border-radius: 12px;
+    padding: 1rem; font-size: 1.4rem;
+    bottom: auto;
+}
+
+/* --- Hakira (GameHakira.frm) -----------------------------------
+   Parchment scroll background (scroll0.png) covering the stage. Text
+   is laid out by drawText() calls at .frm-spec X/Y per RePaintLine. */
+.hakira-parchment {
+    left: 50px; top: 0; width: 700px; height: 600px;
+    direction: rtl;
+    cursor: pointer;
+    color: #2a1d0a;
+    background-image: url("../assets/Hemed/pictures/GameHakira/scroll0.png");
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    background-position: top center;
+}
+.hakira-text-layer {
+    position: absolute; left: 0; top: 0; right: 0; bottom: 0;
+}
+/* Header — UnitName · UserName at top of scroll (y=5-7 in original),
+   painted in orange-brown RGB(120,80,40) over RGB(255,200,150) shadow. */
+.hakira-header {
+    position: absolute;
+    left: 50px; right: 50px; top: 4px;
+    text-align: center;
+    color: rgb(120, 80, 40);
+    text-shadow:
+        0 1px 0 rgb(255, 200, 150),
+        0 -1px 0 rgb(255, 200, 150);
+    font-size: 1.1rem; font-weight: 700;
+    pointer-events: none;
+}
+.hakira-instructions {
+    position: absolute;
+    left: 50px; right: 50px; top: 560px;
+    text-align: center;
+    color: rgb(120, 80, 50);
+    font-size: 0.9rem; font-style: italic;
+    pointer-events: none;
+}
+/* Each drawn line. Positioning is set inline per RePaintLine's vbXJustify. */
+.hakira-cell {
+    position: absolute;
+    height: 28px;
+    font-size: 1.2rem;
+    line-height: 1.1;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    direction: ltr;        /* let inline text-align control where the run sits */
+}
+.hakira-num  { color: rgb(20, 100, 0); font-weight: 700; font-size: 1.15rem; }
+.hakira-ask  { color: #2a1d0a; font-weight: 700; }
+.hakira-ans  { color: #5b3a14; }
+.hakira-hint { color: rgb(120, 80, 50); font-style: italic; font-size: 1rem; }
+/* line2.bmp divider — small ornamental separator between rows. */
+.hakira-divider {
+    position: absolute; height: 6px;
+    background-image: url("../assets/Hemed/pictures/GameHakira/line2.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    pointer-events: none;
+}
+
+.hakira-reset {
+    left: 16px; top: 432px; width: 60px; height: 60px;
+    background-image: url("../assets/Hemed/pictures/GameHakira/reset_off.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent;
+    border: none; padding: 0; cursor: pointer;
+}
+.hakira-reset:hover  { background-image: url("../assets/Hemed/pictures/GameHakira/reset_on.png"); }
+.hakira-reset:active { background-image: url("../assets/Hemed/pictures/GameHakira/reset_down.png"); }
+
+.hakira-next {
+    left: 0; top: 496px; width: 60px; height: 60px;
+    background-image: url("../assets/Hemed/pictures/GameHakira/next_off.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent;
+    border: none; padding: 0; cursor: pointer;
+}
+.hakira-next:hover  { background-image: url("../assets/Hemed/pictures/GameHakira/next_on.png"); }
+.hakira-next:active { background-image: url("../assets/Hemed/pictures/GameHakira/next_down.png"); }
+
+/* --- Haklada (GameHaklada.frm) - typing dictation game -----------
+   Practice mode (backtt.png): Q text on top plank, type into bottom plank.
+   Dictation mode (backt.png): only typing plank, Q audio only.
+   Knas label at (120, 8160) → (8, 544). CmdSound at (10530, 7410) →
+   (702, 494, 98, 106). Header at top, RGB(50, 100, 210).
+   Flowers along 3 rows at y=110/135/160, spaced 65px apart. */
+.hak-flower-layer { left: 0; top: 0; width: 800px; height: 600px;
+                    pointer-events: none; }
+.hak-header {
+    left: 0; right: 0; top: 8px;
+    text-align: center; font-size: 1.05rem; font-weight: 700;
+    color: rgb(50, 100, 210);
+    text-shadow:
+        0 1px 0 rgb(180, 220, 255),
+        0 -1px 0 rgb(150, 200, 255);
+    pointer-events: none;
+}
+.hak-q-visible {
+    /* Top plank text in practice mode (backtt.png). */
+    left: 100px; top: 305px; width: 600px; height: 50px;
+    text-align: center;
+    font-size: 1.6rem; font-weight: 700;
+    color: #2a1d0a;
+    direction: rtl;
+    pointer-events: none;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.hak-typing {
+    /* Bottom plank where the user types. TextX=390, TextY=405. */
+    left: 50px; top: 380px; width: 700px; height: 60px;
+    text-align: center;
+    direction: rtl;
+    font-size: 2rem;
+    color: #2a1d0a;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.hak-typing.shake { animation: shake 0.4s; }
+.hak-cell {
+    display: inline-block;
+    min-width: 1em;
+    margin: 0 1px;
+    text-align: center;
+    transition: color 0.15s;
+}
+.hak-cell.typed       { color: #2a1d0a; font-weight: 700; }
+.hak-cell.non-letter  { color: rgba(80, 50, 20, 0.7); }
+.hak-cell.pending {
+    /* Small Q_mark.bmp sprite for unfilled chars. */
+    width: 22px; height: 30px; vertical-align: middle;
+    background-image: url("../assets/Hemed/pictures/GameHaklada/q_mark0.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+}
+.hak-cell.cursor {
+    /* Big animated Q_mark cursor on current char. */
+    width: 30px; height: 40px; vertical-align: middle;
+    background-size: 100% 100%; background-repeat: no-repeat;
+    animation: hakBigQMark 0.7s steps(1) infinite;
+}
+.hak-cell.hint-show {
+    /* Briefly show the expected letter in red after 2 wrong attempts. */
+    color: rgb(100, 0, 0); font-weight: 700;
+    background: none;
+    animation: none;
+}
+@keyframes hakBigQMark {
+    0%   { background-image: url("../assets/Hemed/pictures/GameHaklada/q_mark0.png"); }
+    14%  { background-image: url("../assets/Hemed/pictures/GameHaklada/q_mark1.png"); }
+    28%  { background-image: url("../assets/Hemed/pictures/GameHaklada/q_mark2.png"); }
+    42%  { background-image: url("../assets/Hemed/pictures/GameHaklada/q_mark3.png"); }
+    57%  { background-image: url("../assets/Hemed/pictures/GameHaklada/q_mark4.png"); }
+    71%  { background-image: url("../assets/Hemed/pictures/GameHaklada/q_mark5.png"); }
+    85%  { background-image: url("../assets/Hemed/pictures/GameHaklada/q_mark6.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameHaklada/q_mark7.png"); }
+}
+.hak-start-hint {
+    font-size: 1.2rem; color: rgba(91, 58, 20, 0.7);
+    font-style: italic;
+}
+
+.hak-sound {
+    left: 702px; top: 494px; width: 98px; height: 106px;
+    background-image: url("../assets/Hemed/pictures/GameHaklada/sound_on.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent;
+    border: none; padding: 0; cursor: pointer;
+}
+.hak-sound:active {
+    background-image: url("../assets/Hemed/pictures/GameHaklada/sound_off.png");
+}
+.hak-knas {
+    left: 8px; top: 544px; width: 73px; height: 41px;
+    text-align: center; font-size: 1.6rem; font-weight: 700; color: #800000;
+    background: rgba(255,255,255,0.85); border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+}
+
+/* Flowers along 3 rows at the top of the meadow. */
+.hak-flower {
+    position: absolute; width: 38px; height: 60px;
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent;
+}
+.hak-flower.seed {
+    background-image: url("../assets/Hemed/pictures/GameHaklada/flower1_0.png");
+    opacity: 0.5;
+}
+.hak-flower.kind-0.growing { animation: hakFlower1 0.75s steps(1) forwards; }
+.hak-flower.kind-1.growing { animation: hakFlower2 0.75s steps(1) forwards; }
+.hak-flower.kind-2.growing { animation: hakFlower3 0.75s steps(1) forwards; }
+@keyframes hakFlower1 {
+    0%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower1_0.png"); opacity: 0.5; }
+    20% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower1_2.png"); opacity: 1; }
+    40% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower1_4.png"); }
+    60% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower1_6.png"); }
+    80% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower1_8.png"); }
+    100%{ background-image: url("../assets/Hemed/pictures/GameHaklada/flower1_9.png"); opacity: 1; }
+}
+@keyframes hakFlower2 {
+    0%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower2_0.png"); opacity: 0.5; }
+    20% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower2_2.png"); opacity: 1; }
+    40% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower2_4.png"); }
+    60% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower2_6.png"); }
+    80% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower2_8.png"); }
+    100%{ background-image: url("../assets/Hemed/pictures/GameHaklada/flower2_9.png"); opacity: 1; }
+}
+@keyframes hakFlower3 {
+    0%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower3_0.png"); opacity: 0.5; }
+    20% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower3_2.png"); opacity: 1; }
+    40% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower3_4.png"); }
+    60% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower3_6.png"); }
+    80% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower3_8.png"); }
+    100%{ background-image: url("../assets/Hemed/pictures/GameHaklada/flower3_9.png"); opacity: 1; }
+}
+/* Haklada goat — 130×136, sits on the grass at right of the signboard. */
+.hak-goat {
+    left: 600px; top: 380px; width: 130px; height: 136px;
+    background-image: url("../assets/Hemed/pictures/GameHaklada/goat0_0.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent;
+    z-index: 3;
+    pointer-events: none;
+}
+.hak-goat.yes { animation: hakGoatYes 1.05s steps(1); }
+@keyframes hakGoatYes {
+    0%   { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_0.png"); }
+    5%   { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_1.png"); }
+    10%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_2.png"); }
+    15%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_3.png"); }
+    20%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_4.png"); }
+    25%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_5.png"); }
+    30%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_6.png"); }
+    35%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_7.png"); }
+    40%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_8.png"); }
+    45%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_9.png"); }
+    50%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_10.png"); }
+    55%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_11.png"); }
+    60%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_12.png"); }
+    65%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_13.png"); }
+    70%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_14.png"); }
+    75%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_15.png"); }
+    80%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_16.png"); }
+    85%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_17.png"); }
+    90%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_18.png"); }
+    95%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_19.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameHaklada/goat0_0.png"); }
+}
+.hak-goat.no { animation: hakGoatNo 1.05s steps(1); }
+@keyframes hakGoatNo {
+    /* goat6 has 28 frames; sample 14 of them every ~75ms. */
+    0%   { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_0.png"); }
+    7%   { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_2.png"); }
+    14%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_4.png"); }
+    21%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_6.png"); }
+    28%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_8.png"); }
+    35%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_10.png"); }
+    42%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_12.png"); }
+    49%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_14.png"); }
+    56%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_16.png"); }
+    63%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_18.png"); }
+    70%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_20.png"); }
+    77%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_22.png"); }
+    84%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_24.png"); }
+    91%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_26.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameHaklada/goat0_0.png"); }
+}
+
+/* QMark cursor — 8-frame cycle that bounces above the signboard.        */
+.hak-qmark {
+    display: inline-block;
+    width: 30px; height: 50px;
+    margin: 0 8px;
+    background-image: url("../assets/Hemed/pictures/GameHaklada/q_mark0.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent;
+    animation: hakQMark 0.6s steps(1) infinite;
+    vertical-align: middle;
+}
+@keyframes hakQMark {
+    0%   { background-image: url("../assets/Hemed/pictures/GameHaklada/q_mark0.png"); }
+    12%  { background-image: url("../assets/Hemed/pictures/GameHaklada/q_mark1.png"); }
+    25%  { background-image: url("../assets/Hemed/pictures/GameHaklada/q_mark2.png"); }
+    37%  { background-image: url("../assets/Hemed/pictures/GameHaklada/q_mark3.png"); }
+    50%  { background-image: url("../assets/Hemed/pictures/GameHaklada/q_mark4.png"); }
+    62%  { background-image: url("../assets/Hemed/pictures/GameHaklada/q_mark5.png"); }
+    75%  { background-image: url("../assets/Hemed/pictures/GameHaklada/q_mark6.png"); }
+    87%  { background-image: url("../assets/Hemed/pictures/GameHaklada/q_mark7.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameHaklada/q_mark0.png"); }
+}
+
+.hak-status {
+    left: 0; top: 4px; width: 800px;
+    text-align: center; font-size: 0.95rem; color: #2a1d0a;
+    text-shadow: 0 1px 2px rgba(255,255,255,0.5);
+    font-weight: 700;
+}
+.hak-finish {
+    left: 80px; top: 220px; width: 640px;
+    text-align: center; font-size: 1.4rem; font-weight: 700; color: #2b5e22;
+    background: rgba(255,255,255,0.92);
+    border: 3px solid #4a8d3a; border-radius: 12px;
+    padding: 1rem;
+}
+
+/* --- Score Form (ScoreForm.frm) — end-of-game results overlay -----
+   600×600 parchment. Drawn at .frm coords:
+     Unit name (300, 5), font 24, RGB(100,50,80)
+     User name (300, 155), font 24
+     "סיים את היחידה" (350, 200)
+     Praise text (200, 234), font 44, green/yellow gradient
+     Score number animated, centered in the score circle (~212, 194)
+     Error counts (287, 352 + 29*i) for i=0..2 (green/yellow/red)
+     CmdExit bottom-left, CmdPlay bottom-right. */
+.score-form {
+    background-repeat: no-repeat;
+    background-color: rgba(0,0,0,0.0);
+    font-family: inherit;
+    direction: rtl;
+}
+.score-unit {
+    position: absolute; left: 0; right: 0; top: 24px;
+    text-align: center;
+    font-size: 1.5rem; font-weight: 700;
+    color: rgb(100, 50, 80);
+}
+.score-praise {
+    position: absolute; left: 0; right: 0; top: 220px;
+    text-align: center;
+    font-size: 2rem; font-weight: 700;
+    color: rgb(0, 0, 0);
+    text-shadow:
+        0 1px 0 rgb(184, 230, 80),
+        0 -1px 0 rgb(0, 254, 0);
+}
+.score-number {
+    position: absolute; left: 0; right: 0; top: 310px;
+    text-align: center;
+    font-size: 4rem; font-weight: 700;
+    color: rgb(184, 100, 30);
+    text-shadow: 0 2px 4px rgba(0,0,0,0.4);
+}
+.score-errors {
+    position: absolute; left: 100px; top: 350px;
+    width: 80px;
+    text-align: center;
+    direction: rtl;
+}
+.score-errors .err {
+    font-size: 1.1rem; font-weight: 700;
+    line-height: 1.4;
+    padding: 2px 4px;
+    border-radius: 4px;
+    margin-bottom: 4px;
+    color: #000;
+}
+.score-errors .err-green  { background: rgba(50, 254, 0,    0.35); }
+.score-errors .err-yellow { background: rgba(255, 200, 0,   0.35); }
+.score-errors .err-red    { background: rgba(254, 80, 0,    0.35); }
+
+.score-exit {
+    position: absolute; bottom: 50px; left: 30px; width: 175px; height: 68px;
+    background-image: url("../assets/Hemed/pictures/Main/scoreexit.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent;
+    border: none; padding: 0; cursor: pointer;
+    color: transparent;
+}
+.score-exit[data-app="Nivim"] {
+    background-image: url("../assets/Nivim/pictures/Main/scoreexit.png");
+}
+.score-exit:hover {
+    background-image: url("../assets/Hemed/pictures/Main/scoreexit2.png");
+}
+.score-exit[data-app="Nivim"]:hover {
+    background-image: url("../assets/Nivim/pictures/Main/scoreexit2.png");
+}
+.score-play {
+    position: absolute; bottom: 50px; right: 30px; width: 165px; height: 73px;
+    background-image: url("../assets/Hemed/pictures/Main/scoreplay.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent;
+    border: none; padding: 0; cursor: pointer;
+    color: transparent;
+}
+.score-play[data-app="Nivim"] {
+    background-image: url("../assets/Nivim/pictures/Main/scoreplay.png");
+}
+.score-play:hover {
+    background-image: url("../assets/Hemed/pictures/Main/scoreplay2.png");
+}
+.score-play[data-app="Nivim"]:hover {
+    background-image: url("../assets/Nivim/pictures/Main/scoreplay2.png");
+}
+
+/* Tiny error banner when data fails to load */
+.error {
+    position: absolute; top: 200px; left: 100px; right: 100px;
+    background: rgba(255,250,235,0.95); border: 2px dashed #c33;
+    border-radius: 10px; padding: 1.5rem; text-align: center; color: #c33;
+}

@@ -1,0 +1,19 @@
+[
+  ">>0\tnet path for saving units and users",
+  "",
+  ">>2\tlast user logged in",
+  "0",
+  "",
+  "",
+  ">>6\tnumber of times to redraw the text",
+  "2",
+  ">>8\tnumber of blank spaces to add to each blank space",
+  "0.5",
+  ">>10\tthe school name",
+  "צמד-חמד דו\"ח התקדמות",
+  ">>12\tthe teacher name",
+  "בהצלחה!",
+  ">>14\tthe teacher pass",
+  "",
+  ""
+]
