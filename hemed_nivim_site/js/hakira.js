@@ -38,7 +38,10 @@ HND.startHakira = function (root, app, unit, onComplete) {
         root.innerHTML = '<div class="error">אין נתונים לחקירה ביחידה זו.</div>';
         return;
     }
-    HND.preloadFrames(app.id, "GameHakira", [
+    // Pre-decode the scroll frames before any animation kicks in — the
+    // entry-unroll CSS keyframes reference scroll5.png at 0% and the
+    // browser would otherwise paint an empty parchment on the first run.
+    const scrollPreload = HND.preloadFrames(app.id, "GameHakira", [
         "back", "picback", "line", "line2",
         "scroll0", "scroll1", "scroll2", "scroll3", "scroll4", "scroll5",
         "next_off", "next_on", "next_down",
@@ -73,7 +76,10 @@ HND.startHakira = function (root, app, unit, onComplete) {
     // Layers — parchment image is the scroll background (positioned at
     // its original .frm coords). Text overlay must be at full stage (0..800)
     // coordinates so X=400 lands at form X=400 (not parchment-relative).
-    const parchment = HND._el("div", { class: "ctrl hakira-parchment" });
+    const parchment = HND._el("div", {
+        class: "ctrl hakira-parchment",
+        "data-app": app.id,         // selects per-app scroll images in CSS
+    });
     const textLayer = HND._el("div", { class: "ctrl hakira-text-layer" });
     root.innerHTML = "";
     root.appendChild(parchment);
@@ -144,16 +150,19 @@ HND.startHakira = function (root, app, unit, onComplete) {
         textLayer.appendChild(el);
         return el;
     }
-    function drawDivider(yTop) {
-        // LinePic.MaskB at (400 - LinePic.Width/2 - YString/70, YString-20)
-        // — the line2.png (550×30) divider; X drifts LEFT slightly as Y grows
-        // to mimic the original parchment perspective.
+    function drawDivider(textY) {
+        // Original (GameHakira.frm:390):
+        //   LinePic.MaskB 400 - LinePic.Width/2 - YString/70, YString - 20
+        // → top-left at (400 - W/2 - YString/70, YString - 20), where
+        //   YString is the Y coordinate of the row's TEXT.
+        // The divider sits 20 px ABOVE the text. X drifts left slightly as
+        // Y grows to fake parchment perspective.
         const w = 550, h = 30;
-        const xDrift = (yTop + 20) / 70;   // YString in the original = yTop+20
+        const xDrift = textY / 70;
         const div = HND._el("div", { class: "hakira-divider" });
         div.style.cssText =
             "left:" + (400 - w / 2 - xDrift) + "px;" +
-            "top:" + (yTop - 20) + "px;" +
+            "top:"  + (textY - 20) + "px;" +
             "width:" + w + "px;height:" + h + "px;";
         textLayer.appendChild(div);
     }
@@ -176,7 +185,9 @@ HND.startHakira = function (root, app, unit, onComplete) {
 
         if (state.lineStatus === 0) {
             // Case 0: number + Q (ask) text, play _right.wav.
-            if (state.currentCountIn > 0) drawDivider(Y - 20);
+            // Pass the row's TEXT Y (= Y) to drawDivider; it places the
+            // LinePic 20 px above the text per the original.
+            if (state.currentCountIn > 0) drawDivider(Y);
             // Number ".N" — vbRightJustify at 692 - YString/70 (drifts left
             // as Y grows, matching the original parchment perspective).
             drawText({
@@ -198,7 +209,9 @@ HND.startHakira = function (root, app, unit, onComplete) {
             });
             HND.log("hakira Q", "pos=" + state.currentPos,
                     "text=" + (it[askCol] || "").slice(0, 40));
-            HND.playWave(HND.unitWavePath(app.id, unit.id, origIdx, "right"));
+            if (HND.unitWaveExists(unit, origIdx, "right")) {
+                HND.playWave(HND.unitWavePath(app.id, unit.id, origIdx, "right"));
+            }
             state.lineStatus = 1;
         }
         else if (state.lineStatus === 1) {
@@ -213,7 +226,9 @@ HND.startHakira = function (root, app, unit, onComplete) {
                 text:    it[ansCol] || "",
             });
             HND.log("hakira A", "pos=" + state.currentPos);
-            HND.playWave(HND.unitWavePath(app.id, unit.id, origIdx, "left"));
+            if (HND.unitWaveExists(unit, origIdx, "left")) {
+                HND.playWave(HND.unitWavePath(app.id, unit.id, origIdx, "left"));
+            }
             if (hintCol) {
                 state.lineStatus = 2;
             } else {
@@ -247,21 +262,56 @@ HND.startHakira = function (root, app, unit, onComplete) {
     }
 
     function userClick() {
-        if (state.ended) return;
+        if (state.ended || state.animating) return;
         // Browser unlocks autoplay after the FIRST user gesture.
         state.firstClick = true;
         if (state.currentCountIn === -1) {
-            // Roll-up requested: reset the parchment (matches CmdReset_Click).
+            // Original: scroll rolls up then back down for a fresh batch.
             return doReset();
         }
         step();
     }
     function doReset() {
+        if (state.animating) return;
         HND.log("hakira reset");
-        state.currentPos = 0;
-        state.currentCountIn = 0;
-        state.lineStatus = 0;
-        textLayer.innerHTML = "";
+        state.animating = true;
+        // Roll up first, then unroll back to fresh blank parchment.
+        textLayer.classList.add("hidden");
+        parchment.classList.remove("unrolling");
+        parchment.classList.add("rolling-up");
+        const onRollEnd = function () {
+            parchment.removeEventListener("animationend", onRollEnd);
+            // Clear text + reset position while the scroll is fully rolled up.
+            state.currentPos = 0;
+            state.currentCountIn = 0;
+            state.lineStatus = 0;
+            // Keep header + instructions; drop only the rendered Q/A/hint rows.
+            Array.from(textLayer.querySelectorAll(
+                ".hakira-cell, .hakira-divider"
+            )).forEach(function (n) { n.remove(); });
+            parchment.classList.remove("rolling-up");
+            parchment.classList.add("unrolling");
+            const onUnrollEnd = function () {
+                parchment.removeEventListener("animationend", onUnrollEnd);
+                parchment.classList.remove("unrolling");
+                textLayer.classList.remove("hidden");
+                state.animating = false;
+            };
+            parchment.addEventListener("animationend", onUnrollEnd);
+        };
+        parchment.addEventListener("animationend", onRollEnd);
+    }
+    function playEntryUnroll() {
+        textLayer.classList.add("hidden");
+        parchment.classList.add("unrolling");
+        state.animating = true;
+        const onEnd = function () {
+            parchment.removeEventListener("animationend", onEnd);
+            parchment.classList.remove("unrolling");
+            textLayer.classList.remove("hidden");
+            state.animating = false;
+        };
+        parchment.addEventListener("animationend", onEnd);
     }
     function finish() {
         if (state.ended) return;
@@ -290,6 +340,13 @@ HND.startHakira = function (root, app, unit, onComplete) {
         }, 300);
         if (onComplete) onComplete(score);
     }
+
+    // Wait for the scroll PNGs to finish decoding before triggering the
+    // unroll keyframes — otherwise on the first run the parchment paints
+    // empty for a frame or two while scroll5 fetches. The rest of the
+    // wiring is in place; user can still click reset/next during it
+    // (we filter via state.animating in userClick / step).
+    scrollPreload.then(playEntryUnroll);
 
     parchment.addEventListener("click", userClick);
     // Drop focus on reset/next so Space-bar doesn't re-fire them via the

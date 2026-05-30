@@ -53,26 +53,35 @@ def decode(path: Path) -> str:
 
 
 def convert_pictures(src_dir: Path, dst_dir: Path):
-    """BMP/JPG → PNG. Preserves the per-game subfolder layout under Pictures/."""
+    """BMP/JPG → PNG. Preserves the per-game subfolder layout under Pictures/.
+
+    BMPs are converted with black (#000000) as the transparency key — matches
+    VB6 CmdPlus.ctl `MaskColor = &H00000000&` (line 22) and PicClass.cls's
+    `SetBkColor Dc, 0` (line 108). Both the per-game PicClass renderers and
+    the CmdPlus UserControl mask black pixels at draw time. JPGs are copied
+    as-is (no mask convention — JPG has no alpha anyway).
+    """
     dst_dir.mkdir(parents=True, exist_ok=True)
     for f in src_dir.iterdir():
         if f.is_dir():
             convert_pictures(f, dst_dir / f.name)
             continue
         ext = f.suffix.lower()
-        out = dst_dir / (f.stem.lower() + ".png")
+        out = dst_dir / (f.stem.lower() + ".png" if ext == ".bmp" else
+                         f.stem.lower() + f.suffix.lower())
         if out.exists():
             continue
-        if ext in (".bmp", ".jpg", ".jpeg"):
+        if ext == ".bmp":
             if subprocess.run(
-                ["convert", str(f), str(out)],
+                ["convert", str(f), "-transparent", "#000000", str(out)],
                 stderr=subprocess.DEVNULL,
             ).returncode != 0:
-                # fall back to ffmpeg for the occasional weird BMP variant
                 subprocess.run(
                     ["ffmpeg", "-y", "-loglevel", "error", "-i", str(f), str(out)],
                     stderr=subprocess.DEVNULL,
                 )
+        elif ext in (".jpg", ".jpeg"):
+            shutil.copy(f, out)
         elif ext == ".cur":
             # Cursor file — keep alongside as-is so future code can use it.
             shutil.copy(f, dst_dir / f.name.lower())
@@ -137,37 +146,78 @@ def parse_cfg_txt(path: Path):
 
 
 def parse_data_txt(path: Path):
-    """Per-unit Data.txt:
-        - First ~21 lines: header (unit name/category, 3 column captions,
-          font/size/color, flags).
-        - Body: VB6 fixed-record dump. Each text row is followed by zero
-          or more null-padded \\x00 rows (record padding to fixed width).
-          The text rows themselves are grouped in TRIPLES: (col1, col2,
-          col3) matching the three column captions from the header. The
-          .frm column order is Hint / Answer / Question (header lines
-          2/3/4) — so on disk the triples land as (col1, col2, col3) in
-          that same display order."""
+    """Per-unit Data.txt — VB6 fixed-record file (GamesMoudle.bas:203-243).
+
+    Layout (every line is one TheUnitFile(N) record):
+        0..20  : header
+            0   UnitName
+            1   UnitSubject
+            2-4 LabelHint / LabelLeft / LabelRight   (column captions)
+            5-7 FontColor{Hint,Left,Right}
+            8-10 FontSize{Hint,Left,Right}
+            11-13 FontName{Hint,Left,Right}
+            14  Middle
+            15  ShowWave
+            16  ShowPic
+            17  ShowHint
+            18  LineCount
+            19  ShowInList
+            20  UnitRama
+        21..54 : padding (34 blank/null reserved records)
+        55..   : items, **7 records each**:
+            +0  StringHint
+            +1  SelectHint   (boolean, encoded as \\x00 or \\x01 → strips empty)
+            +2  StringLeft   (answer)
+            +3  SelectLeft
+            +4  StringRight  (question / source text)
+            +5  SelectRight
+            +6  separator
+        Total item count = LineCount + 1  (VB6 ReDim Lines(LineCount)).
+    """
     if not path.exists():
         return {"header": [], "columns": [], "items": []}
     raw = decode(path).replace("\r\n", "\n").split("\n")
-    # strip null-padding rows (VB6 Type record padding leaks as \x00 bytes)
-    cleaned = []
-    for line in raw:
-        s = line.replace("\x00", "").rstrip()
-        if s == "":
-            continue
-        cleaned.append(fix_hebrew(s))
-    header_len = 21
-    header = cleaned[:header_len]
-    body   = cleaned[header_len:]
-    # Three column captions (Hint / Answer / Question).
-    columns = header[2:5] if len(header) >= 5 else []
+
+    def clean_line(line: str) -> str:
+        # Strip null and FFFD padding bytes, then rstrip whitespace.
+        return line.replace("\x00", "").replace("�", "").rstrip()
+
+    cleaned = [clean_line(l) for l in raw]
+    # Apply visual-order-reversal only to lines with Hebrew (fix_hebrew is
+    # safe on empty/ASCII lines).
+    cleaned = [fix_hebrew(l) for l in cleaned]
+
+    if len(cleaned) < 21:
+        return {"header": [], "columns": [], "items": []}
+
+    header = cleaned[:21]
+    columns = header[2:5]                                # hint / answer / question captions
+
+    try:
+        line_count = int(cleaned[18])
+    except (ValueError, IndexError):
+        line_count = 0
+    n_items = line_count + 1                             # VB6 ReDim Lines(LineCount) → +1
+
+    BODY_START = 55                                      # GamesMoudle.bas:234 base offset
+    ITEM_STRIDE = 7                                      # 3 strings + 3 bools + 1 separator
+
     items = []
-    for i in range(0, len(body), 3):
-        triple = body[i:i + 3]
-        if len(triple) < 3:
+    for i in range(n_items):
+        base = BODY_START + i * ITEM_STRIDE
+        if base + 4 >= len(cleaned):
             break
-        items.append({columns[k] or f"col{k}": triple[k] for k in range(3)})
+        hint     = cleaned[base + 0]
+        answer   = cleaned[base + 2]
+        question = cleaned[base + 4]
+        # Skip items where ALL three fields are empty (file padding/unused slots).
+        if not (hint or answer or question):
+            continue
+        items.append({
+            columns[0]: hint,
+            columns[1]: answer,
+            columns[2]: question,
+        })
     return {"header": header, "columns": columns, "items": items}
 
 
@@ -211,13 +261,30 @@ def port_app(app_id: str, src_root: Path):
         unit["cfg"]  = parse_cfg_txt(cfg_p)  if cfg_p.exists()  else []
         unit["data"] = parse_data_txt(data_p)
         # Copy per-unit audio: data/<App>/unit_<id>/wave/<n>.wav
+        # Also build a manifest mapping (item-idx → set of sides that exist)
+        # so the runtime can skip playback for missing files instead of
+        # generating 404s (browsers can't HEAD-check file:// URLs, so the
+        # original `If Exist(...) Then PlayWave` pattern needs help).
         u_dst_wave = dst_dat / f"unit_{unit['id']}" / "wave"
         src_wave = u_src / "wave"
+        waves: dict[int, list[str]] = {}
         if src_wave.is_dir():
             u_dst_wave.mkdir(parents=True, exist_ok=True)
             for f in src_wave.iterdir():
-                if f.suffix.lower() == ".wav":
-                    shutil.copy(f, u_dst_wave / f.name.lower())
+                if f.suffix.lower() != ".wav":
+                    continue
+                shutil.copy(f, u_dst_wave / f.name.lower())
+                # File names look like "<idx>_<Side>.wav" (e.g., 0_Right.wav).
+                stem = f.stem.lower()
+                if "_" not in stem:
+                    continue
+                idx_str, side = stem.split("_", 1)
+                if idx_str.isdigit():
+                    waves.setdefault(int(idx_str), []).append(side)
+        # Attach per-item wave-side list ([] when no audio at all).
+        items = (unit.get("data") or {}).get("items") or []
+        for i, item in enumerate(items):
+            item["_waves"] = sorted(set(waves.get(i, [])))
 
     # Drop empty/placeholder units. The original ships unit 11 in both apps
     # as a developer-test stub ("זסבזסב", category=" ", LineCount=0,

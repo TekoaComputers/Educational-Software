@@ -105,6 +105,10 @@ HND.startHaklada = function (root, app, unit, onComplete) {
     const knas        = HND._el("div", { class: "ctrl hak-knas", text: "0" });
     const sound       = HND._el("button", { class: "ctrl hak-sound", title: "השמע שוב" });
     const header      = HND._el("div", { class: "ctrl hak-header" });
+    // Goat — original starts off-screen at GoatX=900 and walks left.
+    // Web port simplification: place at right side (600,380), idle goat0_0,
+    // animate yes/no/win in place (matching CSS keyframes defined earlier).
+    const goat        = HND._el("div", { class: "ctrl hak-goat" });
     root.innerHTML = "";
     // Note: actual BG is set by app.js makeStage(); planks are over that.
     root.appendChild(flowerLayer);
@@ -113,6 +117,25 @@ HND.startHaklada = function (root, app, unit, onComplete) {
     root.appendChild(typingArea);
     root.appendChild(knas);
     root.appendChild(sound);
+    root.appendChild(goat);
+
+    // Goat state controller — preserves base class while swapping pose.
+    function setHakGoat(pose) {
+        const KEEP = { ctrl: 1, "hak-goat": 1 };
+        Array.from(goat.classList).forEach(function (c) {
+            if (!KEEP[c]) goat.classList.remove(c);
+        });
+        if (pose) {
+            void goat.offsetWidth;
+            goat.classList.add(pose);
+        }
+        // Auto-revert non-win poses to idle after the animation duration.
+        if (pose && pose !== "win") {
+            setTimeout(function () {
+                if (goat.classList.contains(pose)) goat.classList.remove(pose);
+            }, 1100);
+        }
+    }
 
     // Pre-render flower slots (1 per Q). Position the sprite's top-left
     // exactly at the original's MaskB(GetFlowerX, GetFlowerY) — no offset.
@@ -181,11 +204,20 @@ HND.startHaklada = function (root, app, unit, onComplete) {
         state.answer = text;
         state.selected = [];
         state.typed = [];
+        let hasHebrew = false;
         for (let i = 0; i < text.length; i++) {
             const sel = isLetter(text[i]);
             state.selected.push(sel);
             state.typed.push(!sel);          // non-letters count as already filled
+            if (/[֐-׿]/.test(text[i])) hasHebrew = true;
         }
+        // Original sets `Direction = -1` when the first real char is Hebrew
+        // (i.e., > 128 in CP1255) and iterates the chars right-to-left.
+        // For visually rendered Hebrew the LOGICAL string is already in
+        // logical order (we apply `fix_hebrew` at port time), so the
+        // typing order follows logical index — but for English content
+        // we still walk left-to-right. Both happen to be index-increasing.
+        state.rtl = hasHebrew;
         // First selected, not-yet-typed char.
         state.currentChar = state.selected.findIndex(function (s, i) {
             return s && !state.typed[i];
@@ -260,6 +292,7 @@ HND.startHaklada = function (root, app, unit, onComplete) {
                         "q=" + (state.current + 1), "errors=" + state.currErrors,
                         "cat=" + cat);
                 growFlower(state.current);
+                setHakGoat("yes");
                 const idx = idOrder[state.current];
                 // Play praise wave (the left/translation side).
                 HND.playWave(
@@ -276,14 +309,25 @@ HND.startHaklada = function (root, app, unit, onComplete) {
                 renderTyping();
             }
         } else if (/[a-zA-Z0-9֐-׿]/.test(e.key)) {
-            // Wrong letter — Penalty += 20/(QCount) (simplified from
-            // /(CharCount/1.5) factor in the original).
+            // Wrong letter — original GameHaklada.frm:455
+            //   Penalty += (20 / QCount) / (CharCount / 1.5)
+            // CharCount = count of real (selected) characters in this Q's
+            // answer. Short answers penalize more per mistake.
+            const charCount = state.selected.reduce(function (n, s) {
+                return s ? n + 1 : n;
+            }, 0) || 1;
             state.currErrors++;
-            state.penalty = Math.min(60, state.penalty + 20 / QCOUNT);
+            state.penalty = Math.min(
+                60,
+                state.penalty + (20 / QCOUNT) / (charCount / 1.5)
+            );
             knas.textContent = String(Math.floor(state.penalty));
             HND.log("haklada WRONG", "q=" + (state.current + 1),
                     "expected=" + expected, "got=" + e.key,
-                    "currErrors=" + state.currErrors);
+                    "chars=" + charCount,
+                    "currErrors=" + state.currErrors,
+                    "penalty=" + state.penalty.toFixed(2));
+            setHakGoat("no");
             // After 2 errors, briefly show the expected letter in red.
             if (state.currErrors >= 2) flashAnswer();
             shakeTyping();
@@ -296,11 +340,13 @@ HND.startHaklada = function (root, app, unit, onComplete) {
         cur.classList.remove("cursor");
         cur.classList.add("hint-show");
         cur.textContent = state.answer[state.currentChar];
+        // 200ms flash per the original TimerShow tick (faster than the
+        // 800ms we had — keeps the dictation pace tight).
         setTimeout(function () {
             cur.classList.remove("hint-show");
             cur.textContent = "";
             cur.classList.add("cursor");
-        }, 800);
+        }, 200);
     }
     function shakeTyping() {
         typingArea.classList.remove("shake");
@@ -321,6 +367,7 @@ HND.startHaklada = function (root, app, unit, onComplete) {
         const score = Math.max(0, 100 - Math.floor(state.penalty));
         HND.log("haklada FINISH", "score=" + score, "penalty=" + state.penalty);
         HND.saveProgress(app.id, unit.id, "haklada", score);
+        setHakGoat("win");
         const stage = root.parentElement;
         setTimeout(function () {
             HND.showScoreForm(

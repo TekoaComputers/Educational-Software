@@ -52,6 +52,22 @@ HND.startAmerican = function (root, app, unit, onComplete) {
         HND.preloadFrames(app.id, "GameHaklada", goatFlowerNames);
     })();
 
+    // Original American has 3 modes mapped to GameMenu slots 2/3/4:
+    //   slot 2 → "לפי קול"    (by sound — Q-side wave-only, no Q text)
+    //   slot 3 → "לפי תמונה"  (by picture — Q is the picture)
+    //   slot 4 → "לפי טקסט"   (by text — both Q + audio visible) ← default
+    // The slot index is stashed in sessionStorage on game-menu click;
+    // read it here to branch the InitQuestion rendering.
+    let modeSlot = 4;   // default = by-text
+    try {
+        const v = sessionStorage.getItem("hnd." + app.id + ".lastSlot");
+        if (v != null) modeSlot = parseInt(v, 10);
+    } catch (e) {}
+    const MODE_BY_SOUND = (modeSlot === 2);
+    const MODE_BY_PIC   = (modeSlot === 3);
+    HND.log("american mode", "slot=" + modeSlot,
+            "bySound=" + MODE_BY_SOUND, "byPic=" + MODE_BY_PIC);
+
     const askCol = cols[2] || cols[0];   // Hebrew Q text
     const ansCol = cols[1] || cols[0];   // translation A text
     const FLOWER_SPACE = 65;
@@ -84,8 +100,20 @@ HND.startAmerican = function (root, app, unit, onComplete) {
     };
     HND.log("american start", app.id + "/" + unit.id, "items=" + items.length, "QCount=" + QCOUNT);
 
+    // Help banner — Form_Paint draws CurrentCalibration.Instructions at
+    // (400, 40) in RGB(40,80,190) centered. Read from this unit's cfg
+    // (American modes map to cal blocks 5/6/7 → slot 2/3/4). Field 4 of
+    // each 20-field block is the Instructions string.
+    const AMER_CAL_IDX = modeSlot === 2 ? 5 : modeSlot === 3 ? 6 : 7;
+    const helpBanner = (function () {
+        const cfg = unit.cfg || [];
+        const text = String(cfg[AMER_CAL_IDX * 20 + 4] || "").trim();
+        return text;
+    })();
+
     // ===== Persistent layers =====
     const flowerLayer = HND._el("div", { class: "ctrl am-flower-layer" });
+    const help        = HND._el("div", { class: "ctrl am-help", text: helpBanner });
     const header      = HND._el("div", { class: "ctrl am-header" });
     const qFrame      = HND._el("div", { class: "ctrl am-q-frame", title: "השמע" });
     const qText       = HND._el("span", { class: "am-q-text" });
@@ -96,6 +124,7 @@ HND.startAmerican = function (root, app, unit, onComplete) {
     root.innerHTML = "";
     root.appendChild(flowerLayer);
     root.appendChild(header);
+    if (helpBanner) root.appendChild(help);
     root.appendChild(qFrame);
     root.appendChild(sound);
     root.appendChild(penaltyBox);
@@ -142,7 +171,20 @@ HND.startAmerican = function (root, app, unit, onComplete) {
         HND.log("american question",
                 "q=" + (state.current + 1) + "/" + QCOUNT,
                 "origIdx=" + idx, "ask=" + (correct[askCol] || "").slice(0, 40));
-        qText.textContent = correct[askCol] || "";
+        if (MODE_BY_SOUND) {
+            // QuestionAsBonus / by-sound: blank the Q text — the user
+            // must listen to the wave to know what to pick.
+            qText.textContent = "🔊";
+            qFrame.classList.add("am-q-frame-sound");
+        } else if (MODE_BY_PIC) {
+            // by-picture: we don't ship per-unit images, so render the
+            // ask column inside a picture frame (closest visual proxy).
+            qText.textContent = correct[askCol] || "";
+            qFrame.classList.add("am-q-frame-pic");
+        } else {
+            qText.textContent = correct[askCol] || "";
+            qFrame.classList.remove("am-q-frame-sound", "am-q-frame-pic");
+        }
         renderOptions();
         state.gameEnabled = true;
         // First Q must wait for user interaction (browser autoplay block);
@@ -199,14 +241,14 @@ HND.startAmerican = function (root, app, unit, onComplete) {
         if (!state.gameEnabled) return;
         state.hetzhPos = i;
         applyFocus();
-        // First click also unlocks autoplay; if no audio has played yet
-        // play the Q wave so the user hears what they're answering.
+        // Original commits the first click. Unlock autoplay AND check
+        // the answer; if it happens to be correct the praise wave plays
+        // immediately, otherwise the wrong-feedback plays.
         if (!state.userInteracted) {
             state.userInteracted = true;
-            playQWave();
-            // Don't commit a blind answer on the very first click — let
-            // the user listen, then pick again.
-            return;
+            // Pre-fetch wave (warms the audio element so the praise/wrong
+            // playback inside checkAnswer doesn't hit the autoplay gate).
+            try { playQWave(); HND.stopWave(); } catch (e) {}
         }
         checkAnswer();
     }
@@ -219,21 +261,34 @@ HND.startAmerican = function (root, app, unit, onComplete) {
             HND.log("american CORRECT",
                     "q=" + (state.current + 1), "errors=" + state.currErrors);
             state.gameEnabled = false;
-            // Hetz win-animation (HetzRight2_1..8).
+            // Hetz CORRECT cycle (HetzhStatus=1 → HetzRight1_1..5).
             const opt = optionNodes[state.hetzhPos];
             if (opt) opt.classList.add("done");
-            if (hetzNode) hetzNode.classList.add("done");
+            if (hetzNode) {
+                hetzNode.classList.remove("on", "wrong");
+                void hetzNode.offsetWidth;
+                hetzNode.classList.add("correct", "done");
+            }
             const cat = state.currErrors === 0 ? 0 :
                         state.currErrors <= 2 ? 1 : 2;
             state.errorsByQ.push(cat);
             growFlower(state.current);
-            // Praise wave chained → next question.
+            // Original GameAmerican.frm:1010 — celebratory good_N.wav
+            // (good1..good3 random) AFTER the answer's left.wav. We chain
+            // both so the praise lines up with the goat's "yes" pose
+            // before advancing.
+            const goodN = 1 + Math.floor(Math.random() * 3);
             HND.playWave(
                 HND.unitWavePath(app.id, unit.id, idx, "left"),
                 function () {
-                    state.current++;
-                    if (state.current >= QCOUNT) finishGame();
-                    else initQuestion();
+                    HND.playWave(
+                        "assets/" + app.id + "/sounds/good" + goodN + ".wav",
+                        function () {
+                            state.current++;
+                            if (state.current >= QCOUNT) finishGame();
+                            else initQuestion();
+                        }
+                    );
                 }
             );
         } else {
@@ -242,10 +297,21 @@ HND.startAmerican = function (root, app, unit, onComplete) {
             state.currErrors++;
             state.penalty = Math.min(60, state.penalty + 20 / QCOUNT);
             penaltyBox.textContent = String(Math.floor(state.penalty));
+            // Original GameAmerican.frm:662 — ra.wav buzzer on wrong pick.
+            HND.playWave("assets/" + app.id + "/sounds/ra.wav");
             const opt = optionNodes[state.hetzhPos];
             if (opt) {
                 opt.classList.add("wrong");
                 setTimeout(function () { opt && opt.classList.remove("wrong"); }, 500);
+            }
+            // Hetz WRONG cycle (HetzhStatus=2 → HetzRight2_1..8).
+            if (hetzNode) {
+                hetzNode.classList.remove("correct");
+                void hetzNode.offsetWidth;
+                hetzNode.classList.add("wrong");
+                setTimeout(function () {
+                    hetzNode && hetzNode.classList.remove("wrong");
+                }, 800);
             }
             // After 3 errors, briefly highlight the correct option.
             if (state.currErrors > 2) {

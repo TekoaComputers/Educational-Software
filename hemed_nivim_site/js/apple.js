@@ -63,6 +63,13 @@ HND.startApple = function (root, app, unit, onComplete) {
         [533, 136], [490, 220], [440, 242], [397, 108],
         [356, 195], [309, 144], [263, 242], [216, 146],
     ];
+    // .frm-exact BasketPos[10] — overlapping piles at the bottom-left.
+    // basket0_N.bmp / basket1_N.bmp painted per Stage; one basket pinned
+    // per completed question (`BasketStatus(Current-1) += 1`).
+    const BASKET_POS = [
+        [91, 449], [29, 449], [60, 462], [155, 449], [122, 462],
+        [87, 473], [-9, 461], [25, 473], [186, 462], [151, 473],
+    ];
 
     const QCOUNT  = Math.min(items.length, 9);
     const idOrder = HND._shuffle(items.map(function (_, i) { return i; })).slice(0, QCOUNT);
@@ -78,12 +85,19 @@ HND.startApple = function (root, app, unit, onComplete) {
         gameEnabled: false,
         completed: false,
         totalScore: 0,
+        // Basket/stage state.
+        stage: 0,             // 0 = red apples + basket0; 1 = yellow + basket1
+        baskets: [],          // count of apples in each BASKET_POS slot
     };
+    for (let i = 0; i < BASKET_POS.length; i++) state.baskets.push(0);
     HND.log("apple start", app.id + "/" + unit.id, "items=" + items.length, "QCOUNT=" + QCOUNT);
 
     // Layers
     const flowerCanopy = HND._el("div", { class: "ctrl apple-canopy" });
     const treeLayer    = HND._el("div", { class: "ctrl apple-tree-layer" });
+    // Foliage.Mask overlay — leafy tile drawn over the canopy occluding the
+    // upper third of each static apple (matches Foliage.Mask in original).
+    const foliage      = HND._el("div", { class: "ctrl apple-foliage" });
     const header       = HND._el("div", { class: "ctrl apple-header" });
     const qText        = HND._el("div", { class: "ctrl apple-q" });
     const aText        = HND._el("div", { class: "ctrl apple-a" });
@@ -95,6 +109,7 @@ HND.startApple = function (root, app, unit, onComplete) {
     root.innerHTML = "";
     root.appendChild(flowerCanopy);
     root.appendChild(treeLayer);
+    root.appendChild(foliage);
     root.appendChild(header);
     root.appendChild(divider);
     root.appendChild(qText);
@@ -110,13 +125,51 @@ HND.startApple = function (root, app, unit, onComplete) {
     function renderTreeApples() {
         treeLayer.innerHTML = "";
         APPLE_POS.forEach(function (p, i) {
-            const apple = HND._el("div", { class: "ctrl apple-static" });
+            const apple = HND._el("div", {
+                class: "ctrl apple-static" +
+                       (state.stage === 1 ? " yellow" : " red"),
+            });
             apple.style.cssText = "left:" + p[0] + "px;top:" + p[1] + "px;";
             apple.dataset.slot = String(i);
             treeLayer.appendChild(apple);
         });
     }
     renderTreeApples();
+
+    // Basket pile layer — TimerGoatBmp drops a basket at BasketPos[Current-1]
+    // each time the goat returns from picking. Sprite `basket<stage>_<N>.bmp`
+    // where N = number of apples in this basket (0..8).
+    const basketLayer = HND._el("div", { class: "ctrl apple-basket-layer" });
+    root.appendChild(basketLayer);
+    function renderBaskets() {
+        basketLayer.innerHTML = "";
+        state.baskets.forEach(function (count, i) {
+            if (count <= 0) return;
+            const p = BASKET_POS[i];
+            const b = HND._el("div", { class: "ctrl apple-basket" });
+            const stage = state.stage;
+            const n = Math.min(8, count - 1);
+            b.style.cssText =
+                "left:" + p[0] + "px; top:" + (p[1] - 20) + "px;" +
+                "background-image: url('assets/" + app.id +
+                "/pictures/GameApple/basket" + stage + "_" + n + ".png');";
+            basketLayer.appendChild(b);
+        });
+    }
+    function addBasketFor(qIdx) {
+        // Slot = q index modulo 10 (matches original where Current-1 % 10
+        // wraps into BasketPos[] after the 10th completed Q advances stage).
+        const slot = qIdx % BASKET_POS.length;
+        state.baskets[slot]++;
+        // After the first basket reaches full (8 apples) or 10 Qs done,
+        // advance to Stage 1 (yellow apples + basket1 sprite).
+        if (qIdx >= 9 && state.stage === 0) {
+            state.stage = 1;
+            // Reset basket counts so the second pass uses basket1_N.
+            for (let i = 0; i < state.baskets.length; i++) state.baskets[i] = 0;
+        }
+        renderBaskets();
+    }
 
     // Header
     let userName = "";
@@ -250,8 +303,11 @@ HND.startApple = function (root, app, unit, onComplete) {
                         "q=" + (state.current + 1), "errors=" + state.errorCount,
                         "cat=" + cat);
                 const idx = idOrder[state.current];
-                // Increment total score (per .frm scoring: 100/QCount points each).
-                state.totalScore += (100 / (QCOUNT + 1));
+                // Per-Q score share. Original AppleFall_Timer integrates
+                // `100/(QCount+1)/16` over 17 ticks per fall plus per-basket
+                // ticks; net per-Q ≈ 100/QCount points. Using that target.
+                state.totalScore += (100 / QCOUNT);
+                addBasketFor(state.current);
                 setGoat("pick");
                 HND.playWave(
                     HND.unitWavePath(app.id, unit.id, idx, "left"),
@@ -296,6 +352,12 @@ HND.startApple = function (root, app, unit, onComplete) {
         HND.log("apple FINISH", "score=" + score);
         HND.saveProgress(app.id, unit.id, "apple", score);
         setGoat("win");
+        // Original WinGame: Win.wav fires only when TotalScore > 60 (the
+        // celebratory drum-roll). Below 60, goat goes sad and only score-
+        // bucket wave plays (via showScoreForm).
+        if (score > 60) {
+            HND.playWave("assets/" + app.id + "/sounds/win.wav");
+        }
         // Big apple sprite at (192, 0) per WinGame().
         const bigApple = HND._el("div", { class: "ctrl apple-big" });
         root.appendChild(bigApple);

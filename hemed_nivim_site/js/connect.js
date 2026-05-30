@@ -1,10 +1,11 @@
 // Connect — full port of GameConnect.frm.
 //
 //   LoadSet (line 387):
-//     MaxLineNum = 8 (or 6 if picture mode). QCount = min(items, MaxLineNum).
-//     Boxes(0..QCount-1)         = Q boxes loaded with WhatToAsk text
-//     Boxes(QCount..2*QCount-1)  = A boxes loaded with WhatToAnswer text
-//     Each box scattered randomly at (50..690 x 50..480), non-overlapping.
+//     MaxLineNum = 8 (or 6 if picture mode). Each set draws up to MaxLineNum
+//     pairs from the remaining pool. Boxes(0..N-1) = Q text, Boxes(N..2N-1)
+//     = A text. Boxes scattered randomly at (50..690 x 50..480), non-overlap.
+//     LoadSet is RE-CALLED after each set completes until the full unit
+//     (all items) has been consumed.
 //
 //   Form_MouseUp (line 491):
 //     - First click (OldChosenId=-1, ChosenId>-1): plays Boxes(ChosenId).wave
@@ -15,8 +16,8 @@
 //
 //   WinGame (line 334):
 //     gameScore = 100 - sum(ErrorCount * 15 / starCount)
+//     starCount = total Q pairs across the WHOLE game (all sets combined).
 //     Stars scatter on both sides as celebration.
-//     AddScore + ScoreForm (we use HND.showScoreForm at end).
 window.HND = window.HND || {};
 
 HND.startConnect = function (root, app, unit, onComplete) {
@@ -35,68 +36,101 @@ HND.startConnect = function (root, app, unit, onComplete) {
     const leftCol  = cols[2] || cols[0];   // qRight side text → ask
     const rightCol = cols[1] || cols[0];   // qLeft side text  → answer
     const MAX_LINES = 8;
-    const ROUND = Math.min(items.length, MAX_LINES);
-    const picks = HND._shuffle(items.map(function (_, i) { return i; })).slice(0, ROUND);
-
-    // 2*QCount boxes — picks[i] generates a Q box at index i and an A box
-    // at index (i+ROUND). Both have the same .pairId.
-    const boxes = [];
-    picks.forEach(function (origIdx, i) {
-        boxes.push({ pairId: i, kind: "Q", origIdx: origIdx,
-                     text: items[origIdx][leftCol]  || "",
-                     errorCount: 0 });
-    });
-    picks.forEach(function (origIdx, i) {
-        boxes.push({ pairId: i, kind: "A", origIdx: origIdx,
-                     text: items[origIdx][rightCol] || "",
-                     errorCount: 0 });
-    });
-    // Per-box width based on text length (matches original LoadBox:
-    // `Boxes(BoxId).w = GetStringWidth(Txt) * 1.2`). Approximate ~16px
-    // per Hebrew char + horizontal padding. Min/max clamps to keep the
-    // scatter reasonable.
     const BOX_H = 50;
-    boxes.forEach(function (b) {
-        const charCount = (b.text || "").length;
-        b.w = Math.max(90, Math.min(360, charCount * 16 + 24));
-    });
-    // Non-overlapping random scatter inside (50..750, 50..530).
-    boxes.forEach(function (b) {
-        let tries = 0;
-        do {
-            b.x = 50 + Math.random() * (750 - b.w);
-            b.y = 50 + Math.random() * (480 - BOX_H);
-            tries++;
-        } while (tries < 80 && boxes.some(function (o) {
-            return o !== b && o.x != null &&
-                   b.x < o.x + o.w + 8 && b.x + b.w + 8 > o.x &&
-                   b.y < o.y + BOX_H + 8 && b.y + BOX_H + 8 > o.y;
-        }));
-    });
 
-    const state = { selected: null, matched: {}, completed: false };
-    HND.log("connect start", app.id + "/" + unit.id,
-            "items=" + items.length, "ROUND=" + ROUND);
+    // Game-wide state spanning ALL sets.
+    const pool = HND._shuffle(items.map(function (_, i) { return i; }));
+    const game = {
+        pool: pool,                      // indices still waiting for a set
+        totalPairs: pool.length,         // matches starCount in WinGame
+        totalErrors: 0,                  // sum of Q-box errorCount across sets
+        errorsByItem: {},                // origIdx → 0/1/2 bucket for score-form
+        setNum: 0,
+        completed: false,
+    };
+
+    // Per-set state (rebuilt each LoadSet).
+    let boxes = [];
+    let picks = [];
+    let ROUND = 0;
+    const state = { selected: null, matched: {} };
 
     let userName = "";
     try { userName = localStorage.getItem("hnd." + app.id + ".user") || ""; } catch (e) {}
 
+    function loadSet() {
+        game.setNum++;
+        const take = Math.min(game.pool.length, MAX_LINES);
+        picks = game.pool.slice(0, take);
+        game.pool = game.pool.slice(take);
+        ROUND = picks.length;
+
+        boxes = [];
+        picks.forEach(function (origIdx, i) {
+            boxes.push({ pairId: i, kind: "Q", origIdx: origIdx,
+                         text: items[origIdx][leftCol]  || "",
+                         errorCount: 0 });
+        });
+        picks.forEach(function (origIdx, i) {
+            boxes.push({ pairId: i, kind: "A", origIdx: origIdx,
+                         text: items[origIdx][rightCol] || "",
+                         errorCount: 0 });
+        });
+        // Per-box width based on text length (matches original LoadBox:
+        // `Boxes(BoxId).w = GetStringWidth(Txt) * 1.2`).
+        boxes.forEach(function (b) {
+            const charCount = (b.text || "").length;
+            b.w = Math.max(90, Math.min(360, charCount * 16 + 24));
+        });
+        // Non-overlapping random scatter inside (50..750, 50..530).
+        boxes.forEach(function (b) {
+            let tries = 0;
+            do {
+                b.x = 50 + Math.random() * (750 - b.w);
+                b.y = 50 + Math.random() * (480 - BOX_H);
+                tries++;
+            } while (tries < 80 && boxes.some(function (o) {
+                return o !== b && o.x != null &&
+                       b.x < o.x + o.w + 8 && b.x + b.w + 8 > o.x &&
+                       b.y < o.y + BOX_H + 8 && b.y + BOX_H + 8 > o.y;
+            }));
+        });
+
+        state.selected = null;
+        state.matched  = {};
+        HND.log("connect loadSet", "set#" + game.setNum,
+                "ROUND=" + ROUND, "pool left=" + game.pool.length);
+        render();
+    }
+
     function render() {
         root.innerHTML = "";
 
-        // Header at top.
+        const setsTotal = Math.ceil(game.totalPairs / MAX_LINES);
         root.appendChild(HND._el("div", {
             class: "ctrl connect-header",
-            text: unit.name + (userName ? "  ·  " + userName : ""),
+            text: unit.name
+                  + (userName ? "  ·  " + userName : "")
+                  + "   (סבב " + game.setNum + "/" + setsTotal + ")",
         }));
 
-        // SVG rope layer below the boxes.
         const svgNS = "http://www.w3.org/2000/svg";
         const svg = document.createElementNS(svgNS, "svg");
         svg.setAttribute("class", "ctrl connect-ropes");
         svg.setAttribute("viewBox", "0 0 800 600");
         svg.style.cssText = "left:0;top:0;width:800px;height:600px;pointer-events:none;";
         root.appendChild(svg);
+
+        // Live cursor rope (visible only while a box is selected). Mirrors
+        // the not.bmp segments the original tiles from box center to cursor.
+        const liveRope = document.createElementNS(svgNS, "line");
+        liveRope.setAttribute("class", "connect-rope-live");
+        liveRope.setAttribute("stroke", "#ffe19a");
+        liveRope.setAttribute("stroke-width", "3");
+        liveRope.setAttribute("stroke-dasharray", "5 4");
+        liveRope.setAttribute("opacity", "0");
+        svg.appendChild(liveRope);
+        state._liveRope = liveRope;
 
         Object.keys(state.matched).forEach(function (pairIdStr) {
             const pid = parseInt(pairIdStr, 10);
@@ -128,16 +162,15 @@ HND.startConnect = function (root, app, unit, onComplete) {
             root.appendChild(node);
         });
 
-        const done = Object.keys(state.matched).length;
+        const doneInSet = Object.keys(state.matched).length;
+        const doneTotal = game.totalPairs - game.pool.length - (ROUND - doneInSet);
         root.appendChild(HND._el("div", {
-            class: "ctrl connect-status" + (done === ROUND ? " done" : ""),
-            text: done === ROUND
-                ? "כל הכבוד! חיברת את כל הזוגות."
-                : "חבר את הביטוי לפתרון — " + done + " מתוך " + ROUND,
+            class: "ctrl connect-status" + (doneInSet === ROUND ? " done" : ""),
+            text: "חבר את הביטוי לפתרון — "
+                  + doneTotal + " מתוך " + game.totalPairs,
         }));
     }
 
-    // Star burst — sprinkle small stars at the connect-line midpoint.
     function spawnStars(boxA, boxB) {
         const cx = (boxA.x + boxA.w / 2 + boxB.x + boxB.w / 2) / 2;
         const cy = (boxA.y + boxB.y) / 2 + BOX_H / 2;
@@ -153,6 +186,33 @@ HND.startConnect = function (root, app, unit, onComplete) {
             setTimeout(function () { star.remove(); }, 900);
         }
     }
+
+    function updateLiveRope(stageX, stageY) {
+        const line = state._liveRope;
+        if (!line) return;
+        if (state.selected === null) {
+            line.setAttribute("opacity", "0");
+            return;
+        }
+        const sel = boxes[state.selected];
+        line.setAttribute("x1", sel.x + sel.w / 2);
+        line.setAttribute("y1", sel.y + BOX_H / 2);
+        line.setAttribute("x2", stageX);
+        line.setAttribute("y2", stageY);
+        line.setAttribute("opacity", "0.85");
+    }
+    // Stage-wide mousemove updates the live rope while a pick is pending.
+    // root is the .stage div; its bounding rect maps client coords → stage px.
+    root.onmousemove = function (ev) {
+        if (state.selected === null) return;
+        const rect = root.getBoundingClientRect();
+        const scaleX = rect.width  / 800;
+        const scaleY = rect.height / 600;
+        const sx = (ev.clientX - rect.left) / (scaleX || 1);
+        const sy = (ev.clientY - rect.top)  / (scaleY || 1);
+        updateLiveRope(sx, sy);
+    };
+
     function onPick(i, node) {
         const b = boxes[i];
         if (state.matched[b.pairId]) return;
@@ -162,6 +222,9 @@ HND.startConnect = function (root, app, unit, onComplete) {
             HND.playWave(HND.unitWavePath(app.id, unit.id, b.origIdx,
                                           b.kind === "Q" ? "left" : "right"));
             render();
+            // Anchor live rope at the selected box (no cursor yet → endpoint
+            // pinned at box center until mouse moves).
+            updateLiveRope(b.x + b.w / 2, b.y + BOX_H / 2);
             return;
         }
         const prev = boxes[state.selected];
@@ -169,13 +232,13 @@ HND.startConnect = function (root, app, unit, onComplete) {
         if (prev.pairId === b.pairId && prev.kind !== b.kind) {
             state.matched[b.pairId] = true;
             HND.log("connect CORRECT", "pair=" + b.pairId,
-                    "done=" + (Object.keys(state.matched).length) + "/" + ROUND);
+                    "set done=" + (Object.keys(state.matched).length) + "/" + ROUND);
             state.selected = null;
             HND.playWave(HND.unitWavePath(app.id, unit.id, b.origIdx,
                                           b.kind === "Q" ? "left" : "right"));
             spawnStars(prev, b);
             render();
-            if (Object.keys(state.matched).length === ROUND && !state.completed) finish();
+            if (Object.keys(state.matched).length === ROUND) onSetComplete();
         } else {
             HND.log("connect WRONG", "prev=" + prev.pairId, "now=" + b.pairId);
             prev.errorCount = Math.min(3, prev.errorCount + 1);
@@ -187,23 +250,41 @@ HND.startConnect = function (root, app, unit, onComplete) {
         }
     }
 
+    function onSetComplete() {
+        // Roll set's errors + per-item buckets into the game totals BEFORE
+        // boxes get wiped by the next loadSet().
+        boxes.forEach(function (b) {
+            if (b.kind !== "Q") return;
+            game.totalErrors += b.errorCount;
+            const bucket = b.errorCount === 0 ? 0 : b.errorCount <= 2 ? 1 : 2;
+            game.errorsByItem[b.origIdx] = bucket;
+        });
+        if (game.pool.length > 0) {
+            setTimeout(function () { loadSet(); }, 1200);
+        } else if (!game.completed) {
+            setTimeout(function () { finish(); }, 1200);
+        }
+    }
+
     function finish() {
-        if (state.completed) return;
-        state.completed = true;
+        if (game.completed) return;
+        game.completed = true;
         // Per .frm WinGame: gameScore = 100 - sum(errorCount * 15 / starCount).
-        const starCount = ROUND;
-        const errorSum = boxes.reduce(function (s, b) {
-            return b.kind === "Q" ? s + b.errorCount : s;
-        }, 0);
-        const score = Math.max(0, Math.round(100 - (errorSum * 15 / starCount)));
-        HND.log("connect FINISH", "score=" + score, "errors=" + errorSum);
-        const errorsByQ = picks.map(function (_, i) {
-            const q = boxes.find(function (b) { return b.pairId === i && b.kind === "Q"; });
-            const e = q ? q.errorCount : 0;
-            return e === 0 ? 0 : e <= 2 ? 1 : 2;
+        const starCount = game.totalPairs;
+        const score = Math.max(0, Math.round(
+            100 - (game.totalErrors * 15 / starCount)));
+        HND.log("connect FINISH",
+                "score=" + score,
+                "errors=" + game.totalErrors,
+                "sets=" + game.setNum);
+
+        // errorsByQ in original-pool order (so score-form flowers line up
+        // with the canonical question list).
+        const errorsByQ = items.map(function (_, idx) {
+            return game.errorsByItem.hasOwnProperty(idx)
+                ? game.errorsByItem[idx] : 0;
         });
         HND.saveProgress(app.id, unit.id, "connect", score);
-        // Win.wav + score-form overlay.
         burstWinStars();
         const stage = root.parentElement;
         setTimeout(function () {
@@ -220,8 +301,6 @@ HND.startConnect = function (root, app, unit, onComplete) {
         if (onComplete) onComplete(score);
     }
 
-    // WinGame stars flying upward — matches the "stars scatter at bottom"
-    // behavior of the original (gameScore-driven celebration).
     function burstWinStars() {
         for (let i = 0; i < 12; i++) {
             const star = HND._el("div", { class: "ctrl connect-bigstar" });
@@ -236,5 +315,8 @@ HND.startConnect = function (root, app, unit, onComplete) {
         }
     }
 
-    render();
+    HND.log("connect start", app.id + "/" + unit.id,
+            "items=" + items.length,
+            "sets=" + Math.ceil(items.length / MAX_LINES));
+    loadSet();
 };

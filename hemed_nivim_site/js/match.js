@@ -86,8 +86,10 @@ HND.startMatch = function (root, app, unit, onComplete) {
     HND.log("match start", app.id + "/" + unit.id, "rows=" + QCount);
 
     // Pre-load all sprite-sheet frames so background-image swaps don't
-    // flicker the first time each frame is needed.
-    (function preloadMatchSprites() {
+    // flicker the first time each frame is needed. The row-paper composition
+    // (linesfull/left/right) is critical — they appear at frame 1 of every
+    // game so the user MUST see them decoded before buildLines() paints.
+    const matchPreload = (function preloadMatchSprites() {
         const names = ["back", "linesleft", "linesright", "linesfull", "goatlook"];
         for (let i = 0; i <= 9; i++) names.push("goatlook" + i);
         for (let i = 0; i <= 6; i++) names.push("goatenter" + i);
@@ -96,11 +98,26 @@ HND.startMatch = function (root, app, unit, onComplete) {
         for (let i = 0; i <= 9; i++) names.push("flower0_" + i);
         for (let i = 0; i <= 9; i++) names.push("flower1_" + i);
         for (let i = 0; i <= 6; i++) names.push("flower2_" + i);
-        HND.preloadFrames(app.id, "GameHatama", names);
+        return HND.preloadFrames(app.id, "GameHatama", names);
     })();
 
+    // Middle (% of paper width where the left/right split sits) is part of
+    // each unit's header — TheUnitFile(14) per GamesMoudle.bas:223. Defaults
+    // to 50% if missing or non-numeric.
+    const unitMiddle = (function () {
+        const m = parseInt((unit.data && unit.data.header && unit.data.header[14]) || "50", 10);
+        return isNaN(m) ? 50 : m;
+    })();
+    // Corner.Right in row-local pixels (RePaintLine uses Middle/100 × FullLinePic.Width).
+    // Per-row CSS uses --split-x; the four layer offsets (split-13, split-20,
+    // split+27, etc.) are computed in CSS calc() from this single var.
+    const splitX = Math.round(660 * unitMiddle / 100);
+
     // Persistent layers — kept across re-renders so CSS animations survive.
-    const linesLayer  = HND._el("div", { class: "ctrl hat-lines-layer" });
+    const linesLayer  = HND._el("div", {
+        class: "ctrl hat-lines-layer",
+        "data-app": app.id,                // selects per-app paper images in CSS
+    });
     const flowerLayer = HND._el("div", { class: "ctrl hat-flowers-layer" });
     const goat        = HND._el("div", { class: "ctrl hat-goat" });
     const header      = HND._el("div", { class: "ctrl hat-header" });
@@ -128,7 +145,8 @@ HND.startMatch = function (root, app, unit, onComplete) {
             const line = HND._el("div", {
                 class: "ctrl hat-line pic-" + pic,
                 "data-row": i,
-                style: "top:" + top + "px;",
+                style: "top:" + top + "px;" +
+                       "--split-x:" + splitX + "px;",
                 onclick: function () { onLineClick(i); },
                 onmouseenter: function () { onLineHover(i); },
             });
@@ -136,9 +154,16 @@ HND.startMatch = function (root, app, unit, onComplete) {
             // .paper-left / .paper-right use linesfull.png positioned
             //   at the row's slice; .edge-left / .edge-right are the
             //   ragged inner edges from linesleft/right.png.
+            // Row composition mirrors RePaintLine (GameHatama.frm:396-451):
+            //   • paper-right (full)         → FullLinePic sliced to LinePicOrder[i]
+            //   • edge-right (torn left rim) → RightLinePic at x = split-13
+            //   • paper-left (full)          → FullLinePic; revealed in InFocus/Answered
+            //   • edge-left  (torn right rim of left paper) → LeftLinePic at x = split-17
+            // Each is positioned with the same --split-x var and sliced via
+            // background-position-y per .pic-N class.
             line.appendChild(HND._el("div", { class: "hat-paper hat-paper-right" }));
-            line.appendChild(HND._el("div", { class: "hat-paper hat-paper-left" }));
             line.appendChild(HND._el("div", { class: "hat-edge hat-edge-right" }));
+            line.appendChild(HND._el("div", { class: "hat-paper hat-paper-left" }));
             line.appendChild(HND._el("div", { class: "hat-edge hat-edge-left" }));
             // Two text labels (right = ask, left = answer). The visibility
             // is controlled by .hat-line state classes.
@@ -210,7 +235,9 @@ HND.startMatch = function (root, app, unit, onComplete) {
         penaltyBox.textContent = String(Math.floor(state.penalty));
     }
 
+    function clearHint() { hintBox.textContent = ""; }
     function nextQuestion() {
+        clearHint();
         // Pick a random unanswered Q (matches NextQuestion sub).
         const unanswered = [];
         for (let i = 0; i < QCount; i++) {
@@ -259,7 +286,11 @@ HND.startMatch = function (root, app, unit, onComplete) {
             setTimeout(function () {
                 setLineState(rowIdx, "answered");
                 state.idStatus[rowIdx] = "answered";
-                state.errorsPerQ[rowIdx] = state.errorCount;
+                // Original ErrorsStatus(QId) bucket — 0=perfect, 1=1-2 errors,
+                // 2=3+ errors. Stored by question id (= rowIdx on correct).
+                const errBucket = state.errorCount === 0 ? 0 :
+                                  state.errorCount <= 2 ? 1 : 2;
+                state.errorsPerQ[state.qId] = errBucket;
                 state.qAnswered++;
                 growFlower(state.qAnswered - 1, state.errorCount);
                 setGoatPose("cheer");
@@ -291,13 +322,34 @@ HND.startMatch = function (root, app, unit, onComplete) {
             }
             // After 3 errors, show hint (the answer text).
             if (state.errorCount >= 2) showHint();
-            setTimeout(function () { state.gameEnabled = true; }, 600);
+            // ErrorCount = 3 → TimerError fires: flash the Q row 8 times
+            // (original TimerError_Timer toggles RGB ±15/10/10) and ResetPos
+            // (we don't drag boxes, so just lock briefly and re-enable).
+            if (state.errorCount >= 3) {
+                const qLine = linesLayer.children[state.qId];
+                if (qLine) {
+                    qLine.classList.add("triple-error-flash");
+                    setTimeout(function () {
+                        qLine.classList.remove("triple-error-flash");
+                    }, 900);
+                }
+                state.gameEnabled = false;
+                setTimeout(function () { state.gameEnabled = true; }, 950);
+            } else {
+                setTimeout(function () { state.gameEnabled = true; }, 600);
+            }
         }
     }
 
     function showHint() {
+        // Original PaintHint reads from WhatToHint (or WhatToAnswer if hint
+        // is disabled). It must reveal the *answer side* — never the ask
+        // side, which the user already hears. Prefer hint column if a
+        // distinct one exists, else fall back to ansCol.
         const it = items[idOrder[state.qId]];
-        hintBox.textContent = "רמז: " + (it[askCol] || "");
+        const hintCol = cols[0] !== askCol && cols[0] !== ansCol ? cols[0] : null;
+        const text = (hintCol && it[hintCol]) || it[ansCol] || "";
+        hintBox.textContent = "רמז: " + text;
     }
 
     function finishGame() {
@@ -330,21 +382,9 @@ HND.startMatch = function (root, app, unit, onComplete) {
     // Initial render: paint all rows in notAnswered state.
     for (let i = 0; i < QCount; i++) setLineState(i, "not-answered");
     showPenalty();
-    // Browser autoplay policy blocks playWave before the first user
-    // gesture. Show a hint overlay and start the game on first click /
-    // keypress (matches the original's CmdHelp_Click→GoNext flow gated
-    // by user interaction in the web port).
-    const startHint = HND._el("div", {
-        class: "ctrl hat-start-hint",
-        text: "לחץ או הקש מקש כדי להתחיל",
-    });
-    root.appendChild(startHint);
-    function beginGame() {
-        startHint.remove();
-        window.removeEventListener("click", beginGame, true);
-        window.removeEventListener("keydown", beginGame, true);
-        nextQuestion();
-    }
-    window.addEventListener("click", beginGame, true);
-    window.addEventListener("keydown", beginGame, true);
+    // Original PlayGame ends with Me.Show 1 and lets WaveMe_Done (after the
+    // help-audio plays) trigger the first NextQuestion. The user reaches
+    // this game via a click on the GameMenu sign, so audio is already
+    // unlocked by the time we get here — call nextQuestion directly.
+    nextQuestion();
 };

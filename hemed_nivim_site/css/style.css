@@ -128,6 +128,38 @@ body {
     padding: 4px 8px;
     direction: rtl;
     scrollbar-width: thin;
+    scrollbar-color: rgb(184, 136, 64) transparent;
+}
+/* ListPlus skinned scrollbar — original draws mot.bmp as the track,
+   listup/listdown as arrows, listm as the thumb. WebKit can be skinned
+   directly; Firefox falls back to the thin/parchment-colored bar above. */
+.unit-scroll::-webkit-scrollbar {
+    width: 16px;
+}
+.unit-scroll::-webkit-scrollbar-track {
+    background-image: url("../assets/Hemed/pictures/UnitList/mot.png");
+    background-size: 100% auto;
+    background-repeat: repeat-y;
+}
+.unit-scroll::-webkit-scrollbar-thumb {
+    background-image: url("../assets/Hemed/pictures/UnitList/listm.png");
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    border-radius: 3px;
+}
+.unit-scroll::-webkit-scrollbar-button:single-button:vertical:decrement {
+    background-image: url("../assets/Hemed/pictures/UnitList/listup.png");
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    height: 16px;
+    display: block;
+}
+.unit-scroll::-webkit-scrollbar-button:single-button:vertical:increment {
+    background-image: url("../assets/Hemed/pictures/UnitList/listdown.png");
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    height: 16px;
+    display: block;
 }
 /* Both columns share the same per-row heights so the scores line up
    exactly with their unit row. Header = subject divider (taller),
@@ -340,32 +372,77 @@ body {
    NotAnswered state we clip-path to show only the right half; on InFocus
    /Answered the clip expands to reveal the whole strip. Much simpler than
    composing two paper halves + edge sprites. */
-.hat-paper {
-    position: absolute; top: 0; left: 0; width: 660px; height: 42px;
-    background-image: url("../assets/Hemed/pictures/GameHatama/linesfull.png");
+/* Each row composes four layers exactly as the original RePaintLine paints
+   into TBackPic — one PaintMaskedPicture call per layer:
+       (dest_x, dest_y, dest_w, dest_h, src_x, src_y)
+   Translation to CSS: `left = dest_x`, `width = dest_w`,
+                       `background-position = (-src_x, -src_y)`.
+
+   Layer  | source sprite        | src_x  | dest_w (constant)
+   ----------------------------------------------------------------
+   paper-right | linesfull.png   | split+27 | 660 − (split+27)
+   edge-right  | linesright.png  | 0        | 40
+   paper-left  | linesfull.png   | 0        | split − 20
+   edge-left   | linesleft.png   | 0        | 40
+
+   `dest_x` (the `left`) varies per state via CurrX — see rules below.
+   --split-x is set per-row by JS from unit.Middle / 100 × 660. */
+.hat-paper, .hat-edge {
+    position: absolute; top: 0; height: 42px;
     background-repeat: no-repeat;
-    background-size: 660px 430px;
-    /* default: full strip visible (Answered state) */
-    clip-path: inset(0 0 0 0);
-    transition: clip-path 0.3s ease-out, filter 0.3s;
+    transition: left 0.25s ease-out, filter 0.3s;
 }
-/* Hide the unused half/edge elements — kept as no-ops so the JS that
-   appends them still compiles. */
-.hat-paper-left, .hat-edge, .hat-edge-left, .hat-edge-right { display: none; }
+.hat-paper-right {
+    width: calc(660px - var(--split-x, 330px) - 27px);
+    background-image: url("../assets/Hemed/pictures/GameHatama/linesfull.png");
+    background-size: 660px 430px;
+    background-position-x: calc(-1 * (var(--split-x, 330px) + 27px));
+}
+.hat-edge-right {
+    width: 40px;
+    background-image: url("../assets/Hemed/pictures/GameHatama/linesright.png");
+    background-size: 40px 430px;
+    background-position-x: 0;
+}
+.hat-paper-left {
+    width: calc(var(--split-x, 330px) - 20px);
+    background-image: url("../assets/Hemed/pictures/GameHatama/linesfull.png");
+    background-size: 660px 430px;
+    background-position-x: 0;
+}
+.hat-edge-left {
+    width: 40px;
+    background-image: url("../assets/Hemed/pictures/GameHatama/linesleft.png");
+    background-size: 40px 430px;
+    background-position-x: 0;
+}
 
-/* pic-N slices: row N of the 10-row sprite-sheet at y = -N*43px. */
-.pic-0 .hat-paper { background-position-y:   0px; }
-.pic-1 .hat-paper { background-position-y: -43px; }
-.pic-2 .hat-paper { background-position-y: -86px; }
-.pic-3 .hat-paper { background-position-y: -129px; }
-.pic-4 .hat-paper { background-position-y: -172px; }
-.pic-5 .hat-paper { background-position-y: -215px; }
-.pic-6 .hat-paper { background-position-y: -258px; }
-.pic-7 .hat-paper { background-position-y: -301px; }
-.pic-8 .hat-paper { background-position-y: -344px; }
-.pic-9 .hat-paper { background-position-y: -387px; }
+/* Per-app asset paths (Nivim ships its own painted sprite-sheets at the
+   same dimensions). */
+.hat-lines-layer[data-app="Nivim"] .hat-paper-right,
+.hat-lines-layer[data-app="Nivim"] .hat-paper-left {
+    background-image: url("../assets/Nivim/pictures/GameHatama/linesfull.png");
+}
+.hat-lines-layer[data-app="Nivim"] .hat-edge-right { background-image: url("../assets/Nivim/pictures/GameHatama/linesright.png"); }
+.hat-lines-layer[data-app="Nivim"] .hat-edge-left  { background-image: url("../assets/Nivim/pictures/GameHatama/linesleft.png"); }
 
-/* Text — ask is on RIGHT, answer is on LEFT (Hebrew layout). */
+/* pic-N slices: row N of the 10-row sprite-sheet at y = -N*43px. Applied
+   uniformly to BOTH paper and edge layers — RePaintLine slices them all
+   from the same `LinePicOrder * 42.8` source-Y. */
+.pic-0 .hat-paper, .pic-0 .hat-edge { background-position-y:   0px; }
+.pic-1 .hat-paper, .pic-1 .hat-edge { background-position-y: -43px; }
+.pic-2 .hat-paper, .pic-2 .hat-edge { background-position-y: -86px; }
+.pic-3 .hat-paper, .pic-3 .hat-edge { background-position-y: -129px; }
+.pic-4 .hat-paper, .pic-4 .hat-edge { background-position-y: -172px; }
+.pic-5 .hat-paper, .pic-5 .hat-edge { background-position-y: -215px; }
+.pic-6 .hat-paper, .pic-6 .hat-edge { background-position-y: -258px; }
+.pic-7 .hat-paper, .pic-7 .hat-edge { background-position-y: -301px; }
+.pic-8 .hat-paper, .pic-8 .hat-edge { background-position-y: -344px; }
+.pic-9 .hat-paper, .pic-9 .hat-edge { background-position-y: -387px; }
+
+/* Text — ask is on RIGHT (after the split at --split-x), answer is on LEFT.
+   Positions anchor to the unit's `--split-x` (= Middle% of 660px) so units
+   with Middle≠50 align correctly. */
 .hat-text {
     position: absolute; top: 0; height: 42px;
     display: flex; align-items: center;
@@ -375,36 +452,62 @@ body {
     direction: rtl;
 }
 .hat-text-right {
-    left: 360px; right: 14px;
+    left: var(--split-x, 330px); right: 14px;
     justify-content: center;
     padding: 0 8px;
 }
 .hat-text-left {
-    left: 14px; width: 290px;
+    left: 14px; width: calc(var(--split-x, 330px) - 14px);
     justify-content: center;
     padding: 0 8px;
 }
 
-/* State: NotAnswered — only right paper + right edge + ask text visible. */
+/* Per-state `dest_x` (= CSS `left`) for each of the four layers,
+   transcribed directly from RePaintLine. No clip-path; no width swap.
+   The dest_w is constant per layer, only the screen position changes.
+
+   NotAnswered (GameHatama.frm:406-410):
+     FullLinePic.PaintMaskedPicture ..., split+27,       0, ...
+     RightLinePic.PaintMaskedPicture ...,  split-13,      0, ...
+     (paper-left + edge-left hidden) */
+.hat-line.not-answered .hat-paper-right { left: calc(var(--split-x, 330px) + 27px); }
+.hat-line.not-answered .hat-edge-right  { left: calc(var(--split-x, 330px) - 13px); }
 .hat-line.not-answered .hat-paper-left,
 .hat-line.not-answered .hat-edge-left,
-.hat-line.not-answered .hat-text-left { display: none; }
-.hat-line.not-answered           { cursor: pointer; }
-.hat-line.not-answered:hover .hat-paper-right { filter: brightness(1.05); }
+.hat-line.not-answered .hat-text-left   { display: none; }
+.hat-line.not-answered                  { cursor: pointer; }
+.hat-line.not-answered:hover .hat-paper-right,
+.hat-line.not-answered:hover .hat-edge-right { filter: brightness(1.05); }
 
-/* State: InFocus — both papers with a slight CurrX=3 inward shift. */
-.hat-line.in-focus .hat-paper-left  { left: 6px;   filter: hue-rotate(10deg) brightness(1.02); }
-.hat-line.in-focus .hat-paper-right { left: 320px; filter: hue-rotate(10deg) brightness(1.02); }
-.hat-line.in-focus .hat-edge-left   { left: 276px; }
-.hat-line.in-focus .hat-edge-right  { left: 314px; }
+/* InFocus (GameHatama.frm:418-421, hardcoded +3/-3 inward shift):
+     FullLinePic.PaintMaskedPicture ..., 3,                     0, ...
+     LeftLinePic.PaintMaskedPicture ...,  3 + split - 20,        0, ...
+     FullLinePic.PaintMaskedPicture ..., split + 27 - 3,        0, ...
+     RightLinePic.PaintMaskedPicture..., split - 13 - 3,        0, ...
+   Plus ChangeRgb(0,10,40) → very light blue/green tint. */
+.hat-line.in-focus .hat-paper-left  { left: 3px; }
+.hat-line.in-focus .hat-edge-left   { left: calc(var(--split-x, 330px) - 17px); }
+.hat-line.in-focus .hat-paper-right { left: calc(var(--split-x, 330px) + 24px); }
+.hat-line.in-focus .hat-edge-right  { left: calc(var(--split-x, 330px) - 16px); }
+.hat-line.in-focus .hat-paper-right,
+.hat-line.in-focus .hat-paper-left,
+.hat-line.in-focus .hat-edge-right,
+.hat-line.in-focus .hat-edge-left   { filter: hue-rotate(10deg) brightness(1.03); }
 
-/* State: Answered — papers overlap (CurrX=-6) into one strip, green tint. */
+/* Answered (GameHatama.frm:446-451 with CurrX = −6 → papers overlap):
+     FullLinePic.PaintMaskedPicture ..., -CurrX = 6,                       0, ...
+     LeftLinePic.PaintMaskedPicture ...,  -CurrX + split - 20 = split-14, 0, ...
+     FullLinePic.PaintMaskedPicture ..., split + 27 + CurrX = split+21,  0, ...
+     RightLinePic.PaintMaskedPicture..., split - 13 + CurrX = split-19,   0, ...
+   Plus ChangeRgb(-15,30,-10) → green tint (ErrorCount = 0). */
+.hat-line.answered .hat-paper-left  { left: 6px; }
+.hat-line.answered .hat-edge-left   { left: calc(var(--split-x, 330px) - 14px); }
+.hat-line.answered .hat-paper-right { left: calc(var(--split-x, 330px) + 21px); }
+.hat-line.answered .hat-edge-right  { left: calc(var(--split-x, 330px) - 19px); }
 .hat-line.answered .hat-paper-left,
-.hat-line.answered .hat-paper-right { filter: hue-rotate(60deg) saturate(0.85) brightness(0.95); }
-.hat-line.answered .hat-paper-left  { left: -3px; }
-.hat-line.answered .hat-paper-right { left: 311px; }
+.hat-line.answered .hat-paper-right,
 .hat-line.answered .hat-edge-left,
-.hat-line.answered .hat-edge-right  { display: none; }
+.hat-line.answered .hat-edge-right  { filter: hue-rotate(60deg) saturate(0.85) brightness(0.95); }
 .hat-line.answered                  { cursor: default; }
 
 .hat-line.wrong-flash .hat-paper-right {
@@ -413,6 +516,15 @@ body {
 @keyframes hatWrongFlash {
     0%, 50%, 100% { filter: none; }
     25%, 75%      { filter: hue-rotate(-40deg) brightness(0.85); }
+}
+/* 3rd-error flash — original TimerError_Timer toggles RGB ±15/10/10 over
+   8 cycles (~100ms each). Same effect, applied to the whole row. */
+.hat-line.triple-error-flash {
+    animation: hatTripleErrorFlash 0.1s steps(1) 8;
+}
+@keyframes hatTripleErrorFlash {
+    0%, 100% { filter: brightness(0.85) hue-rotate(-15deg); }
+    50%      { filter: none; }
 }
 
 /* Header — UnitName · UserName, light-blue text at top of stage. */
@@ -445,18 +557,6 @@ body {
     color: rgb(30, 50, 210); min-height: 20px;
     pointer-events: none;
 }
-.hat-start-hint {
-    left: 60px; top: 320px; width: 680px;
-    text-align: center; font-size: 1.5rem; font-weight: 700;
-    color: #fff;
-    background: rgba(91, 58, 20, 0.85);
-    border: 3px solid #f6e7c2;
-    border-radius: 12px; padding: 16px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
-    z-index: 20;
-    pointer-events: none;
-}
-
 /* Goat at GoatPic L=10725 T=1620 → (715,108), 85×173 native. */
 .hat-goat {
     left: 715px; top: 108px; width: 85px; height: 173px;
@@ -582,6 +682,15 @@ body {
         0 -1px 0 rgb(110, 110, 225);
     pointer-events: none;
 }
+/* Calibration.Instructions banner — Form_Paint at (400, 40) in
+   RGB(40,80,190). Centered between header and Q frame. */
+.am-help {
+    left: 0; right: 0; top: 34px;
+    text-align: center; font-size: 0.95rem; font-weight: 600;
+    color: rgb(40, 80, 190);
+    text-shadow: 0 1px 0 rgba(255,255,255,0.6);
+    pointer-events: none;
+}
 
 .am-penalty {
     left: 2px; top: 487px; width: 50px; height: 25px;
@@ -651,23 +760,33 @@ body {
     transition: opacity 0.18s;
     pointer-events: none;
 }
+/* HetzhStatus per .frm (lines 211-216, 617-619, 695-697):
+     0 = idle           → static HetzRight0_1.png
+     1 = correct flash  → 5-frame HetzRight1_*.png cycle
+     2 = wrong   flash  → 8-frame HetzRight2_*.png cycle
+   The original animates only on correct/wrong transitions; idle is static. */
 .am-hetz.on   {
     opacity: 1;
-    animation: amHetzCycle 0.4s steps(1) infinite;
+    /* idle indicator on hover/focus — single static frame, no cycle */
+    background-image: url("../assets/Hemed/pictures/GameAmerican/hetzright0_1.png");
 }
-@keyframes amHetzCycle {
+.am-hetz.correct {
+    opacity: 1;
+    animation: amHetzCorrect 0.5s steps(1);
+}
+@keyframes amHetzCorrect {
     0%   { background-image: url("../assets/Hemed/pictures/GameAmerican/hetzright1_1.png"); }
     20%  { background-image: url("../assets/Hemed/pictures/GameAmerican/hetzright1_2.png"); }
     40%  { background-image: url("../assets/Hemed/pictures/GameAmerican/hetzright1_3.png"); }
     60%  { background-image: url("../assets/Hemed/pictures/GameAmerican/hetzright1_4.png"); }
     80%  { background-image: url("../assets/Hemed/pictures/GameAmerican/hetzright1_5.png"); }
-    100% { background-image: url("../assets/Hemed/pictures/GameAmerican/hetzright1_1.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameAmerican/hetzright1_5.png"); }
 }
-.am-hetz.done {
+.am-hetz.wrong {
     opacity: 1;
-    animation: amHetzWin 0.6s steps(1) infinite;
+    animation: amHetzWrong 0.8s steps(1);
 }
-@keyframes amHetzWin {
+@keyframes amHetzWrong {
     0%   { background-image: url("../assets/Hemed/pictures/GameAmerican/hetzright2_1.png"); }
     12%  { background-image: url("../assets/Hemed/pictures/GameAmerican/hetzright2_2.png"); }
     25%  { background-image: url("../assets/Hemed/pictures/GameAmerican/hetzright2_3.png"); }
@@ -676,7 +795,12 @@ body {
     62%  { background-image: url("../assets/Hemed/pictures/GameAmerican/hetzright2_6.png"); }
     75%  { background-image: url("../assets/Hemed/pictures/GameAmerican/hetzright2_7.png"); }
     87%  { background-image: url("../assets/Hemed/pictures/GameAmerican/hetzright2_8.png"); }
-    100% { background-image: url("../assets/Hemed/pictures/GameAmerican/hetzright2_1.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameAmerican/hetzright0_1.png"); }
+}
+/* Keep .done class working — final state shows the last "correct" frame */
+.am-hetz.done {
+    opacity: 1;
+    background-image: url("../assets/Hemed/pictures/GameAmerican/hetzright1_5.png");
 }
 
 .am-sound {
@@ -696,15 +820,38 @@ body {
    Header at y=5-9 in RGB(50,100,210) light-blue. */
 .apple-canopy    { left: 0; top: 0; width: 800px; height: 600px; pointer-events: none; }
 .apple-tree-layer{ left: 0; top: 0; width: 800px; height: 600px; pointer-events: none; }
+/* Foliage occludes the top of the static apples (Foliage.Mask in original
+   covers the upper canopy region). Layered above tree apples, below the
+   falling/picked apple animations. */
+.apple-foliage {
+    left: 0; top: 0; width: 800px; height: 300px;
+    pointer-events: none;
+    z-index: 4;
+    background-image: url("../assets/Hemed/pictures/GameApple/foliage.png");
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    background-position: top center;
+}
 .apple-fall-layer { left: 0; top: 0; width: 800px; height: 600px;
                     pointer-events: none; z-index: 8; }
 
 /* Static tree apple — visible by default on each Q at ApplePos[i].
-   The original calls PaintApple(i, 1) before any user input. */
+   The original calls PaintApple(i, 1) before any user input.
+   Stage 0 = red apples; Stage 1 (after first basket fills) = yellow. */
 .apple-static {
     position: absolute;
     width: 50px; height: 37px;
-    background-image: url("../assets/Hemed/pictures/GameApple/applered1.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    pointer-events: none;
+}
+.apple-static.red    { background-image: url("../assets/Hemed/pictures/GameApple/applered1.png"); }
+.apple-static.yellow { background-image: url("../assets/Hemed/pictures/GameApple/appleyellow1.png"); }
+
+/* Basket pile at the bottom — one per completed Q, sprite N = apples in pile. */
+.apple-basket-layer { left: 0; top: 0; width: 800px; height: 600px; pointer-events: none; z-index: 5; }
+.apple-basket {
+    position: absolute;
+    width: 85px; height: 89px;
     background-size: 100% 100%; background-repeat: no-repeat;
     pointer-events: none;
 }
@@ -1066,8 +1213,20 @@ body {
 /* --- Hakira (GameHakira.frm) -----------------------------------
    Parchment scroll background (scroll0.png) covering the stage. Text
    is laid out by drawText() calls at .frm-spec X/Y per RePaintLine. */
+/* Parchment matches the original `Me.PaintPicture ScrollPicture(N), 45, 0,
+   700, height, ...` call — x=45, y=0, width=700, height = each frame's
+   NATIVE pixel height. The 6 source bitmaps have very different heights:
+     scroll0.png  700×600   (fully unrolled)
+     scroll1.png  700×600
+     scroll2.png  700×452
+     scroll3.png  700×280
+     scroll4.png  700×154
+     scroll5.png  700×2     (fully rolled up)
+   To grow from a thin roll to a full parchment, the keyframes animate
+   BOTH height and background-image so each image renders at its native
+   aspect. background-size: 100% 100% then maps 1:1 to the container. */
 .hakira-parchment {
-    left: 50px; top: 0; width: 700px; height: 600px;
+    left: 45px; top: 0; width: 700px; height: 600px;
     direction: rtl;
     cursor: pointer;
     color: #2a1d0a;
@@ -1075,9 +1234,74 @@ body {
     background-size: 100% 100%;
     background-repeat: no-repeat;
     background-position: top center;
+    overflow: hidden;
 }
+/* Unroll on entry (Form_Activate: ScrollUp=True, ScrollCounter=5; timer
+   decrements until counter=0). Original interval = 60 + 5*counter ≈ 60..85ms
+   per step, ~435ms total. We use ~480ms. */
+.hakira-parchment.unrolling {
+    animation: hakiraUnroll 0.48s steps(1) forwards;
+    cursor: wait;
+}
+@keyframes hakiraUnroll {
+    0%    { height:   2px; background-image: url("../assets/Hemed/pictures/GameHakira/scroll5.png"); }
+    16.6% { height: 154px; background-image: url("../assets/Hemed/pictures/GameHakira/scroll4.png"); }
+    33.3% { height: 280px; background-image: url("../assets/Hemed/pictures/GameHakira/scroll3.png"); }
+    50%   { height: 452px; background-image: url("../assets/Hemed/pictures/GameHakira/scroll2.png"); }
+    66.6% { height: 600px; background-image: url("../assets/Hemed/pictures/GameHakira/scroll1.png"); }
+    100%  { height: 600px; background-image: url("../assets/Hemed/pictures/GameHakira/scroll0.png"); }
+}
+/* Roll-up at end-of-list (CmdReset_Click: ScrollUp=False, counter 0→5→0).
+   We use the forward leg here; the JS chains an unroll after this finishes. */
+.hakira-parchment.rolling-up {
+    animation: hakiraRollUp 0.48s steps(1) forwards;
+    cursor: wait;
+}
+@keyframes hakiraRollUp {
+    0%    { height: 600px; background-image: url("../assets/Hemed/pictures/GameHakira/scroll0.png"); }
+    16.6% { height: 600px; background-image: url("../assets/Hemed/pictures/GameHakira/scroll1.png"); }
+    33.3% { height: 452px; background-image: url("../assets/Hemed/pictures/GameHakira/scroll2.png"); }
+    50%   { height: 280px; background-image: url("../assets/Hemed/pictures/GameHakira/scroll3.png"); }
+    66.6% { height: 154px; background-image: url("../assets/Hemed/pictures/GameHakira/scroll4.png"); }
+    100%  { height:   2px; background-image: url("../assets/Hemed/pictures/GameHakira/scroll5.png"); }
+}
+
+/* Nivim parchment — same dimensions as Hemed's, but its own painted art
+   lives under assets/Nivim/pictures/GameHakira/. Selector binds via the
+   data-app attribute that hakira.js stamps onto the parchment element. */
+.hakira-parchment[data-app="Nivim"] {
+    background-image: url("../assets/Nivim/pictures/GameHakira/scroll0.png");
+}
+.hakira-parchment[data-app="Nivim"].unrolling {
+    animation: hakiraUnrollNivim 0.48s steps(1) forwards;
+}
+@keyframes hakiraUnrollNivim {
+    0%    { height:   2px; background-image: url("../assets/Nivim/pictures/GameHakira/scroll5.png"); }
+    16.6% { height: 154px; background-image: url("../assets/Nivim/pictures/GameHakira/scroll4.png"); }
+    33.3% { height: 280px; background-image: url("../assets/Nivim/pictures/GameHakira/scroll3.png"); }
+    50%   { height: 452px; background-image: url("../assets/Nivim/pictures/GameHakira/scroll2.png"); }
+    66.6% { height: 600px; background-image: url("../assets/Nivim/pictures/GameHakira/scroll1.png"); }
+    100%  { height: 600px; background-image: url("../assets/Nivim/pictures/GameHakira/scroll0.png"); }
+}
+.hakira-parchment[data-app="Nivim"].rolling-up {
+    animation: hakiraRollUpNivim 0.48s steps(1) forwards;
+}
+@keyframes hakiraRollUpNivim {
+    0%    { height: 600px; background-image: url("../assets/Nivim/pictures/GameHakira/scroll0.png"); }
+    16.6% { height: 600px; background-image: url("../assets/Nivim/pictures/GameHakira/scroll1.png"); }
+    33.3% { height: 452px; background-image: url("../assets/Nivim/pictures/GameHakira/scroll2.png"); }
+    50%   { height: 280px; background-image: url("../assets/Nivim/pictures/GameHakira/scroll3.png"); }
+    66.6% { height: 154px; background-image: url("../assets/Nivim/pictures/GameHakira/scroll4.png"); }
+    100%  { height:   2px; background-image: url("../assets/Nivim/pictures/GameHakira/scroll5.png"); }
+}
+/* Hide the text overlay while the scroll is animating. */
+.hakira-text-layer.hidden { opacity: 0; transition: opacity 0.15s; }
 .hakira-text-layer {
     position: absolute; left: 0; top: 0; right: 0; bottom: 0;
+    /* Clicks must reach the parchment underneath (its click handler calls
+       GoNext to advance the scroll). Each .hakira-cell child also has
+       pointer-events:none, so nothing inside this layer blocks. */
+    pointer-events: none;
 }
 /* Header — UnitName · UserName at top of scroll (y=5-7 in original),
    painted in orange-brown RGB(120,80,40) over RGB(255,200,150) shadow. */
@@ -1100,16 +1324,22 @@ body {
     font-size: 0.9rem; font-style: italic;
     pointer-events: none;
 }
-/* Each drawn line. Positioning is set inline per RePaintLine's vbXJustify. */
+/* Each drawn line. Positioning is set inline per RePaintLine's vbXJustify.
+   pointer-events:none so clicks on a rendered Q/A/hint pass through to
+   the parchment beneath (without this, clicking on existing text doesn't
+   advance the game). */
+/* Each drawn line. The original VB6 DrawString just paints at (X, Y) and
+   lets the text run off the parchment when too long. We let it wrap to
+   the column's max-width so it stays inside the scroll area. Row spacing
+   (Y_STEP = 450/LinesIn = 75px when LinesIn=6) leaves room for two lines. */
 .hakira-cell {
     position: absolute;
-    height: 28px;
     font-size: 1.2rem;
     line-height: 1.1;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    direction: ltr;        /* let inline text-align control where the run sits */
+    direction: ltr;        /* parent direction; per-cell text-align controls anchoring */
+    pointer-events: none;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 .hakira-num  { color: rgb(20, 100, 0); font-weight: 700; font-size: 1.15rem; }
 .hakira-ask  { color: #2a1d0a; font-weight: 700; }
@@ -1315,6 +1545,25 @@ body {
     100% { background-image: url("../assets/Hemed/pictures/GameHaklada/goat0_0.png"); }
 }
 .hak-goat.no { animation: hakGoatNo 1.05s steps(1); }
+.hak-goat.win { animation: hakGoatWin 2.1s steps(1) infinite; }
+@keyframes hakGoatWin {
+    /* goat6 has 28 frames; sample 14 every ~150ms for a slow win loop. */
+    0%   { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_0.png"); }
+    7%   { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_2.png"); }
+    14%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_4.png"); }
+    21%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_6.png"); }
+    28%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_8.png"); }
+    35%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_10.png"); }
+    42%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_12.png"); }
+    49%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_14.png"); }
+    56%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_16.png"); }
+    63%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_18.png"); }
+    70%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_20.png"); }
+    77%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_22.png"); }
+    84%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_24.png"); }
+    91%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_26.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_0.png"); }
+}
 @keyframes hakGoatNo {
     /* goat6 has 28 frames; sample 14 of them every ~75ms. */
     0%   { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_0.png"); }
@@ -1386,84 +1635,739 @@ body {
     font-family: inherit;
     direction: rtl;
 }
-.score-unit {
-    position: absolute; left: 0; right: 0; top: 24px;
+/* Sin-eased slide-in (Form_Activate Y from 600→0). */
+.score-form-enter { transform: translateY(600px); opacity: 0; }
+.score-form-on    {
+    transform: translateY(0);
+    opacity: 1;
+    transition: transform 0.75s cubic-bezier(0.22, 0.61, 0.36, 1),
+                opacity   0.5s ease-out;
+}
+
+/* F1 help overlay — banner pinned just below the title with the unit's
+   calibration Instructions text, auto-dismisses after a few seconds. */
+.help-overlay {
+    left: 80px; top: 250px; width: 640px;
+    padding: 1.1rem 1.4rem;
+    background: rgba(255,253,240,0.96);
+    border: 3px solid rgb(184, 136, 64);
+    border-radius: 14px;
+    color: rgb(60, 35, 10);
+    font-size: 1.15rem; font-weight: 600;
     text-align: center;
-    font-size: 1.5rem; font-weight: 700;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+    z-index: 80;
+    direction: rtl;
+    animation: helpFadeIn 0.25s ease-out;
+}
+@keyframes helpFadeIn {
+    from { opacity: 0; transform: translateY(-12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+/* ScoreForm coordinates transcribed from ScoreForm.frm Form_Paint (the
+   form's own coordinate space is 600×600; our overlay is sized to match).
+   Every DrawString call positions text via vbCenter (HORIZONTALLY centered
+   at the given X), so each element uses `left: <X>px; transform:
+   translateX(-50%)` to mimic that anchor exactly. FontSize values come
+   straight from Me.FontSize = N (pt) → roughly N×1.333 px at 96 DPI. */
+
+/* DrawString tmpStr (= UnitName + AllTips(116) " · "), (300, 5), 24pt,
+   RGB(100, 50, 80). */
+.score-unit {
+    position: absolute; left: 300px; top: 5px;
+    transform: translateX(-50%);
+    text-align: center; white-space: nowrap;
+    font-size: 32px; font-weight: 700;
     color: rgb(100, 50, 80);
 }
+/* DrawString UserName, (300, 155), 24pt, RGB(20, 50, 80). */
+.score-user {
+    position: absolute; left: 300px; top: 155px;
+    transform: translateX(-50%);
+    text-align: center; white-space: nowrap;
+    font-size: 32px; font-weight: 700;
+    color: rgb(20, 50, 80);
+}
+/* DrawString AllTips(172) "סיימת את היחידה", (350, 200), 14pt,
+   RGB(20, 50, 80). */
+.score-finished {
+    position: absolute; left: 350px; top: 200px;
+    transform: translateX(-50%);
+    text-align: center; white-space: nowrap;
+    font-size: 19px; font-weight: 700;
+    color: rgb(20, 50, 80);
+}
+/* DrawString AllTips(124..128) praise, (200, 234), 44pt, triple-shadow
+   RGB(0,254,0) at y-1, RGB(0,0,0) at y+4, RGB(184,230,80) at y. */
 .score-praise {
-    position: absolute; left: 0; right: 0; top: 220px;
-    text-align: center;
-    font-size: 2rem; font-weight: 700;
-    color: rgb(0, 0, 0);
+    position: absolute; left: 200px; top: 234px;
+    transform: translateX(-50%);
+    text-align: center; white-space: nowrap;
+    font-size: 58px; font-weight: 700;
+    color: rgb(184, 230, 80);
     text-shadow:
-        0 1px 0 rgb(184, 230, 80),
-        0 -1px 0 rgb(0, 254, 0);
+        0 -1px 0 rgb(0, 254, 0),
+        2px  4px 0 rgb(0, 0, 0);
 }
+/* Animated score number (ScoreTimer_Timer), (212, 194 - currentScore/12).
+   font-size: 24pt initial (matches Me.FontSize before any tick); JS bumps
+   it via inline style each tick (`24 + currentScore/6` pt) and updates
+   top/color too. */
 .score-number {
-    position: absolute; left: 0; right: 0; top: 310px;
-    text-align: center;
-    font-size: 4rem; font-weight: 700;
-    color: rgb(184, 100, 30);
-    text-shadow: 0 2px 4px rgba(0,0,0,0.4);
+    position: absolute; left: 212px; top: 194px;
+    transform: translateX(-50%);
+    text-align: center; white-space: nowrap;
+    font-size: 24pt; font-weight: 700;
+    color: rgb(200, 0, 0);
 }
-.score-errors {
-    position: absolute; left: 100px; top: 350px;
-    width: 80px;
-    text-align: center;
-    direction: rtl;
-}
-.score-errors .err {
-    font-size: 1.1rem; font-weight: 700;
-    line-height: 1.4;
-    padding: 2px 4px;
-    border-radius: 4px;
-    margin-bottom: 4px;
+/* DrawString Err(i), (287, 352 + 29*i), 14pt, triple-rendered with grey
+   shadow at y±1 and black main. Three separate elements at i=0/1/2. */
+.score-err {
+    position: absolute; left: 287px;
+    transform: translateX(-50%);
+    text-align: center; white-space: nowrap;
+    font-size: 19px; font-weight: 700;
     color: #000;
+    text-shadow:
+        0 -1px 0 rgb(150, 150, 150),
+        0  1px 0 rgb(150, 150, 150);
 }
-.score-errors .err-green  { background: rgba(50, 254, 0,    0.35); }
-.score-errors .err-yellow { background: rgba(255, 200, 0,   0.35); }
-.score-errors .err-red    { background: rgba(254, 80, 0,    0.35); }
+.score-err-0 { top: 352px; }
+.score-err-1 { top: 381px; }
+.score-err-2 { top: 410px; }
 
+/* Donut chart (CircleTimer in ScoreForm.frm). Center (390, 385); radius
+   grows from 0 → 75 over ~2 s. JS sets the conic-gradient with three
+   sectors per error bucket; CSS animates the size and finally a slight
+   color-saturation for the "bright finish" feel. */
+.score-pie {
+    position: absolute; left: 390px; top: 385px;
+    width: 2px; height: 2px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    animation: scorePieGrow 1.85s cubic-bezier(0.25, 0.85, 0.5, 1) forwards;
+    pointer-events: none;
+}
+@keyframes scorePieGrow {
+    0%   { width:   2px; height:   2px; filter: brightness(0.6); }
+    100% { width: 150px; height: 150px; filter: brightness(1); }
+}
+
+/* CmdExit L=0  T=7290 W=3210 H=1020 → 0, 486, 214, 68 */
 .score-exit {
-    position: absolute; bottom: 50px; left: 30px; width: 175px; height: 68px;
+    position: absolute; left: 0; top: 486px; width: 214px; height: 68px;
     background-image: url("../assets/Hemed/pictures/Main/scoreexit.png");
     background-size: 100% 100%; background-repeat: no-repeat;
     background-color: transparent;
     border: none; padding: 0; cursor: pointer;
     color: transparent;
 }
-.score-exit[data-app="Nivim"] {
-    background-image: url("../assets/Nivim/pictures/Main/scoreexit.png");
-}
-.score-exit:hover {
-    background-image: url("../assets/Hemed/pictures/Main/scoreexit2.png");
-}
-.score-exit[data-app="Nivim"]:hover {
-    background-image: url("../assets/Nivim/pictures/Main/scoreexit2.png");
-}
+.score-exit[data-app="Nivim"]       { background-image: url("../assets/Nivim/pictures/Main/scoreexit.png"); }
+.score-exit:hover                   { background-image: url("../assets/Hemed/pictures/Main/scoreexit2.png"); }
+.score-exit[data-app="Nivim"]:hover { background-image: url("../assets/Nivim/pictures/Main/scoreexit2.png"); }
+
+/* CmdPlay L=6045 T=7140 W=2475 H=1095 → 403, 476, 165, 73 */
 .score-play {
-    position: absolute; bottom: 50px; right: 30px; width: 165px; height: 73px;
+    position: absolute; left: 403px; top: 476px; width: 165px; height: 73px;
     background-image: url("../assets/Hemed/pictures/Main/scoreplay.png");
     background-size: 100% 100%; background-repeat: no-repeat;
     background-color: transparent;
     border: none; padding: 0; cursor: pointer;
     color: transparent;
 }
-.score-play[data-app="Nivim"] {
-    background-image: url("../assets/Nivim/pictures/Main/scoreplay.png");
-}
-.score-play:hover {
-    background-image: url("../assets/Hemed/pictures/Main/scoreplay2.png");
-}
-.score-play[data-app="Nivim"]:hover {
-    background-image: url("../assets/Nivim/pictures/Main/scoreplay2.png");
-}
+.score-play[data-app="Nivim"]       { background-image: url("../assets/Nivim/pictures/Main/scoreplay.png"); }
+.score-play:hover                   { background-image: url("../assets/Hemed/pictures/Main/scoreplay2.png"); }
+.score-play[data-app="Nivim"]:hover { background-image: url("../assets/Nivim/pictures/Main/scoreplay2.png"); }
 
 /* Tiny error banner when data fails to load */
 .error {
     position: absolute; top: 200px; left: 100px; right: 100px;
     background: rgba(255,250,235,0.95); border: 2px dashed #c33;
     border-radius: 10px; padding: 1.5rem; text-align: center; color: #c33;
+}
+
+/* ====== UnitListForm edit-mode buttons (AllowEdit=True) ======
+   CmdEdit(0..3) at L=0, T=168/224/280/336, all 175×53. Original
+   UnitListForm.frm:391-394 paints each with smallscroll.bmp and overlays
+   AllTips(151+i) text via DrawString in RGB(100,100,150). */
+.unit-edit-btn {
+    left: 0; width: 175px; height: 53px;
+    background-image: url("../assets/Hemed/pictures/UnitList/smallscroll.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent;
+    border: none; padding: 0; cursor: pointer;
+    z-index: 60;
+}
+.unit-edit-btn:hover  { filter: brightness(1.10); }
+.unit-edit-btn:active { filter: brightness(0.92); }
+.unit-edit-cap {
+    position: absolute;
+    left: 0; right: 0; top: 10px;
+    text-align: center;
+    color: rgb(100, 100, 150);
+    font-family: "Arial", sans-serif;
+    font-size: 16px; font-weight: 700;
+    pointer-events: none;
+    direction: rtl;
+}
+
+/* ====== Student manager (StudentForm.frm — full 1:1 port) ======
+   Background = studentBack.jpg painted via .stage. All controls overlaid
+   at original .frm pixel coords (twips/15). 11 painted CmdPlus buttons
+   come from studCmd0..studCmd10.png (BMP → PNG, black=transparent). */
+.studform-exit {
+    /* CmdExit L=75 T=30 W=825 H=825 → 5, 2, 55, 55. The shared exit-icon
+       sprite is reused here so the corner icon matches everywhere else. */
+    left: 5px; top: 2px; width: 55px; height: 55px;
+    background-image: url("../assets/Hemed/pictures/exit_on.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent;
+    border: none; padding: 0; cursor: pointer;
+}
+.studform-exit:hover { background-image: url("../assets/Hemed/pictures/exit_down.png"); }
+.studform-help {
+    /* CmdHelp L=11100 T=30 → 740, 2, 55, 55 */
+    left: 740px; top: 2px; width: 55px; height: 55px;
+    background-image: url("../assets/Hemed/pictures/help_on.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent;
+    border: none; padding: 0; cursor: pointer;
+}
+.studform-help:hover { background-image: url("../assets/Hemed/pictures/help_down.png"); }
+.studform-frame {
+    /* Shape1 L=2580 T=1515 W=5625 H=6375 → 172, 101, 375, 425.
+       Original VB6 Shape with BorderWidth=3, no fill. */
+    left: 172px; top: 101px; width: 375px; height: 425px;
+    border: 3px solid rgb(60, 30, 5);
+    background: rgba(255,255,255,0.45);
+    pointer-events: none;
+}
+.studform-users-list {
+    /* ListUsers L=3525 T=1560 W=4575 H=6255 → 235, 104, 305, 417 */
+    left: 235px; top: 104px; width: 305px; height: 417px;
+    overflow-y: auto;
+    direction: rtl;
+    background: transparent;
+    padding: 4px 6px;
+    scrollbar-width: thin;
+    scrollbar-color: rgb(60, 30, 5) transparent;
+}
+.studform-scores-list {
+    /* ListScores L=2640 T=1560 W=945 H=6255 → 176, 104, 63, 417.
+       Scroll-locked with users list (overflow hidden — the users list
+       drives it via the row count). */
+    left: 176px; top: 104px; width: 63px; height: 417px;
+    overflow: hidden;
+    direction: rtl;
+    background: transparent;
+    padding: 4px 0;
+    text-align: center;
+}
+.studform-row {
+    padding: 5px 8px; cursor: pointer;
+    border-bottom: 1px solid rgba(60, 30, 5, 0.18);
+    display: flex; align-items: center; gap: 6px;
+    font-size: 1.05rem; color: rgb(50, 100, 0);
+    height: 28px; box-sizing: border-box;
+}
+.studform-row:hover { background: rgba(184, 136, 64, 0.12); }
+.studform-row.sel   { background: rgba(184, 136, 64, 0.28); }
+.studform-row.active { font-weight: 700; color: rgb(20, 60, 0); }
+.studform-check  { font-size: 0.95rem; color: rgb(60, 30, 5); width: 16px; flex-shrink: 0; }
+.studform-name   { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.studform-score-cell {
+    padding: 5px 4px;
+    border-bottom: 1px solid rgba(60, 30, 5, 0.18);
+    font-size: 1.05rem; font-weight: 700; color: rgb(50, 100, 0);
+    height: 28px; box-sizing: border-box;
+}
+.studform-score-cell.sel { background: rgba(184, 136, 64, 0.20); }
+.studform-empty {
+    padding: 1.5rem; text-align: center; color: rgb(80, 50, 20); opacity: 0.7;
+}
+
+/* CmdPlus painted buttons — each loads its specific studCmdN.png with
+   the BMP-black=transparent convention. Hover = slight brighten. */
+.studform-cmd {
+    position: absolute;
+    background-color: transparent;
+    border: none; padding: 0; cursor: pointer;
+    background-size: 100% 100%; background-repeat: no-repeat;
+}
+.studform-cmd:hover  { filter: brightness(1.10); }
+.studform-cmd:active { filter: brightness(0.92); }
+.studform-cmd.cmd0   { background-image: url("../assets/Hemed/pictures/Main/studCmd0.png"); }
+.studform-cmd.cmd1   { background-image: url("../assets/Hemed/pictures/Main/studCmd1.png"); }
+.studform-cmd.cmd2   { background-image: url("../assets/Hemed/pictures/Main/studCmd2.png"); }
+.studform-cmd.cmd3   { background-image: url("../assets/Hemed/pictures/Main/studCmd3.png"); }
+.studform-cmd.cmd4   { background-image: url("../assets/Hemed/pictures/Main/studCmd4.png"); }
+.studform-cmd.cmd5   { background-image: url("../assets/Hemed/pictures/Main/studCmd5.png"); }
+.studform-cmd.cmd10  {
+    /* CmdEdit(10) at L=9480 T=120 → 632, 8, 89, 46. */
+    left: 632px; top: 8px; width: 89px; height: 46px;
+    background-image: url("../assets/Hemed/pictures/Main/studCmd10.png");
+}
+
+/* ====== Lesson editor (UnitEditorForm.frm — full 1:1 port) ======
+   Background = UnitEditor/Back.jpg (800×600). DataFrame is the scroll
+   viewport between (30,120) and (719,520); ScrollData on the right at
+   x=664; right toolbar at x=752. */
+.ued-exit {
+    /* CmdExit L=75 T=30 → 5, 2, 55, 55 */
+    left: 5px; top: 2px; width: 55px; height: 55px;
+    background-image: url("../assets/Hemed/pictures/exit_on.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent; border: none; padding: 0; cursor: pointer;
+}
+.ued-exit:hover { background-image: url("../assets/Hemed/pictures/exit_down.png"); }
+.ued-save {
+    /* CmdSave L=1080 T=120 → 72, 8, 55, 55. Save_on/off pair painted PNGs. */
+    left: 72px; top: 8px; width: 55px; height: 55px;
+    background-image: url("../assets/Hemed/pictures/UnitEditor/Save_off.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent; border: none; padding: 0; cursor: pointer;
+}
+.ued-save:hover {
+    background-image: url("../assets/Hemed/pictures/UnitEditor/Save_on.png");
+}
+.ued-defaults {
+    /* CmdSetDefaults L=9360 T=75 W=825 H=825 → 624, 5, 55, 55.
+       Original (UnitEditorForm.frm:1774):
+           Set CmdSetDefaults.Picture = LoadPicture(PicPath + "\UnitEditor\calib_off.bmp")
+       calib_off.bmp is 55×55 — fits the slot exactly, no stretching.
+       The .frm sets no MovePic (no hover image), so we don't swap on hover. */
+    left: 624px; top: 5px; width: 55px; height: 55px;
+    background-image: url("../assets/Hemed/pictures/UnitEditor/calib_off.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent; border: none; padding: 0; cursor: pointer;
+}
+.ued-print {
+    /* CmdPrint L=10200 T=75 W=825 H=720 → 680, 5, 55, 48 */
+    left: 680px; top: 5px; width: 55px; height: 48px;
+    background-image: url("../assets/Hemed/pictures/UnitEditor/Print_off.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent; border: none; padding: 0; cursor: pointer;
+}
+.ued-print:hover {
+    background-image: url("../assets/Hemed/pictures/UnitEditor/Print_on.png");
+}
+.ued-help {
+    /* CmdHelp 740, 2, 55, 55 */
+    left: 740px; top: 2px; width: 55px; height: 55px;
+    background-image: url("../assets/Hemed/pictures/help_on.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent; border: none; padding: 0; cursor: pointer;
+}
+.ued-help:hover { background-image: url("../assets/Hemed/pictures/help_down.png"); }
+.ued-adv {
+    /* CmdAdv L=742 T=344 W=55 H=55. CmdAdv_Click() hides itself and reveals
+       the advanced toggles (CmdShowWave etc.). The button's only visual is
+       Adv.bmp — the original has no caption painted into it. */
+    left: 742px; top: 344px; width: 55px; height: 55px;
+    background-image: url("../assets/Hemed/pictures/UnitEditor/Adv.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent;
+    border: none; padding: 0; cursor: pointer;
+}
+.ued-unitname {
+    /* TxtUnitName L=3480 T=330 W=4095 H=450 → 232, 22, 273, 30. */
+    left: 232px; top: 22px; width: 273px; height: 30px;
+    border: 2px solid rgb(60, 30, 5);
+    border-radius: 4px;
+    background: rgba(255, 253, 240, 0.92);
+    color: rgb(40, 25, 5); padding: 0 8px;
+    font-family: inherit; font-size: 1.05rem; font-weight: 700;
+    direction: rtl; text-align: right;
+}
+.ued-subject {
+    /* TxtUnitSubject L=3600 T=1110 → 240, 74, 265, 26. */
+    left: 240px; top: 74px; width: 265px; height: 26px;
+    border: 2px solid rgb(60, 30, 5);
+    border-radius: 4px;
+    background: rgba(255, 253, 240, 0.92);
+    color: rgb(40, 25, 5); padding: 0 8px;
+    font-family: inherit; font-size: 0.95rem;
+    direction: rtl; text-align: right;
+}
+.ued-unit-picker {
+    /* Same row as TxtUnitSubject, left side — replaces the original
+       ComboRama that lived at (120,74,169×26) but in our port we want
+       the user to choose WHICH unit, not which rama. */
+    left: 30px; top: 74px; width: 200px; height: 26px;
+    border: 2px solid rgb(60, 30, 5);
+    border-radius: 4px;
+    background: rgba(255, 253, 240, 0.92);
+    color: rgb(40, 25, 5); padding: 0 4px;
+    font-family: inherit; font-size: 0.92rem;
+    direction: rtl; text-align: right;
+}
+.ued-data-frame {
+    /* DataFrame L=450 T=1800 W=10335 H=6000 → 30, 120, 689, 400.
+       Natural DataContainer.jpg tile is 690×200 (a 2-row zebra pattern,
+       100px per row). Tile vertically at its native size so the bands
+       line up with the 100px row template. */
+    left: 30px; top: 120px; width: 689px; height: 400px;
+    overflow: hidden;
+    background-image: url("../assets/Hemed/pictures/UnitEditor/DataContainer.jpg");
+    background-size: 689px 200px;
+    background-repeat: repeat-y;
+    border: 2px solid rgb(60, 30, 5);
+    direction: rtl;
+}
+.ued-empty {
+    padding: 2rem; text-align: center; color: rgb(60, 30, 5); opacity: 0.7;
+}
+.ued-scroll-data {
+    /* ScrollData L=9960 T=0 (relative to DataFrame) → 664, 0 in DataFrame
+       space → ABSOLUTE (30+664, 120+0) = (694, 120, 25, 400). ScrollData is
+       a CHILD of DataFrame in the .frm, not a sibling of the form root.
+       ScrollDataBack.jpg is 25×680; stretch to the 400-tall track. */
+    left: 694px; top: 120px; width: 25px; height: 400px;
+    background-image: url("../assets/Hemed/pictures/UnitEditor/ScrollDataBack.jpg");
+    background-size: 25px 400px; background-repeat: no-repeat;
+    cursor: pointer;
+    z-index: 2;
+}
+.ued-scroll-data-thumb {
+    position: absolute;
+    left: 0; right: 0; top: 15px;
+    background-image: url("../assets/Hemed/pictures/UnitEditor/ScrollDataMiddle.jpg");
+    background-size: 100% 100%; background-repeat: no-repeat;
+}
+.ued-scroll-width {
+    /* ScrollTextWidth L=450 T=7785 W=10335 H=375 → 30, 519, 689, 25.
+       Background JPG is 680×25 — stretch to fit our 689×25. */
+    left: 30px; top: 519px; width: 689px; height: 25px;
+    background-image: url("../assets/Hemed/pictures/UnitEditor/ScrollWidthBack.jpg");
+    background-size: 689px 25px; background-repeat: no-repeat;
+}
+
+/* Right-toolbar painted buttons */
+.ued-tool {
+    position: absolute; width: 40px; height: 40px;
+    background-color: transparent;
+    background-size: 100% 100%; background-repeat: no-repeat;
+    border: none; padding: 0; cursor: pointer;
+}
+.ued-tool:hover  { filter: brightness(1.15); }
+.ued-tool:active { filter: brightness(0.9); }
+.ued-add  { background-image: url("../assets/Hemed/pictures/UnitEditor/add_off.png"); }
+.ued-add:hover  { background-image: url("../assets/Hemed/pictures/UnitEditor/add_on.png"); }
+.ued-del  { background-image: url("../assets/Hemed/pictures/UnitEditor/Del_off.png"); }
+.ued-del:hover  { background-image: url("../assets/Hemed/pictures/UnitEditor/Del_on.png"); }
+.ued-up   { background-image: url("../assets/Hemed/pictures/UnitEditor/up_off.png"); }
+.ued-up:hover   { background-image: url("../assets/Hemed/pictures/UnitEditor/Up_On.png"); }
+.ued-down { background-image: url("../assets/Hemed/pictures/UnitEditor/Down_off.png"); }
+.ued-down:hover { background-image: url("../assets/Hemed/pictures/UnitEditor/Down_On.png"); }
+
+/* Each data row — original DataContainer is 665×100 (cloned per item).
+   WaveLeft (8,8)  TextLeft (40,8,145×33)  TextRight (400,8,113×33)
+   TextHint (152,56,401×33)  LinePic (512,48,52×44)  LblNumber (616,8,41×33) */
+.ued-data-row {
+    position: absolute; left: 0; right: 0; height: 100px;
+    border-bottom: 1px dashed rgba(60, 30, 5, 0.35);
+    cursor: pointer;
+}
+.ued-data-row.sel {
+    background: rgba(255, 240, 180, 0.4);
+}
+.ued-data-row:hover {
+    background: rgba(255, 240, 180, 0.22);
+}
+/* All three textboxes use Arial 15.75pt in the .frm — ~21px at 96 DPI.
+   LblNumber uses Arial 27.75pt — ~37px.
+   Original .frm widths (TextLeft=145, TextRight=113, TextHint=401) were
+   designed for the smaller LevTextBox; we keep the .frm Y positions and
+   row heights but widen the inputs to fill the unused horizontal space.
+   Constraints (row coord space 0..665, scrollbar covers x>=664):
+     LblNumber sits at (616, 8, 41×33) — top row, rightmost
+     TextRight must end ≤ 600 (16 px gap to LblNumber)
+     TextLeft starts at 40, ends with a small gap before TextRight
+     TextHint can use almost the whole bottom row width
+   Result on top row: TextLeft 40→310 (w=270) | gap 20 | TextRight 330→600 (w=270)
+   Bottom row: TextHint 40→600 (w=560). */
+.ued-text-left {
+    position: absolute; left: 40px; top: 8px;
+    width: 270px; height: 33px;
+    border: 1px solid rgba(60, 30, 5, 0.5);
+    border-radius: 3px;
+    background: rgba(255, 250, 235, 0.94);
+    color: rgb(40, 25, 5); padding: 0 6px;
+    font-family: "Arial", sans-serif; font-size: 21px;
+    direction: rtl; text-align: right;
+}
+.ued-text-right {
+    position: absolute; left: 330px; top: 8px;
+    width: 270px; height: 33px;
+    border: 1px solid rgba(60, 30, 5, 0.5);
+    border-radius: 3px;
+    background: rgba(255, 250, 235, 0.94);
+    color: rgb(40, 25, 5); padding: 0 6px;
+    font-family: "Arial", sans-serif; font-size: 21px;
+    direction: rtl; text-align: right;
+    font-weight: 700;
+}
+.ued-text-hint {
+    position: absolute; left: 40px; top: 56px;
+    width: 560px; height: 33px;
+    border: 1px solid rgba(60, 30, 5, 0.4);
+    border-radius: 3px;
+    background: rgba(255, 250, 235, 0.85);
+    color: rgb(80, 50, 20); padding: 0 6px;
+    font-family: "Arial", sans-serif; font-size: 21px; font-style: italic;
+    direction: rtl; text-align: right;
+}
+.ued-lbl-num {
+    position: absolute; left: 616px; top: 8px;
+    width: 41px; height: 33px;
+    line-height: 33px; text-align: center;
+    color: rgb(20, 100, 0); font-weight: 700;
+    font-family: "Arial", sans-serif; font-size: 28px;
+}
+.ued-line-pic {
+    position: absolute; left: 512px; top: 48px;
+    width: 52px; height: 44px;
+    background-image: url("../assets/Hemed/pictures/UnitEditor/Line.jpg");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    pointer-events: none;
+}
+
+/* CmdShowWave toggle (752, 328, 40×40) — original Visible=False, our port
+   shows it always so the user can reach the recording feature. Highlights
+   when active. */
+.ued-show-wave {
+    /* CmdShowWave L=752 T=328 W=40 H=40 (Visible=False in .frm).
+       Revealed only after CmdAdv_Click — at that point CmdAdv hides itself,
+       so the two never overlap. */
+    left: 752px; top: 328px; width: 40px; height: 40px;
+    background-image: url("../assets/Hemed/pictures/UnitEditor/Sound_off.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent; border: 2px solid transparent;
+    padding: 0; cursor: pointer;
+    display: none;             /* hidden until advanced mode is enabled */
+}
+.ued-data-frame.adv-on ~ .ued-show-wave,
+.stage.adv-on .ued-show-wave { display: block; }
+.ued-show-wave:hover,
+.ued-show-wave.on {
+    background-image: url("../assets/Hemed/pictures/UnitEditor/Sound_on.png");
+}
+.ued-show-wave.on { border-color: rgb(180, 120, 30); border-radius: 4px; }
+
+/* Per-row recording button — WaveLeft (8,8,33×33), WaveRight (368,8,33×33),
+   WaveHint (120,56,33×33) per UnitEditorForm.frm. Icon state per
+   original WaveX_MouseUp / SetBacks:
+     no-record   → Record_Off.jpg   (no .wav file yet)
+     has-record  → Record_Off2.jpg  (file exists, ready to play/re-record)
+     recording   → Record_On.jpg    (live recording — used while modal is up) */
+.ued-wave {
+    position: absolute; width: 33px; height: 33px;
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent;
+    border: none; padding: 0; cursor: pointer;
+    z-index: 3;
+}
+.ued-wave.no-record  { background-image: url("../assets/Hemed/pictures/UnitEditor/Record_Off.jpg"); }
+.ued-wave.has-record { background-image: url("../assets/Hemed/pictures/UnitEditor/Record_Off2.jpg"); }
+.ued-wave.has-record:hover,
+.ued-wave.no-record:hover { background-image: url("../assets/Hemed/pictures/UnitEditor/Record_On.jpg"); }
+
+/* When the row has wave buttons visible, the inputs need to shift so the
+   buttons fit at their .frm positions without overlap.
+     WaveLeft  at x=8..41   → TextLeft must start at x≥50  (was 40)
+     WaveRight at x=368..401 → TextLeft must end ≤ 360 AND TextRight at 410
+     WaveHint  at x=120..153 → TextHint must start at x≥160
+   These reductions only apply while .wave-on is set on the row. */
+.ued-data-row.wave-on .ued-text-left  { left: 50px;  width: 310px; }
+.ued-data-row.wave-on .ued-text-right { left: 410px; width: 190px; }
+.ued-data-row.wave-on .ued-text-hint  { left: 160px; width: 440px; }
+
+/* Recording modal — minimal "card" centered on the stage with a red dot
+   pulse, the caption text being recorded, an elapsed timer, and stop/cancel
+   buttons. */
+.hnd-record-modal {
+    left: 0; top: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 200;
+    display: flex; align-items: center; justify-content: center;
+    direction: rtl;
+}
+.hnd-rec-card {
+    width: 360px; padding: 24px;
+    background: rgb(255, 253, 240);
+    border: 3px solid rgb(180, 50, 50);
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    text-align: center;
+    color: rgb(40, 25, 5);
+}
+.hnd-rec-dot {
+    width: 24px; height: 24px;
+    margin: 0 auto 12px;
+    background: rgb(220, 30, 30);
+    border-radius: 50%;
+    animation: hndRecPulse 1s ease-in-out infinite;
+}
+@keyframes hndRecPulse {
+    0%, 100% { opacity: 1;   transform: scale(1); }
+    50%      { opacity: 0.3; transform: scale(0.85); }
+}
+.hnd-rec-caption {
+    font-size: 1.1rem; font-weight: 700;
+    margin-bottom: 6px;
+    word-break: break-word;
+}
+.hnd-rec-time {
+    font-size: 1rem; color: rgb(100, 50, 20);
+    margin-bottom: 16px;
+    font-family: "Arial", sans-serif;
+}
+.hnd-rec-stop, .hnd-rec-cancel {
+    padding: 8px 18px;
+    margin: 0 4px;
+    border-radius: 6px;
+    font-family: inherit; font-size: 0.95rem; font-weight: 700;
+    cursor: pointer;
+}
+.hnd-rec-stop {
+    border: 2px solid rgb(60, 130, 50);
+    background: rgb(220, 245, 210);
+    color: rgb(20, 80, 20);
+}
+.hnd-rec-stop:hover { background: rgb(200, 235, 190); }
+.hnd-rec-cancel {
+    border: 2px solid rgb(180, 50, 50);
+    background: rgb(255, 230, 230);
+    color: rgb(140, 30, 30);
+}
+.hnd-rec-cancel:hover { background: rgb(250, 215, 215); }
+
+/* ====== Calibration form (CalibrationForm.frm — full 1:1 port) ======
+   Background = UnitEditor/Calibration.jpg (800×600). All controls at the
+   .frm-derived twips/15 pixel coords. The 8/9 games and their per-game
+   control set come from Data/Calib.txt, parsed to calib.js at build time. */
+.calib-exit {
+    left: 5px; top: 2px; width: 55px; height: 55px;
+    background-image: url("../assets/Hemed/pictures/exit_on.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent; border: none; padding: 0; cursor: pointer;
+}
+.calib-exit:hover { background-image: url("../assets/Hemed/pictures/exit_down.png"); }
+.calib-help {
+    left: 740px; top: 2px; width: 55px; height: 55px;
+    background-image: url("../assets/Hemed/pictures/help_on.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent; border: none; padding: 0; cursor: pointer;
+}
+.calib-help:hover { background-image: url("../assets/Hemed/pictures/help_down.png"); }
+/* Save button — not in original .frm; placed where CmdSave would mirror
+   UnitEditorForm (72,8,55×55) using the same Save_off/Save_on assets. */
+.calib-save {
+    left: 72px; top: 8px; width: 55px; height: 55px;
+    background-image: url("../assets/Hemed/pictures/UnitEditor/Save_off.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent; border: none; padding: 0; cursor: pointer;
+}
+.calib-save:hover {
+    background-image: url("../assets/Hemed/pictures/UnitEditor/Save_on.png");
+}
+/* Description banner — original Form_Paint:
+   "If CurrentI = GameList.Selected Then
+        Me.FontSize = 16 / FixME
+        DrawString Content(i + 2), Me.hdc, 400, 60, 0, vbCenter"
+   16pt at 96 DPI ≈ 21 px, BLACK, horizontally centered, top at y=60.
+   Game NAME is NOT drawn as a banner — only the description shows here. */
+.calib-desc {
+    left: 0; right: 0; top: 60px;
+    text-align: center; pointer-events: none;
+    color: rgb(0, 0, 0);
+    font-family: "Arial", sans-serif; font-size: 21px;
+}
+/* GameList (424, 98, 257, 281) — ListPlus of the games. Each row colored
+   by Disabled flag (red if disabled, green if enabled — per original
+   GameList.AddItem RGB args). */
+.calib-game-list {
+    left: 424px; top: 98px; width: 257px; height: 281px;
+    overflow-y: auto;
+    background: rgba(255,253,235,0.85);
+    border: 2px solid rgb(60, 30, 5);
+    border-radius: 4px;
+    padding: 4px;
+    direction: rtl;
+    scrollbar-width: thin;
+}
+.calib-game-row {
+    padding: 6px 10px;
+    font-size: 18px; font-weight: 700;
+    color: rgb(0, 150, 0);
+    cursor: pointer;
+    border-bottom: 1px dotted rgba(60, 30, 5, 0.25);
+    text-align: right;
+}
+.calib-game-row:hover    { background: rgba(184, 136, 64, 0.15); }
+.calib-game-row.sel      { background: rgba(184, 136, 64, 0.35); }
+.calib-game-row.disabled { color: rgb(200, 0, 0); }
+
+/* CmdText (144,176,105,49) + CmdWave (264,176,105,49) — toggle buttons. */
+.calib-cmd-text {
+    left: 144px; top: 176px; width: 105px; height: 49px;
+    background-image: url("../assets/Hemed/pictures/UnitEditor/CalibOrder.jpg");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    border: 2px solid transparent; padding: 0; cursor: pointer;
+}
+.calib-cmd-wave {
+    left: 264px; top: 176px; width: 105px; height: 49px;
+    background-image: url("../assets/Hemed/pictures/UnitEditor/CalibOrder2.jpg");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    border: 2px solid transparent; padding: 0; cursor: pointer;
+}
+.stage.mode-text .calib-cmd-text,
+.stage.mode-wave .calib-cmd-wave { border-color: rgb(180, 120, 30); }
+
+/* Combo layer — all dropdowns are positioned inside this layer. Per-combo
+   absolute positions are set inline on the wrap div based on .frm coords. */
+.calib-combo-layer {
+    left: 0; top: 0; right: 0; bottom: 0;
+    pointer-events: none;
+}
+.calib-combo-wrap {
+    position: absolute;
+    pointer-events: auto;
+}
+/* Caption above each combo — original Form_Paint:
+     DrawString NextLine,  ..., ctl.Left + ctl.Width/2, ctl.Tag - 35, RGB(25,70,0), vbCenter
+     DrawString FirstLine, ..., ctl.Left + ctl.Width/2, ctl.Tag - 16, RGB(25,70,0), vbCenter
+   FontSize = 14 / FixME (~14-18 px). FirstLine = first word of label (sits
+   on the BOTTOM line, closer to the combo). NextLine = remaining words
+   (sits ABOVE FirstLine). Both centered horizontally over the combo. */
+.calib-combo-line-top {
+    position: absolute; left: 0; right: 0; top: -35px;
+    text-align: center; color: rgb(25, 70, 0);
+    font-family: "Arial", sans-serif; font-size: 14px; font-weight: 700;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    direction: rtl;
+}
+.calib-combo-line-bot {
+    position: absolute; left: 0; right: 0; top: -16px;
+    text-align: center; color: rgb(25, 70, 0);
+    font-family: "Arial", sans-serif; font-size: 14px; font-weight: 700;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    direction: rtl;
+}
+.calib-combo {
+    width: 100%; height: 34px;
+    border: 2px solid rgb(60, 30, 5);
+    border-radius: 4px;
+    background: rgba(255,253,240,0.92);
+    color: rgb(40, 25, 5);
+    font-family: "Arial", sans-serif; font-size: 16px;
+    direction: rtl; text-align: right;
+    padding: 0 6px;
+}
+.calib-error {
+    left: 100px; top: 250px; right: 100px;
+    padding: 1.5rem; text-align: center;
+    background: rgba(255,235,235,0.95);
+    border: 2px solid rgb(180,50,50); border-radius: 8px;
+    color: rgb(140,30,30); font-size: 1.05rem;
 }
