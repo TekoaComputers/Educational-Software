@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Makhela — hotspot editor</title>
+<style>
+  body {
+    font-family: system-ui, "Heebo", Arial, sans-serif;
+    background: #1a1d23; color: #ddd;
+    margin: 0; padding: 0;
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    grid-template-rows: auto 1fr;
+    height: 100vh;
+    overflow: hidden;
+  }
+  header {
+    grid-column: 1 / -1;
+    background: #11131a;
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid #2a2d33;
+    display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;
+  }
+  header h1 { font-size: 1rem; color: #8ec5ff; margin-right: 1rem; }
+  header select, header button {
+    background: #2a2d33; color: #eee;
+    border: 1px solid #444; border-radius: 4px;
+    padding: 0.35rem 0.8rem; font-family: inherit; font-size: 0.9rem;
+    cursor: pointer;
+  }
+  header button:hover { border-color: #8ec5ff; }
+  #status { margin-left: auto; color: #6a6; font-size: 0.85rem; }
+
+  /* Canvas (image + overlays) */
+  #canvas-wrap {
+    overflow: auto;
+    background: #0d0f14;
+    padding: 1rem;
+    display: flex; align-items: flex-start; justify-content: center;
+  }
+  #canvas {
+    position: relative;
+    width: 960px; height: 600px;        /* 320x200 source * 3 */
+    background: #000;
+    background-size: cover;
+    background-repeat: no-repeat;
+    image-rendering: pixelated;
+    cursor: crosshair;
+    box-shadow: 0 0 12px rgba(0,0,0,0.5);
+    user-select: none;
+  }
+  .hotspot-box {
+    position: absolute;
+    border: 2px solid rgba(255, 224, 137, 0.85);
+    background: rgba(255, 224, 137, 0.18);
+    box-sizing: border-box;
+    cursor: pointer;
+    font-size: 12px;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.85);
+    padding: 2px 4px;
+    overflow: hidden;
+    pointer-events: auto;
+  }
+  .hotspot-box.selected {
+    border-color: #ff7a7a;
+    background: rgba(255, 122, 122, 0.25);
+    z-index: 2;
+  }
+  .hotspot-box .num {
+    background: rgba(0,0,0,0.6);
+    border-radius: 50%;
+    width: 18px; height: 18px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: bold; font-size: 11px;
+  }
+
+  /* Side panel: list of rectangles for this screen */
+  #side {
+    background: #14171c;
+    overflow-y: auto;
+    padding: 0.6rem 0.8rem;
+    border-left: 1px solid #2a2d33;
+  }
+  #side h2 {
+    font-size: 0.95rem;
+    color: #8ec5ff;
+    margin: 0 0 0.3rem;
+  }
+  #side .helper {
+    color: #888; font-size: 0.83rem; margin-bottom: 0.6rem; line-height: 1.4;
+  }
+  .row {
+    background: #1f2329; border: 1px solid #2a2d33;
+    border-radius: 4px; padding: 0.4rem 0.5rem; margin: 0.3rem 0;
+  }
+  .row.selected { border-color: #ff7a7a; }
+  .row-head { display: flex; align-items: center; gap: 0.4rem; }
+  .row-head .num {
+    background: #ffe089; color: #000;
+    border-radius: 50%; width: 22px; height: 22px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: bold; font-size: 12px;
+  }
+  .row-head .coords {
+    color: #888; font-size: 0.78rem; flex: 1;
+  }
+  .row-head button {
+    background: transparent; color: #f88; border: 0;
+    cursor: pointer; padding: 0 4px; font-size: 1rem;
+  }
+  .row input {
+    width: 100%; box-sizing: border-box;
+    margin-top: 0.3rem; padding: 0.3rem 0.4rem;
+    background: #2a2d33; color: #eee;
+    border: 1px solid #3a3d44; border-radius: 4px;
+    font-family: inherit; font-size: 0.85rem;
+  }
+  .row input:focus { outline: 0; border-color: #8ec5ff; }
+  .row .picker {
+    display: flex; gap: 0.3rem; margin-top: 0.3rem; align-items: center;
+  }
+  .row .picker-lbl {
+    flex: 0 0 78px;
+    color: #aaa; font-size: 0.78rem;
+  }
+  .row .picker select {
+    flex: 1;
+    background: #2a2d33; color: #eee;
+    border: 1px solid #3a3d44; border-radius: 4px;
+    padding: 0.25rem 0.35rem; font-family: inherit; font-size: 0.82rem;
+    max-width: 100%;
+  }
+  .row .picker select:focus { outline: 0; border-color: #8ec5ff; }
+  .row .hs-preview {
+    background: #2a2d33; color: #ffe089;
+    border: 1px solid #3a3d44; border-radius: 4px;
+    padding: 0 0.5rem; font-size: 0.85rem; cursor: pointer;
+    flex: 0 0 auto;
+  }
+  .row .hs-preview:hover { border-color: #ffe089; }
+  .anim-list { margin: 0.2rem 0 0.5rem; }
+  .anim-entry {
+    display: flex; gap: 0.25rem; align-items: center;
+    margin-bottom: 0.25rem;
+  }
+  .anim-entry select { flex: 1; min-width: 0; padding: 0.25rem; font-size: 0.78rem;
+    background:#2a2d33; color:#eee; border:1px solid #3a3d44; border-radius:4px; }
+  .anim-entry .al-del {
+    background: transparent; color: #e88; border: 1px solid #3a3d44;
+    border-radius: 4px; padding: 0 0.4rem; cursor: pointer; font-weight: bold;
+  }
+  .anim-entry .al-del:hover { border-color: #e88; }
+  .al-add {
+    background: transparent; color: #8ec5ff; border: 1px dashed #3a3d44;
+    border-radius: 4px; padding: 0.2rem 0.5rem; cursor: pointer;
+    font-size: 0.83rem; margin-top: 0.2rem;
+  }
+  .al-add:hover { border-color: #8ec5ff; }
+  /* Floating mini-preview for auto-play on dropdown change */
+  #mini-preview {
+    position: fixed;
+    bottom: 16px; right: 16px;
+    width: 320px; height: 200px;
+    background: #000;
+    border: 2px solid #ffe089;
+    border-radius: 6px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.7);
+    z-index: 2000;
+    display: none;
+    image-rendering: pixelated;
+  }
+  #mini-preview.show { display: block; }
+  #mini-preview video {
+    width: 100%; height: 100%;
+    object-fit: contain;
+    image-rendering: pixelated;
+    display: block;
+  }
+  #mini-preview .mini-label {
+    position: absolute; top: -22px; right: 0;
+    background: #ffe089; color: #000;
+    padding: 2px 8px; font-size: 0.78rem;
+    border-radius: 3px; font-weight: bold;
+  }
+  #preview-modal {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.85);
+    display: none; align-items: center; justify-content: center;
+    z-index: 1000;
+  }
+  #preview-modal.show { display: flex; }
+  #preview-modal video, #preview-modal audio {
+    max-width: 80vw; max-height: 80vh;
+    image-rendering: pixelated;
+  }
+  #preview-modal .close {
+    position: absolute; top: 12px; right: 16px;
+    background: rgba(255,255,255,0.1); color: #fff;
+    border: 0; border-radius: 4px;
+    padding: 0.4rem 0.8rem; cursor: pointer;
+  }
+  .row textarea {
+    width: 100%; box-sizing: border-box;
+    margin-top: 0.3rem; padding: 0.3rem 0.4rem;
+    background: #2a2d33; color: #eee;
+    border: 1px solid #3a3d44; border-radius: 4px;
+    font-family: inherit; font-size: 0.83rem;
+    resize: vertical;
+    min-height: 36px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Hotspot editor</h1>
+  <label>Screen:
+    <select id="screen-pick"></select>
+  </label>
+  <button id="clear-screen">Clear this screen</button>
+  <button id="export">Export JSON</button>
+  <button id="import-btn">Import…</button>
+  <input id="import-file" type="file" accept="application/json" style="display:none">
+  <span id="status">Auto-save: on</span>
+</header>
+
+<div id="canvas-wrap">
+  <div id="canvas"></div>
+</div>
+
+<div id="mini-preview"><div class="mini-label"></div></div>
+
+<div id="preview-modal">
+  <button class="close" onclick="closePreview()">Close ✕</button>
+  <video id="preview-media" controls autoplay></video>
+  <div id="preview-midi" style="display:none;color:#ffe089;text-align:center">
+    <div style="font-size:1.3rem;margin-bottom:0.5rem">🎵 MIDI preview</div>
+    <div id="preview-midi-name" style="font-size:0.9rem;color:#aaa"></div>
+  </div>
+</div>
+<script src="data/midi-blob.js"></script>
+<script src="vendor/picoaudio/PicoAudio.min.js"></script>
+<aside id="side">
+  <h2>Hotspots</h2>
+  <p class="helper">
+    Drag on the image to draw a rectangle. Each hotspot has three independent fields:<br>
+    <b>Click anim</b> — FLI that plays when the user clicks (e.g. kid walks to the chair).<br>
+    <b>Route to</b> — optional; the screen to navigate to after the click anim ends.<br>
+    <b>Return anim</b> — optional; played when coming back from that route (e.g. kid walks back).<br>
+    Coords are in original 320×200 image space.
+  </p>
+  <div id="hotspot-list"></div>
+</aside>
+
+<script>
+"use strict";
+
+// ----- Available screens. List of either pure bitmap PNGs (game screens
+// from assets/bitmaps/) or one-frame extracts from animations (saved into
+// assets/screens/).  Each entry: { id, label, src }.
+// ----- Pickers for animations and routes -----
+// Each hotspot has three independent fields:
+//   clickAnim  — the animation that plays when the user clicks the hotspot
+//   route      — (optional) which screen to navigate to AFTER clickAnim ends
+//   returnAnim — (optional) the animation that plays when returning from
+//                that route back to this screen
+//
+// Each list is { value, label, group, preview }.
+const ROUTES = [
+  { value: "",                  label: "— none (no navigation, just animation) —", group: "Routes" },
+  { value: "#/",                label: "→ hub (#/)",                  group: "Routes" },
+  { value: "#/songs",           label: "→ song picker",               group: "Routes" },
+  { value: "#/instruments",     label: "→ instruments",               group: "Routes" },
+  { value: "#/freeplay",        label: "→ free play",                 group: "Routes" },
+  { value: "#/settings",        label: "→ settings / volume",         group: "Routes" },
+  { value: "#/mini",            label: "→ mini-game / quiz",          group: "Routes" },
+  { value: "#/about",           label: "→ about / credits",           group: "Routes" },
+  { value: "back",              label: "→ back (exit / go up one)",   group: "Routes" },
+];
+
+const ANIMATIONS = [
+  { value: "", label: "— none —", group: "" },
+  ..."credit da konec mud1 muz4 menu1 menu5 menu6 not2 not3 play_s m0 m1 m2 m3 m4 m5 m5_1 m5_2 m5_3 m5_4 m6 m7 m8 gramaf1 gramaf2 gramaf3 gramaf4 gramaf5 net".split(/\s+/).map(n => ({
+    value:   "assets/animations/" + n + ".mp4",
+    label:   n + ".fli",
+    group:   "anim/",
+    preview: "assets/animations/" + n + ".mp4",
+  })),
+  ..."kohav1 kohav2 kohav3 kohav4 kohav5 kohav6 kohav7 kohav8 kohav9".split(/\s+/).map(n => ({
+    value:   "assets/animations/durno/" + n + ".mp4",
+    label:   "durno/" + n + ".fli",
+    group:   "durno/",
+    preview: "assets/animations/durno/" + n + ".mp4",
+  })),
+  ..."fok1 fok2 fok3 fok4 fok5 menu2 menu5 menu6".split(/\s+/).map(n => ({
+    value:   "assets/animations/eff/" + n + ".mp4",
+    label:   "eff/" + n + ".fli",
+    group:   "eff/",
+    preview: "assets/animations/eff/" + n + ".mp4",
+  })),
+];
+
+// Sound effects + spoken samples — for accompanying animations. MIDI
+// entries use a `midi:` value-prefix so the runtime knows to play them
+// via PicoAudio; OGG entries play directly via HTMLAudioElement.
+const SOUNDS = [
+  { value: "", label: "— none —", group: "" },
+  ..."piano baian fleita guitar kolokol ksilofon saksofon skripka tarelka truba crazy konec play_s menu5 menu6 kolo_ani lagu_ani time_ani".split(/\s+/).map(n => ({
+    value:   "assets/sfx/fx/" + n + ".ogg",
+    label:   n + ".ogg",
+    group:   "fx/",
+    preview: "assets/sfx/fx/" + n + ".ogg",
+  })),
+  ..."fok1 fok2 fok3 fok4 fok5 menu2 menu5 menu6".split(/\s+/).map(n => ({
+    value:   "assets/sfx/menu/" + n + ".ogg",
+    label:   "menu/" + n + ".ogg",
+    group:   "menu/",
+    preview: "assets/sfx/menu/" + n + ".ogg",
+  })),
+  ..."female1 female2 female3 female4 female5 female6 female7 female8".split(/\s+/).map(n => ({
+    value:   "assets/sfx/doremi/" + n + ".ogg",
+    label:   "doremi/" + n + ".ogg",
+    group:   "doremi/",
+    preview: "assets/sfx/doremi/" + n + ".ogg",
+  })),
+  ..."m_1_1 m_1_2 m_2_1 m_2_2 m_3_1 m_3_2 m_4_1 m_4_2 m_5_1 m_5_2 m_6_1 m_6_2 m_7_1 m_7_2 m_8_1 m_8_2 m_9_1 m_9_2 m_10_1 m_10_2 m_talk m_talk2 m_talk3 beg nishma pl1 pl2 rep3 rep4a".split(/\s+/).map(n => ({
+    value:   "assets/sfx/song_names/" + n + ".ogg",
+    label:   "song_names/" + n + ".ogg",
+    group:   "song_names/",
+    preview: "assets/sfx/song_names/" + n + ".ogg",
+  })),
+  // MIDI files (rendered via PicoAudio at runtime). Use a `midi:` prefix
+  // so the player knows to route them through the MIDI synth rather than
+  // <audio>.
+  ..."1 child1 child2 child4 child5 classic1 classic2 classic4 classic5 festiv1 festiv2 festiv4 festiv5 drums1 drums2 learn1 learn2 learn11 learn22 udar victory".split(/\s+/).map(n => ({
+    value:   "midi:" + n,
+    label:   n + ".mid",
+    group:   "MIDI",
+    preview: "midi:" + n,   // handled specially in the preview dialog
+  })),
+];
+
+const SCREENS = [
+  // -------- Main hub / rooms --------
+  { id: "m0",   label: "Hub — m0 (default idle, kid centre)",  src: "assets/screens/m0.png" },
+  { id: "m1",   label: "Hub — m1 (kid walks to chair) start",  src: "assets/screens/m1.png" },
+  { id: "m2",   label: "Hub — m2 (kid leaves chair)",          src: "assets/screens/m2.png" },
+  { id: "m3",   label: "Hub — m3",                             src: "assets/screens/m3.png" },
+  { id: "m4",   label: "Hub — m4",                             src: "assets/screens/m4.png" },
+  { id: "m5",   label: "Hub — m5",                             src: "assets/screens/m5.png" },
+  { id: "m5_1", label: "Hub — m5_1",                           src: "assets/screens/m5_1.png" },
+  { id: "m5_2", label: "Hub — m5_2 (clock animation)",         src: "assets/screens/m5_2.png" },
+  { id: "m5_3", label: "Hub — m5_3",                           src: "assets/screens/m5_3.png" },
+  { id: "m5_4", label: "Hub — m5_4",                           src: "assets/screens/m5_4.png" },
+  { id: "m6",   label: "Hub — m6",                             src: "assets/screens/m6.png" },
+  { id: "m7",   label: "Hub — m7",                             src: "assets/screens/m7.png" },
+  { id: "m8",   label: "Hub — m8",                             src: "assets/screens/m8.png" },
+  { id: "muz4", label: "Hub — muz4 (music mode variant)",      src: "assets/screens/muz4.png" },
+
+  // -------- Song picker & playback --------
+  { id: "mus1",   label: "Song list (mus1.png — paper scroll)",      src: "assets/bitmaps/mus1.png" },
+  { id: "menu1",  label: "Song list animation frame (menu1)",        src: "assets/screens/menu1.png" },
+  { id: "play_s", label: "Song picker — kid listening (play_s)",     src: "assets/screens/play_s.png" },
+  { id: "replay", label: "Song replay screen (replay.png)",          src: "assets/bitmaps/replay.png" },
+  { id: "mus",    label: "Note playback (mus.png — coloured 1-8)",   src: "assets/bitmaps/mus.png" },
+  { id: "mud1",   label: "Note playback frame (mud1)",               src: "assets/screens/mud1.png" },
+  { id: "not2",   label: "Note playback variant (not2)",             src: "assets/screens/not2.png" },
+  { id: "not3",   label: "Note playback variant (not3)",             src: "assets/screens/not3.png" },
+
+  // -------- Instruments --------
+  { id: "pan_inst", label: "Instrument selector (pan_inst.png)",     src: "assets/bitmaps/pan_inst.png" },
+  { id: "gramaf1",  label: "Instrument demo — violin (gramaf1)",     src: "assets/screens/gramaf1.png" },
+  { id: "gramaf2",  label: "Instrument demo — gramaf2",              src: "assets/screens/gramaf2.png" },
+  { id: "gramaf3",  label: "Instrument demo — drums (gramaf3)",      src: "assets/screens/gramaf3.png" },
+  { id: "gramaf4",  label: "Instrument demo — gramaf4",              src: "assets/screens/gramaf4.png" },
+  { id: "gramaf5",  label: "Instrument demo — accordion (gramaf5)",  src: "assets/screens/gramaf5.png" },
+
+  // -------- Mini-game / quiz --------
+  { id: "igra",  label: "Game-show stage (igra.png — keyboard)",     src: "assets/bitmaps/igra.png" },
+  { id: "igra2", label: "Memory mini-game (igra2.png — cards)",      src: "assets/bitmaps/igra2.png" },
+  { id: "da",    label: "Yes/correct feedback (da)",                 src: "assets/screens/da.png" },
+  { id: "net",   label: "No/wrong feedback (net)",                   src: "assets/screens/net.png" },
+
+  // -------- Settings --------
+  { id: "volume",  label: "Settings panel (volume.png)",             src: "assets/bitmaps/volume.png" },
+  { id: "shalat",  label: "Settings panel alt (shalat.png)",         src: "assets/bitmaps/shalat.png" },
+
+  // -------- Cutscenes / talent show --------
+  { id: "credit",  label: "Credits scene (credit)",                  src: "assets/screens/credit.png" },
+  { id: "konec",   label: "End/finale scene (konec)",                src: "assets/screens/konec.png" },
+  { id: "kohav1",  label: "Talent show — kohav1",                    src: "assets/screens/kohav1.png" },
+  { id: "kohav2",  label: "Talent show — kohav2",                    src: "assets/screens/kohav2.png" },
+  { id: "kohav3",  label: "Talent show — kohav3",                    src: "assets/screens/kohav3.png" },
+  { id: "kohav4",  label: "Talent show — kohav4",                    src: "assets/screens/kohav4.png" },
+  { id: "kohav5",  label: "Talent show — kohav5",                    src: "assets/screens/kohav5.png" },
+  { id: "kohav6",  label: "Talent show — kohav6",                    src: "assets/screens/kohav6.png" },
+  { id: "kohav7",  label: "Talent show — kohav7",                    src: "assets/screens/kohav7.png" },
+  { id: "kohav8",  label: "Talent show — kohav8",                    src: "assets/screens/kohav8.png" },
+  { id: "kohav9",  label: "Talent show — kohav9",                    src: "assets/screens/kohav9.png" },
+];
+const SCALE = 3;     // canvas px per image px (320×200 → 960×600)
+
+// ----- Storage -----
+const STORAGE_KEY = "makhela.hotspots.v1";
+function loadAll() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); }
+  catch (e) { return {}; }
+}
+function saveAll(map) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
+}
+let DATA = loadAll();      // { screenId: [ {x,y,w,h,label,desc}, ... ], ... }
+
+// ----- DOM refs -----
+const $pick   = document.getElementById("screen-pick");
+const $canvas = document.getElementById("canvas");
+const $list   = document.getElementById("hotspot-list");
+const $status = document.getElementById("status");
+
+// ----- Populate screen picker -----
+for (const s of SCREENS) {
+  const opt = document.createElement("option");
+  opt.value = s.id; opt.textContent = s.label;
+  $pick.appendChild(opt);
+}
+let current = SCREENS[0].id;
+$pick.value = current;
+
+// ----- State -----
+let selected = -1;   // index of selected hotspot for the current screen
+let drag = null;     // { startX, startY, box } during a drawing drag
+
+function getList() {
+  if (!DATA[current]) DATA[current] = [];
+  return DATA[current];
+}
+
+function flash(msg, ok = true) {
+  $status.textContent = msg;
+  $status.style.color = ok ? "#6a6" : "#e88";
+  setTimeout(() => { $status.textContent = "Auto-save: on"; $status.style.color = "#6a6"; }, 2000);
+}
+
+function persist() {
+  saveAll(DATA);
+}
+
+// ----- Render -----
+function render() {
+  // Set canvas background
+  const screen = SCREENS.find(s => s.id === current);
+  $canvas.style.backgroundImage = "url('" + screen.src + "')";
+
+  // Clear hotspot boxes (but keep canvas children that are background)
+  $canvas.innerHTML = "";
+
+  const list = getList();
+  list.forEach((h, i) => {
+    const div = document.createElement("div");
+    div.className = "hotspot-box" + (i === selected ? " selected" : "");
+    div.style.left   = (h.x * SCALE) + "px";
+    div.style.top    = (h.y * SCALE) + "px";
+    div.style.width  = (h.w * SCALE) + "px";
+    div.style.height = (h.h * SCALE) + "px";
+    div.innerHTML = '<span class="num">' + (i + 1) + '</span>';
+    div.addEventListener("click", (e) => { e.stopPropagation(); selected = i; render(); });
+    $canvas.appendChild(div);
+  });
+
+  // Sidebar list
+  $list.innerHTML = "";
+  if (list.length === 0) {
+    $list.innerHTML = '<p class="helper" style="color:#666">No hotspots yet. Drag on the image to add one.</p>';
+  }
+  list.forEach((h, i) => {
+    const row = document.createElement("div");
+    row.className = "row" + (i === selected ? " selected" : "");
+    // Build option HTML for an anim/route picker list (with optgroups).
+    function optsFor(list, current) {
+      const groups = {};
+      for (const t of list) (groups[t.group || ""] = groups[t.group || ""] || []).push(t);
+      const blocks = [];
+      for (const [g, items] of Object.entries(groups)) {
+        const opts = items.map(t =>
+          `<option value="${t.value}" ${current === t.value ? "selected" : ""}>${t.label}</option>`
+        ).join("");
+        blocks.push(g ? `<optgroup label="${g}">${opts}</optgroup>` : opts);
+      }
+      return blocks.join("");
+    }
+
+    // Migrate legacy schema (single clickAnim/returnAnim) into arrays.
+    if (!Array.isArray(h.clickAnims)) {
+      h.clickAnims = h.clickAnim
+        ? [{ anim: h.clickAnim, sound: h.clickSound || "" }]
+        : [];
+    }
+    if (!Array.isArray(h.returnAnims)) {
+      h.returnAnims = h.returnAnim
+        ? [{ anim: h.returnAnim, sound: h.returnSound || "" }]
+        : [];
+    }
+    h.idleAnim   = h.idleAnim   || "";
+    h.idleSound  = h.idleSound  || "";
+    h.timeToIdle = h.timeToIdle || 0;
+
+    function listHtml(items, cssClass, addLabel) {
+      return `
+        <div class="anim-list ${cssClass}">
+          ${items.map((it, idx) => `
+            <div class="anim-entry" data-idx="${idx}">
+              <select class="al-anim">${optsFor(ANIMATIONS, it.anim || "")}</select>
+              <button class="hs-preview" data-which="anim" title="Preview anim">▶</button>
+              <select class="al-sound">${optsFor(SOUNDS, it.sound || "")}</select>
+              <button class="hs-preview" data-which="sound" title="Preview sound">▶</button>
+              <button class="al-del" title="Remove">−</button>
+            </div>
+          `).join("")}
+          <button class="al-add">+ ${addLabel}</button>
+        </div>`;
+    }
+
+    row.innerHTML = `
+      <div class="row-head">
+        <span class="num">${i+1}</span>
+        <span class="coords">x=${h.x} y=${h.y} w=${h.w} h=${h.h}</span>
+        <button title="Delete hotspot" data-del="${i}">✕</button>
+      </div>
+      <input class="hs-label" type="text" placeholder="Short label (e.g. 'chair', 'tv', 'exit')" value="${(h.label||"").replace(/"/g,'&quot;')}">
+
+      <div class="picker-lbl" style="margin-top:0.5rem">Click anims (cycle on repeated clicks):</div>
+      ${listHtml(h.clickAnims, "list-click", "Add click anim")}
+
+      <div class="picker">
+        <span class="picker-lbl">Route to:</span>
+        <select class="hs-route">${optsFor(ROUTES, h.route || "")}</select>
+      </div>
+
+      <div class="picker-lbl" style="margin-top:0.5rem">Return anims (on coming back from route):</div>
+      ${listHtml(h.returnAnims, "list-return", "Add return anim")}
+
+      <div class="picker-lbl" style="margin-top:0.5rem">Idle (plays after time-to-idle of inactivity):</div>
+      <div class="picker">
+        <span class="picker-lbl">Anim:</span>
+        <select class="hs-idle">${optsFor(ANIMATIONS, h.idleAnim || "")}</select>
+        <button class="hs-preview" data-which="idle" title="Preview idle anim">▶</button>
+      </div>
+      <div class="picker">
+        <span class="picker-lbl">Sound:</span>
+        <select class="hs-idlesnd">${optsFor(SOUNDS, h.idleSound || "")}</select>
+        <button class="hs-preview" data-which="idlesnd" title="Preview idle sound">▶</button>
+      </div>
+      <div class="picker">
+        <span class="picker-lbl">Time to idle (ms):</span>
+        <input class="hs-tti" type="number" min="0" step="500" value="${h.timeToIdle || 0}" style="flex:1;background:#2a2d33;color:#eee;border:1px solid #3a3d44;border-radius:4px;padding:0.25rem 0.4rem;font-family:inherit">
+      </div>
+
+      <textarea class="hs-desc" placeholder="What does this hotspot do in the game?" rows="2">${(h.desc||"")}</textarea>
+    `;
+    row.addEventListener("click", () => { selected = i; render(); });
+    row.querySelector("button[data-del]").addEventListener("click", (e) => {
+      e.stopPropagation();
+      list.splice(i, 1);
+      if (selected === i) selected = -1;
+      persist(); render();
+    });
+    row.querySelector(".hs-label"  ).addEventListener("input",  (e) => { h.label     = e.target.value; persist(); });
+    row.querySelector(".hs-desc"   ).addEventListener("input",  (e) => { h.desc      = e.target.value; persist(); });
+    row.querySelector(".hs-route"  ).addEventListener("change", (e) => { h.route     = e.target.value; persist(); });
+    row.querySelector(".hs-idle"   ).addEventListener("change", (e) => { h.idleAnim  = e.target.value; persist(); });
+    row.querySelector(".hs-idlesnd").addEventListener("change", (e) => { h.idleSound = e.target.value; persist(); });
+    row.querySelector(".hs-tti"    ).addEventListener("input",  (e) => {
+      h.timeToIdle = parseInt(e.target.value, 10) || 0; persist();
+    });
+
+    // Wire each animation list (click + return) — handle dropdowns,
+    // preview ▶, the − remove button, and the + add button.
+    [["list-click", h.clickAnims], ["list-return", h.returnAnims]].forEach(([cls, arr]) => {
+      const block = row.querySelector("." + cls);
+      block.querySelectorAll(".anim-entry").forEach(entry => {
+        const idx = parseInt(entry.dataset.idx, 10);
+        entry.querySelector(".al-anim").addEventListener("change", (e) => { arr[idx].anim  = e.target.value; persist(); });
+        entry.querySelector(".al-sound").addEventListener("change", (e) => { arr[idx].sound = e.target.value; persist(); });
+        entry.querySelector(".al-del").addEventListener("click", (e) => {
+          e.stopPropagation();
+          arr.splice(idx, 1); persist(); render();
+        });
+        entry.querySelectorAll(".hs-preview").forEach(btn => btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          previewUrl(btn.dataset.which === "anim" ? arr[idx].anim : arr[idx].sound);
+        }));
+      });
+      block.querySelector(".al-add").addEventListener("click", (e) => {
+        e.stopPropagation();
+        arr.push({ anim: "", sound: "" });
+        persist(); render();
+      });
+    });
+
+    // Idle preview buttons (outside the anim-list blocks)
+    row.querySelectorAll(".hs-preview[data-which='idle'], .hs-preview[data-which='idlesnd']").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        previewUrl(btn.dataset.which === "idle" ? h.idleAnim : h.idleSound);
+      });
+    });
+    $list.appendChild(row);
+  });
+}
+
+// ----- Drag to draw -----
+$canvas.addEventListener("mousedown", (e) => {
+  if (e.target !== $canvas) return;                 // clicked existing box: handled by box's own click
+  const rect = $canvas.getBoundingClientRect();
+  const sx = Math.round((e.clientX - rect.left) / SCALE);
+  const sy = Math.round((e.clientY - rect.top)  / SCALE);
+  drag = { startX: sx, startY: sy };
+  // Visual preview rectangle
+  drag.box = document.createElement("div");
+  drag.box.className = "hotspot-box";
+  drag.box.style.left   = (sx * SCALE) + "px";
+  drag.box.style.top    = (sy * SCALE) + "px";
+  drag.box.style.width  = "0px"; drag.box.style.height = "0px";
+  drag.box.style.pointerEvents = "none";
+  $canvas.appendChild(drag.box);
+});
+window.addEventListener("mousemove", (e) => {
+  if (!drag) return;
+  const rect = $canvas.getBoundingClientRect();
+  const cx = Math.round((e.clientX - rect.left) / SCALE);
+  const cy = Math.round((e.clientY - rect.top)  / SCALE);
+  const x = Math.min(drag.startX, cx);
+  const y = Math.min(drag.startY, cy);
+  const w = Math.abs(cx - drag.startX);
+  const h = Math.abs(cy - drag.startY);
+  drag.box.style.left   = (x * SCALE) + "px";
+  drag.box.style.top    = (y * SCALE) + "px";
+  drag.box.style.width  = (w * SCALE) + "px";
+  drag.box.style.height = (h * SCALE) + "px";
+});
+window.addEventListener("mouseup", (e) => {
+  if (!drag) return;
+  const rect = $canvas.getBoundingClientRect();
+  const cx = Math.round((e.clientX - rect.left) / SCALE);
+  const cy = Math.round((e.clientY - rect.top)  / SCALE);
+  const x = Math.max(0, Math.min(drag.startX, cx));
+  const y = Math.max(0, Math.min(drag.startY, cy));
+  const w = Math.abs(cx - drag.startX);
+  const h = Math.abs(cy - drag.startY);
+  drag.box.remove();
+  if (w >= 4 && h >= 4) {
+    const list = getList();
+    list.push({ x, y, w, h, label: "", desc: "" });
+    selected = list.length - 1;
+    persist(); render();
+    // Focus the label input for quick typing
+    setTimeout(() => {
+      const inputs = $list.querySelectorAll(".hs-label");
+      if (inputs[selected]) inputs[selected].focus();
+    }, 0);
+  }
+  drag = null;
+});
+
+// Delete key removes the selected hotspot
+window.addEventListener("keydown", (e) => {
+  if (e.key !== "Delete" && e.key !== "Backspace") return;
+  if (document.activeElement && (document.activeElement.tagName === "INPUT" || document.activeElement.tagName === "TEXTAREA")) return;
+  if (selected < 0) return;
+  const list = getList();
+  list.splice(selected, 1);
+  selected = -1;
+  persist(); render();
+});
+
+// Screen picker
+$pick.addEventListener("change", () => {
+  current = $pick.value;
+  selected = -1;
+  render();
+});
+
+// Clear button
+document.getElementById("clear-screen").addEventListener("click", () => {
+  if (!confirm("Delete all hotspots for this screen?")) return;
+  DATA[current] = [];
+  selected = -1;
+  persist(); render();
+});
+
+// Export / import
+document.getElementById("export").addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(DATA, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = "hotspots.json"; a.click();
+  URL.revokeObjectURL(a.href);
+  const total = Object.values(DATA).reduce((sum, arr) => sum + arr.length, 0);
+  flash(`Exported ${total} hotspots across ${Object.keys(DATA).length} screens`);
+});
+document.getElementById("import-btn").addEventListener("click", () => document.getElementById("import-file").click());
+document.getElementById("import-file").addEventListener("change", (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try { DATA = JSON.parse(r.result); persist(); render(); flash("Imported."); }
+    catch (err) { flash("Import failed: " + err.message, false); }
+  };
+  r.readAsText(f);
+});
+
+// Preview a media URL in the modal. Supports:
+//   - .mp4 / .webm        → <video>
+//   - .ogg / .mp3 / .wav  → <audio>
+//   - "midi:<key>"        → PicoAudio synth playing the embedded MIDI
+let _midiPico = null;
+function closePreview() {
+  document.getElementById("preview-modal").classList.remove("show");
+  const m = document.getElementById("preview-media");
+  if (m) { try { m.pause(); } catch (e) {} m.src = ""; }
+  document.getElementById("preview-midi").style.display = "none";
+  if (_midiPico) { try { _midiPico.stop(); } catch (e) {} _midiPico = null; }
+}
+function previewUrl(url) {
+  if (!url) { flash("Nothing selected", false); return; }
+  const modal     = document.getElementById("preview-modal");
+  const midiPanel = document.getElementById("preview-midi");
+
+  // MIDI branch — synth via PicoAudio
+  if (url.startsWith("midi:")) {
+    const key = url.slice(5);
+    if (!window.MKH || !MKH.midiBytes) { flash("MIDI runtime not loaded", false); return; }
+    const buf = MKH.midiBytes(key);
+    if (!buf) { flash("MIDI not found: " + key, false); return; }
+    closePreview();      // tear down any previous media
+    document.getElementById("preview-media").style.display = "none";
+    midiPanel.style.display = "block";
+    document.getElementById("preview-midi-name").textContent = key + ".mid";
+    try {
+      _midiPico = new PicoAudio();
+      _midiPico.init();
+      _midiPico.setMasterVolume(0.55);
+      _midiPico.setData(_midiPico.parseSMF(buf));
+      _midiPico.play();
+    } catch (e) { flash("MIDI play failed: " + e.message, false); }
+    modal.classList.add("show");
+    return;
+  }
+
+  // Audio / video branch
+  let media = document.getElementById("preview-media");
+  media.style.display = "block";
+  midiPanel.style.display = "none";
+  const isAudio = /\.(ogg|mp3|wav)$/i.test(url);
+  if (isAudio && media.tagName === "VIDEO") {
+    const a = document.createElement("audio");
+    a.id = "preview-media"; a.controls = true; a.autoplay = true;
+    media.replaceWith(a); media = a;
+  } else if (!isAudio && media.tagName === "AUDIO") {
+    const v = document.createElement("video");
+    v.id = "preview-media"; v.controls = true; v.autoplay = true;
+    media.replaceWith(v); media = v;
+  }
+  media.src = url;
+  modal.classList.add("show");
+}
+
+// ----- Auto-preview on dropdown change -----
+// When the user picks an anim or sound from a <select>, immediately
+// play it: audio inline, video in a small floating box (bottom-right)
+// that disappears when the clip ends.
+let _miniAudio = null;
+let _miniMidi  = null;
+function stopMiniPreview() {
+  const box = document.getElementById("mini-preview");
+  box.classList.remove("show");
+  const vid = box.querySelector("video");
+  if (vid) { try { vid.pause(); } catch (e) {} vid.remove(); }
+  if (_miniAudio) { try { _miniAudio.pause(); } catch (e) {} _miniAudio = null; }
+  if (_miniMidi)  { try { _miniMidi.stop();   } catch (e) {} _miniMidi  = null; }
+}
+function autoPreview(value) {
+  stopMiniPreview();
+  if (!value) return;
+
+  // MIDI — synth via PicoAudio
+  if (value.startsWith("midi:")) {
+    if (!window.MKH || !MKH.midiBytes || !window.PicoAudio) return;
+    const buf = MKH.midiBytes(value.slice(5));
+    if (!buf) return;
+    try {
+      _miniMidi = new PicoAudio();
+      _miniMidi.init();
+      _miniMidi.setMasterVolume(0.55);
+      _miniMidi.setData(_miniMidi.parseSMF(buf));
+      _miniMidi.play();
+      // Show a small "now playing" tag in the mini box
+      const box = document.getElementById("mini-preview");
+      box.querySelector(".mini-label").textContent = "🎵 " + value.slice(5) + ".mid";
+      box.classList.add("show");
+      // No video — leave the inside black with the label visible
+    } catch (e) {}
+    return;
+  }
+
+  // Audio (.ogg/.mp3/.wav) — play inline, no visual box
+  if (/\.(ogg|mp3|wav)$/i.test(value)) {
+    _miniAudio = new Audio(value);
+    _miniAudio.play().catch(() => {});
+    return;
+  }
+
+  // Video (.mp4/.webm) — floating mini-player, auto-hide on end
+  if (/\.(mp4|webm)$/i.test(value)) {
+    const box = document.getElementById("mini-preview");
+    box.querySelector(".mini-label").textContent = value.split("/").pop();
+    const v = document.createElement("video");
+    v.src = value; v.autoplay = true; v.muted = false; v.playsInline = true;
+    v.addEventListener("ended", () => { stopMiniPreview(); });
+    v.addEventListener("click", () => { stopMiniPreview(); });
+    box.appendChild(v);
+    box.classList.add("show");
+  }
+}
+
+// Delegate `change` on any select inside the side panel → auto-preview.
+document.getElementById("side").addEventListener("change", (e) => {
+  if (e.target.tagName === "SELECT") autoPreview(e.target.value);
+});
+
+// First render
+render();
+</script>
+</body>
+</html>

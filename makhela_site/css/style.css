@@ -1,0 +1,205 @@
+/* Makhela — pure JS reimplementation of the 1995 DOS music game. Style mirrors
+   the original 320×200 pixel art (now rendered at 640×400 on a fixed stage,
+   scaled to fit the viewport). Palette taken from the actual decoded
+   bitmaps in assets/bitmaps/. */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+    height: 100%;
+    background: #1a1d23;
+    overflow: hidden;
+    font-family: "Heebo", "Arial Hebrew", Arial, sans-serif;
+    color: #fff;
+    user-select: none;
+}
+
+#app {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Fixed stage; the original screen is 320×200, rendered here as 640×400.
+   JS sets `transform: scale(...)` to fit the viewport while preserving
+   aspect ratio (same trick as your other ports). */
+.stage {
+    width: 640px;
+    height: 400px;
+    position: relative;
+    background-size: 640px 400px;
+    background-repeat: no-repeat;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+    transform-origin: center center;
+    overflow: hidden;
+}
+
+/* All clickable / focusable controls overlaid on the stage. Coords are in
+   the 640×400 space. */
+.hotspot {
+    position: absolute;
+    cursor: pointer;
+    background: transparent;
+    border: 0;
+    padding: 0;
+}
+.hotspot:hover,
+.hotspot:focus { outline: none; }
+
+/* "stop / back" hand button — top-right corner of every screen */
+.btn-back {
+    position: absolute;
+    top: 12px; right: 12px;
+    width: 44px; height: 50px;
+    background: url("../assets/bitmaps/replay.png") -582px -8px;
+    background-size: 640px 400px;
+    cursor: pointer;
+    border: 0;
+    z-index: 10;
+}
+.btn-back:hover { filter: brightness(1.2); }
+
+/* === Hub === */
+.hub-bg { background-image: url("../assets/bitmaps/replay.png"); /* placeholder until we render m0 */ }
+
+/* Song picker — list rendered on the menu1 scroll background */
+.song-list-bg {
+    background-image: url("../assets/bitmaps/mus1.png");
+}
+.song-list {
+    position: absolute;
+    inset: 60px 110px 50px 50px;
+    overflow-y: auto;
+    padding: 8px 16px;
+    text-align: right;
+    direction: rtl;
+}
+.song-list button {
+    display: block;
+    width: 100%;
+    margin: 4px 0;
+    padding: 6px 12px;
+    background: transparent;
+    border: 2px solid transparent;
+    border-radius: 6px;
+    color: #5a2d1a;
+    font-family: inherit;
+    font-size: 22px;
+    font-weight: bold;
+    text-align: right;
+    cursor: pointer;
+}
+.song-list button:hover {
+    background: rgba(255, 220, 130, 0.5);
+    border-color: #5a2d1a;
+}
+.song-list button:focus {
+    outline: 0;
+    background: rgba(255, 220, 130, 0.8);
+}
+
+/* === Song playback === */
+.song-player {
+    position: absolute; inset: 0;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.song-player video {
+    width: 100%; height: 100%;
+    object-fit: contain;
+    image-rendering: pixelated;
+}
+.lyrics-overlay {
+    position: absolute;
+    right: 0; bottom: 0; left: 0;
+    background: linear-gradient(transparent, rgba(0,0,0,0.85));
+    color: #fff;
+    padding: 1.5rem 1rem 1rem;
+    text-align: center;
+    direction: rtl;
+    pointer-events: none;
+    font-size: 22px;
+    font-weight: 600;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.9);
+    line-height: 1.4;
+}
+.lyrics-toggle {
+    position: absolute;
+    top: 12px; left: 12px;
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-family: inherit;
+    cursor: pointer;
+    z-index: 5;
+}
+.lyrics-toggle:hover { background: rgba(0,0,0,0.85); }
+
+/* Generic landing-screen card grid (used by hub for now) */
+.hub-cards {
+    position: absolute;
+    inset: 60px 60px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+}
+.hub-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.85);
+    border: 3px solid #5a2d1a;
+    border-radius: 12px;
+    color: #5a2d1a;
+    font-family: inherit;
+    font-size: 22px;
+    font-weight: bold;
+    cursor: pointer;
+    text-decoration: none;
+    text-align: center;
+    padding: 16px;
+}
+.hub-card:hover {
+    background: #ffe089;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+.hub-card .icon {
+    width: 80px; height: 80px;
+    object-fit: contain;
+    image-rendering: pixelated;
+}
+
+/* Title bar (translucent strip at top of any screen) */
+.titlebar {
+    position: absolute;
+    top: 0; right: 0; left: 0;
+    background: rgba(60, 30, 10, 0.65);
+    color: #ffe089;
+    padding: 6px 16px;
+    font-size: 18px;
+    font-weight: bold;
+    z-index: 5;
+    text-align: center;
+}
+
+/* Loading state */
+.loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #888;
+    font-size: 1.2rem;
+}

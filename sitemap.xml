@@ -53,4 +53,11 @@
     <url><loc>https://tekoacomputers.github.io/Educational-Software/hemed_nivim_site/index.html#/Hemed</loc><priority>0.6</priority></url>
     <url><loc>https://tekoacomputers.github.io/Educational-Software/hemed_nivim_site/index.html#/Nivim</loc><priority>0.6</priority></url>
 
+    <!-- Makhela (DOS music game wrapped in js-dos) -->
+    <url>
+        <loc>https://tekoacomputers.github.io/Educational-Software/makhela_site/</loc>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+
 </urlset>

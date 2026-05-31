@@ -1,0 +1,28 @@
+# Raw / build inputs — not needed at runtime
+game/
+makhela.jsdos
+index-jsdos-archived.html
+test.html
+test-*
+
+# Discarded vendor libraries (only vendor/picoaudio/ is used)
+vendor/v7/
+vendor/v86/
+vendor/emulators/
+vendor/js-dos.js
+vendor/js-dos.css
+
+# Unused asset side-roads
+assets/raw/
+assets/posters/
+assets/songs/*.opus
+assets/fonts/
+assets/lyrics/
+
+# JSON sources superseded by JS-global versions in data/*.js
+data/songs.json
+data/menu_order.json
+
+# OS noise
+.DS_Store
+*~

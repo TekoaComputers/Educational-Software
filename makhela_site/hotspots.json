@@ -1,0 +1,102 @@
+{
+  "m0": [
+    {
+      "x": 29,
+      "y": 45,
+      "w": 100,
+      "h": 84,
+      "label": "listn music chair",
+      "desc": "go to the list of song selection",
+      "trigger": "anim:assets/animations/m0.mp4",
+      "clickAnim": "assets/animations/m1.mp4",
+      "route": "#/songs",
+      "returnAnim": "assets/animations/m2.mp4",
+      "clickAnims": [
+        {
+          "anim": "assets/animations/m1.mp4",
+          "sound": ""
+        }
+      ],
+      "returnAnims": [
+        {
+          "anim": "assets/animations/m2.mp4",
+          "sound": ""
+        }
+      ],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 5,
+      "y": 9,
+      "w": 24,
+      "h": 74,
+      "label": "clock",
+      "desc": "play clock animation (one of the fli)",
+      "clickAnim": "assets/animations/m5_2.mp4",
+      "clickAnims": [
+        {
+          "anim": "assets/animations/m5_2.mp4",
+          "sound": "assets/sfx/fx/lagu_ani.ogg"
+        }
+      ],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 131,
+      "y": 63,
+      "w": 49,
+      "h": 62,
+      "label": "kid playing the game",
+      "desc": "",
+      "clickAnims": [
+        {
+          "anim": "assets/animations/eff/fok1.mp4",
+          "sound": "assets/sfx/menu/fok1.ogg"
+        },
+        {
+          "anim": "assets/animations/eff/fok2.mp4",
+          "sound": "assets/sfx/menu/fok2.ogg"
+        },
+        {
+          "anim": "assets/animations/eff/fok3.mp4",
+          "sound": "assets/sfx/menu/fok3.ogg"
+        },
+        {
+          "anim": "assets/animations/eff/fok4.mp4",
+          "sound": "assets/sfx/menu/fok4.ogg"
+        },
+        {
+          "anim": "assets/animations/eff/fok5.mp4",
+          "sound": "assets/sfx/menu/fok5.ogg"
+        }
+      ],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 3,
+      "y": 136,
+      "w": 46,
+      "h": 35,
+      "label": "surprise box",
+      "desc": "",
+      "clickAnims": [
+        {
+          "anim": "assets/animations/m5_4.mp4",
+          "sound": "assets/sfx/fx/crazy.ogg"
+        }
+      ],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    }
+  ]
+}
