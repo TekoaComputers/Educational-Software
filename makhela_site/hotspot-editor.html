@@ -277,6 +277,7 @@ const ROUTES = [
   { value: "#/mini",            label: "→ mini-game / quiz",          group: "Routes" },
   { value: "#/about",           label: "→ about / credits",           group: "Routes" },
   { value: "back",              label: "→ back (exit / go up one)",   group: "Routes" },
+  { value: "../index.html",     label: "→ exit to site catalog",      group: "Routes" },
 ];
 
 const ANIMATIONS = [
@@ -558,7 +559,18 @@ function render() {
 
       <textarea class="hs-desc" placeholder="What does this hotspot do in the game?" rows="2">${(h.desc||"")}</textarea>
     `;
-    row.addEventListener("click", () => { selected = i; render(); });
+    row.addEventListener("click", (e) => {
+      // Don't re-render when clicking an editable element (input/textarea
+      // /select/button) — render() would replace the DOM and steal focus
+      // away from whatever the user was about to type into.
+      const t = e.target;
+      if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" ||
+          t.tagName === "SELECT" || t.tagName === "BUTTON" ||
+          t.tagName === "OPTION") return;
+      if (selected === i) return;
+      selected = i;
+      render();
+    });
     row.querySelector("button[data-del]").addEventListener("click", (e) => {
       e.stopPropagation();
       list.splice(i, 1);

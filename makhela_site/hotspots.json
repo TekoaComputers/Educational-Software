@@ -97,6 +97,723 @@
       "idleAnim": "",
       "idleSound": "",
       "timeToIdle": 0
+    },
+    {
+      "x": 90,
+      "y": 8,
+      "w": 77,
+      "h": 46,
+      "label": "window",
+      "desc": "",
+      "clickAnims": [
+        {
+          "anim": "assets/animations/m5_1.mp4",
+          "sound": "assets/sfx/fx/time_ani.ogg"
+        }
+      ],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 284,
+      "y": 6,
+      "w": 33,
+      "h": 36,
+      "label": "bell",
+      "desc": "",
+      "clickAnims": [
+        {
+          "anim": "assets/animations/m5_3.mp4",
+          "sound": "assets/sfx/fx/kolo_ani.ogg"
+        }
+      ],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 272,
+      "y": 170,
+      "w": 48,
+      "h": 30,
+      "label": "exit game",
+      "desc": "exits the game",
+      "clickAnims": [],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 273,
+      "y": 137,
+      "w": 47,
+      "h": 30,
+      "label": "credits",
+      "desc": "",
+      "clickAnims": [
+        {
+          "anim": "",
+          "sound": ""
+        }
+      ],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0,
+      "route": "#/about"
+    },
+    {
+      "x": 284,
+      "y": 100,
+      "w": 34,
+      "h": 32,
+      "label": "set volume",
+      "desc": "",
+      "clickAnims": [],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0,
+      "route": "#/settings"
+    },
+    {
+      "x": 68,
+      "y": 144,
+      "w": 115,
+      "h": 56,
+      "label": "instruments",
+      "desc": "go to the instruments play game",
+      "clickAnims": [
+        {
+          "anim": "assets/animations/m3.mp4",
+          "sound": ""
+        }
+      ],
+      "returnAnims": [
+        {
+          "anim": "assets/animations/m4.mp4",
+          "sound": ""
+        }
+      ],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0,
+      "route": "#/instruments"
+    },
+    {
+      "x": 201,
+      "y": 5,
+      "w": 65,
+      "h": 46,
+      "label": "quiz game",
+      "desc": "go to song quiz game",
+      "clickAnims": [
+        {
+          "anim": "assets/animations/m7.mp4",
+          "sound": ""
+        }
+      ],
+      "returnAnims": [
+        {
+          "anim": "assets/animations/m8.mp4",
+          "sound": ""
+        }
+      ],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0,
+      "route": "#/mini"
+    },
+    {
+      "x": 183,
+      "y": 54,
+      "w": 92,
+      "h": 50,
+      "label": "pazel game",
+      "desc": "",
+      "clickAnims": [
+        {
+          "anim": "assets/animations/m5.mp4",
+          "sound": ""
+        }
+      ],
+      "returnAnims": [
+        {
+          "anim": "assets/animations/m6.mp4",
+          "sound": ""
+        }
+      ],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0,
+      "route": "#/freeplay"
+    }
+  ],
+  "m1": [],
+  "mus1": [
+    {
+      "x": 256,
+      "y": 64,
+      "w": 49,
+      "h": 52,
+      "label": "preview song",
+      "desc": "",
+      "clickAnims": [],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 31,
+      "y": 19,
+      "w": 205,
+      "h": 16,
+      "label": "song 1",
+      "desc": "",
+      "clickAnims": [
+        {
+          "anim": "assets/animations/menu1.mp4",
+          "sound": "assets/sfx/song_names/m_1_2.ogg"
+        }
+      ],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 33,
+      "y": 35,
+      "w": 202,
+      "h": 13,
+      "label": "song 2",
+      "desc": "",
+      "clickAnims": [
+        {
+          "anim": "assets/animations/menu1.mp4",
+          "sound": "assets/sfx/song_names/m_2_2.ogg"
+        }
+      ],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 33,
+      "y": 48,
+      "w": 202,
+      "h": 15,
+      "label": "song 3",
+      "desc": "",
+      "clickAnims": [
+        {
+          "anim": "assets/animations/menu1.mp4",
+          "sound": "assets/sfx/song_names/m_3_2.ogg"
+        }
+      ],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 29,
+      "y": 64,
+      "w": 206,
+      "h": 12,
+      "label": "song 4",
+      "desc": "",
+      "clickAnims": [
+        {
+          "anim": "assets/animations/menu1.mp4",
+          "sound": "assets/sfx/song_names/m_4_2.ogg"
+        }
+      ],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 30,
+      "y": 76,
+      "w": 204,
+      "h": 13,
+      "label": "song 5",
+      "desc": "",
+      "clickAnims": [
+        {
+          "anim": "assets/animations/menu1.mp4",
+          "sound": "assets/sfx/song_names/m_5_2.ogg"
+        }
+      ],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 27,
+      "y": 89,
+      "w": 207,
+      "h": 14,
+      "label": "song 6",
+      "desc": "",
+      "clickAnims": [
+        {
+          "anim": "assets/animations/menu1.mp4",
+          "sound": "assets/sfx/song_names/m_6_2.ogg"
+        }
+      ],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 23,
+      "y": 104,
+      "w": 211,
+      "h": 13,
+      "label": "song 7",
+      "desc": "",
+      "clickAnims": [
+        {
+          "anim": "assets/animations/menu1.mp4",
+          "sound": "assets/sfx/song_names/m_7_2.ogg"
+        }
+      ],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 22,
+      "y": 118,
+      "w": 212,
+      "h": 13,
+      "label": "song 8",
+      "desc": "",
+      "clickAnims": [
+        {
+          "anim": "assets/animations/menu1.mp4",
+          "sound": "assets/sfx/song_names/m_8_2.ogg"
+        }
+      ],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 24,
+      "y": 131,
+      "w": 210,
+      "h": 14,
+      "label": "song 9",
+      "desc": "",
+      "clickAnims": [
+        {
+          "anim": "assets/animations/menu1.mp4",
+          "sound": "assets/sfx/song_names/m_9_2.ogg"
+        }
+      ],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 22,
+      "y": 146,
+      "w": 212,
+      "h": 14,
+      "label": "song 10",
+      "desc": "",
+      "clickAnims": [
+        {
+          "anim": "assets/animations/menu1.mp4",
+          "sound": "assets/sfx/song_names/m_10_2.ogg"
+        }
+      ],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 258,
+      "y": 15,
+      "w": 44,
+      "h": 37,
+      "label": "exit",
+      "desc": "",
+      "clickAnims": [],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 235,
+      "y": 122,
+      "w": 85,
+      "h": 78,
+      "label": "kid on chair",
+      "desc": "",
+      "clickAnims": [
+        {
+          "anim": "assets/animations/eff/menu2.mp4",
+          "sound": ""
+        }
+      ],
+      "returnAnims": [],
+      "idleAnim": "assets/animations/eff/menu5.mp4",
+      "idleSound": "assets/sfx/menu/menu5.ogg",
+      "timeToIdle": 10000
+    }
+  ],
+  "credit": [
+    {
+      "x": 274,
+      "y": 0,
+      "w": 24,
+      "h": 23,
+      "label": "exit credits",
+      "desc": "exits credits",
+      "clickAnims": [],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    }
+  ],
+  "muz4": [],
+  "menu1": [],
+  "mud1": [
+    {
+      "x": 261,
+      "y": 1,
+      "w": 45,
+      "h": 29,
+      "label": "exit game",
+      "desc": "",
+      "clickAnims": [],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 260,
+      "y": 30,
+      "w": 50,
+      "h": 54,
+      "label": "instrument selector",
+      "desc": "show the instrument selection",
+      "clickAnims": [],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 260,
+      "y": 87,
+      "w": 50,
+      "h": 54,
+      "label": "play music",
+      "desc": "plays the midi file created in the game",
+      "clickAnims": [],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 15,
+      "y": 146,
+      "w": 35,
+      "h": 46,
+      "label": "not1",
+      "desc": "each not adds a musical note according to the instrument selected",
+      "clickAnims": [],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 52,
+      "y": 146,
+      "w": 33,
+      "h": 46,
+      "label": "not2",
+      "desc": "",
+      "clickAnims": [],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 88,
+      "y": 147,
+      "w": 34,
+      "h": 45,
+      "label": "not3",
+      "desc": "",
+      "clickAnims": [],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 124,
+      "y": 146,
+      "w": 35,
+      "h": 46,
+      "label": "not4",
+      "desc": "",
+      "clickAnims": [],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 161,
+      "y": 146,
+      "w": 33,
+      "h": 46,
+      "label": "not5",
+      "desc": "",
+      "clickAnims": [],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 196,
+      "y": 146,
+      "w": 35,
+      "h": 46,
+      "label": "not6",
+      "desc": "",
+      "clickAnims": [],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 231,
+      "y": 146,
+      "w": 34,
+      "h": 46,
+      "label": "not7",
+      "desc": "",
+      "clickAnims": [],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 267,
+      "y": 146,
+      "w": 36,
+      "h": 46,
+      "label": "not8",
+      "desc": "",
+      "clickAnims": [],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 4,
+      "y": 5,
+      "w": 254,
+      "h": 136,
+      "label": "music notes display",
+      "desc": "here you show the created music notes, each note button will create here a note at height relative to the note number 1-8 si each has its own row, its filled from left to right and when full a new page created",
+      "clickAnims": [],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    }
+  ],
+  "not2": [],
+  "gramaf1": [],
+  "shalat": [],
+  "pan_inst": [
+    {
+      "x": 260,
+      "y": 0,
+      "w": 48,
+      "h": 30,
+      "label": "exit",
+      "desc": "go back to editing your music",
+      "clickAnims": [],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 12,
+      "y": 22,
+      "w": 47,
+      "h": 48,
+      "label": "instrument 1",
+      "desc": "each instrument 1-10 change the whole midi playback instrument, when clicking it should play audio according to the index from assets/sfx/instruments and animation according to not2.mp4, it should also fill the \"select instrument\" with its area image",
+      "clickAnims": [],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 60,
+      "y": 22,
+      "w": 49,
+      "h": 49,
+      "label": "instrument 2",
+      "desc": "",
+      "clickAnims": [],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 109,
+      "y": 23,
+      "w": 48,
+      "h": 48,
+      "label": "instrument 3",
+      "desc": "",
+      "clickAnims": [],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 157,
+      "y": 19,
+      "w": 53,
+      "h": 46,
+      "label": "instrument 4",
+      "desc": "",
+      "clickAnims": [],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 211,
+      "y": 20,
+      "w": 32,
+      "h": 57,
+      "label": "instrument 5",
+      "desc": "",
+      "clickAnims": [],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 15,
+      "y": 70,
+      "w": 40,
+      "h": 57,
+      "label": "instrument 6",
+      "desc": "",
+      "clickAnims": [],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 56,
+      "y": 73,
+      "w": 47,
+      "h": 47,
+      "label": "instrument 7",
+      "desc": "",
+      "clickAnims": [],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 105,
+      "y": 74,
+      "w": 48,
+      "h": 49,
+      "label": "instrument 8",
+      "desc": "",
+      "clickAnims": [],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 154,
+      "y": 76,
+      "w": 46,
+      "h": 48,
+      "label": "instrument 9",
+      "desc": "",
+      "clickAnims": [],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 201,
+      "y": 76,
+      "w": 44,
+      "h": 49,
+      "label": "instrument 10",
+      "desc": "",
+      "clickAnims": [],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 261,
+      "y": 30,
+      "w": 51,
+      "h": 55,
+      "label": "select instrument",
+      "desc": "sets the instrument and go back to the notes editing",
+      "clickAnims": [],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
     }
   ]
 }

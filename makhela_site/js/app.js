@@ -63,10 +63,20 @@
         const hash = location.hash || "#/";
         const parts = hash.replace(/^#\//, "").split("/").filter(Boolean);
         // parts: [], ["songs"], ["songs","aba"], ["about"], ...
-        if (parts.length === 0)              return MKH.screens.hub({ makeStage, addBackButton, addTitle });
-        if (parts[0] === "songs" && !parts[1]) return MKH.screens.songs({ makeStage, addBackButton, addTitle, menuOrder, songIndex });
-        if (parts[0] === "songs" && parts[1]) return MKH.screens.songPlay({ makeStage, addBackButton, addTitle, key: parts[1], song: songIndex[parts[1]] });
-        if (parts[0] === "about")            return MKH.screens.about({ makeStage, addBackButton, addTitle });
+        if (parts.length === 0)                return MKH.screens.hub      ({ makeStage, addBackButton, addTitle });
+        if (parts[0] === "songs" && !parts[1]) return MKH.screens.songs    ({ makeStage, addBackButton, addTitle, menuOrder, songIndex });
+        if (parts[0] === "songs" && parts[1])  return MKH.screens.songPlay ({ makeStage, addBackButton, addTitle, key: parts[1], song: songIndex[parts[1]] });
+        // about / credits are the same thing in this game — both play
+        // credit.mp4 fullscreen with the "exit credits" hotspot.
+        if (parts[0] === "about" || parts[0] === "credit")
+                                               return MKH.screens.credit   ({ makeStage });
+        if (parts[0] === "instruments" && parts[1] === "select")
+                                               return MKH.screens.instrumentPicker({ makeStage });
+        if (parts[0] === "instruments")        return MKH.screens.notesPlay({ makeStage });
+        // Routes that are wired in m0 but don't have a real screen yet.
+        if (parts[0] === "freeplay")           return MKH.screens.comingSoon({ makeStage, label: "פאזל / נגינה חופשית" });
+        if (parts[0] === "mini")               return MKH.screens.comingSoon({ makeStage, label: "חידון" });
+        if (parts[0] === "settings")           return MKH.screens.comingSoon({ makeStage, label: "עוצמת קול" });
         // unknown → hub
         location.hash = "#/";
     }

@@ -46,6 +46,9 @@ html, body {
     background: transparent;
     border: 0;
     padding: 0;
+    /* Sit above the playAnim <video> (z-index 100) so hotspots stay
+       clickable while a clipped animation plays in a sub-region. */
+    z-index: 200;
 }
 .hotspot:hover,
 .hotspot:focus { outline: none; }
@@ -62,6 +65,30 @@ html, body {
     z-index: 10;
 }
 .btn-back:hover { filter: brightness(1.2); }
+
+/* Small clean "X" exit button — sits above the original bitmap art's
+   stop-hand graphic on screens like the song picker where we want a
+   modern-looking close affordance in addition to the embedded one. */
+.btn-x {
+    position: absolute;
+    top: 8px; right: 8px;
+    width: 26px; height: 26px;
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 50%;
+    font: bold 16px/22px "Heebo", Arial, sans-serif;
+    text-align: center;
+    cursor: pointer;
+    padding: 0;
+    z-index: 210;
+    user-select: none;
+}
+.btn-x:hover {
+    background: rgba(220, 60, 60, 0.85);
+    border-color: #fff;
+}
+.btn-x:focus { outline: none; }
 
 /* === Hub === */
 .hub-bg { background-image: url("../assets/bitmaps/replay.png"); /* placeholder until we render m0 */ }
@@ -192,6 +219,49 @@ html, body {
     z-index: 5;
     text-align: center;
 }
+
+/* Tempo control on the notesPlay (mud1) screen. Compact pill at the top
+   centre, sits above the staff between the notebook's spiral binding. */
+.tempo-control {
+    position: absolute;
+    top: 4px;
+    left: 40%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 8px;
+    background: rgba(255, 250, 230, 0.92);
+    border: 2px solid #5a2d1a;
+    border-radius: 14px;
+    color: #5a2d1a;
+    font-family: inherit;
+    z-index: 250;
+    direction: rtl;
+    user-select: none;
+}
+.tempo-control .tempo-label {
+    font-size: 12px;
+    font-weight: bold;
+    margin: 0 2px;
+}
+.tempo-control input[type=range] {
+    width: 110px;
+    cursor: pointer;
+    accent-color: #5a2d1a;
+}
+.tempo-control .tempo-btn {
+    width: 22px; height: 22px;
+    border: 1px solid #5a2d1a;
+    background: #ffe089;
+    color: #5a2d1a;
+    border-radius: 50%;
+    font: bold 14px/1 inherit;
+    cursor: pointer;
+    padding: 0;
+}
+.tempo-control .tempo-btn:hover { background: #ffd54f; }
+.tempo-control .tempo-btn:focus { outline: none; }
 
 /* Loading state */
 .loading {
