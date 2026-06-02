@@ -220,6 +220,35 @@ html, body {
     text-align: center;
 }
 
+/* Scrollable staff viewport on the notesPlay (mud1) screen. Sits inside
+   the "music notes display" hotspot, overlaid on the bitmap's staff
+   lines. One row only — the user can scroll horizontally to see notes
+   that ran off the right edge. Subtle but visible scrollbar so it's
+   discoverable. */
+.music-staff {
+    scrollbar-color: rgba(90, 45, 26, 0.6) rgba(255, 224, 137, 0.25);
+    scrollbar-width: thin;
+}
+.music-staff::-webkit-scrollbar { height: 8px; }
+.music-staff::-webkit-scrollbar-track {
+    background: rgba(255, 224, 137, 0.25);
+    border-radius: 4px;
+}
+.music-staff::-webkit-scrollbar-thumb {
+    background: rgba(90, 45, 26, 0.6);
+    border-radius: 4px;
+}
+.music-staff::-webkit-scrollbar-thumb:hover { background: rgba(90, 45, 26, 0.85); }
+
+/* Currently-playing note: a golden glow + slight pop so the user can see
+   which notehead is sounding when "play music" walks the composition. */
+.music-note.playing {
+    filter: drop-shadow(0 0 6px #ffe089) drop-shadow(0 0 2px #ffd34a);
+    transform: scale(1.35);
+    transform-origin: center center;
+    z-index: 100;
+}
+
 /* Tempo control on the notesPlay (mud1) screen. Compact pill at the top
    centre, sits above the staff between the notebook's spiral binding. */
 .tempo-control {

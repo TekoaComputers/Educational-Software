@@ -815,5 +815,46 @@
       "idleSound": "",
       "timeToIdle": 0
     }
+  ],
+  "igra2": [
+    {
+      "x": 261,
+      "y": 1,
+      "w": 47,
+      "h": 29,
+      "label": "return to main screen",
+      "desc": "",
+      "clickAnims": [],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 29,
+      "y": 17,
+      "w": 207,
+      "h": 166,
+      "label": "3 rows x 4 column area of memory game",
+      "desc": "",
+      "clickAnims": [],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    },
+    {
+      "x": 261,
+      "y": 30,
+      "w": 47,
+      "h": 55,
+      "label": "play video when game complete",
+      "desc": "here it has the memory game where you have 6 couples of instruments type, each time you show a card it will also play the instument music from the folder \n/home/levlavy/Documents/Tekoa_Computers/Code/makhela_site/assets/sfx/fx",
+      "clickAnims": [],
+      "returnAnims": [],
+      "idleAnim": "",
+      "idleSound": "",
+      "timeToIdle": 0
+    }
   ]
 }

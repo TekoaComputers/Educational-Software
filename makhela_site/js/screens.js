@@ -864,42 +864,36 @@
         sessionStorage.setItem(INSTRUMENT_KEY, String(n));
     }
 
-    // Render a thumbnail of the chosen instrument inside `target` (a
-    // hotspot-shaped rect in original 320x200 coords, scaled by SCALE).
-    // The art is cropped from pan_inst.png. Used on both pan_inst (in the
-    // "select instrument" box) and mud1 (in the "instrument selector" box),
-    // so the player always sees which instrument they're playing.
+    // Render a clean thumbnail of the chosen instrument inside `target`
+    // (a hotspot-shaped rect in original 320x200 coords, scaled by SCALE).
+    // Uses the dedicated 45×48 sprites extracted from the CD's INSTR_B
+    // sheet (see tools/extract_instr_b.py) — these are isolated, anti-
+    // aliased instrument graphics designed for the selector preview box,
+    // much cleaner than cropping out of pan_inst.png.
+    // Native sprite is 45×48 — scale to fill `target` with a small pad.
+    const INSTR_SPRITE_NATIVE_W = 48;
+    const INSTR_SPRITE_NATIVE_H = 49;
     function renderInstrumentThumb(stage, target, slot, SCALE) {
-        const panHotspots = (MKH.HOTSPOTS && MKH.HOTSPOTS.pan_inst) || [];
-        const srcLabel = "instrument " + slot;
-        const src = panHotspots.find(h => (h.label || "").toLowerCase() === srcLabel);
-        if (!src || !target) return;
-        const sx = target.x * SCALE, sy = target.y * SCALE;
+        if (!target || slot < 1 || slot > 10) return;
         const sw = target.w * SCALE, sh = target.h * SCALE;
-        const iw = src.w * SCALE,    ih = src.h * SCALE;
         const pad = 4;
-        const fit = Math.min((sw - pad * 2) / iw, (sh - pad * 2) / ih);
-        const drawW = iw * fit, drawH = ih * fit;
-        const ox = sx + (sw - drawW) / 2;
-        const oy = sy + (sh - drawH) / 2;
-        const thumb = document.createElement("div");
-        thumb.className = "pan-sel-thumb";
-        thumb.style.cssText =
+        const fit = Math.min(
+            (sw - pad * 2) / INSTR_SPRITE_NATIVE_W,
+            (sh - pad * 2) / INSTR_SPRITE_NATIVE_H
+        );
+        const drawW = INSTR_SPRITE_NATIVE_W * fit;
+        const drawH = INSTR_SPRITE_NATIVE_H * fit;
+        const ox = target.x * SCALE + (sw - drawW) / 2;
+        const oy = target.y * SCALE + (sh - drawH) / 2;
+        const img = document.createElement("img");
+        img.src = "assets/bitmaps/instruments/inst" + slot + ".png";
+        img.className = "pan-sel-thumb";
+        img.style.cssText =
             "position:absolute;pointer-events:none;z-index:140;" +
-            "overflow:hidden;image-rendering:pixelated;" +
+            "image-rendering:pixelated;" +
             "left:" + ox + "px;top:" + oy + "px;" +
             "width:" + drawW + "px;height:" + drawH + "px;";
-        const inner = document.createElement("div");
-        inner.style.cssText =
-            "position:absolute;left:" + (-src.x * SCALE * fit) + "px;" +
-            "top:" + (-src.y * SCALE * fit) + "px;" +
-            "width:" + (640 * fit) + "px;height:" + (400 * fit) + "px;" +
-            "background-image:url('assets/bitmaps/pan_inst.png');" +
-            "background-size:" + (640 * fit) + "px " + (400 * fit) + "px;" +
-            "background-repeat:no-repeat;" +
-            "image-rendering:pixelated;";
-        thumb.appendChild(inner);
-        stage.appendChild(thumb);
+        stage.appendChild(img);
     }
 
     function instrumentPicker({ makeStage }) {
@@ -994,54 +988,106 @@
         // Warm the decoded-buffer cache so the first key tap is instant.
         preloadInstruments();
 
-        // Sheet-music display state. The "music notes display" hotspot is
-        // the staff area at the top of mud1; we stamp notki.png (the
-        // original game's notehead sprite) on it as the user plays. Notes
-        // accumulate left-to-right; when the row fills, it wraps to a new
-        // line below.
+        // Sheet-music display: single horizontal row of noteheads inside a
+        // scrollable viewport overlaid on the "music notes display"
+        // hotspot. Notes accumulate left-to-right indefinitely; the
+        // viewport scrolls so the latest note is always visible. During
+        // "play music" the viewport scrolls to track the currently-playing
+        // note. No row wrap, no auto-clear — the full composition stays.
         const noteDisplayH = hotspots.find(
             h => (h.label || "").toLowerCase() === "music notes display"
         );
         const placedNotes = [];
-        let noteCol = 0, noteRow = 0;
+        let noteCol = 0;
         const NOTE_W = 19, NOTE_H = 19;
         const COL_W  = 26;                  // horizontal step per note
-        const ROW_H  = 100;                 // vertical step per wrap
         const LEFT_PAD = 80;                // skip past the treble clef
         const RIGHT_PAD = 16;
-        // y (stage px) for the LOWEST note (do = note 1). Each step up the
-        // diatonic scale lifts the notehead by STEP_Y pixels.
-        const STAFF_BASE_Y = 170;
-        const STEP_Y = 11;
+        const STEP_Y = 11;                  // vertical pixels per pitch step
+
+        // Build the scrollable staff viewport. The inner notes region sits
+        // at the top of the scrollbox; the bottom of the scrollbox is
+        // empty space reserved for the horizontal scrollbar — that way
+        // the scrollbar sits visually LOWER than the staff lines without
+        // overlapping the noteheads.
+        let scrollBox = null, scrollInner = null;
+        let innerBaseY = 0;                 // y for the lowest note (do)
+        if (noteDisplayH) {
+            const dx = noteDisplayH.x * SCALE, dy = noteDisplayH.y * SCALE;
+            const dw = noteDisplayH.w * SCALE, dh = noteDisplayH.h * SCALE;
+            const notesH    = 7 * STEP_Y + NOTE_H + 8;   // 104 — note region
+            const scrollPad = 56;                         // extra space below = scrollbar lives here
+            const boxH      = notesH + scrollPad;         // 160
+            innerBaseY = notesH - NOTE_H - 4;             // note 1 near bottom of notes region
+            scrollBox = document.createElement("div");
+            scrollBox.className = "music-staff";
+            scrollBox.style.cssText =
+                "position:absolute;" +
+                "left:"   + (dx + LEFT_PAD) + "px;" +
+                "top:"    + (dy + 30) + "px;" +           // raised so notes sit higher on the staff
+                "width:"  + (dw - LEFT_PAD - RIGHT_PAD) + "px;" +
+                "height:" + boxH + "px;" +
+                "overflow-x:auto;overflow-y:hidden;" +
+                // The page is dir="rtl" (Hebrew). In RTL containers the
+                // browser flips scrollLeft semantics (0 = right edge,
+                // increases as you scroll left) which silently breaks
+                // every scroll calculation. Force LTR here — music
+                // notation reads left-to-right anyway.
+                "direction:ltr;" +
+                "z-index:160;";
+            scrollInner = document.createElement("div");
+            // Inner is shorter than scrollBox so the scrollbar at the box's
+            // bottom edge appears in the empty gap below the notes.
+            scrollInner.style.cssText =
+                "position:relative;" +
+                "height:" + notesH + "px;" +
+                "width:" + LEFT_PAD + "px;";
+            scrollBox.appendChild(scrollInner);
+            stage.appendChild(scrollBox);
+        }
 
         function clearNotes() {
             placedNotes.forEach(p => p.el.remove());
             placedNotes.length = 0;
-            noteCol = 0; noteRow = 0;
+            noteCol = 0;
             _composition.length = 0;
+            if (scrollBox) scrollBox.scrollLeft = 0;
         }
         function addNoteVisual(n) {
-            if (!noteDisplayH || n < 1 || n > 8) return;
-            const dx = noteDisplayH.x * SCALE;
-            const dw = noteDisplayH.w * SCALE;
-            const maxCol = Math.floor((dw - LEFT_PAD - RIGHT_PAD - NOTE_W) / COL_W);
-            if (noteCol > maxCol) { noteCol = 0; noteRow += 1; }
-            if (noteRow > 1) { clearNotes(); }
-            const x = dx + LEFT_PAD + noteCol * COL_W;
-            const y = STAFF_BASE_Y - (n - 1) * STEP_Y + noteRow * ROW_H;
+            if (!scrollInner || n < 1 || n > 8) return;
+            const x = noteCol * COL_W;
+            const y = innerBaseY - (n - 1) * STEP_Y;
             const el = document.createElement("img");
             el.src = "assets/bitmaps/notki.png";
             el.className = "music-note";
             el.style.cssText =
-                "position:absolute;pointer-events:none;z-index:50;" +
+                "position:absolute;pointer-events:none;" +
                 "image-rendering:pixelated;" +
                 "left:" + x + "px;top:" + y + "px;" +
                 "width:" + NOTE_W + "px;height:" + NOTE_H + "px;";
-            stage.appendChild(el);
-            // Remember which pitch this notehead represents so "play music"
-            // can play back the actual sequence the user composed.
+            scrollInner.appendChild(el);
             placedNotes.push({ el, n });
             noteCol += 1;
+            // Grow the inner container to fit all notes, then scroll right
+            // so the newest note is visible.
+            const needed = noteCol * COL_W + NOTE_W + 12;
+            if (parseInt(scrollInner.style.width, 10) < needed) {
+                scrollInner.style.width = needed + "px";
+            }
+            scrollBox.scrollLeft = Math.max(
+                0, scrollInner.scrollWidth - scrollBox.clientWidth
+            );
+        }
+        function scrollToNote(idx) {
+            if (!scrollBox || idx < 0 || idx >= placedNotes.length) return;
+            const x = idx * COL_W;
+            const view = scrollBox.clientWidth;
+            // Karaoke-prompter style: keep the currently-playing note at
+            // ~25% from the left edge so the user sees what's coming next.
+            // Clamped to [0, maxScroll] so we don't overshoot the ends.
+            const target = x - view * 0.25;
+            const maxScroll = Math.max(0, scrollBox.scrollWidth - view);
+            scrollBox.scrollLeft = Math.max(0, Math.min(maxScroll, target));
         }
 
         function stopAll() {
@@ -1057,53 +1103,86 @@
         }
 
         // Re-stamp any notes the user had on the staff before navigating
-        // away (typically to swap instruments). We replay the geometry via
-        // addNoteVisual, which respects the row-wrap and clears if the
-        // composition would overflow — same behavior as live entry.
+        // away (typically to swap instruments). addNoteVisual doesn't
+        // push to _composition itself, so the caller re-pushes manually.
         if (_composition.length) {
             const saved = _composition.slice();
-            _composition.length = 0;       // addNoteVisual doesn't push; we
-            saved.forEach(n => {           // re-push manually to preserve
-                addNoteVisual(n);          // exact order in case wrap drops
-                _composition.push(n);      // anything.
-            });
+            _composition.length = 0;
+            saved.forEach(n => { addNoteVisual(n); _composition.push(n); });
         }
 
         function playMelody() {
-            // Snapshot the user's composition. If empty, fall back to a
-            // built-in do-re-mi sequence so the button still does
-            // something useful on first use.
-            const composed = placedNotes.slice();
-            const usingComposition = composed.length > 0;
+            // Play the COMPLETE written composition (full _composition,
+            // not just what's currently in-frame). Empty staff → built-in
+            // do-re-mi fallback.
+            const usingComposition = _composition.length > 0;
             const seq = usingComposition
-                ? composed.map(p => p.n)
+                ? _composition.slice()
                 : [1, 2, 3, 4, 5, 6, 7, 8];
 
-            // Stop audio but DON'T clear the visuals — we toggle their
-            // visibility so noteheads pop in one-by-one as the music plays.
             if (melodyTimer) { clearTimeout(melodyTimer); melodyTimer = null; }
             if (_noteSynth)  { try { _noteSynth.stop(); } catch (e) {} }
             if (_lastFrog)   { try { _lastFrog.stop();  } catch (e) {} _lastFrog = null; }
 
-            // Hide every placed notehead before playback starts.
+            // Hide every notehead, then reveal them one-by-one in lockstep
+            // with their playback. Scroll the viewport to track the
+            // currently-playing note.
             if (usingComposition) {
-                composed.forEach(p => { p.el.style.visibility = "hidden"; });
+                placedNotes.forEach(p => { p.el.style.visibility = "hidden"; });
+                if (scrollBox) scrollBox.scrollLeft = 0;
             }
 
             let i = 0;
+            let prevHighlight = null;
             function step() {
-                if (i >= seq.length) { melodyTimer = null; return; }
-                if (usingComposition) composed[i].el.style.visibility = "visible";
+                if (i >= seq.length) {
+                    // Clear the trailing highlight when playback ends.
+                    if (prevHighlight) prevHighlight.classList.remove("playing");
+                    melodyTimer = null;
+                    return;
+                }
+                if (usingComposition && i < placedNotes.length) {
+                    const cur = placedNotes[i].el;
+                    cur.style.visibility = "visible";
+                    if (prevHighlight) prevHighlight.classList.remove("playing");
+                    cur.classList.add("playing");
+                    prevHighlight = cur;
+                    scrollToNote(i);
+                }
                 playInstrumentNote(instrument, seq[i++]);
                 melodyTimer = setTimeout(step, _tempoMs);
             }
             step();
         }
 
+        // Keyboard shortcuts: digits 1-8 play the corresponding note (same
+        // as clicking the colored keys). Listener stays attached only
+        // while this screen is mounted — re-routing tears down the stage
+        // so referenced DOM is GC'd, but the listener would leak; remove
+        // it explicitly on next hashchange.
+        function onKeyDown(e) {
+            // Ignore if the focus is on something interactive (slider, button).
+            const t = e.target;
+            if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
+            if (e.key >= "1" && e.key <= "8") {
+                playNote(parseInt(e.key, 10));
+                e.preventDefault();
+            }
+        }
+        document.addEventListener("keydown", onKeyDown);
+        window.addEventListener("hashchange", function once() {
+            document.removeEventListener("keydown", onKeyDown);
+            window.removeEventListener("hashchange", once);
+        });
+
         let selectorH = null;
         for (const h of hotspots) {
             const label = (h.label || "").toLowerCase();
             if (label === "instrument selector") selectorH = h;
+            // The staff is now a scrollable viewport — don't put a
+            // clickable button on top of it that would steal scroll/wheel
+            // events.
+            if (label === "music notes display") continue;
             const btn = makeHotspot({
                 left:  h.x * SCALE, top:    h.y * SCALE,
                 width: h.w * SCALE, height: h.h * SCALE,
@@ -1165,6 +1244,256 @@
         });
     }
 
+    // ==================== Memory match mini-game ====================
+    // Classic concentration / memory game on the igra2 screen — 12 cards
+    // (3×4 grid) hiding 6 pairs of instrument icons cropped from
+    // pan_inst.png. Card backs = the treble-clef pattern baked into
+    // igra2.png; flipping just overlays the face on top. da.mp4/net.mp4
+    // provide match/mismatch audio cues; konec.mp4 plays as a celebration
+    // when all pairs are found (and the "play video when game complete"
+    // hotspot replays it on demand).
+    function memoryGame({ makeStage }) {
+        MKH.log("screen", "memoryGame");
+        const stage = makeStage();
+        stage.style.backgroundImage = "url('assets/bitmaps/igra2.png')";
+        stage.style.backgroundColor = "#000";
+        // Keep the hub's ambient MIDI playing through this screen (same
+        // policy as credits — the user can hear themselves matching while
+        // the background music continues).
+
+        const SCALE = 2;
+        const hotspots = (MKH.HOTSPOTS && MKH.HOTSPOTS.igra2) || [];
+        const exitH = hotspots.find(h => /return|exit/i.test(h.label || ""));
+        const gridH = hotspots.find(h => /memory\s*game/i.test(h.label || ""));
+        const winH  = hotspots.find(h => /complete|video/i.test(h.label || ""));
+        if (!gridH) return;
+
+        // Six visually-distinct instrument slots used as pair faces. Frog
+        // is in there for fun — it's a different shape from the rest so
+        // it's easy to spot.
+        const PAIR_SLOTS = [1, 3, 4, 5, 8, 10];   // sax, piano, frog, guitar, trumpet, flute
+        const deck = [];
+        PAIR_SLOTS.forEach(s => { deck.push(s); deck.push(s); });
+        // Fisher-Yates shuffle.
+        for (let i = deck.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            const tmp = deck[i]; deck[i] = deck[j]; deck[j] = tmp;
+        }
+
+        const ROWS = 3, COLS = 4;
+        const gx = gridH.x * SCALE, gy = gridH.y * SCALE;
+        const gridWPx = gridH.w * SCALE, gridHPx = gridH.h * SCALE;
+        const cardW = gridWPx / COLS;
+        const cardH = gridHPx / ROWS;
+
+        let firstPick = null;
+        let busy = false;
+        let matched = 0;
+        let complete = false;
+        const cards = [];
+
+        // Pre-pick the win celebration BEFORE the game starts so the
+        // matched-pair reveal shows the same gramaf first frame that will
+        // later play full-screen. gramafIdx rotates across sessions;
+        // songIdx is random per round.
+        const GRAMAF_KEY = "makhela:gramaf_next";
+        let _gIdx = parseInt(sessionStorage.getItem(GRAMAF_KEY), 10);
+        if (!(_gIdx >= 1 && _gIdx <= 5)) _gIdx = 1;
+        sessionStorage.setItem(GRAMAF_KEY, String((_gIdx % 5) + 1));
+        const gramafIdx = _gIdx;
+        const songIdx = 1 + Math.floor(Math.random() * 10);
+
+        // Background reveal: gramaf{N}.mp4's first frame, positioned as if
+        // it were the FULL-SCREEN background, with the grid area acting
+        // as a window into it. So when a matched card is removed, the
+        // pixels that appear underneath are the same pixels that would
+        // appear there if the gramaf were drawn full-screen. The wrapper
+        // clips to the grid area; the video inside is sized to the full
+        // 640×400 stage with negative offsets so the (gx, gy, gridW,
+        // gridH) region aligns with the wrapper's top-left.
+        const bgWrap = document.createElement("div");
+        bgWrap.style.cssText =
+            "position:absolute;pointer-events:none;overflow:hidden;" +
+            "background:#000;" +
+            "left:" + gx + "px;top:" + gy + "px;" +
+            "width:" + gridWPx + "px;height:" + gridHPx + "px;" +
+            "z-index:50;";
+        const bg = document.createElement("video");
+        bg.src = "assets/animations/gramaf" + gramafIdx + ".mp4";
+        bg.muted = true; bg.playsInline = true; bg.preload = "auto";
+        bg.style.cssText =
+            "position:absolute;" +
+            "left:" + (-gx) + "px;top:" + (-gy) + "px;" +
+            "width:640px;height:400px;" +
+            "object-fit:fill;image-rendering:pixelated;";
+        bg.addEventListener("playing", () => bg.pause(), { once: true });
+        bg.play().catch(() => {
+            // Some browsers refuse autoplay until a gesture — fall back
+            // to seeking to a tiny offset which still decodes a frame.
+            bg.currentTime = 0.01;
+        });
+        bgWrap.appendChild(bg);
+        stage.appendChild(bgWrap);
+
+        function makeFaceFor(slot) {
+            const pad = 6;
+            const fit = Math.min(
+                (cardW - pad * 2) / 48,
+                (cardH - pad * 2) / 49
+            );
+            const drawW = 48 * fit, drawH = 49 * fit;
+            const ox = (cardW - drawW) / 2, oy = (cardH - drawH) / 2;
+            const wrap = document.createElement("div");
+            wrap.style.cssText =
+                "position:absolute;left:0;top:0;" +
+                "width:"  + cardW + "px;height:" + cardH + "px;" +
+                "background:#fffae6;" +
+                "border:2px solid #b8843f;border-radius:6px;" +
+                "overflow:hidden;pointer-events:none;box-sizing:border-box;";
+            const img = document.createElement("img");
+            img.src = "assets/bitmaps/instruments/inst" + slot + ".png";
+            img.style.cssText =
+                "position:absolute;image-rendering:pixelated;" +
+                "left:" + ox + "px;top:" + oy + "px;" +
+                "width:" + drawW + "px;height:" + drawH + "px;";
+            wrap.appendChild(img);
+            return wrap;
+        }
+
+        function playClip(url) {
+            try { const a = new Audio(url); a.play().catch(() => {}); } catch (e) {}
+        }
+
+        function flipUp(card) {
+            card.faceUp = true;
+            const face = makeFaceFor(card.slot);
+            if (face) { card.el.appendChild(face); card.faceEl = face; }
+        }
+        function flipDown(card) {
+            card.faceUp = false;
+            if (card.faceEl) { card.faceEl.remove(); card.faceEl = null; }
+        }
+
+        function removeCard(card) {
+            card.matched = true;
+            // Fade out so the user sees the gramaf reveal smoothly instead
+            // of a jarring snap.
+            card.el.style.transition = "opacity 300ms";
+            card.el.style.opacity = "0";
+            setTimeout(() => { try { card.el.remove(); } catch (e) {} }, 320);
+        }
+
+        function onCardClick(card) {
+            if (busy || complete || card.faceUp || card.matched) return;
+            flipUp(card);
+            if (!firstPick) { firstPick = card; return; }
+            const a = firstPick, b = card;
+            firstPick = null;
+            if (a.slot === b.slot) {
+                a.matched = true; b.matched = true;
+                matched += 1;
+                playClip("assets/animations/da.mp4");
+                // Brief pause so the user reads the matching pair, THEN
+                // remove both cards to reveal the gramaf frame behind.
+                busy = true;
+                setTimeout(() => {
+                    removeCard(a); removeCard(b);
+                    busy = false;
+                    if (matched === PAIR_SLOTS.length) {
+                        // Wait for the last fade-out before the win video.
+                        setTimeout(onComplete, 400);
+                    }
+                }, 500);
+            } else {
+                busy = true;
+                playClip("assets/animations/net.mp4");
+                setTimeout(() => { flipDown(a); flipDown(b); busy = false; }, 900);
+            }
+        }
+
+        // Plays the gramafN.mp4 (already chosen at game start) full-screen
+        // with a random song-name voice layered on top. The same gramaf
+        // was used to seed the matched-pair reveal, so the transition
+        // from "puzzle complete" to "celebration" is smooth — the static
+        // first-frame the player has been uncovering now animates.
+        function playWinVideo() {
+            const v = document.createElement("video");
+            v.src = "assets/animations/gramaf" + gramafIdx + ".mp4";
+            v.autoplay = true; v.playsInline = true;
+            v.muted = true;                 // song-name voice plays separately
+            v.style.cssText =
+                "position:absolute;inset:0;width:100%;height:100%;" +
+                "object-fit:contain;background:#000;z-index:300;";
+            const audio = new Audio("assets/sfx/song_names/m_" + songIdx + "_2.ogg");
+            audio.play().catch(() => {});
+
+            const x = document.createElement("button");
+            x.className = "btn-x";
+            x.textContent = "✕";
+            x.style.zIndex = "310";
+            const close = () => {
+                try { v.pause(); }     catch (e) {}
+                try { audio.pause(); } catch (e) {}
+                v.remove(); x.remove();
+            };
+            x.addEventListener("click", close);
+            v.addEventListener("ended", close);
+            stage.appendChild(v);
+            stage.appendChild(x);
+        }
+
+        function onComplete() { complete = true; playWinVideo(); }
+
+        // Place 12 cards. Each card's BACKGROUND is the slice of igra2.png
+        // at its own position — so face-down cards keep showing the
+        // treble-clef-on-orange pattern (and crucially, occlude the
+        // gramaf reveal behind them). Removing a matched card lets the
+        // gramaf frame underneath show through.
+        for (let i = 0; i < deck.length; i++) {
+            const r = Math.floor(i / COLS);
+            const c = i % COLS;
+            const x = gx + c * cardW, y = gy + r * cardH;
+            const el = document.createElement("button");
+            el.className = "memory-card";
+            el.style.cssText =
+                "position:absolute;" +
+                "left:" + x + "px;top:" + y + "px;" +
+                "width:" + cardW + "px;height:" + cardH + "px;" +
+                "background-image:url('assets/bitmaps/igra2.png');" +
+                "background-size:640px 400px;" +
+                "background-position:" + (-x) + "px " + (-y) + "px;" +
+                "background-repeat:no-repeat;" +
+                "image-rendering:pixelated;" +
+                "border:0;padding:0;cursor:pointer;z-index:120;";
+            const card = { el, slot: deck[i], faceEl: null, faceUp: false, matched: false };
+            el.addEventListener("click", () => onCardClick(card));
+            cards.push(card);
+            stage.appendChild(el);
+        }
+
+        if (exitH) {
+            const ex = makeHotspot({
+                left: exitH.x * SCALE, top: exitH.y * SCALE,
+                width: exitH.w * SCALE, height: exitH.h * SCALE,
+                title: exitH.label, label: exitH.label,
+                onClick: () => {
+                    stage.querySelectorAll("video").forEach(v => v.remove());
+                    MKH.go("");
+                },
+            });
+            stage.appendChild(ex);
+        }
+        if (winH) {
+            const wb = makeHotspot({
+                left: winH.x * SCALE, top: winH.y * SCALE,
+                width: winH.w * SCALE, height: winH.h * SCALE,
+                title: winH.label, label: winH.label,
+                onClick: () => { if (complete) playWinVideo(); },
+            });
+            stage.appendChild(wb);
+        }
+    }
+
     // ==================== Screen: Coming soon ====================
     // Placeholder for routes wired up in the m0 annotation that don't
     // yet have a real screen (instruments / freeplay / mini / settings).
@@ -1193,5 +1522,5 @@
         stage.appendChild(x);
     }
 
-    MKH.screens = { hub, songs, songPlay, credit, comingSoon, instrumentPicker, notesPlay };
+    MKH.screens = { hub, songs, songPlay, credit, comingSoon, instrumentPicker, notesPlay, memoryGame };
 })();
