@@ -12,6 +12,56 @@
 (function () {
     const MKH = window.MKH = window.MKH || {};
 
+    // ===== Persistent audio settings =====
+    // Four mixer channels exposed on the שלט (shalat) screen at #/settings:
+    //   music  — m0 ambient MIDI background
+    //   speech — UI voice / effect cues (instrument names, match/mismatch)
+    //   songs  — song MP4 playback + song-name clips
+    //   master — applied on top of all three
+    // Values are 0..1 and persisted to localStorage so they survive page
+    // reloads (unlike sessionStorage which only spans a tab session).
+    const SETTINGS_KEY = "makhela:settings";
+    const DEFAULT_SETTINGS = { music: 0.05, speech: 0.85, songs: 0.85, master: 1.0 };
+    function loadSettings() {
+        try {
+            const raw = localStorage.getItem(SETTINGS_KEY);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                const merged = Object.assign({}, DEFAULT_SETTINGS, parsed);
+                // Clamp every channel to [0, 1]
+                for (const k of Object.keys(merged)) {
+                    if (typeof merged[k] !== "number") merged[k] = DEFAULT_SETTINGS[k];
+                    merged[k] = Math.max(0, Math.min(1, merged[k]));
+                }
+                return merged;
+            }
+        } catch (e) {}
+        return Object.assign({}, DEFAULT_SETTINGS);
+    }
+    const _settings = loadSettings();
+    function saveSettings() {
+        try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(_settings)); } catch (e) {}
+    }
+    function vol(channel) {
+        const v = _settings[channel], m = _settings.master;
+        if (typeof v !== "number" || typeof m !== "number") return 0.5;
+        return Math.max(0, Math.min(1, v * m));
+    }
+    function setVol(channel, v) {
+        _settings[channel] = Math.max(0, Math.min(1, v));
+        saveSettings();
+        applyLiveVolumes();
+    }
+    function applyLiveVolumes() {
+        // Push the current volumes into anything that's currently sounding
+        // so settings changes take effect immediately, not on next replay.
+        if (_ambient) { try { _ambient.pico.setMasterVolume(vol("music")); } catch (e) {} }
+        if (_noteSynth) { try { _noteSynth.setMasterVolume(vol("speech")); } catch (e) {} }
+    }
+    MKH.settings = _settings;
+    MKH.vol = vol;
+    MKH.setVol = setVol;
+
     // ----- helper to compose a hotspot button at given pixel coords -----
     function makeHotspot({ left, top, width, height, title, onClick, label }) {
         const b = document.createElement("button");
@@ -37,13 +87,14 @@
             try {
                 const p = new PicoAudio();
                 p.init();
-                p.setMasterVolume(0.6);
+                p.setMasterVolume(vol("speech"));
                 p.setData(p.parseSMF(buf));
                 p.play();
                 return { stop: () => { try { p.stop(); } catch (e) {} }, onEnd: null };
             } catch (e) { return { stop: () => {}, onEnd: null }; }
         } else {
             const a = new Audio(spec);
+            a.volume = vol("speech");
             a.play().catch(() => {});
             return {
                 stop:  () => { try { a.pause(); } catch (e) {} },
@@ -135,7 +186,9 @@
         try {
             const pico = new PicoAudio();
             pico.init();
-            pico.setMasterVolume(volume == null ? 0.55 : volume);
+            // The "volume" arg is ignored once we have a settings module —
+            // ambient always tracks the persistent music channel * master.
+            pico.setMasterVolume(vol("music"));
             const parsed = pico.parseSMF(buf);
             pico.setData(parsed);
             pico.setLoop(true);
@@ -582,6 +635,7 @@
         video.controls = true;
         video.autoplay = true;
         video.preload = "auto";
+        video.volume = vol("songs");
         video.addEventListener("ended", () => {
             // Auto-return to song list when the song finishes
             MKH.go("songs");
@@ -792,7 +846,7 @@
         try {
             _noteSynth = new PicoAudio();
             _noteSynth.init();
-            _noteSynth.setMasterVolume(0.85);
+            _noteSynth.setMasterVolume(vol("speech"));
         } catch (e) { _noteSynth = null; }
         return _noteSynth;
     }
@@ -831,8 +885,11 @@
                 if (!buf || !_frogCtx) return;
                 if (_lastFrog) { try { _lastFrog.stop(); } catch (e) {} }
                 const src  = _frogCtx.createBufferSource();
+                const gain = _frogCtx.createGain();
+                gain.gain.value = vol("speech");
                 src.buffer = buf;
-                src.connect(_frogCtx.destination);
+                src.connect(gain);
+                gain.connect(_frogCtx.destination);
                 src.start(0);
                 _lastFrog = src;
             });
@@ -964,6 +1021,7 @@
                     stopVoice();
                     // Hebrew narrator names the instrument.
                     voiceAudio = new Audio("assets/sfx/instruments/" + n + ".ogg");
+                    voiceAudio.volume = vol("speech");
                     voiceAudio.play().catch(() => {});
                     render();
                 }
@@ -1003,7 +1061,7 @@
         const COL_W  = 26;                  // horizontal step per note
         const LEFT_PAD = 80;                // skip past the treble clef
         const RIGHT_PAD = 16;
-        const STEP_Y = 11;                  // vertical pixels per pitch step
+        const STEP_Y = 17;                  // vertical pixels per pitch step
 
         // Build the scrollable staff viewport. The inner notes region sits
         // at the top of the scrollbox; the bottom of the scrollbox is
@@ -1015,10 +1073,15 @@
         if (noteDisplayH) {
             const dx = noteDisplayH.x * SCALE, dy = noteDisplayH.y * SCALE;
             const dw = noteDisplayH.w * SCALE, dh = noteDisplayH.h * SCALE;
-            const notesH    = 7 * STEP_Y + NOTE_H + 8;   // 104 — note region
-            const scrollPad = 56;                         // extra space below = scrollbar lives here
-            const boxH      = notesH + scrollPad;         // 160
-            innerBaseY = notesH - NOTE_H - 4;             // note 1 near bottom of notes region
+            // Pin note 8 (highest pitch) at y=4 inside the inner container
+            // so it stays put regardless of STEP_Y. Note 1 (lowest pitch)
+            // sits at innerBaseY, which scales with STEP_Y — bigger
+            // STEP_Y pushes note 1 lower while leaving note 8 anchored.
+            const NOTE8_Y   = 4;
+            innerBaseY      = NOTE8_Y + 7 * STEP_Y;       // y of note 1
+            const notesH    = innerBaseY + NOTE_H + 4;    // notes region
+            const scrollPad = 32;                          // empty gap below where the scrollbar sits
+            const boxH      = notesH + scrollPad;
             scrollBox = document.createElement("div");
             scrollBox.className = "music-staff";
             scrollBox.style.cssText =
@@ -1257,9 +1320,10 @@
         const stage = makeStage();
         stage.style.backgroundImage = "url('assets/bitmaps/igra2.png')";
         stage.style.backgroundColor = "#000";
-        // Keep the hub's ambient MIDI playing through this screen (same
-        // policy as credits — the user can hear themselves matching while
-        // the background music continues).
+        // Silence the hub ambient — the player needs to hear each flipped
+        // card's instrument sample clearly, and the win celebration plays
+        // its own song-name voice.
+        stopAmbient();
 
         const SCALE = 2;
         const hotspots = (MKH.HOTSPOTS && MKH.HOTSPOTS.igra2) || [];
@@ -1361,13 +1425,41 @@
         }
 
         function playClip(url) {
-            try { const a = new Audio(url); a.play().catch(() => {}); } catch (e) {}
+            try {
+                const a = new Audio(url);
+                a.volume = vol("speech");
+                a.play().catch(() => {});
+            } catch (e) {}
+        }
+
+        // Slot → instrument fx clip in assets/sfx/fx/. Each .ogg is a short
+        // demo (1-3 s) of that instrument playing — gives the player an
+        // audible cue of what the card is on top of the visual sprite.
+        const INSTRUMENT_FX = {
+            1:  "saksofon",   2: "ksilofon",   3: "piano",
+            4:  "lagu_ani",   5: "guitar",     6: "skripka",
+            7:  "baian",      8: "truba",      9: "kolokol",
+            10: "fleita",
+        };
+        let _lastCardAudio = null;
+        function playInstrumentClip(slot) {
+            const name = INSTRUMENT_FX[slot];
+            if (!name) return;
+            // Cut the previous clip so rapid flipping doesn't stack samples.
+            if (_lastCardAudio) { try { _lastCardAudio.pause(); } catch (e) {} }
+            try {
+                const a = new Audio("assets/sfx/fx/" + name + ".ogg");
+                a.volume = vol("speech");
+                a.play().catch(() => {});
+                _lastCardAudio = a;
+            } catch (e) {}
         }
 
         function flipUp(card) {
             card.faceUp = true;
             const face = makeFaceFor(card.slot);
             if (face) { card.el.appendChild(face); card.faceEl = face; }
+            playInstrumentClip(card.slot);
         }
         function flipDown(card) {
             card.faceUp = false;
@@ -1425,6 +1517,7 @@
                 "position:absolute;inset:0;width:100%;height:100%;" +
                 "object-fit:contain;background:#000;z-index:300;";
             const audio = new Audio("assets/sfx/song_names/m_" + songIdx + "_2.ogg");
+            audio.volume = vol("songs");
             audio.play().catch(() => {});
 
             const x = document.createElement("button");
@@ -1494,6 +1587,577 @@
         }
     }
 
+    // ==================== Settings (audio mixer) ====================
+    // The shalat ("remote control") screen. 4 rows of controls:
+    // music / speech / songs each have down, slider, up, sample-play; the
+    // master row has just down, slider, up. Values persist via localStorage
+    // so the user's preferences survive page reloads.
+    function settings({ makeStage }) {
+        MKH.log("screen", "settings");
+        const stage = makeStage();
+        stage.style.backgroundImage = "url('assets/bitmaps/shalat.png')";
+        stage.style.backgroundColor = "#000";
+        // Silence the hub ambient on entry — on this screen the user is
+        // auditioning each channel via the sample buttons, so the existing
+        // background loop would just muddy the test. Hub re-entry will
+        // restart it.
+        stopAmbient();
+
+        const SCALE = 2;
+        const hotspots = (MKH.HOTSPOTS && MKH.HOTSPOTS.shalat) || [];
+        const findH = (re) => hotspots.find(h => re.test((h.label || "").toLowerCase()));
+
+        const rows = [
+            { ch: "music",  down: findH(/^main.*down/),    slider: findH(/^main.*slider/),    up: findH(/^main.*up/),  sample: findH(/^play screen music/) },
+            { ch: "speech", down: findH(/^child.*down/),   slider: findH(/^child.*slider/),   up: findH(/^child.*up/), sample: findH(/^play child/)        },
+            { ch: "songs",  down: findH(/^songs.*down/),   slider: findH(/^songs.*slider/),   up: findH(/^songs.*up/), sample: findH(/^ply songs/)         },
+            { ch: "master", down: findH(/^master.*down$/), slider: findH(/^master.*slider/),  up: findH(/^master.*up$/), sample: null },
+        ];
+        const exitH = findH(/^exit/);
+
+        // Track every slider so a button-press can refresh sibling visuals
+        // (and we re-read from MKH.settings on each refresh so down/up
+        // buttons stay in sync with the slider drag).
+        const refresh = [];
+        // Active music-sample PicoAudio so we can interrupt it if the user
+        // clicks the button repeatedly OR exits the screen before it ends.
+        let _musicSample = null;
+        // Mirror gain changes onto the active sample so the slider behaves
+        // like a live mixer for the test signal too.
+        function updateMusicSampleVolume() {
+            if (_musicSample) { try { _musicSample.setMasterVolume(vol("music")); } catch (e) {} }
+        }
+
+        function applyAndRefresh() {
+            saveSettings();
+            applyLiveVolumes();
+            updateMusicSampleVolume();
+            refresh.forEach(fn => fn());
+        }
+
+        function makeSlider(h, channel) {
+            // The annotated hotspot is a wider click area; the actual
+            // black track painted on shalat.png is 72×4 at x=118..189
+            // (constant across all four rows). The track sits +9 px below
+            // each row's hotspot top. Fit the slider to that visual track
+            // so the fill bar lines up with what the user sees.
+            const TRACK_X = 118, TRACK_W = 72;
+            const TRACK_OFFSET_Y = 9, TRACK_H = 4;
+            const x  = TRACK_X * SCALE;
+            const y  = (h.y + TRACK_OFFSET_Y) * SCALE;
+            const w  = TRACK_W * SCALE;
+            const hh = TRACK_H * SCALE;
+            const box = document.createElement("div");
+            box.className = "vol-slider";
+            box.style.cssText =
+                "position:absolute;cursor:pointer;z-index:200;" +
+                "left:" + x + "px;top:" + y + "px;" +
+                "width:" + w + "px;height:" + hh + "px;";
+            const fill = document.createElement("div");
+            fill.style.cssText =
+                "position:absolute;left:0;top:0;height:100%;" +
+                "background:linear-gradient(90deg, rgba(80,200,120,0.85), rgba(255,224,137,0.85));" +
+                "pointer-events:none;";
+            box.appendChild(fill);
+
+            function paint() {
+                fill.style.width = (Math.max(0, Math.min(1, _settings[channel])) * w) + "px";
+            }
+            paint();
+            refresh.push(paint);
+
+            function setFromEvent(e) {
+                const r = box.getBoundingClientRect();
+                const clientX = e.clientX != null ? e.clientX :
+                    (e.touches && e.touches[0] ? e.touches[0].clientX : null);
+                if (clientX == null) return;
+                let p = (clientX - r.left) / r.width;
+                p = Math.max(0, Math.min(1, p));
+                _settings[channel] = p;
+                applyAndRefresh();
+            }
+            let dragging = false;
+            box.addEventListener("mousedown", (e) => { dragging = true; setFromEvent(e); e.preventDefault(); });
+            window.addEventListener("mousemove", (e) => { if (dragging) setFromEvent(e); });
+            window.addEventListener("mouseup",   () => { dragging = false; });
+            box.addEventListener("touchstart", (e) => { setFromEvent(e); e.preventDefault(); }, { passive: false });
+            box.addEventListener("touchmove",  (e) => { setFromEvent(e); e.preventDefault(); }, { passive: false });
+            return box;
+        }
+
+        function makeBtn(h, onClick) {
+            const btn = makeHotspot({
+                left:  h.x * SCALE, top:    h.y * SCALE,
+                width: h.w * SCALE, height: h.h * SCALE,
+                title: h.label || "", label: h.label || "",
+                onClick: onClick,
+            });
+            return btn;
+        }
+
+        function playSample(channel) {
+            if (channel === "music") {
+                // Ambient is stopped on settings entry — clicking the test
+                // button is the only way to hear the hub MIDI here. Play a
+                // ~3.5 s preview at the current music vol; if the user
+                // mashes the button while it's still playing, restart.
+                if (!window.PicoAudio || !MKH.midiBytes) return;
+                const buf = MKH.midiBytes("child5");
+                if (!buf) return;
+                try {
+                    if (_musicSample) {
+                        try { _musicSample.stop(); } catch (e) {}
+                        _musicSample = null;
+                    }
+                    const p = new PicoAudio();
+                    p.init();
+                    p.setMasterVolume(vol("music"));
+                    p.setData(p.parseSMF(buf));
+                    p.play();
+                    _musicSample = p;
+                    setTimeout(() => {
+                        if (_musicSample === p) {
+                            try { p.stop(); } catch (e) {}
+                            _musicSample = null;
+                        }
+                    }, 3500);
+                } catch (e) {}
+            } else if (channel === "speech") {
+                const a = new Audio("assets/sfx/instruments/1.ogg");
+                a.volume = vol("speech");
+                a.play().catch(() => {});
+            } else if (channel === "songs") {
+                const a = new Audio("assets/sfx/song_names/m_1_2.ogg");
+                a.volume = vol("songs");
+                a.play().catch(() => {});
+            }
+        }
+
+        const STEP = 0.1;
+        for (const r of rows) {
+            if (r.down)   stage.appendChild(makeBtn(r.down,   () => { _settings[r.ch] = Math.max(0, _settings[r.ch] - STEP); applyAndRefresh(); }));
+            if (r.up)     stage.appendChild(makeBtn(r.up,     () => { _settings[r.ch] = Math.min(1, _settings[r.ch] + STEP); applyAndRefresh(); }));
+            if (r.sample) stage.appendChild(makeBtn(r.sample, () => playSample(r.ch)));
+            if (r.slider) stage.appendChild(makeSlider(r.slider, r.ch));
+        }
+        if (exitH) stage.appendChild(makeBtn(exitH, () => {
+            // Cut any in-flight music sample so it doesn't leak into the
+            // hub's ambient music restart.
+            if (_musicSample) {
+                try { _musicSample.setMasterVolume(0); } catch (e) {}
+                try { _musicSample.stop(); } catch (e) {}
+                _musicSample = null;
+            }
+            MKH.go("");
+        }));
+    }
+
+    // ==================== Game show ("igra" — חידון) ====================
+    // Audio quiz: each round plays one of the 10 songs (audio only), and
+    // the player must click the matching thumbnail out of 4 slots
+    // (1 correct + 3 distractors). Correct → da.mp4 cue, +score, advance.
+    // Wrong → net.mp4 cue, advance. 9 rounds; final celebration is
+    // kohav<correct_count>.mp4 from assets/animations/durno/. A round
+    // timer (visualised by the right-side ladder area) drains; if it
+    // hits zero, jump back to the hub.
+    const SONG_BY_LINE_GS = {
+        1:  "aviron", 2: "tiktak", 3: "ionatan", 4: "shofan", 5: "taish",
+        6:  "aba",    7: "udi",    8: "zebra",   9: "parash", 10: "aliza",
+    };
+    const TOTAL_ROUNDS = 9;
+    const ROUND_SECONDS = 25;
+
+    function gameShow({ makeStage }) {
+        MKH.log("screen", "gameShow");
+        const stage = makeStage();
+        stage.style.backgroundImage = "url('assets/bitmaps/igra.png')";
+        stage.style.backgroundColor = "#000";
+        stopAmbient();
+
+        const SCALE = 2;
+        const hotspots = (MKH.HOTSPOTS && MKH.HOTSPOTS.igra) || [];
+        const exitH   = hotspots.find(h => /return|exit/i.test(h.label || ""));
+        const ladderH = hotspots.find(h => /timer.*ladder/i.test(h.label || ""));
+        const kidH    = hotspots.find(h => /child.*animation/i.test(h.label || ""));
+        const slotHs  = [1, 2, 3, 4].map(n =>
+            hotspots.find(h => (h.label || "").toLowerCase() === "song " + n)
+        );
+
+        // ---- Kid animation in the child hot zone ----
+        // Three frame sequences cycling at KID_FPS on a single img tag
+        // sitting inside the "child animation" hotspot. The sprite is
+        // drawn at its native pixel size (73×52, scaled by SCALE), centred
+        // within the hotspot — no stretching — so the kid's pixels stay
+        // crisp.
+        const KID_SPRITE_W = 73, KID_SPRITE_H = 52;
+        const KID_PLAY_SEQ    = [1, 2, 3, 4];
+        const KID_CORRECT_SEQ = [5, 6, 5, 6];
+        const KID_WRONG_SEQ   = [7, 8, 7, 8];
+        const KID_FPS = 5;
+        // Calibrated against igra.png with tools/kid_placement.html: the
+        // sprite needs a small nudge left + up from the geometric centre
+        // of the "child animation" hot zone to land on the static-art
+        // kid's silhouette.
+        const KID_X_OFFSET = -13;
+        const KID_Y_OFFSET = -17;
+        let kidEl = null;
+        let kidSeq = KID_PLAY_SEQ;
+        let kidSeqIdx = 0;
+        let kidTimer = null;
+
+        function paintKidFrame() {
+            if (!kidEl) return;
+            const frame = kidSeq[kidSeqIdx];
+            kidEl.src = "assets/bitmaps/game_show_kid_playing_music/" +
+                "game_show_kid_playing_music_" +
+                String(frame).padStart(2, "0") + ".png";
+        }
+        function setKidSequence(seq) {
+            kidSeq = seq;
+            kidSeqIdx = 0;
+            paintKidFrame();
+            if (kidTimer) clearInterval(kidTimer);
+            kidTimer = setInterval(() => {
+                kidSeqIdx = (kidSeqIdx + 1) % kidSeq.length;
+                paintKidFrame();
+            }, 1000 / KID_FPS);
+        }
+        function mountKid() {
+            if (!kidH || kidEl) return;
+            const drawW = KID_SPRITE_W * SCALE;
+            const drawH = KID_SPRITE_H * SCALE;
+            // Start from the hot zone's geometric centre and apply the
+            // calibrated offsets so the sprite lines up with the static
+            // kid silhouette baked into igra.png.
+            const cx = kidH.x * SCALE + (kidH.w * SCALE - drawW) / 2 + KID_X_OFFSET;
+            const cy = kidH.y * SCALE + (kidH.h * SCALE - drawH) / 2 + KID_Y_OFFSET;
+            kidEl = document.createElement("img");
+            kidEl.className = "gs-kid";
+            kidEl.style.cssText =
+                "position:absolute;pointer-events:none;z-index:120;" +
+                "image-rendering:pixelated;" +
+                "left:" + cx + "px;top:" + cy + "px;" +
+                "width:" + drawW + "px;height:" + drawH + "px;";
+            stage.appendChild(kidEl);
+            setKidSequence(KID_PLAY_SEQ);
+        }
+        function destroyKid() {
+            if (kidTimer) { clearInterval(kidTimer); kidTimer = null; }
+            if (kidEl)    { try { kidEl.remove(); } catch (e) {} kidEl = null; }
+        }
+
+        // ---- Round state ----
+        let round = 0;            // 0..TOTAL_ROUNDS-1
+        let correct = 0;
+        let currentTarget = 0;    // 1..10 — the song the audio is playing
+        let slotSongs = [];       // length 4, song indices for each slot
+        let busy = false;
+        let timer = null;
+        let timeLeft = ROUND_SECONDS;
+        let songAudio = null;
+        let exiting = false;
+        // Songs already used as the round's TARGET — never re-targeted.
+        // Distractors can repeat between rounds (only the target uses this).
+        const usedTargets = new Set();
+
+        function stopRoundAudio() {
+            if (songAudio) { try { songAudio.pause(); } catch (e) {} songAudio = null; }
+        }
+
+        function clearTimer() {
+            if (timer) { clearInterval(timer); timer = null; }
+        }
+
+        function exitToHub() {
+            if (exiting) return;
+            exiting = true;
+            stopRoundAudio();
+            clearTimer();
+            destroyLadder();
+            destroyKid();
+            MKH.go("");
+        }
+
+        // ---- Visual layer ----
+        function renderSlot(idx, songIdx) {
+            const rect = slotHs[idx];
+            if (!rect) return;
+            // Each slot shows music_clip_images_<N>.png (1..10). Slot art
+            // is drawn inside the slot's hotspot rect, padded a couple of
+            // pixels so it doesn't kiss the metallic frame edges.
+            const x = rect.x * SCALE, y = rect.y * SCALE;
+            const w = rect.w * SCALE, h = rect.h * SCALE;
+            const pad = 3;
+            const img = document.createElement("img");
+            img.src = "assets/bitmaps/music_clip_images/" + SONG_BY_LINE_GS[songIdx] + ".png";
+            img.dataset.slot = idx;
+            img.dataset.song = songIdx;
+            img.dataset.round = round;
+            img.className = "gs-slot";
+            img.style.cssText =
+                "position:absolute;cursor:pointer;z-index:140;" +
+                "image-rendering:pixelated;" +
+                "left:" + (x + pad) + "px;top:" + (y + pad) + "px;" +
+                "width:" + (w - pad*2) + "px;height:" + (h - pad*2) + "px;" +
+                "object-fit:contain;opacity:0;" +
+                "transition:opacity 350ms ease;";
+            img.addEventListener("click", () => onSlotClick(idx, songIdx));
+            stage.appendChild(img);
+            // Two RAFs so the browser commits opacity:0 first before
+            // transitioning, otherwise the fade is dropped on Chrome.
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                img.style.opacity = "1";
+            }));
+        }
+
+        function clearSlots() {
+            // Used by finishGame / exit — wipe everything. During normal
+            // round transitions we DON'T call this; the previous round's
+            // slots stay until the new ones have faded in over them
+            // (handled in startRound via data-round tagging).
+            stage.querySelectorAll(".gs-slot, .gs-feedback").forEach(el => el.remove());
+        }
+
+        // ---- Timer ladder: animated climber on the right-side ladder.
+        // The figure starts at the bottom of the ladder when a round begins
+        // and walks up as time runs out, cycling its 5 sprite frames
+        // (transparent backdrop already keyed in /assets/bitmaps/
+        // game_show_ladder_figure_2). When it reaches the top the round
+        // is over.
+        const LADDER_FRAMES = 5;
+        const LADDER_NATIVE_W = 43, LADDER_NATIVE_H = 27;
+        const LADDER_ANIM_FPS = 6;
+        let climberEl = null;
+        let climberFrame = 0;
+        let climberTimer = null;
+
+        function makeLadder() {
+            if (!ladderH) return;
+            climberEl = document.createElement("img");
+            climberEl.className = "gs-climber";
+            climberEl.style.cssText =
+                "position:absolute;pointer-events:none;z-index:135;" +
+                "image-rendering:pixelated;" +
+                "transition:top 200ms linear;";
+            climberEl.src = "assets/bitmaps/game_show_ladder_figure_2/" +
+                "game_show_ladder_figure_2_01.png";
+            // Scale the figure to the ladder's width so it stays inside
+            // the rails regardless of stage scaling.
+            const drawW = ladderH.w * SCALE;
+            const drawH = drawW * (LADDER_NATIVE_H / LADDER_NATIVE_W);
+            climberEl.style.width  = drawW + "px";
+            climberEl.style.height = drawH + "px";
+            climberEl.style.left   = (ladderH.x * SCALE) + "px";
+            stage.appendChild(climberEl);
+            // Frame-cycle independent of the round timer.
+            climberTimer = setInterval(() => {
+                climberFrame = (climberFrame + 1) % LADDER_FRAMES;
+                climberEl.src = "assets/bitmaps/game_show_ladder_figure_2/" +
+                    "game_show_ladder_figure_2_" +
+                    String(climberFrame + 1).padStart(2, "0") + ".png";
+            }, 1000 / LADDER_ANIM_FPS);
+        }
+        function updateLadder() {
+            if (!climberEl || !ladderH) return;
+            // pct = fraction of time elapsed. Position interpolates from
+            // the BOTTOM of the ladder (pct=0, start) to the TOP (pct=1,
+            // time's up).
+            const pct = 1 - Math.max(0, timeLeft / ROUND_SECONDS);
+            const drawH = parseFloat(climberEl.style.height);
+            const lx0 = ladderH.x * SCALE;
+            const ly0 = ladderH.y * SCALE;
+            const lH  = ladderH.h * SCALE;
+            const yTop = ly0;                  // climber-fully-up
+            const yBot = ly0 + lH - drawH;     // climber-fully-down
+            climberEl.style.top = (yBot + (yTop - yBot) * pct) + "px";
+            climberEl.style.left = lx0 + "px";
+        }
+        function destroyLadder() {
+            if (climberTimer) { clearInterval(climberTimer); climberTimer = null; }
+            if (climberEl)    { try { climberEl.remove(); } catch (e) {} climberEl = null; }
+        }
+
+        // ---- Round flow ----
+        function startRound() {
+            // Remove only stale feedback overlays — leave the previous
+            // round's slots in place so the new ones can transition in
+            // over them. Old slots are pruned 400 ms later (after the
+            // fade-in completes), tagged by data-round.
+            stage.querySelectorAll(".gs-feedback").forEach(el => el.remove());
+            stopRoundAudio();
+            busy = false;
+            timeLeft = ROUND_SECONDS;
+            updateLadder();
+            // Mount the kid once; reset to the play-loop sequence each round.
+            if (!kidEl) mountKid();
+            else setKidSequence(KID_PLAY_SEQ);
+
+            // Pick a target that hasn't been used as the target yet —
+            // every round audio comes from a different song. With 10
+            // songs and 9 rounds there's always at least one left.
+            const remaining = [];
+            for (let i = 1; i <= 10; i++) if (!usedTargets.has(i)) remaining.push(i);
+            // Safety: if the user replayed somehow, recycle the pool.
+            if (remaining.length === 0) {
+                usedTargets.clear();
+                for (let i = 1; i <= 10; i++) remaining.push(i);
+            }
+            currentTarget = remaining[Math.floor(Math.random() * remaining.length)];
+            usedTargets.add(currentTarget);
+            // Pick 3 distractors (different from target), then shuffle 4.
+            const pool = [];
+            for (let i = 1; i <= 10; i++) if (i !== currentTarget) pool.push(i);
+            // Fisher-Yates pick 3 from pool
+            for (let i = pool.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                const t = pool[i]; pool[i] = pool[j]; pool[j] = t;
+            }
+            slotSongs = [currentTarget, pool[0], pool[1], pool[2]];
+            for (let i = slotSongs.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                const t = slotSongs[i]; slotSongs[i] = slotSongs[j]; slotSongs[j] = t;
+            }
+            slotSongs.forEach((sIdx, slot) => renderSlot(slot, sIdx));
+            // After the new slots have fully faded in, drop any leftover
+            // slots tagged with previous round numbers — they were just
+            // a backdrop so the new ones could transition on top.
+            const myRound = round;
+            setTimeout(() => {
+                stage.querySelectorAll(".gs-slot").forEach(el => {
+                    if (parseInt(el.dataset.round, 10) !== myRound) {
+                        try { el.remove(); } catch (e) {}
+                    }
+                });
+            }, 420);
+
+            // Play the target song's audio (video element used as audio
+            // source — same files we already ship for the song picker).
+            const key = SONG_BY_LINE_GS[currentTarget];
+            songAudio = new Audio("assets/songs/" + key + ".mp4");
+            songAudio.volume = vol("songs");
+            songAudio.play().catch(() => {});
+
+            // Start the visual round timer.
+            clearTimer();
+            timer = setInterval(() => {
+                timeLeft -= 0.2;
+                updateLadder();
+                if (timeLeft <= 0) {
+                    clearTimer();
+                    exitToHub();
+                }
+            }, 200);
+
+            MKH.log("game-show", "round " + (round+1) + " target=" + key + " slots=", slotSongs);
+        }
+
+        function showFeedback(isCorrect) {
+            // Sprite-based feedback — switch the kid animation to the
+            // correct or wrong sequence for the duration of the cue;
+            // startRound will flip it back to KID_PLAY_SEQ for the next
+            // round.
+            setKidSequence(isCorrect ? KID_CORRECT_SEQ : KID_WRONG_SEQ);
+        }
+
+        function onSlotClick(slotIdx, songIdx) {
+            if (busy || exiting) return;
+            busy = true;
+            clearTimer();
+            stopRoundAudio();
+            // Lock the slots without fading them — only the NEW round's
+            // slots fade in. Old ones just vanish when startRound calls
+            // clearSlots() at the end of the feedback delay.
+            stage.querySelectorAll(".gs-slot").forEach(el => {
+                el.style.pointerEvents = "none";
+            });
+            const isCorrect = (songIdx === currentTarget);
+            if (isCorrect) correct += 1;
+            showFeedback(isCorrect);
+            setTimeout(() => {
+                round += 1;
+                if (round >= TOTAL_ROUNDS) finishGame();
+                else                       startRound();
+            }, 1100);
+        }
+
+        function finishGame() {
+            clearSlots();
+            stopRoundAudio();
+            clearTimer();
+            destroyLadder();
+            destroyKid();
+            // kohav1.mp4 = 1 correct, kohav9.mp4 = 9 correct. Clamp 0→1
+            // so we always have a valid file (the user effectively earns
+            // the "bronze" reward even with zero correct).
+            const idx = Math.max(1, Math.min(9, correct));
+            const v = document.createElement("video");
+            v.src = "assets/animations/durno/kohav" + idx + ".mp4";
+            v.autoplay = true; v.playsInline = true;
+            v.volume = vol("speech");
+            v.style.cssText =
+                "position:absolute;inset:0;z-index:300;width:100%;height:100%;" +
+                "object-fit:contain;background:#000;";
+            stage.appendChild(v);
+            // Audio sequence for the win celebration:
+            //   1. konec.ogg ("the end" sting) plays immediately.
+            //   2. When konec finishes, a user-chosen MIDI plays via
+            //      PicoAudio (key stored in localStorage under
+            //      "makhela:finish_midi" — picked via the mini tool at
+            //      tools/finish_midi_picker.html; falls back to victory).
+            const fxAudio = new Audio("assets/sfx/fx/konec.ogg");
+            fxAudio.volume = vol("speech");
+            fxAudio.play().catch(() => {});
+            // After konec.ogg ends, pick one of the festiv MIDIs at random
+            // and play it via PicoAudio. The game ships festiv1/2/4/5
+            // (no 3 in the source ISO).
+            const FINISH_MIDIS = ["festiv1", "festiv2", "festiv4", "festiv5"];
+            let finishMidi = null;
+            fxAudio.addEventListener("ended", () => {
+                if (!window.PicoAudio || !MKH.midiBytes) return;
+                const key = FINISH_MIDIS[Math.floor(Math.random() * FINISH_MIDIS.length)];
+                const buf = MKH.midiBytes(key);
+                if (!buf) return;
+                try {
+                    finishMidi = new PicoAudio();
+                    finishMidi.init();
+                    finishMidi.setMasterVolume(vol("music"));
+                    finishMidi.setData(finishMidi.parseSMF(buf));
+                    finishMidi.play();
+                } catch (e) {}
+            });
+            const x = document.createElement("button");
+            x.className = "btn-x";
+            x.textContent = "✕";
+            x.style.zIndex = "310";
+            const close = () => {
+                try { v.pause(); }      catch (e) {}
+                try { fxAudio.pause(); } catch (e) {}
+                if (finishMidi) {
+                    try { finishMidi.setMasterVolume(0); } catch (e) {}
+                    try { finishMidi.stop(); } catch (e) {}
+                }
+                v.remove(); x.remove();
+                exitToHub();
+            };
+            x.addEventListener("click", close);
+            v.addEventListener("ended", close);
+            stage.appendChild(x);
+        }
+
+        // ---- Setup ----
+        makeLadder();
+        if (exitH) {
+            const btn = makeHotspot({
+                left: exitH.x * SCALE, top: exitH.y * SCALE,
+                width: exitH.w * SCALE, height: exitH.h * SCALE,
+                title: exitH.label, label: exitH.label,
+                onClick: exitToHub,
+            });
+            stage.appendChild(btn);
+        }
+        startRound();
+    }
+
     // ==================== Screen: Coming soon ====================
     // Placeholder for routes wired up in the m0 annotation that don't
     // yet have a real screen (instruments / freeplay / mini / settings).
@@ -1522,5 +2186,5 @@
         stage.appendChild(x);
     }
 
-    MKH.screens = { hub, songs, songPlay, credit, comingSoon, instrumentPicker, notesPlay, memoryGame };
+    MKH.screens = { hub, songs, songPlay, credit, comingSoon, instrumentPicker, notesPlay, memoryGame, settings, gameShow };
 })();

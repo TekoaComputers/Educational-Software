@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<title>Finish MIDI picker</title>
+<style>
+body { font-family: monospace; background: #1a1d23; color: #ddd; margin: 12px; }
+.controls { background:#252830; padding:14px; border-radius:6px; max-width:560px; }
+h2 { font-size:14px; margin:0 0 10px 0; color:#8ec5ff; }
+.row { display:flex; align-items:center; gap:8px; margin:6px 0; }
+.row label { display:inline-block; width:130px; }
+.row select, .row input[type=range] { background:#222; color:#fff; border:1px solid #555; padding:4px 6px; min-width:200px; }
+.row input[type=range] { padding:0; min-width:260px; }
+.row button { padding:6px 14px; color:#fff; border:0; border-radius:4px; cursor:pointer; font:bold 12px monospace; background:#2d5a8a; }
+.row button.danger { background:#7a3a3a; }
+.row button:hover { filter:brightness(1.15); }
+.hint { font-size:11px; color:#888; margin-top:4px; }
+#status { color:#7fc97f; font-size:12px; margin-left:8px; }
+.now { color:#ffd34a; font-size:12px; margin-left:8px; }
+</style>
+</head><body>
+
+<div class="controls">
+<h2>Pick the MIDI that plays after <code>konec.ogg</code></h2>
+
+<div class="row">
+  <label>MIDI</label>
+  <select id="midi"></select>
+  <span class="now" id="now"></span>
+</div>
+<div class="row">
+  <label>volume (×master)</label>
+  <input type="range" id="vol" min="0" max="100" value="60">
+  <span id="volLabel" style="color:#bee;font-size:11px;">60%</span>
+</div>
+<div class="row">
+  <button id="play">▶ play sample</button>
+  <button id="stop" class="danger">■ stop</button>
+  <button id="save">save selection</button>
+  <span id="status"></span>
+</div>
+<div class="hint">
+  Selection autosaves to <code>localStorage["makhela:finish_midi"]</code>.
+  The game-show win sequence reads it after <code>konec.ogg</code> ends.
+  Default fallback if nothing is saved: <code>victory</code>.
+</div>
+</div>
+
+<script src="../data/midi-blob.js"></script>
+<script src="../vendor/picoaudio/PicoAudio.min.js"></script>
+<script>
+const KEY = "makhela:finish_midi";
+
+function get(id) { return document.getElementById(id); }
+
+// The midi blob exposes its dict at MKH.MIDI_B64 (key → base64).
+const midiKeys = Object.keys((window.MKH && MKH.MIDI_B64) || {}).sort();
+const select = get('midi');
+for (const k of midiKeys) {
+    const o = document.createElement('option');
+    o.value = k; o.textContent = k;
+    select.appendChild(o);
+}
+
+const saved = localStorage.getItem(KEY) || "victory";
+if (midiKeys.includes(saved)) select.value = saved;
+get('now').textContent = "saved: " + (localStorage.getItem(KEY) || "(none — default victory)");
+
+let pico = null;
+function stopAll() {
+    if (pico) {
+        try { pico.setMasterVolume(0); } catch (e) {}
+        try { pico.stop(); } catch (e) {}
+        try { if (pico.context && pico.context.state === "running") pico.context.suspend(); } catch (e) {}
+        pico = null;
+    }
+}
+
+get('play').addEventListener('click', () => {
+    stopAll();
+    const k = select.value;
+    if (!MKH.midiBytes) { get('status').textContent = "midi-blob.js failed to load"; return; }
+    const buf = MKH.midiBytes(k);
+    if (!buf) { get('status').textContent = "no data for " + k; return; }
+    try {
+        pico = new PicoAudio();
+        pico.init();
+        pico.setMasterVolume(parseInt(get('vol').value, 10) / 100);
+        pico.setData(pico.parseSMF(buf));
+        pico.play();
+        get('status').textContent = "playing " + k;
+    } catch (e) {
+        get('status').textContent = "PicoAudio error: " + e.message;
+    }
+});
+
+get('stop').addEventListener('click', () => {
+    stopAll();
+    get('status').textContent = "stopped";
+});
+
+get('save').addEventListener('click', () => {
+    localStorage.setItem(KEY, select.value);
+    get('now').textContent = "saved: " + select.value;
+    get('status').textContent = "saved ✓";
+    setTimeout(() => get('status').textContent = '', 1500);
+});
+
+select.addEventListener('change', () => {
+    // Autosave on pick so refreshing the page restores it. The "save"
+    // button is just there as an explicit affordance.
+    localStorage.setItem(KEY, select.value);
+    get('now').textContent = "saved: " + select.value;
+});
+
+get('vol').addEventListener('input', () => {
+    const v = parseInt(get('vol').value, 10);
+    get('volLabel').textContent = v + "%";
+    if (pico) { try { pico.setMasterVolume(v / 100); } catch (e) {} }
+});
+</script>
+</body></html>

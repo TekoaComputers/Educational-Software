@@ -74,9 +74,8 @@
                                                return MKH.screens.instrumentPicker({ makeStage });
         if (parts[0] === "instruments")        return MKH.screens.notesPlay({ makeStage });
         if (parts[0] === "freeplay")           return MKH.screens.memoryGame({ makeStage });
-        // Routes that are wired in m0 but don't have a real screen yet.
-        if (parts[0] === "mini")               return MKH.screens.comingSoon({ makeStage, label: "חידון" });
-        if (parts[0] === "settings")           return MKH.screens.comingSoon({ makeStage, label: "עוצמת קול" });
+        if (parts[0] === "settings")           return MKH.screens.settings({ makeStage });
+        if (parts[0] === "mini")               return MKH.screens.gameShow({ makeStage });
         // unknown → hub
         location.hash = "#/";
     }

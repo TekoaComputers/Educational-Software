@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<title>Game-show kid placement</title>
+<style>
+body { font-family: monospace; background: #1a1d23; color: #ddd; margin: 12px; }
+.row { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+.row label { display: inline-block; width: 130px; }
+.row input[type=number] { width: 80px; background:#222; color:#fff; border:1px solid #555; padding:2px 4px; }
+.row input[type=range] { width: 280px; }
+.row button { padding:6px 14px; color:#fff; border:0; border-radius:4px; cursor:pointer; font:bold 12px monospace; background:#2d5a8a; }
+.row button.active { background:#7fc97f; color:#000; }
+.row button:hover { filter:brightness(1.1); }
+.controls { background:#252830; padding:12px; border-radius:6px; max-width:740px; }
+h2 { font-size:14px; margin:0 0 10px 0; color:#8ec5ff; }
+.hint { font-size:11px; color:#888; margin-top:4px; }
+#saveIndicator { color:#7fc97f; font-size:11px; margin-left:8px; }
+#stage {
+    position:relative;
+    width:640px; height:400px;
+    background-image:url('../assets/bitmaps/igra.png');
+    background-size:640px 400px;
+    background-repeat:no-repeat;
+    image-rendering:pixelated;
+    margin-top:12px;
+    border:1px solid #666;
+}
+#hotzone {
+    position:absolute;
+    border:2px dashed rgba(255,200,80,0.8);
+    pointer-events:none;
+    z-index:10;
+}
+#kid {
+    position:absolute;
+    image-rendering:pixelated;
+    pointer-events:none;
+    z-index:20;
+}
+#params {
+    width:100%; height:140px; background:#111; color:#bee;
+    border:1px solid #444; font:11px monospace; padding:6px; margin-top:8px;
+    resize:vertical;
+}
+</style>
+</head><body>
+
+<div class="controls">
+<h2>Adjust the kid sprite against igra.png</h2>
+
+<div class="row">
+  <label>x offset (px)</label>
+  <input type="range" id="xOff" min="-100" max="200" step="1" value="0">
+  <input type="number" id="xOff_n" value="0">
+  <span id="saveIndicator"></span>
+</div>
+<div class="row">
+  <label>y offset (px)</label>
+  <input type="range" id="yOff" min="-100" max="200" step="1" value="0">
+  <input type="number" id="yOff_n" value="0">
+</div>
+<div class="row">
+  <label>scale (×)</label>
+  <input type="range" id="scale" min="0.5" max="3" step="0.05" value="2">
+  <input type="number" id="scale_n" value="2" step="0.05">
+  <div class="hint">×2 = native (sprite is 73×52, ×2 → 146×104 stage)</div>
+</div>
+<div class="row">
+  <label>FPS</label>
+  <input type="range" id="fps" min="1" max="20" step="1" value="6">
+  <input type="number" id="fps_n" value="6">
+</div>
+<div class="row">
+  <label>sequence</label>
+  <button id="seqPlay"    class="active">play (1,2,3,4)</button>
+  <button id="seqCorrect">correct (5,6,5,6)</button>
+  <button id="seqWrong">wrong (7,8,7,8)</button>
+</div>
+<div class="row">
+  <label></label>
+  <button id="copy">copy params</button>
+  <button id="reset" style="background:#7a3a3a;">reset</button>
+  <span id="copied" style="color:#7fc97f;font-size:12px;"></span>
+</div>
+<div class="hint" id="status"></div>
+<textarea id="params" readonly></textarea>
+</div>
+
+<div id="stage">
+  <div id="hotzone"></div>
+  <img id="kid" src="../assets/bitmaps/game_show_kid_playing_music/game_show_kid_playing_music_01.png">
+</div>
+
+<script>
+// Hot zone in original 320x200 coords (from annotation), x2 for stage px.
+const HZ_X = 72 * 2, HZ_Y = 114 * 2, HZ_W = 90 * 2, HZ_H = 67 * 2;
+const NATIVE_W = 73, NATIVE_H = 52;
+const KEY = "makhela:kid_placement";
+
+const SEQS = {
+    play:    [1, 2, 3, 4],
+    correct: [5, 6, 5, 6],
+    wrong:   [7, 8, 7, 8],
+};
+
+function get(id) { return document.getElementById(id); }
+function num(id) { return parseFloat(get(id).value); }
+function setNum(id, v) {
+    get(id).value = v;
+    const n = document.getElementById(id + '_n');
+    if (n) n.value = v;
+}
+
+// Bind range ↔ number
+['xOff','yOff','scale','fps'].forEach(id => {
+    const r = get(id), n = get(id + '_n');
+    r.addEventListener('input', () => { n.value = r.value; onChange(); });
+    n.addEventListener('input', () => { r.value = n.value; onChange(); });
+});
+
+// Sequence buttons
+let curSeqName = 'play';
+let curSeq = SEQS.play;
+let frameIdx = 0;
+let animTimer = null;
+['seqPlay','seqCorrect','seqWrong'].forEach(id => {
+    get(id).addEventListener('click', () => {
+        ['seqPlay','seqCorrect','seqWrong'].forEach(o => get(o).classList.remove('active'));
+        get(id).classList.add('active');
+        curSeqName = id === 'seqPlay' ? 'play' : (id === 'seqCorrect' ? 'correct' : 'wrong');
+        curSeq = SEQS[curSeqName];
+        frameIdx = 0;
+        restartAnim();
+        paintFrame();
+    });
+});
+
+function paintFrame() {
+    const f = curSeq[frameIdx];
+    get('kid').src = "../assets/bitmaps/game_show_kid_playing_music/" +
+        "game_show_kid_playing_music_" + String(f).padStart(2, '0') + ".png";
+}
+
+function restartAnim() {
+    if (animTimer) clearInterval(animTimer);
+    const fps = num('fps') || 6;
+    animTimer = setInterval(() => {
+        frameIdx = (frameIdx + 1) % curSeq.length;
+        paintFrame();
+    }, 1000 / fps);
+}
+
+function layoutKid() {
+    const scale = num('scale');
+    const w = NATIVE_W * scale;
+    const h = NATIVE_H * scale;
+    // Default: centred in hot zone, then offset by user.
+    const baseX = HZ_X + (HZ_W - w) / 2;
+    const baseY = HZ_Y + (HZ_H - h) / 2;
+    const x = baseX + num('xOff');
+    const y = baseY + num('yOff');
+    const k = get('kid');
+    k.style.left   = x + 'px';
+    k.style.top    = y + 'px';
+    k.style.width  = w + 'px';
+    k.style.height = h + 'px';
+    return { x, y, w, h, baseX, baseY };
+}
+
+function layoutHotzone() {
+    const hz = get('hotzone');
+    hz.style.left   = HZ_X + 'px';
+    hz.style.top    = HZ_Y + 'px';
+    hz.style.width  = HZ_W + 'px';
+    hz.style.height = HZ_H + 'px';
+}
+
+function save() {
+    localStorage.setItem(KEY, JSON.stringify({
+        xOff: num('xOff'), yOff: num('yOff'),
+        scale: num('scale'), fps: num('fps'),
+    }));
+    const ind = get('saveIndicator');
+    ind.textContent = 'saved ✓';
+    setTimeout(() => ind.textContent = '', 1200);
+}
+
+function load() {
+    try {
+        const o = JSON.parse(localStorage.getItem(KEY) || '{}');
+        if (o.xOff  != null) setNum('xOff',  o.xOff);
+        if (o.yOff  != null) setNum('yOff',  o.yOff);
+        if (o.scale != null) setNum('scale', o.scale);
+        if (o.fps   != null) setNum('fps',   o.fps);
+    } catch (e) {}
+}
+
+function refreshParams() {
+    const l = layoutKid();
+    get('status').textContent =
+        'hotzone (' + HZ_X + ',' + HZ_Y + ') ' + HZ_W + '×' + HZ_H +
+        ' • kid ' + l.x.toFixed(1) + ',' + l.y.toFixed(1) + ' ' + l.w.toFixed(1) + '×' + l.h.toFixed(1);
+    get('params').value = [
+        'kid placement (stage px):',
+        '  scale       = ' + num('scale'),
+        '  draw_w      = ' + l.w.toFixed(1),
+        '  draw_h      = ' + l.h.toFixed(1),
+        '  draw_x      = ' + l.x.toFixed(1) + '    // = hotzone.x + (hotzone.w - draw_w)/2 + ' + num('xOff'),
+        '  draw_y      = ' + l.y.toFixed(1) + '    // = hotzone.y + (hotzone.h - draw_h)/2 + ' + num('yOff'),
+        '  x_offset_px = ' + num('xOff'),
+        '  y_offset_px = ' + num('yOff'),
+        '  fps         = ' + num('fps'),
+    ].join(String.fromCharCode(10));
+}
+
+function onChange() {
+    save();
+    refreshParams();
+    restartAnim();
+}
+
+get('copy').addEventListener('click', () => {
+    const t = get('params').value;
+    navigator.clipboard.writeText(t).then(() => {
+        const c = get('copied'); c.textContent = 'copied ✓'; setTimeout(() => c.textContent = '', 1500);
+    }, () => {
+        const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); } catch (e) {}
+        document.body.removeChild(ta);
+        const c = get('copied'); c.textContent = 'copied (fallback) ✓'; setTimeout(() => c.textContent = '', 1500);
+    });
+});
+get('reset').addEventListener('click', () => {
+    setNum('xOff', 0); setNum('yOff', 0); setNum('scale', 2); setNum('fps', 6);
+    onChange();
+});
+
+// Initial state
+layoutHotzone();
+load();
+refreshParams();
+restartAnim();
+paintFrame();
+</script>
+</body></html>
