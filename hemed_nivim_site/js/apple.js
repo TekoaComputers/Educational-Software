@@ -242,10 +242,9 @@ HND.startApple = function (root, app, unit, onComplete) {
         renderAnswer();
         // Repaint the 8 static apples on the tree for this new question.
         renderTreeApples();
-        // First Q must wait for user gesture (browser autoplay block).
-        if (state.userInteracted) {
-            HND.playWave(HND.unitWavePath(app.id, unit.id, idx, "right"));
-        }
+        // Play the question wave on every Q including the first. The user
+        // reached this screen by clicking a game-sign, so audio is unlocked.
+        HND.playWave(HND.unitWavePath(app.id, unit.id, idx, "right"));
     }
 
     function renderAnswer() {

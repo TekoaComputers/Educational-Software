@@ -136,10 +136,12 @@ HND.startAmerican = function (root, app, unit, onComplete) {
     header.textContent = unit.name + (userName ? "  ·  " + userName : "");
 
     // Pre-render the 33 flower slots along the snaking path.
+    // Original PaintFlower (GameAmerican.frm:503): MaskB GetFlowerX, GetFlowerY
+    // paints with the picture's TOP-LEFT at (X, Y) — no centering offset.
     for (let i = 0; i < QCOUNT; i++) {
         const fl = HND._el("div", {
             class: "ctrl am-flower seed kind-" + flowerKinds[i],
-            style: "left:" + (flowerX(i) - 12) + "px; top:" + (flowerY(i) - 30) + "px;",
+            style: "left:" + flowerX(i) + "px; top:" + flowerY(i) + "px;",
             "data-slot": i,
         });
         flowerLayer.appendChild(fl);
@@ -187,9 +189,10 @@ HND.startAmerican = function (root, app, unit, onComplete) {
         }
         renderOptions();
         state.gameEnabled = true;
-        // First Q must wait for user interaction (browser autoplay block);
-        // subsequent Qs play automatically since interaction has occurred.
-        if (state.userInteracted) playQWave();
+        // Play the question wave immediately on every Q including the first.
+        // The user reached this screen by clicking a game-sign, so audio is
+        // already unlocked by the browser's autoplay-policy session bit.
+        playQWave();
     }
 
     // Build the 4 option rows once, then mutate focus state in place so we
@@ -269,10 +272,14 @@ HND.startAmerican = function (root, app, unit, onComplete) {
                 void hetzNode.offsetWidth;
                 hetzNode.classList.add("correct", "done");
             }
+            // Match the original error-bucket → flower-end-frame mapping
+            // (GameAmerican.frm:993-1007): 0 err → grow-full (frame 9);
+            // 1 err → grow-half (frame 5); 2+ err → grow-dead (kind 3,
+            // frame 3, withered flower4_* sprites).
             const cat = state.currErrors === 0 ? 0 :
-                        state.currErrors <= 2 ? 1 : 2;
+                        state.currErrors === 1 ? 1 : 2;
             state.errorsByQ.push(cat);
-            growFlower(state.current);
+            growFlower(state.current, cat);
             // Original GameAmerican.frm:1010 — celebratory good_N.wav
             // (good1..good3 random) AFTER the answer's left.wav. We chain
             // both so the praise lines up with the goat's "yes" pose
@@ -330,11 +337,22 @@ HND.startAmerican = function (root, app, unit, onComplete) {
         }
     }
 
-    function growFlower(i) {
+    function growFlower(i, bucket) {
         const seed = flowerLayer.querySelector('[data-slot="' + i + '"]');
         if (!seed) return;
         seed.classList.remove("seed");
-        seed.classList.add("growing");
+        // bucket: 0 full bloom, 1 half bloom, 2 withered (kind→3)
+        if (bucket === 2) {
+            // GameAmerican.frm:850 — `FlowerKind(Current-1) = 3` swaps the
+            // green/pink/blue sprite for the withered flower4_* sequence.
+            ["kind-0", "kind-1", "kind-2"].forEach(function (k) { seed.classList.remove(k); });
+            seed.classList.add("kind-3");
+            seed.classList.add("grown-dead");
+        } else if (bucket === 1) {
+            seed.classList.add("grown-half");
+        } else {
+            seed.classList.add("grown-full");
+        }
     }
 
     function finishGame() {

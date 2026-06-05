@@ -384,12 +384,13 @@
     }
     // Single score per unit row (average of available per-game bests) —
     // mirrors the original calcAllScore output ("Str(AllScores(unitId))").
-    // The 7 maslul-attached game IDs (in CmdPlus1 slot order 0..8 with
-    // 3 American + 2 Haklada variants collapsing to single buckets):
-    //   hakira / match / american / haklada / apple / connect.
-    // Note: 'hatamaplus' is NOT in MaslulScores — it shares Match's slot.
+    // The scoring games (per AddScore calls in *.frm sources):
+    //   match / american / haklada / apple / connect.
+    // Hakira is a flashcard reader and never calls AddScore (GameHakira.frm
+    // has 0 AddScore / ScoreForm references) — excluded from the average.
+    // Note: 'hatamaplus' is NOT in MaslulScores either — it shares Match's slot.
     function bestScoreFor(unit) {
-        const games = ["hakira", "match", "american", "haklada", "apple", "connect"];
+        const games = ["match", "american", "haklada", "apple", "connect"];
         let sum = 0, n = 0;
         games.forEach(function (g) {
             const p = HND.loadProgress(appId, unit.id, g);
@@ -527,7 +528,12 @@
             sign.style.top = slotTops[i] + "px";
             if (slot.title) sign.title = slot.title;
 
-            const p = HND.loadProgress(appId, unit.id, slot.game);
+            // Hakira has no scoring in the original (GameHakira.frm calls no
+            // AddScore / ScoreForm); skip the badge even if a stale localStorage
+            // entry survives from earlier builds.
+            const p = slot.game === "hakira"
+                ? null
+                : HND.loadProgress(appId, unit.id, slot.game);
             if (p) {
                 // Original drawScore renders just the integer (no '%').
                 const score = el("span", { class: "game-sign-score", text: String(p.best) });

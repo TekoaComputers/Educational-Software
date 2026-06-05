@@ -181,13 +181,15 @@ HND.startMatch = function (root, app, unit, onComplete) {
     buildLines();
 
     // Pre-paint 9 seed flowers along the stem on entry.
+    // Original GameHatama.frm:725  FlowerPic(0).MaskB FlowerX(i), 485 - 390/QCount*i, 1
+    // — MaskB places the picture's TOP-LEFT at (X, Y); no centering offset.
     function plantSeedFlowers() {
         for (let i = 0; i < QCount; i++) {
             const y = 485 - 390 / QCount * i;
             const x = hatamaFlowerX(y);
             const seed = HND._el("div", {
                 class: "ctrl hat-flower seed",
-                style: "left:" + (x - 6) + "px; top:" + (y - 24) + "px;",
+                style: "left:" + x + "px; top:" + y + "px;",
                 "data-slot": i,
             });
             flowerLayer.appendChild(seed);

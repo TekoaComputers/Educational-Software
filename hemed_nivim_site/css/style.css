@@ -272,7 +272,7 @@ body {
    at FontSize 22. The "36, 10" is centered around the sign's left edge. */
 .game-sign-score {
     position: absolute;
-    left: 14px; top: 8px;
+    left: 6px; top: 13px;
     width: 56px;
     color: rgb(200, 250, 160);
     text-shadow: 0 1px 2px rgba(0,0,0,0.8);
@@ -711,9 +711,55 @@ body {
     background-image: url("../assets/Hemed/pictures/GameHaklada/flower1_0.png");
     opacity: 0.5;
 }
-.am-flower.kind-0.growing { animation: hakFlower1 0.75s steps(1) forwards; }
-.am-flower.kind-1.growing { animation: hakFlower2 0.75s steps(1) forwards; }
-.am-flower.kind-2.growing { animation: hakFlower3 0.75s steps(1) forwards; }
+/* End-frame depends on the error bucket per GameAmerican.frm:993-1007:
+     bucket 0 (0 errors)  → FlowerFrameTo = 9 → grown-full (frames 0..9)
+     bucket 1 (1 error)   → FlowerFrameTo = 5 → grown-half (frames 0..5)
+     bucket 2 (2+ errors) → FlowerFrameTo = 3 + kind→3 → grown-dead
+                            (flower4_* sprites, frames 0..3) */
+.am-flower.kind-0.grown-full { animation: hakFlower1     0.75s steps(1) forwards; }
+.am-flower.kind-1.grown-full { animation: hakFlower2     0.75s steps(1) forwards; }
+.am-flower.kind-2.grown-full { animation: hakFlower3     0.75s steps(1) forwards; }
+.am-flower.kind-0.grown-half { animation: hakFlower1Half 0.45s steps(1) forwards; }
+.am-flower.kind-1.grown-half { animation: hakFlower2Half 0.45s steps(1) forwards; }
+.am-flower.kind-2.grown-half { animation: hakFlower3Half 0.45s steps(1) forwards; }
+.am-flower.kind-3.grown-dead { animation: hakFlowerDead  0.35s steps(1) forwards; }
+
+/* Half-grown (frames 0..5) — same source as full but stops at frame 5. */
+@keyframes hakFlower1Half {
+    0%   { background-image: url("../assets/Hemed/pictures/GameHaklada/flower1_0.png"); opacity: 0.5; }
+    20%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower1_1.png"); opacity: 1; }
+    40%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower1_2.png"); }
+    60%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower1_3.png"); }
+    80%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower1_4.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower1_5.png"); }
+}
+@keyframes hakFlower2Half {
+    0%   { background-image: url("../assets/Hemed/pictures/GameHaklada/flower2_0.png"); opacity: 0.5; }
+    20%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower2_1.png"); opacity: 1; }
+    40%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower2_2.png"); }
+    60%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower2_3.png"); }
+    80%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower2_4.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower2_5.png"); }
+}
+@keyframes hakFlower3Half {
+    0%   { background-image: url("../assets/Hemed/pictures/GameHaklada/flower3_0.png"); opacity: 0.5; }
+    20%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower3_1.png"); opacity: 1; }
+    40%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower3_2.png"); }
+    60%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower3_3.png"); }
+    80%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower3_4.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower3_5.png"); }
+}
+
+/* Withered (FlowerKind = 3) — flower4_0..3, frames 0..3 only. */
+.am-flower.kind-3 {
+    background-image: url("../assets/Hemed/pictures/GameHaklada/flower4_0.png");
+}
+@keyframes hakFlowerDead {
+    0%   { background-image: url("../assets/Hemed/pictures/GameHaklada/flower4_0.png"); opacity: 0.6; }
+    33%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower4_1.png"); opacity: 1; }
+    66%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower4_2.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower4_3.png"); }
+}
 .am-q-frame {
     left: 150px; top: 80px; width: 500px; height: 60px;
     background-image: url("../assets/Hemed/pictures/GameAmerican/text.png");

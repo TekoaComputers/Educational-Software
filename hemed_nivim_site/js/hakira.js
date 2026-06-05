@@ -273,16 +273,24 @@ HND.startHakira = function (root, app, unit, onComplete) {
     }
     function doReset() {
         if (state.animating) return;
-        HND.log("hakira reset");
+        // Original GoNext distinguishes two cases when CurrentCountIn = -1:
+        //   • CurrentPos > UBound(Lines) → unit fully shown, reset to 0
+        //     (the explicit `CurrentPos = 0` branch at line 361 of .frm)
+        //   • else → page full but more items remain; keep CurrentPos, only
+        //     clear the visible rows and start a fresh parchment.
+        // After the roll/unroll animation TimerScroll sets CurrentCountIn = 0
+        // and calls GoNext, which CONTINUES from wherever CurrentPos was.
+        const unitDone = state.currentPos >= items.length;
+        HND.log("hakira reset", unitDone ? "(unit done → pos 0)" : "(page full → continue)");
         state.animating = true;
-        // Roll up first, then unroll back to fresh blank parchment.
         textLayer.classList.add("hidden");
         parchment.classList.remove("unrolling");
         parchment.classList.add("rolling-up");
         const onRollEnd = function () {
             parchment.removeEventListener("animationend", onRollEnd);
-            // Clear text + reset position while the scroll is fully rolled up.
-            state.currentPos = 0;
+            // Always reset the on-parchment counter + line status; only
+            // reset currentPos when the unit has actually been exhausted.
+            if (unitDone) state.currentPos = 0;
             state.currentCountIn = 0;
             state.lineStatus = 0;
             // Keep header + instructions; drop only the rendered Q/A/hint rows.
@@ -316,29 +324,13 @@ HND.startHakira = function (root, app, unit, onComplete) {
     function finish() {
         if (state.ended) return;
         state.ended = true;
-        const seen  = Object.keys(state.seen).length;
-        const total = items.length;
-        const score = Math.round((seen / total) * 100);
-        HND.log("hakira FINISH", "score=" + score, "seen=" + seen + "/" + total);
-        HND.saveProgress(app.id, unit.id, "hakira", score);
-        // Show ScoreForm overlay — Hakira has no per-Q error tracking
-        // (it's a flashcard reader), so feed empty errors array.
-        let userName = "";
-        try { userName = localStorage.getItem("hnd." + app.id + ".user") || ""; } catch (e) {}
-        const errorsByQ = new Array(seen).fill(0);
-        const stage = root.parentElement;
-        setTimeout(function () {
-            HND.showScoreForm(
-                stage, app.id, unit.name, userName, score, errorsByQ,
-                function onExit() {
-                    location.hash = "#/" + app.id + "/unit/" + unit.id + "/games";
-                },
-                function onReplay() {
-                    location.hash = "#/" + app.id + "/unit/" + unit.id + "/hakira";
-                }
-            );
-        }, 300);
-        if (onComplete) onComplete(score);
+        // Original CmdNext_Click is just `Unload Me` — Hakira is a flashcard
+        // reader with no AddScore / ScoreForm.ShowGameScore calls anywhere
+        // (grep returns 0 hits in GameHakira.frm). Don't save a fake score
+        // and don't show the score form; just exit back to the game menu.
+        HND.log("hakira FINISH");
+        location.hash = "#/" + app.id + "/unit/" + unit.id + "/games";
+        if (onComplete) onComplete();
     }
 
     // Wait for the scroll PNGs to finish decoding before triggering the
