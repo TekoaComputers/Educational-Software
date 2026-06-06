@@ -1779,8 +1779,8 @@ function applyKolKoreDRamaLayout(state) {
 // approach (sans flip animation): capture-phase listener computes the
 // toggle target and reuses setRamaUtil to swap state + repaint icons.
 function wireKolKoreBRamaToggle(state) {
-    if (state._kkbRamaWired) return;
-    state._kkbRamaWired = true;
+    // Called from onScreenChange("sst") on a freshly-rebuilt stage DOM, so
+    // every entry needs to (re-)attach the listener to the new element.
     state.stage.querySelectorAll(".frm-ctrl--Icon_s").forEach(function (el) {
         el.addEventListener("click", function (e) {
             e.stopImmediatePropagation();
@@ -1957,10 +1957,23 @@ function applyEnglishCRamaLayout(state) {
 // In the port, Icon_s is a single button (idx=0) — clicks TOGGLE between
 // rama 1 and rama 2, NOT set rama=1 every time. We bypass the renderer's
 // default `rama:N` setRama path and drive the toggle + flip ourselves.
+// Fade the activity-tile row (btnIcon + btnLamp) to/from `opacity` over
+// `durationMs` ms. Used around the flipBook rama swap so the +65 shift and
+// per-rama image swap don't pop mid-animation.
+function fadeActivityTiles(state, opacity, durationMs) {
+    state.stage.querySelectorAll(".frm-ctrl--btnIcon, .frm-ctrl--btnLamp").forEach(function (el) {
+        el.style.transition = "opacity " + durationMs + "ms ease";
+        el.style.opacity = String(opacity);
+    });
+}
+
 function wireFlipBookAnimation(state) {
     if (!state.config.flipBook) return;
-    if (state._flipWired) return;
-    state._flipWired = true;
+    // Called from onScreenChange("sst") on a freshly-rebuilt stage DOM. The
+    // old elements (and any listeners on them) are gone, so we must re-wire
+    // every entry. A previous one-shot guard here suppressed wiring on the
+    // second-and-later sst entry, leaving Icon_s dead and PolaPic empty
+    // (showing its black BackColor as a "black screen in activities area").
     state.stage.querySelectorAll(".frm-ctrl--Icon_s").forEach(function (el) {
         el.addEventListener("click", function (e) {
             // Suppress the renderer's regular `rama:N` listener — we'll
@@ -1974,9 +1987,15 @@ function wireFlipBookAnimation(state) {
             // renderer's default "[kesem] CLICK ... action=rama:N" line,
             // so emit our own so the rama swap is visible in the console.
             klog("CLICK sst Icon_s → flip rama " + state.rama + " → " + target);
+            // Quick crossfade on the activity tiles so the +65 shift + per-rama
+            // tem_<i><rama>.png swap doesn't pop into place mid-flip. Fade out
+            // (~120ms) while the flip starts, swap rama at the end of the flip,
+            // then fade back in.
+            fadeActivityTiles(state, 0, 120);
             runFlipBook(state, sides, function () {
                 setRamaUtil(state, target);
                 klog("rama set:", target);
+                fadeActivityTiles(state, 1, 160);
             });
         }, true);   // capture phase: fires before the renderer's listener
     });
@@ -2018,6 +2037,13 @@ function setRamaUtil(state, rama) {
     if (state.currentScreen === "sst") {
         wireSstLamps(state);
     }
+    // Per-app rama hook — the renderer's setRama calls this at the end, but
+    // setRamaUtil is the bypass path used by flipBook (KolKoreC/D) and the
+    // KolKoreB toggle. Without this, KolKoreD's Icon_s_Click +65 / -65 shift
+    // of btnIcon(0..7) and the rama-2 visibility hide of btnIcon(11)/btnLamp(11)
+    // (Sst.frm:1688..1730) never runs on a rama swap → icons stay at the prior
+    // rama's location.
+    if (typeof state.onRamaChange === "function") state.onRamaChange(state);
 }
 
 function primeFlipBookInitial(state) {
@@ -2035,8 +2061,15 @@ function primeFlipBookInitial(state) {
         });
         pola.appendChild(img);
     }
-    // Form_Load: Set PolaPic.Picture = Pola(1).
-    img.src = state.config.assetsRoot + "/" + cfg.frames[0];
+    // Form_Load originally sets PolaPic.Picture = Pola(1) (frames[0]) because
+    // the app boots at rama 1. After a successful flip the settle code chose
+    // the frame matching the new rama (Pola(7) for rama 1→2, Pola(1) for
+    // rama 2→1). When sst re-mounts after a game session, state.rama may
+    // have been left at 2 — we have to honour it here, otherwise PolaPic
+    // shows the rama-1 page while btnIcon positions / dafm{rama} button are
+    // rama 2 (the "state inconsistent" symptom).
+    const settledIdx = (String(state.rama) === "2") ? (cfg.frames.length - 1) : 0;
+    img.src = state.config.assetsRoot + "/" + cfg.frames[settledIdx];
 }
 
 function runFlipBook(state, sides, onDone) {
@@ -3898,10 +3931,26 @@ function enterStage(state) {
     if (!slots) return;
     const slot = slots[state.currentPath];
     if (!slot || !slot.stages) return;
-    const stage = slot.stages[state.currentStageIdx];
-    if (!stage) { setScreen(state, "sst"); return; }
+    const stageRaw = slot.stages[state.currentStageIdx];
+    if (!stageRaw) { setScreen(state, "sst"); return; }
+    // Per-app gameNumber aliasing. KolKoreC/D Sst.frm dispatches stages with
+    // gameNumber 6/7/8 to Games3 (Case 3, 6, 7, 8), and KolKoreC/D LEV.BAS
+    // Ras_Wav rewrites those to "_3.wav" for audio lookups. So at runtime
+    // gameNumber 6/7/8 are aliases for 3 in those two apps. Normalize once
+    // here (on a clone, so the slot's data stays untouched) and the rest of
+    // the runtime — screen routing, hotspot renderer switch, Ras_Wav path —
+    // sees a consistent value. Other apps that dispatch Case 6 → Games3
+    // keep gameNumber=6 and fall through to the (gameNumber===6 ? "game3")
+    // fallback below; their LEV.BAS doesn't remap audio paths.
+    const stage = Object.assign({}, stageRaw);
+    const appId = state.config.id;
+    if ((appId === "KolKoreC" || appId === "KolKoreD") &&
+        (stage.gameNumber === 6 || stage.gameNumber === 7 || stage.gameNumber === 8)) {
+        stage._origGameNumber = stage.gameNumber;
+        stage.gameNumber = 3;
+    }
     const gameId = "game" + stage.gameNumber;
-    // gameNumber 6 reuses game3 per Sst.frm Select Case.
+    // gameNumber 6 reuses game3 per Sst.frm Select Case in other apps too.
     const useId = state.config.screens[gameId]
         ? gameId
         : (stage.gameNumber === 6 ? "game3" : "game1");
@@ -3929,9 +3978,14 @@ function stageTag(state) {
     const slotName = slot ? (slot.name || slot.masFile) : "?";
     const total = slot && slot.stages ? slot.stages.length : "?";
     const st = state.activeStage;
+    // Show the alias resolution (e.g. "game8→3") when KolKoreC/D rewrote a
+    // gameNumber per Sst.frm Case 3,6,7,8 / LEV.BAS Ras_Wav.
+    const gameTag = st._origGameNumber != null && st._origGameNumber !== st.gameNumber
+        ? ("game" + st._origGameNumber + "→" + st.gameNumber)
+        : ("game" + st.gameNumber);
     return appTag(state) + " → " + slotName + " → stage " +
            ((state.currentStageIdx || 0) + 1) + "/" + total +
-           " (game" + st.gameNumber + ", razNom=" + st.razNom + ", pic=" + st.pic + ")";
+           " (" + gameTag + ", razNom=" + st.razNom + ", pic=" + st.pic + ")";
 }
 
 function initGameTurn(state, stage) {
@@ -3943,6 +3997,7 @@ function initGameTurn(state, stage) {
     state.gameType = stage.gameNumber;
     state.wrongCount = 0;          // MspTaut
     state.inspectCount = 0;        // game 3 click counter
+    state.game3CycleIdx = 0;       // game 3 act1(2) Sever cursor (GG_NN); 0 → first cycle visits vbIdx=1
     state.Pobeda = 0;              // games 2/4/5 correct-answers counter
     state.helek = 1;               // game 4 phase: 1=pick, 2=place
     state._pic1Listeners = false;  // pic1 was rebuilt by setScreen — re-attach
@@ -3962,7 +4017,14 @@ function initGameTurn(state, stage) {
     // shuffled order N_P() per DeTrace.
     if (stage.gameNumber === 2 || stage.gameNumber === 4 || stage.gameNumber === 5) {
         state.N_P = shuffleIndices(state.maxTurn, stage.razNom);
-        state.Gg_N = state.N_P[0];     // current displayed/target piece
+        // Original Form_Load divergence (per KolKoreD/Games*.frm):
+        //   Games2.frm: Gg_N = N_P(1)            ← starts ON the target
+        //   Games4.frm: Gg_N = 1, Pr_N = N_P(1)  ← cycle btnArw to match
+        //   Games5.frm: Gg_N = 1                 ← Gg_N is mostly cosmetic
+        // game4 must NOT start with Gg_N==Pr_N, otherwise the first
+        // Picture2_Click is accepted before the user cycles to the right
+        // piece (looks like a free correct answer).
+        state.Gg_N = stage.gameNumber === 2 ? state.N_P[0] : 1;
         state.Pr_N = state.N_P[0];     // correct piece (games 4/5)
     } else {
         state.N_P = null;
