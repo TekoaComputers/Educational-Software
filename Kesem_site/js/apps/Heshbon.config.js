@@ -7,6 +7,9 @@ export default {
         // Sst.frm: 3 Icon_s rama tabs (BG = castle{rama}.jpg) + 5 btnIcon paths
         // (idx 0..4 — Icon_s_Click loop is For i = 0 To 4). The 6th btnIcon
         // declared in the .frm is left at its design-time picture; we omit it.
+        // Picture2 (left side, lbag.png) launches the Lmath ladybug-math
+        // mini-game — Sst.Picture2_Click: start.Visible=True / Sst.Visible=False
+        // (start.frm = Lmath/start.frm, the level-select for Form1.frm).
         sst: {
             layoutFile: "data/layout/Heshbon/sst.json",
             background: "assets/Heshbon/menu/castle{rama}.png",
@@ -20,6 +23,7 @@ export default {
                     "assets/Heshbon/menu/tem_5{rama}.png",
                 ],
                 mahak: "assets/Heshbon/menu/mhak.png",
+                Picture2: "assets/Heshbon/menu/lbag.png",
             },
         },
         game1:  { layoutFile: "data/layout/_shared/games.json",  background: "assets/Heshbon/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Heshbon/menu/hetz7.png" } },

@@ -68,6 +68,11 @@ function actionFor(ctrl, appId) {
     // Heshbon Sst.hyju_Click → Ezia. hyju is a small "power off" Label
     // tucked at the top-right of the form. Its tooltip is "כיבוי" (shutdown).
     if (name === "hyju")       return "exit";
+    // Heshbon Sst.Picture2_Click → start.Visible=True / Sst.Visible=False —
+    // launches the Lmath ladybug-math mini-game (Lmath/start.frm). Scope to
+    // Heshbon since Dvash/Ivrit also have a generic Picture2 control with
+    // unrelated semantics.
+    if (name === "Picture2" && appId === "Heshbon") return "lmath:start";
     // Sst.mahak_Click → MsgBox confirm → ResetKlali (wipe scores) → Lampas.
     // Visible only when Lampas finds at least one saved activity.
     if (name === "mahak")      return "reset";

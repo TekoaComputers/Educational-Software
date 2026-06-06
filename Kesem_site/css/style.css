@@ -368,3 +368,194 @@ h1 {
     color: #fff;
     border-color: #c84040;
 }
+
+/* === Lmath ladybug-math mini-game (Heshbon Sst.Picture2_Click) === */
+
+.lmath-wrap {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+    background: #000;
+}
+
+.lmath-stage {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 640px;
+    height: 480px;
+    transform: translate(-50%, -50%) scale(1);
+    transform-origin: center center;
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    overflow: hidden;
+}
+
+.lmath-stage img,
+.lmath-stage button { user-select: none; }
+
+.lmath-flower {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    pointer-events: none;
+}
+
+.lmath-flower.lmath-eaten { opacity: .92; }
+
+/* Cmda digit button — frame 43×43 (twips 645÷15), n#.png is 40×40 natural;
+   draw centered inside the frame at natural size (no stretch). */
+.lmath-cmda {
+    background-color: transparent;
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-size: 40px 40px;
+    image-rendering: pixelated;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    transition: transform .08s ease;
+}
+.lmath-cmda:not(:disabled):hover { transform: scale(1.08); }
+.lmath-cmda:disabled { opacity: .65; cursor: default; }
+.lmath-cmda:active { transform: scale(.95); }
+
+.lmath-siv {
+    image-rendering: pixelated;
+    pointer-events: none;
+}
+
+/* Picture1 — main ladybug "threat". Single img with src swap per frame.
+   Smooth transition for the 1px per-tick walk + larger push-back jumps. */
+.lmath-bug {
+    pointer-events: none;
+    image-rendering: pixelated;
+    transition: left .15s linear;
+}
+
+/* shpup — progress indicator (where player has answered up to). Hops between
+   columns on each correct answer. Sits 52px above the threat ladybug. */
+.lmath-shpup {
+    pointer-events: none;
+    image-rendering: pixelated;
+}
+
+/* targ — big play/pause button on the right; uses targ0/targ1 PNGs. */
+.lmath-targ {
+    background-color: transparent;
+    background-repeat: no-repeat;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    image-rendering: pixelated;
+}
+.lmath-targ:hover { filter: brightness(1.1); }
+
+.lmath-shad {
+    image-rendering: pixelated;
+    pointer-events: none;
+    opacity: .65;
+}
+
+.lmath-arrows {
+    color: #400000;
+    font: 700 24px "Aharoni", "David", serif;
+    text-align: center;
+    line-height: 31px;
+    pointer-events: none;
+    animation: lmath-arrow-blink 0.9s steps(2) infinite;
+    letter-spacing: 2px;
+}
+@keyframes lmath-arrow-blink {
+    50% { opacity: 0; }
+}
+
+/* Invisible click hotspots — original Label2 (× exit) and help Label have
+   BackStyle=0 (transparent) and no Caption. They're click targets only. */
+.lmath-hotspot {
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    padding: 0;
+}
+.lmath-hotspot:hover {
+    background: rgba(255, 255, 255, .12);
+    outline: 1px dashed rgba(255, 255, 255, .4);
+}
+
+/* Start screen — invisible click-through hotspots over rac.png. */
+.lmath-hot {
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    padding: 0;
+}
+.lmath-hot:hover {
+    background: rgba(255, 255, 255, .12);
+    outline: 1px dashed rgba(255, 255, 255, .4);
+}
+.lmath-exit { border-radius: 50%; }
+
+/* Settings (Form2) — sliders + buttons over ba2.png. */
+.lmath-slider {
+    background: rgba(255, 255, 255, .85);
+    border: 2px solid #888;
+    border-radius: 8px;
+    padding: 4px 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    direction: rtl;
+    font-family: "Aharoni", "David", sans-serif;
+    font-weight: 700;
+    color: #333;
+}
+.lmath-slider label { white-space: nowrap; }
+.lmath-slider span {
+    min-width: 28px;
+    text-align: center;
+    color: #b00;
+    font-size: 18px;
+}
+.lmath-slider input[type=range] { flex: 1; min-width: 90px; }
+
+.lmath-settings-go,
+.lmath-settings-x {
+    background: #fee0e4;
+    border: 2px solid #aa4060;
+    border-radius: 10px;
+    font: 400 26px "David", serif;
+    cursor: pointer;
+    color: #400;
+}
+.lmath-settings-go:hover { background: #ffd0d8; }
+.lmath-settings-x:hover  { background: #ffd0d8; }
+
+/* Win / Lose end buttons (Form3/Form4 cndgo + cmdx using caf2/caf1.bmp). */
+.lmath-end {
+    border: 0;
+    background-color: transparent;
+    background-repeat: no-repeat;
+    cursor: pointer;
+    padding: 0;
+    transition: transform .1s ease;
+}
+.lmath-end:hover  { transform: scale(1.08); }
+.lmath-end:active { transform: scale(.96); }
+
+/* Win-screen petal confetti — original Form3 flat_Timer/flatp_Timer paint
+   fla(7..9) and fla(0..5) at scattered positions, accumulating. Our port
+   makes them FALL from above to a random ground spot, then STICK there
+   (animation-fill-mode forwards). */
+.lmath-petal-wrap {
+    pointer-events: none;
+    will-change: transform;
+}
+.lmath-petal {
+    image-rendering: pixelated;
+    pointer-events: none;
+}
+@keyframes lmath-petal-drop {
+    from { transform: translateY(0)             rotate(0deg);   }
+    to   { transform: translateY(var(--land-y)) rotate(180deg); }
+}

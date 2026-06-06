@@ -1635,6 +1635,24 @@ function handleAction(appId, action /*, ctrl */) {
         if (currentSession) setScreen(currentSession, "sst");
         return;
     }
+    if (action === "lmath:start") {
+        // Heshbon Sst.Picture2_Click → start.Visible=True; Sst.Visible=False.
+        // Hands the stage off to the Lmath module; the returnTo callback
+        // re-mounts Sst when the player exits Form4/Form3/start.
+        if (!currentSession) return;
+        if (!window.LmathGame) { klog("lmath: module not loaded"); return; }
+        stopAllAudio(currentSession);
+        const appId_ = appId;
+        // Null out currentSession so the bundle's global handleKey (ESC →
+        // confirmExit on sst) doesn't fire while Lmath owns the keyboard.
+        // showApp(appId_) on return rebuilds currentSession from scratch.
+        currentSession = null;
+        root.innerHTML = "";
+        window.LmathGame.launch(function () {
+            showApp(appId_);
+        });
+        return;
+    }
     if (action === "open:catalog") {
         if (currentSession) setScreen(currentSession, "catalog");
         return;
@@ -4255,6 +4273,17 @@ window.addEventListener("keydown", handleKey);
 route();
 """)
     parts.append("})();")
+
+    # Per-app side modules — self-contained IIFEs that register themselves on
+    # `window` and are reached from handleAction() via window.LmathGame etc.
+    # Concatenated after the main bundle IIFE so they share globals (no module
+    # boundary, no import/export). Skipping silently if absent keeps the build
+    # working for partial app sets.
+    for side in ("Heshbon.lmath.js",):
+        side_path = JS / "apps" / side
+        if side_path.exists():
+            parts.append(f"// === side module: {side} ===")
+            parts.append(side_path.read_text(encoding="utf-8"))
 
     out = SITE / "kesem.bundle.js"
     out.write_text("\n".join(parts), encoding="utf-8")
