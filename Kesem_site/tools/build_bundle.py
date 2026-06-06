@@ -1365,13 +1365,29 @@ function wireSstLamps(state) {
 // audio (Tguva, affirmation, mus, next-question) can't trigger downstream
 // callbacks that touch DOM nodes from the old stage.
 function stopAllAudio(state) {
-    if (!state || !state._audio) return;
-    try {
-        state._audio.onended = null;
-        state._audio.pause();
-        state._audio.removeAttribute("src");
-        state._audio.load();
-    } catch (e) {}
+    if (!state) return;
+    if (state._audio) {
+        try {
+            state._audio.onended = null;
+            state._audio.pause();
+            state._audio.removeAttribute("src");
+            state._audio.load();
+        } catch (e) {}
+    }
+    // The chain that set state.inputLocked won't reach its onended now; clear
+    // the flag so flows that abandon a chain mid-flight (picexi → no, hak
+    // overlay dismiss, nikod close, screen change) don't leave clicks pinned.
+    state.inputLocked = false;
+}
+
+// Mirrors Games*.frm Timer1_Timer / Timer2_Timer: while MMControl2.Mode = 526
+// (audio playing), act1 audio-replay buttons are forced to Enabled = False so
+// their clicks are no-ops. We check this at the act1 dispatch site below.
+function audioBusy(state) {
+    if (!state) return false;
+    if (state.inputLocked) return true;
+    const a = state._audio;
+    return !!(a && a.src && !a.paused && !a.ended);
 }
 
 // Several Sst controls are designtime Visible=0 and unhidden at runtime by
@@ -1851,6 +1867,23 @@ function handleAction(appId, action /*, ctrl */) {
         if (!currentSession) return;
         const idx = parseInt(action.split(":")[1], 10);
         const screen = currentSession.currentScreen;
+        // Mirror Games*.frm Timer1/Timer2 disabling act1 audio-replay buttons
+        // while MMControl2.Mode = 526. Without this, a tap on the bottom
+        // "say it again" buttons mid-chain interrupts the running audio and
+        // detaches its onended → state.inputLocked never clears → game stuck.
+        //   Games.frm  (game1/2/4): block 0, 1
+        //   Games3.frm (game3):     block 0, 2, 3   (1 = hak inspect is allowed)
+        //   Games5.frm (game5):     block 0, 1
+        //   act1(4) (Ezia/exit) is never gated.
+        if (idx !== 4) {
+            const gated = screen === "game3"
+                ? (idx === 0 || idx === 2 || idx === 3)
+                : (idx === 0 || idx === 1);
+            if (gated && audioBusy(currentSession)) {
+                klog(screen + " act1[" + idx + "] click ignored — audio busy");
+                return;
+            }
+        }
         // act1[idx] is logged at the renderer onHotspot site already as
         // "CLICK <screen> act1[<idx>] action=act1:<idx>". This extra line
         // records the per-game dispatch decision for trace clarity.
