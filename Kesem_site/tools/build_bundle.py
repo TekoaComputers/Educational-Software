@@ -1239,22 +1239,32 @@ function wireSstLamps(state) {
     const completed = (loadCompletedMap(appId)[String(state.rama)] || {});
     const scoresMap = loadScoresMap(appId);
     const ramaScores = scoresMap[String(state.rama)] || {};
-    // Dvash uses {n_masl}.txt (no rama prefix) — the completed map I store
-    // keys by rama too, but Dvash's activities are rama-invariant per
-    // activityRamaPin=4. So lookups just use rama="4".
     // Apps whose Lampas() hides locked lamps entirely (Visible=False) instead
     // of showing a dimmed Lamp1.bmp. The original .frm for these apps either
     // doesn't ship Lamp1.bmp at all or has the dim-load commented out.
     const hideWhenLocked = (appId === "Brahot" || appId === "Hagim" || appId === "Shabat");
-    // KolKoreC/D Lampas: per-rama lamp art (Lamp1<rama>.bmp / Lamp2<rama>.bmp)
-    // AND prints the score value v on top of Lamp2 with rama-conditional
-    // ForeColor — rama 1 → RGB(0,22,177) blue, rama 2 → RGB(199,77,0) orange.
-    // Score formula: v = Int(((bx*5 + cx + dX) * 20) / ax).
-    const perRamaLamp = (appId === "KolKoreC" || appId === "KolKoreD");
-    const ramaSuffix = perRamaLamp ? String(state.rama) : "";
-    const scoreColor = perRamaLamp
-        ? (String(state.rama) === "1" ? "#0016B1" : "#C74D00")
-        : null;
+    // KolKoreA/B/C/D Lampas all print the per-activity score (v = Int((bx*5 +
+    // cx + dX) * 20 / ax)) directly on the lamp via btnLamp(i).Print with
+    // app-specific lamp art, ForeColor, and CurrentX/CurrentY. Centralise
+    // those per-app deltas in one table — keys are read straight from each
+    // app's original Sst.frm Lampas sub. Coords stored in twips; converted
+    // to render-px (÷15) at use site.
+    const LAMP_SCORE = {
+        // KolKoreA: lamp2.bmp (no rama suffix), white text near top-left.
+        "KolKoreA": { suffix: "",  color: "#F4F4FF", xTwips: 240, yTwips: -15 },
+        // KolKoreB: rama=1 → lamp2.bmp; otherwise lamp2b.bmp. Dark-blue text.
+        "KolKoreB": { suffix: String(state.rama) === "1" ? "" : "b",
+                      color: "#16162C", xTwips: 30, yTwips: 45 },
+        // KolKoreC/D: lamp2<rama>.bmp. Rama-conditional ForeColor.
+        "KolKoreC": { suffix: String(state.rama),
+                      color: String(state.rama) === "1" ? "#0016B1" : "#C74D00",
+                      xTwips: 30, yTwips: 60 },
+        "KolKoreD": { suffix: String(state.rama),
+                      color: String(state.rama) === "1" ? "#0016B1" : "#C74D00",
+                      xTwips: 30, yTwips: 60 },
+    };
+    const lampScore = LAMP_SCORE[appId] || null;
+    const ramaSuffix = lampScore ? lampScore.suffix : "";
     const root = state.config.assetsRoot;
 
     const lamps = state.stage.querySelectorAll(".frm-ctrl--btnLamp");
@@ -1280,13 +1290,16 @@ function wireSstLamps(state) {
                 objectFit: "contain", pointerEvents: "none",
             });
             el.appendChild(img);
-            if (perRamaLamp) {
-                // Compute score v from saved per-stage entries and stamp it
-                // on the lamp (mirrors btnLamp(i).Print v in original Lampas).
+            if (lampScore) {
+                // btnLamp(i).Print v in original Lampas. Score formula:
+                //   v = Int(((bx*5 + cx + dX) * 20) / ax)
+                // where ax = total Q's across this activity's stages, and
+                // bx/cx/dX = green/yellow/red answer counts.
                 const entry = ramaScores[String(idx)];
                 if (entry && entry.stages && entry.stages.length) {
                     let ax = 0, bx = 0, cx = 0, dX = 0;
                     entry.stages.forEach(function (s) {
+                        if (!s) return;     // sparse array — unplayed stage slot
                         ax += (s.total  || 0);
                         bx += (s.green  || 0);
                         cx += (s.yellow || 0);
@@ -1295,13 +1308,19 @@ function wireSstLamps(state) {
                     const v = ax > 0 ? Math.floor(((bx * 5 + cx + dX) * 20) / ax) : 0;
                     const score = document.createElement("span");
                     score.className = "lamp-score";
+                    // +2 px nudge: the original Print draws against MS Sans
+                    // Serif 8pt's font metrics; our Arial 11px has slightly
+                    // different ascent so the same CurrentY lands a hair too
+                    // high on screen. Two pixels down restores the original's
+                    // optical position inside the lamp.
                     Object.assign(score.style, {
                         position: "absolute",
-                        // Original: btnLamp(i).CurrentX = 30, CurrentY = 60 (twips).
-                        left: (30 / 15) + "px", top: (60 / 15) + "px",
-                        color: scoreColor,
+                        left: (lampScore.xTwips / 15) + "px",
+                        top:  (lampScore.yTwips / 15 + 2) + "px",
+                        color: lampScore.color,
                         fontFamily: "Arial, sans-serif", fontWeight: "bold",
-                        fontSize: "14px",
+                        fontSize: "11px",
+                        lineHeight: "1",
                         pointerEvents: "none",
                     });
                     score.textContent = String(v);
@@ -1840,6 +1859,14 @@ function handleAction(appId, action /*, ctrl */) {
             else if (idx === 1) openGame3HakZoom(currentSession);
             else if (idx === 2) cycleGame3Hotspot(currentSession);
             else if (idx === 3) playRasWav(currentSession);
+            else if (idx === 4) confirmExit(exitToLauncher);
+        } else if (screen === "game5") {
+            // Games5.frm btnGolos_Click replays Mhiza_2(N_P(Pr_N)) — the
+            // current round's target audio, NOT a fixed Gg_N. The generic
+            // playHotspotQuestion would replay state.Gg_N (set once at stage
+            // start) and stay stuck on the first round's prompt forever.
+            if (idx === 0)      playGame5Prompt(currentSession);
+            else if (idx === 1) playRasWav(currentSession);
             else if (idx === 4) confirmExit(exitToLauncher);
         } else {
             if (idx === 0)      playHotspotQuestion(currentSession);
@@ -2439,6 +2466,10 @@ function stageTag(state) {
 }
 
 function initGameTurn(state, stage) {
+    // Stop any game5 timer carried over from the previous stage (the new
+    // stage will start its own in setupGame5AuxUI if gameNumber===5).
+    if (state._game5Timer) stopGame5Timer(state);
+    state._game5LastStage = null;
     state.activeStage = stage;
     state.gameType = stage.gameNumber;
     state.wrongCount = 0;          // MspTaut
@@ -2631,6 +2662,16 @@ function paintHotspots(state, stage) {
     state.stage.querySelectorAll(".stage-hotspot, .stage-game5-choice, .stage-piece-preview, .stage-cursor-piece, .stage-cover").forEach(function (n) { n.remove(); });
     const pic1 = state.stage.querySelector(".frm-ctrl--Picture1");
     if (!pic1) return;
+    // Games5.frm Act() opens with `Picture1.Visible = False` — game5 hides
+    // the main image entirely so the player must identify the piece from
+    // the cropped Picture2 strip alone. Every other game type leaves
+    // Picture1 visible (Games1/2/4 never mutate Visible; Games3 only
+    // toggles per-stage). visibility:hidden preserves the layout box so
+    // pic1Transform's offset/scale numbers stay valid for the tile crop.
+    pic1.style.visibility = (stage.gameNumber === 5) ? "hidden" : "";
+    // Leaving a game5 stage: stop the plane timer that was running. PicTime
+    // resets to design Left so the next entry starts fresh.
+    if (stage.gameNumber !== 5 && state._game5Timer) stopGame5Timer(state);
     const t = pic1Transform(state);
     if (!t) return;
 
@@ -2677,7 +2718,11 @@ function paintHotspots(state, stage) {
         });
     }
 
-    if (stage.gameNumber === 5) { renderGame5Choices(state, stage); return; }
+    if (stage.gameNumber === 5) {
+        setupGame5AuxUI(state, stage);
+        renderGame5Choices(state, stage);
+        return;
+    }
     if (!stage.hotspots || !stage.hotspots.length) { installAdvanceClick(state, pic1); return; }
 
     if (stage.gameNumber === 1) renderGame1Hotspots(state, stage, pic1, t);
@@ -2972,12 +3017,180 @@ function wrapIdx(i, max) {
     return i;
 }
 
+// === Game type 5 — auxiliary UI: PicPlace frame, PicTime plane timer, =====
+// Picture4 speed selector. Per Games5.frm InitGraph + Form_Load + Timer1.
+//
+// Form_Load loads PicTime ← plane0.bmp; Picture4 ← nor1.bmp; InitGraph loads
+// PicPlace ← Caftpla.bmp. Timer1 ticks every (40 * (nomer-1)) ms initially:
+// cycles PicTime.Picture through plane0..plane4 and shifts PicTime.Left += 1
+// (form-pixel). When PicTime.Left > 500 form-px the game ends — matoss.wav,
+// Unload + Show1. Picture4_Click cycles spe = 0..3; spe=0 disables Timer1,
+// otherwise INTERVAL = speed / spe.
+function setupGame5AuxUI(state, stage) {
+    const root = state.config.assetsRoot;
+    const stageRoot = state.stage;
+    const FORM_TO_RENDER = 12 / 15;     // 1 form-px → render-px
+
+    // paintHotspots fires per round (intra-stage repaint), not just per stage.
+    // Only reset PicTime + restart Timer1 when this is a fresh stage entry —
+    // the timer ticks continuously across all rounds of one stage in VB6.
+    const freshStage = (state._game5LastStage !== stage);
+    state._game5LastStage = stage;
+
+    // PicPlace background (Caftpla — wood-grain frame surrounding lblToz).
+    // VB6: PictureBox.Picture draws first, child controls (lblToz) on top.
+    // initStageIndicators has already populated lblToz by the time we run
+    // (it's called synchronously in initGameTurn; we run after async img
+    // load). Appending caftpla would put it LAST in DOM, which CSS stacks
+    // ON TOP and hides every lblToz score marker. Insert as the FIRST child
+    // so the frame sits underneath the markers.
+    const picPlace = stageRoot.querySelector(".frm-ctrl--PicPlace");
+    if (picPlace && !picPlace.querySelector("img.frm-img")) {
+        const im = document.createElement("img");
+        im.className = "frm-img";
+        im.src = root + "/menu/caftpla.png";
+        picPlace.insertBefore(im, picPlace.firstChild);
+    }
+
+    // Picture5 — cyan sky strip the plane flies across. The original sets
+    // BackColor = &H00FFFFC0& (= #C0FFFF) and PicTime's plane bitmap has 71%
+    // of that same #C0FFFF baked in around the plane sprite, so the strip
+    // and the bitmap blend into one seamless sky. Our renderer drops VB6
+    // BackColor entirely; without this Picture5 is transparent and the plane
+    // looks like an isolated cyan square floating over the form's masah BG.
+    const pic5 = stageRoot.querySelector(".frm-ctrl--Picture5");
+    if (pic5) pic5.style.backgroundColor = "#C0FFFF";
+
+    // Picture4 speed selector (initial frame = nor1; click cycles 0..3).
+    const pic4 = stageRoot.querySelector(".frm-ctrl--Picture4");
+    if (pic4) {
+        let pic4Img = pic4.querySelector("img.frm-img");
+        if (!pic4Img) {
+            pic4Img = document.createElement("img");
+            pic4Img.className = "frm-img";
+            pic4.appendChild(pic4Img);
+        }
+        if (freshStage) {
+            state._game5Spe = 1;
+            pic4Img.src = root + "/menu/nor1.png";
+        }
+        pic4.style.cursor = "pointer";
+        pic4.style.pointerEvents = "auto";
+        pic4.title = "שינוי קצב";   // Picture4_MouseMove: ToolTipText
+        if (!pic4._game5Wired) {
+            pic4._game5Wired = true;
+            pic4.addEventListener("click", function () {
+                state._game5Spe = (state._game5Spe + 1) % 4;
+                klog("game5: speed Picture4 → spe=" + state._game5Spe);
+                const im = pic4.querySelector("img.frm-img");
+                if (im) im.src = root + "/menu/nor" + state._game5Spe + ".png";
+                if (state._game5Spe === 0) stopGame5Timer(state);
+                else                       restartGame5Timer(state);
+            });
+        }
+    }
+
+    // PicTime plane sprite — bind plane frame and (on fresh stage) reset
+    // position and start Timer1. Lift above Picture5: VB6 .frm z-order lists
+    // PicTime before Picture5 (= PicTime on top) but our DOM stacking is
+    // reversed, so Picture5's new cyan BG would otherwise cover the plane.
+    const picTime = stageRoot.querySelector(".frm-ctrl--PicTime");
+    if (picTime) {
+        picTime.style.zIndex = "11";
+        if (picTime._designLeft == null) picTime._designLeft = picTime.offsetLeft;
+        let timeImg = picTime.querySelector("img.frm-img");
+        if (!timeImg) {
+            timeImg = document.createElement("img");
+            timeImg.className = "frm-img";
+            picTime.appendChild(timeImg);
+        }
+        if (freshStage) {
+            picTime.style.left = picTime._designLeft + "px";
+            state._game5PlaneFrame = 0;
+            timeImg.src = root + "/menu/plane0.png";
+            // Form_Load: speed = 40 * (nomer - 1).
+            state._game5BaseSpeed = 40 * Math.max(1, (state.maxTurn || 1) - 1);
+            state._game5PicTime = picTime;
+            state._game5FormToRender = FORM_TO_RENDER;
+            // Original: PicTime.Left > 500 form-px → game-end (400 render-px).
+            state._game5TimeoutLeft = 500 * FORM_TO_RENDER;
+            restartGame5Timer(state);
+        }
+    }
+}
+
+function stopGame5Timer(state) {
+    if (state._game5Timer) {
+        clearInterval(state._game5Timer);
+        state._game5Timer = null;
+    }
+}
+
+function restartGame5Timer(state) {
+    stopGame5Timer(state);
+    const spe = Math.max(1, state._game5Spe || 1);
+    const interval = state._game5BaseSpeed / spe;
+    if (!isFinite(interval) || interval < 8) return;
+    state._game5Timer = setInterval(function () { tickGame5Timer(state); }, interval);
+}
+
+function tickGame5Timer(state) {
+    const picTime = state._game5PicTime;
+    if (!picTime || !picTime.isConnected) { stopGame5Timer(state); return; }
+    // Cycle plane0..plane4 (Form_Load: `if pl > 4 then pl = 0`).
+    state._game5PlaneFrame = (state._game5PlaneFrame + 1) % 5;
+    const im = picTime.querySelector("img.frm-img");
+    if (im) im.src = state.config.assetsRoot + "/menu/plane" + state._game5PlaneFrame + ".png";
+    // PicTime.Left += 1 (form-px). Convert to render-px.
+    const left = parseFloat(picTime.style.left || "") || picTime._designLeft || 0;
+    const newLeft = left + 1 * state._game5FormToRender;
+    picTime.style.left = newLeft + "px";
+    if (newLeft > state._game5TimeoutLeft) {
+        stopGame5Timer(state);
+        klog("game5: PicTime timeout — restart stage");
+        const matossRel = "wav/matoss.wav";
+        if (state.audioFiles && state.audioFiles.has(matossRel)) {
+            playAudio(state, state.config.assetsRoot + "/" + matossRel, function () {
+                restartGame5Stage(state);
+            });
+        } else {
+            restartGame5Stage(state);
+        }
+    }
+}
+
+// Mirrors Games5.frm Timer1_Timer's tail: `Unload games5 ; games5.Show 1`.
+// We can't unload/reshow a form; closest equivalent is to reset the per-stage
+// game5 state (Pobeda, Tek_N, wrongCount) and re-paint, which re-enters
+// paintHotspots → setupGame5AuxUI → fresh timer.
+function restartGame5Stage(state) {
+    if (!state.activeStage) return;
+    state.Pobeda = 0;
+    state.wrongCount = 0;
+    state.Tek_N = 1;
+    paintHotspots(state, state.activeStage);
+    playGame5Prompt(state);
+}
+
 // === Game type 5 — multi-choice Picture2 buttons ========================
-// Games5.frm: Picture1 holds the full image; 4 Picture2 buttons at the top
-// show cropped pieces. Init_Pic picks KolPic=min(4, nomer) candidates from
-// N_P(); each round Make_Pr_n re-shuffles and finds Pr_N s.t. N_P(Pr_N)=Tek_N.
-// We render the four Picture2 controls cropped at hotspots[N_P[i]-1] and the
-// user clicks the one matching the audio question.
+// Games5.frm: Picture1 holds the full image; 4 Picture2 buttons show cropped
+// pieces. Init_Pic picks KolPic=min(4, nomer) candidates from N_P(); each
+// round Make_Pr_n re-shuffles and finds Pr_N s.t. N_P(Pr_N)=Tek_N.
+//
+// Two faithful-port details that the original implementation glossed over:
+//
+//  1. The .frm-declared Left/Top/Width/Height for each Picture2 are
+//     placeholders. At runtime Init_Pic resizes every chosen tile to its
+//     matching Label1(N_P(i)).Width/Height (= the .RAS hotspot's w/h) and
+//     re-positions the row inside Picture1's upper area.
+//
+//  2. VB6 .frm z-order is REVERSED relative to our DOM/CSS stacking:
+//     controls listed earlier in the .frm are drawn on top. The four
+//     Picture2 tiles come before Picture1 in the JSON, so VB6 layered them
+//     above Picture1 and they caught the user's clicks. In CSS the opposite
+//     is true (later DOM siblings stack on top), so Picture1 covered the
+//     tiles and ate every click — manifesting as "can't select image".
+//     We lift Picture2 above Picture1 explicitly with a z-index.
 function renderGame5Choices(state, stage) {
     const stageRoot = state.stage;
     const srcImg = state.stageImg;
@@ -2985,6 +3198,10 @@ function renderGame5Choices(state, stage) {
     if (!stage.hotspots || !stage.hotspots.length) return;
     const choices = stageRoot.querySelectorAll(".frm-ctrl--Picture2");
     if (!choices.length) return;
+    const pic1 = stageRoot.querySelector(".frm-ctrl--Picture1");
+    if (!pic1) return;
+    const t = pic1Transform(state);
+    if (!t) return;
 
     const KolPic = Math.min(4, state.maxTurn, choices.length);
     // Tek_N (1-based) is the round index. Pr_N (1-based) is the slot in N_P
@@ -3008,14 +3225,52 @@ function renderGame5Choices(state, stage) {
     state.game5Picks = np;
     klog("game5: Tek_N=" + state.Tek_N + " Pr_N=" + state.Pr_N + " picks=" + np.join(","));
 
+    // Init_Pic geometry. Original (form-px, form ScaleMode=Pixel, 12
+    // twips/form-px):
+    //   step  = (525 - sum_widths) / 5
+    //   m_top = Picture1.Top + 170                   (vertical strip center)
+    //   Picture2(1).Left = Picture1.Left + step
+    //   Picture2(i+1).Left = Picture2(i).Left + Picture2(i).Width + step
+    //   Picture2(i).Top  = m_top - Picture2(i).Height/2
+    // Our renderer is at twips/15, i.e. 0.8 * form-px. Tile size on screen
+    // is rec.w * t.scale (matches Picture1's image display scale) so the
+    // crop renders at native scale, not stretched into the placeholder.
+    const FORM_TO_RENDER = 12 / 15;
+    const layoutW = 525 * FORM_TO_RENDER;              // ≈ 420 render-px
+    const stripCenterFromPic1Top = 170 * FORM_TO_RENDER; // ≈ 136 render-px
+
+    const tileW = [], tileH = [];
+    for (let i = 0; i < KolPic; i++) {
+        const vbIdx = np[i];
+        const rec = vbIdx ? stage.hotspots[vbIdx - 1] : null;
+        tileW[i] = rec ? rec.w * t.scale : 0;
+        tileH[i] = rec ? rec.h * t.scale : 0;
+    }
+    const sumW = tileW.reduce(function (a, b) { return a + b; }, 0);
+    const step = (layoutW - sumW) / 5;
+    const stripCenterY = pic1.offsetTop + stripCenterFromPic1Top;
+    let runningLeft = pic1.offsetLeft + step;
+
     choices.forEach(function (ctrlEl, slot) {
-        const vbIdx = np[slot];           // 1-based hotspot index
-        ctrlEl.innerHTML = "";
-        if (vbIdx == null) { ctrlEl.style.display = "none"; return; }
-        ctrlEl.style.display = "block";
-        ctrlEl.style.cursor = "pointer";
+        if (slot >= KolPic || !np[slot]) {
+            ctrlEl.style.display = "none";
+            return;
+        }
+        const vbIdx = np[slot];
         const rec = stage.hotspots[vbIdx - 1];
-        if (!rec) return;
+        ctrlEl.innerHTML = "";
+        if (!rec) { ctrlEl.style.display = "none"; return; }
+        const w = tileW[slot], h = tileH[slot];
+
+        ctrlEl.style.display  = "block";
+        ctrlEl.style.position = "absolute";
+        ctrlEl.style.left   = runningLeft + "px";
+        ctrlEl.style.top    = (stripCenterY - h / 2) + "px";
+        ctrlEl.style.width  = w + "px";
+        ctrlEl.style.height = h + "px";
+        ctrlEl.style.cursor = "pointer";
+        ctrlEl.style.zIndex = "10";       // sit above Picture1 (see top comment)
+
         const c = document.createElement("canvas");
         c.className = "stage-game5-choice";
         c.width = rec.w; c.height = rec.h;
@@ -3029,6 +3284,8 @@ function renderGame5Choices(state, stage) {
         } catch (e) {}
         ctrlEl.appendChild(c);
         ctrlEl.onclick = function () { onGame5PieceClick(state, slot + 1, vbIdx); };
+
+        runningLeft += w + step;
     });
 }
 
@@ -3954,9 +4211,29 @@ function showNikod(state, slot, onClose) {
     clea.disabled = true;
     box.appendChild(clea);
 
-    // adv — toggle button at (180, 35). Real image asset (scho2 = "כללי",
-    // scho1 = "פירוט"). Initial image is scho2 per Form_Load.
-    const adv = el("button", place(180, 35, 101, 21));
+    // adv — toggle button. Position is hand-tuned per-app in each nikod.frm;
+    // (180, 35) was Brahot's value used as a global default but for several
+    // apps (KolKoreA, KolKoreC/D, Dvash, Ivrit, Shirim, Shirim&Meshalim,
+    // EnglishC) the original sits lower and slightly more left. Coords here
+    // are read straight from each app's nikod.frm Left/Top in twips / 15.
+    // Image asset: scho2 = "כללי" (general/summary), scho1 = "פירוט" (detail).
+    const NIKOD_ADV_POS = {
+        "Brahot":          { left: 180, top:  35 },
+        "Hagim":           { left: 180, top:  35 },
+        "Yeled":           { left: 180, top:  35 },
+        "Heshbon":         { left: 180, top:  35 },
+        "Shabat":          { left: 180, top:  35 },
+        "Dvash":           { left: 150, top:  40 },
+        "Ivrit":           { left: 150, top:  40 },
+        "Shirim":          { left: 150, top:  40 },
+        "Shirim&Meshalim": { left: 150, top:  40 },
+        "EnglishC":        { left: 152, top:  35 },
+        "KolKoreA":        { left: 155, top:  57 },
+        "KolKoreC":        { left: 150, top:  39 },
+        "KolKoreD":        { left: 150, top:  39 },
+    };
+    const advPos = NIKOD_ADV_POS[state.config.id] || { left: 180, top: 35 };
+    const adv = el("button", place(advPos.left, advPos.top, 101, 21));
     Object.assign(adv.style, {
         padding: "0",
         background: "transparent",
