@@ -6334,8 +6334,27 @@ function goWin() {
     if (winSpawner) { clearInterval(winSpawner); winSpawner = null; }
     clearStage();
     setBg("win.png");                    // Form3.Picture = win.bmp
-    playWav("voice", "win.wav");
     dbg("WIN screen shown");
+
+    // Form3.Picture1 plays end.avi via MMControl1.hWndDisplay. Original sets
+    // Form_Load → MMControl1.Open + tmser_Timer (200ms) → MMControl1.play.
+    // Picture1 box: Left=2325, Top=750, W=4815, H=3615 → (155, 50, 321, 241).
+    const video = document.createElement("video");
+    video.src = ROOT + "/end.mp4";
+    video.autoplay = true;
+    video.playsInline = true;
+    video.controls = false;
+    Object.assign(video.style, {
+        position: "absolute",
+        left:   "155px",
+        top:    "50px",
+        width:  "321px",
+        height: "241px",
+    });
+    setTimeout(function () {
+        video.play().catch(function (err) { dbg("end.mp4 autoplay blocked:", err && err.message); });
+    }, 200);                              // tmser.Interval = 200
+    stage.appendChild(video);
 
     const overlay = mk("div", "lmath-confetti", 0, 0, DW, DH);
     overlay.style.pointerEvents = "none";
@@ -6390,32 +6409,36 @@ function goLose() {
     stopGameTimers();
     clearStage();
     setBg("blose.png");                  // Form4.Picture = blose.jpg
-    playWav("voice", "loose.wav");
+    // Form4.Form_Load: MMControl1.FileName = CD_Dir & "\avi\sad2.wav"
+    // (NOT loose.wav from lmath/ — that file is unused by Form4 in Heshbon).
+    playWav("voice", "sad2.wav");
     dbg("LOSE screen shown");
     addEndButtons("lose");
 }
 // Form3 (win) + Form4 (lose) both have cndgo (play again) + cmdx (exit)
-// using caf2.bmp + caf1.bmp. Original twips:
-//   Form3 (win)  cndgo=(4725,4800), cmdx=(2925,4800), W=1605, H=915
-//   Form4 (lose) cndgo=(4275,5700), cmdx=(2475,5700), W=1605, H=915
-// At twips÷15: Form3=(315,320 / 195,320), Form4=(285,380 / 165,380).
-// BUT Form3 was authored with ScaleHeight=760 (designer at 120 DPI) while
-// ClientHeight=9120 only maps to 608 px @ 96 DPI — the form is taller than
-// it appears, so the design Top=4800 lands at 67% in a 480-clipped view,
-// not at the visual "bottom" the artwork expects. Rescale Form3 Y by
-// 480/760 from the design ScaleHeight context: 320 * 480 / 760 ≈ 202… no,
-// the other direction: 4800 design-px ÷ (760/480) → push to bottom band.
-// Practical fix: use the design-px-from-form-bottom offset (760-320-61=379),
-// applied to 480: 480-379-61 = 40 from top, which is wrong too.
-// What actually matches the artwork: shift buttons down ~80px so they land
-// in the lower band where win.bmp draws its frame. Match Form4's y=380.
+// using caf2.bmp + caf1.bmp (109×64 natural). Original twips:
+//   Form3 (win)  cndgo=(4725,4800) cmdx=(2925,4800) W=1605 H=915
+//   Form4 (lose) cndgo=(4275,5700) cmdx=(2475,5700) W=1605 H=915
+//
+// Form3 was authored with ScaleMode=Pixel + ScaleHeight=760 (designer at
+// 120 DPI; 1 px = 12 twips). Form4 uses default ScaleMode=Twip with
+// ScaleHeight=ClientHeight=7152 (96 DPI conversion). The original game
+// also called ScrRes.ChangeScreenSettings(640,480) before showing these
+// forms, so they were always clipped to a 480-tall view — and per the
+// user's recollection the caf buttons sat **at the very bottom of the
+// screen** (touching y=480). Empirically anchor both forms' buttons
+// flush to the screen bottom using natural caf size (109×64).
+const CAF_W = 109, CAF_H = 64;
+const BTN_Y = DH - CAF_H;          // 480 - 64 = 416  → bottom edge at 480
 function addEndButtons(form /* "win" | "lose" */) {
     const params = gameState ? gameState.params : null;
+    // X positions preserve the original twips÷15 spacing pattern (cmdx left,
+    // cndgo right of center; pair roughly centered on the 320 mid-line).
     const layout = (form === "win")
-        ? { goX: 315, goY: 380, xX: 195, xY: 380 }
-        : { goX: 285, goY: 380, xX: 165, xY: 380 };
+        ? { goX: 315, xX: 195 }     // Form3 twips/15 (.frm Left/15)
+        : { goX: 285, xX: 165 };    // Form4 twips/15
 
-    const again = mk("button", "lmath-end", layout.goX, layout.goY, 107, 61);
+    const again = mk("button", "lmath-end", layout.goX, BTN_Y, CAF_W, CAF_H);
     again.style.backgroundImage = "url(" + ROOT + "/caf2.png)";
     again.style.backgroundSize  = "100% 100%";
     again.title = "לשחק עוד פעם";
@@ -6424,7 +6447,7 @@ function addEndButtons(form /* "win" | "lose" */) {
     });
     stage.appendChild(again);
 
-    const out = mk("button", "lmath-end", layout.xX, layout.xY, 107, 61);
+    const out = mk("button", "lmath-end", layout.xX, BTN_Y, CAF_W, CAF_H);
     out.style.backgroundImage = "url(" + ROOT + "/caf1.png)";
     out.style.backgroundSize  = "100% 100%";
     out.title = "לצאת";
