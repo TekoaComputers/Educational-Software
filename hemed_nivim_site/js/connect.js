@@ -36,7 +36,6 @@ HND.startConnect = function (root, app, unit, onComplete) {
     const leftCol  = cols[2] || cols[0];   // qRight side text → ask
     const rightCol = cols[1] || cols[0];   // qLeft side text  → answer
     const MAX_LINES = 8;
-    const BOX_H = 50;
 
     // Game-wide state spanning ALL sets.
     const pool = HND._shuffle(items.map(function (_, i) { return i; }));
@@ -76,24 +75,75 @@ HND.startConnect = function (root, app, unit, onComplete) {
                          text: items[origIdx][rightCol] || "",
                          errorCount: 0 });
         });
-        // Per-box width based on text length (matches original LoadBox:
-        // `Boxes(BoxId).w = GetStringWidth(Txt) * 1.2`).
-        boxes.forEach(function (b) {
-            const charCount = (b.text || "").length;
-            b.w = Math.max(90, Math.min(360, charCount * 16 + 24));
+        // Per-box width & height based on ACTUAL text metrics (was a flat
+        // 16px-per-char estimate that over-sized boxes by ~60% — causing
+        // unavoidable overlaps with 16 boxes in the 700×430 field). We
+        // attach a hidden span styled exactly like .connect-box, read its
+        // natural offsetWidth, and clamp to a reasonable range. Long text
+        // wraps to 2 lines and gets a taller box.
+        const MAX_W = 260;        // single-line cap before wrap
+        const MIN_W = 70;
+        const PAD_W = 14;         // ~7px each side, matches CSS padding:0 10px
+        const measurer = HND._el("span", {
+            class: "connect-box kind-q",
+            style: "position:absolute; left:-9999px; top:-9999px; " +
+                   "visibility:hidden; white-space:nowrap; height:auto;",
         });
-        // Non-overlapping random scatter inside (50..750, 50..530).
+        root.appendChild(measurer);
         boxes.forEach(function (b) {
-            let tries = 0;
-            do {
-                b.x = 50 + Math.random() * (750 - b.w);
-                b.y = 50 + Math.random() * (480 - BOX_H);
-                tries++;
-            } while (tries < 80 && boxes.some(function (o) {
-                return o !== b && o.x != null &&
-                       b.x < o.x + o.w + 8 && b.x + b.w + 8 > o.x &&
-                       b.y < o.y + BOX_H + 8 && b.y + BOX_H + 8 > o.y;
-            }));
+            measurer.textContent = b.text || "";
+            measurer.style.whiteSpace = "nowrap";
+            measurer.style.width = "auto";
+            const wNoWrap = measurer.offsetWidth + PAD_W;
+            if (wNoWrap <= MAX_W) {
+                b.w = Math.max(MIN_W, wNoWrap);
+                b.h = 38;
+            } else {
+                // Two-line wrap at MAX_W.
+                b.w = MAX_W;
+                measurer.style.whiteSpace = "normal";
+                measurer.style.width = (MAX_W - PAD_W) + "px";
+                const h = measurer.offsetHeight + 10;
+                b.h = Math.max(46, Math.min(72, h));
+            }
+        });
+        measurer.remove();
+
+        // Non-overlapping random scatter — original GameConnect.frm:435-457
+        // retries up to 100,000 times (`If timeOut < 100000`). We add a
+        // best-fit-decreasing twist: place the LARGEST boxes first because
+        // they're hardest to fit. Once placed, they don't block the smaller
+        // boxes that can squeeze into the leftover gaps.
+        const FIELD_X0 = 30, FIELD_X1 = 770;
+        const FIELD_Y0 = 50, FIELD_Y1 = 555;
+        const PAD = 6;
+        const order = boxes.slice().sort(function (a, b) {
+            return (b.w * b.h) - (a.w * a.h);
+        });
+        const placed = [];
+        order.forEach(function (b) {
+            const xRange = (FIELD_X1 - FIELD_X0) - b.w;
+            const yRange = (FIELD_Y1 - FIELD_Y0) - b.h;
+            let best = null;
+            const MAX_TRIES = 100000;
+            for (let tries = 0; tries < MAX_TRIES; tries++) {
+                const x = FIELD_X0 + Math.random() * Math.max(0, xRange);
+                const y = FIELD_Y0 + Math.random() * Math.max(0, yRange);
+                let hit = false;
+                for (let j = 0; j < placed.length; j++) {
+                    const o = placed[j];
+                    if (x < o.x + o.w + PAD &&
+                        x + b.w + PAD > o.x &&
+                        y < o.y + o.h + PAD &&
+                        y + b.h + PAD > o.y) {
+                        hit = true;
+                        break;
+                    }
+                }
+                if (!hit) { b.x = x; b.y = y; best = true; break; }
+                if (!best) { b.x = x; b.y = y; }   // fallback: last random
+            }
+            placed.push(b);
         });
 
         state.selected = null;
@@ -138,9 +188,9 @@ HND.startConnect = function (root, app, unit, onComplete) {
             const a = boxes.find(function (b) { return b.pairId === pid && b.kind === "A"; });
             const line = document.createElementNS(svgNS, "line");
             line.setAttribute("x1", q.x + q.w / 2);
-            line.setAttribute("y1", q.y + BOX_H / 2);
+            line.setAttribute("y1", q.y + q.h / 2);
             line.setAttribute("x2", a.x + a.w / 2);
-            line.setAttribute("y2", a.y + BOX_H / 2);
+            line.setAttribute("y2", a.y + a.h / 2);
             line.setAttribute("stroke", "#d8b07a");
             line.setAttribute("stroke-width", "4");
             line.setAttribute("stroke-dasharray", "6 3");
@@ -155,7 +205,7 @@ HND.startConnect = function (root, app, unit, onComplete) {
                        + (state.matched[b.pairId] ? " done" : "")
                        + (state.selected === i ? " sel" : ""),
                 style: "left:" + b.x + "px; top:" + b.y + "px;" +
-                       "width:" + b.w + "px; height:" + BOX_H + "px;",
+                       "width:" + b.w + "px; height:" + b.h + "px;",
                 text: b.text,
                 onclick: function () { onPick(i, node); },
             });
@@ -173,7 +223,7 @@ HND.startConnect = function (root, app, unit, onComplete) {
 
     function spawnStars(boxA, boxB) {
         const cx = (boxA.x + boxA.w / 2 + boxB.x + boxB.w / 2) / 2;
-        const cy = (boxA.y + boxB.y) / 2 + BOX_H / 2;
+        const cy = (boxA.y + boxA.h / 2 + boxB.y + boxB.h / 2) / 2;
         for (let n = 0; n < 7; n++) {
             const star = HND._el("div", { class: "ctrl connect-star" });
             const angle = (n / 7) * Math.PI * 2;
@@ -196,7 +246,7 @@ HND.startConnect = function (root, app, unit, onComplete) {
         }
         const sel = boxes[state.selected];
         line.setAttribute("x1", sel.x + sel.w / 2);
-        line.setAttribute("y1", sel.y + BOX_H / 2);
+        line.setAttribute("y1", sel.y + sel.h / 2);
         line.setAttribute("x2", stageX);
         line.setAttribute("y2", stageY);
         line.setAttribute("opacity", "0.85");
@@ -224,7 +274,7 @@ HND.startConnect = function (root, app, unit, onComplete) {
             render();
             // Anchor live rope at the selected box (no cursor yet → endpoint
             // pinned at box center until mouse moves).
-            updateLiveRope(b.x + b.w / 2, b.y + BOX_H / 2);
+            updateLiveRope(b.x + b.w / 2, b.y + b.h / 2);
             return;
         }
         const prev = boxes[state.selected];
