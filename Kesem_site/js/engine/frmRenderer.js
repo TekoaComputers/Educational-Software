@@ -233,6 +233,17 @@ function buildSubtree(ctrl, scale, state, screenConf) {
         node.style.pointerEvents = "none";
     }
 
+    // VB6 lightweight Labels (`VB.Label`) without a Click handler don't
+    // intercept mouse events from controls beneath — they're drawn directly
+    // on the form and the hit-test passes through. Our default-rendered
+    // <div> blocks clicks via z-order, which is why a leftover placeholder
+    // like English Sst.frm's `Label1` (at design coords overlapping BtnExit)
+    // ate clicks meant for the exit button. Make non-interactive Labels
+    // click-through. Tooltips are handled above and stay click-through too.
+    if (ctrl.type === "VB.Label" && !isHotspot && !isTip) {
+        node.style.pointerEvents = "none";
+    }
+
     // Honor design-time Visible=False. lbtip controls have their own opacity
     // handling above so we skip them here.
     if (startsHidden && !isTip) {

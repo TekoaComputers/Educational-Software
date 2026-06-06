@@ -1303,6 +1303,17 @@ function buildSubtree(ctrl, scale, state, screenConf) {
         node.style.pointerEvents = "none";
     }
 
+    // VB6 lightweight Labels (`VB.Label`) without a Click handler don't
+    // intercept mouse events from controls beneath — they're drawn directly
+    // on the form and the hit-test passes through. Our default-rendered
+    // <div> blocks clicks via z-order, which is why a leftover placeholder
+    // like English Sst.frm's `Label1` (at design coords overlapping BtnExit)
+    // ate clicks meant for the exit button. Make non-interactive Labels
+    // click-through. Tooltips are handled above and stay click-through too.
+    if (ctrl.type === "VB.Label" && !isHotspot && !isTip) {
+        node.style.pointerEvents = "none";
+    }
+
     // Honor design-time Visible=False. lbtip controls have their own opacity
     // handling above so we skip them here.
     if (startsHidden && !isTip) {
@@ -1787,17 +1798,18 @@ function wireKolKoreBRamaToggle(state) {
 //
 // Rama 1 (Case 0 in original):
 //   5 btnIcons visible (0..4), Width=136, Pic2/arm1.bmp BG
-//   btnIcon(0): Left=367, Top=208     btnIcon(1): Top=363
-//   btnIcon(2): Left=127               btnIcon(3): Left=468, Top=363
+//   btnIcon(0): Left=367, Top=208     btnIcon(1): Left=257(design), Top=363
+//   btnIcon(2): Left=127, Top=208(design)  btnIcon(3): Left=468, Top=363
 //   btnIcon(4): Left=40,  Top=363
 //   btnLamp(i).Top = btnIcon(i).Top + Height + 3
 //   btnLamp(i).Left = btnIcon(i).Left + 40
 //
 // Rama 2 (Case 1):
 //   12 btnIcons visible (0..11), Width=62, Pic1/arm2.bmp BG
-//   btnIcon(0): Left=454, Top=btnIcon(5).Top   btnIcon(1): Top=213
-//   btnIcon(2): Left=45                         btnIcon(3): Left=461, Top=365
-//   btnIcon(4): Left=44,  Top=367
+//   btnIcon(0): Left=454, Top=218(=icon5.Top)  btnIcon(1): Left=257(design), Top=213
+//   btnIcon(2): Left=45, Top=208(design)        btnIcon(3): Left=461, Top=365
+//   btnIcon(4): Left=44, Top=367
+//   icons 5..11 use design-time Left/Top from sst.json
 //   btnLamp(i).Top = btnIcon(i).Top + Height + 3
 //   btnLamp(i).Left = btnIcon(i).Left + 5
 function applyKolKoreARamaLayout(state) {
@@ -3201,8 +3213,9 @@ function handleAction(appId, action /*, ctrl */) {
         //   dam = CD_Dir + "\avi\_" & rama & Index+1 & ".avi"
         //   If exist(dam) Then VideoFile = dam: VideoBox.Show 1
         // One avi label per path tile (5 of them); index maps to btnIcon idx.
-        // KolKoreA ships _01.mp4–_05.mp4 (rama=1) and _31.mp4–_36.mp4 (rama=2)
-        // rather than the _${rama}N Heshbon convention.
+        // KolKoreA SST.FRM uses: ((rama - 1) * 3) & Index+1 & ".avi"
+        //   rama=1 → prefix 0 → _01.mp4–_05.mp4
+        //   rama=2 → prefix 3 → _31.mp4–_36.mp4
         if (!currentSession) return;
         const idx = parseInt(action.split(":")[1], 10);
         let aviRamaPrefix = currentSession.rama;
