@@ -6357,8 +6357,13 @@ function goWin() {
         const im = img(ROOT + "/" + spriteName + ".png", "lmath-petal", 0, 0, w, h);
         fall.appendChild(im);
         overlay.appendChild(fall);
-        // CSS variable drives the fall keyframe target.
+        // Random spin per petal: 2–4 full turns, half clockwise / half CCW so
+        // they tumble naturally instead of all going one direction.
+        const turns = 2 + Math.floor(Math.random() * 3);
+        const sign  = Math.random() < 0.5 ? 1 : -1;
+        const rot   = sign * turns * 360;
         fall.style.setProperty("--land-y", landY + "px");
+        fall.style.setProperty("--rot",    rot + "deg");
         fall.style.animation = "lmath-petal-drop " +
             (1.2 + Math.random() * 0.8).toFixed(2) +
             "s cubic-bezier(.55,.06,.68,.19) forwards";
@@ -6389,15 +6394,25 @@ function goLose() {
     dbg("LOSE screen shown");
     addEndButtons("lose");
 }
-// Form3 (win) cndgo + cmdx — Left=4725/2925, Top=4800, W=1605, H=915 →
-//   cndgo=(315, 320, 107, 61), cmdx=(195, 320, 107, 61)
-// Form4 (lose) cndgo + cmdx — Left=4275/2475, Top=5700, W=1605, H=915 →
-//   cndgo=(285, 380, 107, 61), cmdx=(165, 380, 107, 61)
-// Both use caf2.bmp (replay) + caf1.bmp (exit) as button images.
+// Form3 (win) + Form4 (lose) both have cndgo (play again) + cmdx (exit)
+// using caf2.bmp + caf1.bmp. Original twips:
+//   Form3 (win)  cndgo=(4725,4800), cmdx=(2925,4800), W=1605, H=915
+//   Form4 (lose) cndgo=(4275,5700), cmdx=(2475,5700), W=1605, H=915
+// At twips÷15: Form3=(315,320 / 195,320), Form4=(285,380 / 165,380).
+// BUT Form3 was authored with ScaleHeight=760 (designer at 120 DPI) while
+// ClientHeight=9120 only maps to 608 px @ 96 DPI — the form is taller than
+// it appears, so the design Top=4800 lands at 67% in a 480-clipped view,
+// not at the visual "bottom" the artwork expects. Rescale Form3 Y by
+// 480/760 from the design ScaleHeight context: 320 * 480 / 760 ≈ 202… no,
+// the other direction: 4800 design-px ÷ (760/480) → push to bottom band.
+// Practical fix: use the design-px-from-form-bottom offset (760-320-61=379),
+// applied to 480: 480-379-61 = 40 from top, which is wrong too.
+// What actually matches the artwork: shift buttons down ~80px so they land
+// in the lower band where win.bmp draws its frame. Match Form4's y=380.
 function addEndButtons(form /* "win" | "lose" */) {
     const params = gameState ? gameState.params : null;
     const layout = (form === "win")
-        ? { goX: 315, goY: 320, xX: 195, xY: 320 }
+        ? { goX: 315, goY: 380, xX: 195, xY: 380 }
         : { goX: 285, goY: 380, xX: 165, xY: 380 };
 
     const again = mk("button", "lmath-end", layout.goX, layout.goY, 107, 61);
@@ -6545,6 +6560,17 @@ function onKey(e) {
     }
 }
 
+// === Debug overlay ========================================================
+// Toggle showing all hotspot/control boundaries with colored outlines + labels
+// so layout misalignment is visible at a glance. Survives screen switches by
+// adding a `lmath-debug-on` class to the stage.
+function setDebugOverlay(on) {
+    if (!stage) return;
+    if (on) stage.classList.add("lmath-debug-on");
+    else    stage.classList.remove("lmath-debug-on");
+    dbg("debug overlay:", on ? "ON" : "OFF");
+}
+
 // === Public entry point ===================================================
 window.LmathGame = {
     verbose: VERBOSE_DEFAULT,
@@ -6553,7 +6579,8 @@ window.LmathGame = {
         returnFn = returnTo;
         openStart();
     },
-    // For console debugging — operators can call these to jump screens.
+    // For console debugging — operators can call these to jump screens or
+    // visualize the hotspot layout.
     _debug: {
         openStart:    openStart,
         openSettings: openSettings,
@@ -6561,6 +6588,7 @@ window.LmathGame = {
         win:          function () { goWin(); },
         lose:         function () { goLose(); },
         state:        function () { return gameState; },
+        overlay:      setDebugOverlay,        // .overlay(true|false)
     },
 };
 

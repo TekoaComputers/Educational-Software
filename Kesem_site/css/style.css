@@ -483,6 +483,36 @@ h1 {
     outline: 1px dashed rgba(255, 255, 255, .4);
 }
 
+/* Debug overlay — LmathGame._debug.overlay(true). Outlines every hotspot /
+   control so layout positions are visible against the bg artwork. */
+.lmath-debug-on .lmath-hot,
+.lmath-debug-on .lmath-hotspot,
+.lmath-debug-on .lmath-targ,
+.lmath-debug-on .lmath-cmda,
+.lmath-debug-on .lmath-end,
+.lmath-debug-on .lmath-settings-go,
+.lmath-debug-on .lmath-settings-x {
+    outline: 2px solid #f0f;
+    background-color: rgba(255, 0, 255, .15);
+}
+.lmath-debug-on .lmath-bug,
+.lmath-debug-on .lmath-shpup {
+    outline: 2px dashed #0ff;
+}
+.lmath-debug-on .lmath-hot::after,
+.lmath-debug-on .lmath-hotspot::after {
+    content: attr(title);
+    position: absolute;
+    top: -16px;
+    left: 0;
+    background: #f0f;
+    color: #fff;
+    font: 700 10px monospace;
+    padding: 1px 4px;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
 /* Start screen — invisible click-through hotspots over rac.png. */
 .lmath-hot {
     background: transparent;
@@ -545,7 +575,8 @@ h1 {
 
 /* Win-screen petal confetti — original Form3 flat_Timer/flatp_Timer paint
    fla(7..9) and fla(0..5) at scattered positions, accumulating. Our port
-   makes them FALL from above to a random ground spot, then STICK there
+   makes them FALL from above to a random ground spot, spinning along the
+   way (var --rot is randomized per petal in JS), then STICK there
    (animation-fill-mode forwards). */
 .lmath-petal-wrap {
     pointer-events: none;
@@ -556,6 +587,6 @@ h1 {
     pointer-events: none;
 }
 @keyframes lmath-petal-drop {
-    from { transform: translateY(0)             rotate(0deg);   }
-    to   { transform: translateY(var(--land-y)) rotate(180deg); }
+    from { transform: translateY(0)             rotate(0deg);          }
+    to   { transform: translateY(var(--land-y)) rotate(var(--rot));    }
 }
