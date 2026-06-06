@@ -97,8 +97,13 @@ HND.playWave = function (url, onEnded) {
     try {
         HND._audio.pause();
         HND._audio.onended = onEnded || null;
-        // One-shot error listener for this URL — flag it as missing so
-        // we don't spam future attempts (e.g., during a hakira sweep).
+        // The `onerror` event fires when the SOURCE fails to load (404 /
+        // decode error). That's the only signal we use to cache the URL
+        // as missing — the original VB6 `If Exist(...) Then PlayWave`
+        // pattern. play()-promise rejections (AbortError when the next
+        // pause/play interrupts us, NotAllowedError under autoplay block)
+        // are transient and must NOT poison the cache, or the very first
+        // question's audio gets permanently silenced.
         HND._audio.onerror = function () {
             HND._missingWaves[url] = true;
             HND._audio.onerror = null;
@@ -107,12 +112,10 @@ HND.playWave = function (url, onEnded) {
         HND._audio.src = url;
         HND._audio.currentTime = 0;
         const p = HND._audio.play();
-        if (p && p.catch) p.catch(function (err) {
-            HND._missingWaves[url] = true;
-            if (onEnded) onEnded();
+        if (p && p.catch) p.catch(function () {
+            // swallow — not a missing-file signal.
         });
     } catch (e) {
-        HND._missingWaves[url] = true;
         if (onEnded) onEnded();
     }
 };
@@ -865,7 +868,7 @@ HND.deleteNewUnit = function (appId, unitId) {
     return true;
 };
 
-HND.saveProgress = function (appId, unitId, gameId, score) {
+HND.saveProgress = function (appId, unitId, gameId, score, errorsByQ) {
     try {
         const prev = HND.loadProgress(appId, unitId, gameId) || {best: 0, plays: 0};
         const next = {
@@ -873,10 +876,21 @@ HND.saveProgress = function (appId, unitId, gameId, score) {
             last:  score,
             plays: (prev.plays || 0) + 1,
             ts:    Date.now(),
+            // Per-question error buckets (matches AddScore's ErrorsStatus()
+            // byte array in GamesMoudle.bas:571). 0/1/2 per Q, indexed by
+            // question order. Saved against the LAST attempt; we also keep
+            // a `bestErrorsByQ` paired with the best score so the score
+            // form can render the right pie when reviewing best plays.
+            errorsByQ: Array.isArray(errorsByQ) ? errorsByQ.slice() : (prev.errorsByQ || []),
+            bestErrorsByQ:
+                score >= (prev.best || 0) && Array.isArray(errorsByQ)
+                    ? errorsByQ.slice()
+                    : (prev.bestErrorsByQ || []),
         };
         localStorage.setItem(HND._key(appId, unitId, gameId), JSON.stringify(next));
         HND.log("progress save", appId + "/" + unitId + "/" + gameId,
-                "score=" + score, "best=" + next.best, "plays=" + next.plays);
+                "score=" + score, "best=" + next.best, "plays=" + next.plays,
+                "errs=" + (next.errorsByQ.length));
         return next;
     } catch (e) {
         HND.log("progress fail", String(e));

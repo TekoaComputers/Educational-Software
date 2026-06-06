@@ -866,17 +866,20 @@ body {
    Header at y=5-9 in RGB(50,100,210) light-blue. */
 .apple-canopy    { left: 0; top: 0; width: 800px; height: 600px; pointer-events: none; }
 .apple-tree-layer{ left: 0; top: 0; width: 800px; height: 600px; pointer-events: none; }
-/* Foliage occludes the top of the static apples (Foliage.Mask in original
-   covers the upper canopy region). Layered above tree apples, below the
-   falling/picked apple animations. */
+/* Foliage occludes the top of the static apples per GameApple.frm:727:
+     Foliage.Mask 0, 0, , ApplePos(Id).X - 195, ApplePos(Id).Y - 75, ...
+   The Mask call uses src offsets (-195, -75), which means the foliage is
+   logically anchored at (195, 75) on the form at its NATIVE 378×245 size
+   (background.png), and each apple samples the corresponding patch when
+   blitted. As a DOM overlay we render the whole sprite at (195, 75) with
+   z-index ABOVE the static apples — same visual effect. */
 .apple-foliage {
-    left: 0; top: 0; width: 800px; height: 300px;
+    left: 195px; top: 75px; width: 378px; height: 245px;
     pointer-events: none;
     z-index: 4;
     background-image: url("../assets/Hemed/pictures/GameApple/foliage.png");
-    background-size: 100% 100%;
+    background-size: 378px 245px;     /* native, no stretch */
     background-repeat: no-repeat;
-    background-position: top center;
 }
 .apple-fall-layer { left: 0; top: 0; width: 800px; height: 600px;
                     pointer-events: none; z-index: 8; }
@@ -912,24 +915,32 @@ body {
     pointer-events: none;
 }
 
+/* Divider anchors at --apple-div-x (= Middle*7.5 + 25 per .frm:531).
+   width=8 matches middle.png native, height=49 → we round up to 60. */
 .apple-divider {
-    left: 396px; top: 528px; width: 8px; height: 60px;
+    left: calc(var(--apple-div-x, 400px) - 4px);
+    top: 528px; width: 8px; height: 60px;
     background-image: url("../assets/Hemed/pictures/GameApple/middle.png");
     background-size: 100% 100%; background-repeat: no-repeat;
     pointer-events: none;
 }
 
+/* Q text anchored vbCenter at Q_Corner.X with width centered around it.
+   Q_Corner.X is the user's right-of-divider centroid. */
 .apple-q {
-    /* Q text on right side of divider, vbCenter @ Q_Corner.X≈600, Y=540 */
-    left: 410px; right: 30px; top: 540px; height: 50px;
+    left: calc(var(--apple-q-x, 600px) - 180px);
+    width: 360px;
+    top: 540px; height: 50px;
     display: flex; align-items: center; justify-content: center;
     font-size: 1.3rem; font-weight: 700; color: #2a1d0a;
     direction: rtl;
     pointer-events: none;
 }
+/* A text — answer area, vbCenter at A_Corner.X. */
 .apple-a {
-    /* Answer area on left side of divider, char-by-char with q_mark cursors */
-    left: 30px; right: 410px; top: 540px; height: 50px;
+    left: calc(var(--apple-a-x, 200px) - 180px);
+    width: 360px;
+    top: 540px; height: 50px;
     display: flex; align-items: center; justify-content: center;
     font-size: 1.5rem; color: #2a1d0a;
     direction: rtl;
@@ -944,20 +955,15 @@ body {
 .apple-char.non-letter { color: rgba(80,50,20,0.7); }
 .apple-char.filled     { color: #2a1d0a; font-weight: 700; }
 .apple-char.qmark {
-    /* Animated q_mark cursor for unfilled letter positions. */
+    /* Static q_mark cursor for unfilled letter positions.
+       Original GameApple.frm:1146 — PaintText draws frame 1 (no cycle):
+         QMark.MaskBstrech CurrPosX, A_Corner.Y + 10, 1, ...
+       Frames 2..6 are only used in the brief "fill" pop animation
+       (see .apple-char.popping below). The unfilled state is a single
+       still image. */
     width: 22px; height: 30px; vertical-align: middle;
     background-size: 100% 100%; background-repeat: no-repeat;
-    animation: appleQMark 0.6s steps(1) infinite;
-}
-@keyframes appleQMark {
-    0%   { background-image: url("../assets/Hemed/pictures/GameApple/q_mark0.png"); }
-    14%  { background-image: url("../assets/Hemed/pictures/GameApple/q_mark1.png"); }
-    28%  { background-image: url("../assets/Hemed/pictures/GameApple/q_mark2.png"); }
-    42%  { background-image: url("../assets/Hemed/pictures/GameApple/q_mark3.png"); }
-    57%  { background-image: url("../assets/Hemed/pictures/GameApple/q_mark4.png"); }
-    71%  { background-image: url("../assets/Hemed/pictures/GameApple/q_mark5.png"); }
-    85%  { background-image: url("../assets/Hemed/pictures/GameApple/q_mark6.png"); }
-    100% { background-image: url("../assets/Hemed/pictures/GameApple/q_mark0.png"); }
+    background-image: url("../assets/Hemed/pictures/GameApple/q_mark1.png");
 }
 
 .apple-sound {
@@ -969,29 +975,113 @@ body {
 }
 
 /* Falling apple — spawned on wrong keypress, lands with the wrong char. */
+/* Per AppleFall_Timer (GameApple.frm:167-235):
+     Frames 1-8  → PaintApple(i, frame): apple SHAKES on the tree at its
+                   original Y, sprite cycles through frames 1..8.
+     Frames 9-16 → Y = origY + (440 - origY)/7 * (frame-9): parabolic drop
+                   to y=440 (independent of starting slot).
+     Frame 17    → landed; wrong char is drawn above.
+   We split this into a wobble (0..400ms, sprite cycle, stays put) followed
+   by a drop (400..1000ms, translateY by --fall-dy = 440-origY). Each apple
+   gets its own --fall-dy because the original Y varies (108..242). */
 .apple-fall {
-    position: absolute; width: 50px; height: 50px;
-    background-image: url("../assets/Hemed/pictures/GameApple/applered1.png");
+    position: absolute; width: 50px; height: 37px;
     background-size: 100% 100%; background-repeat: no-repeat;
-    display: flex; align-items: center; justify-content: center;
-    color: rgb(220, 0, 0);
-    font-weight: 700; font-size: 1.2rem;
-    text-shadow: 0 1px 1px rgba(255,255,255,0.7);
-    animation: appleFallSpin 0.4s steps(1),
-               appleFallDrop 1.5s ease-in forwards;
+    /* Original AppleFall.Interval = 70 ms (GameApple.frm:28), driving
+       16 frames: 8 wobble + 8 drop = ~1.12 s total. We pace the two
+       phases to match: 560 ms wobble + 560 ms drop.
+       Color is set per-instance by .red / .yellow class (JS adds it
+       based on state.stage — original PaintApple uses ApplePic(Stage)). */
     pointer-events: none;
+    z-index: 6;
 }
-@keyframes appleFallSpin {
-    0%   { background-image: url("../assets/Hemed/pictures/GameApple/applered0.png"); }
-    20%  { background-image: url("../assets/Hemed/pictures/GameApple/applered2.png"); }
-    40%  { background-image: url("../assets/Hemed/pictures/GameApple/applered4.png"); }
-    60%  { background-image: url("../assets/Hemed/pictures/GameApple/applered6.png"); }
-    100% { background-image: url("../assets/Hemed/pictures/GameApple/applered7.png"); }
+.apple-fall.red {
+    background-image: url("../assets/Hemed/pictures/GameApple/applered1.png");
+    animation: appleFallWobbleRed    0.56s steps(1) 0s,
+               appleFallDrop         0.56s cubic-bezier(0.4, 0, 0.7, 1) 0.56s forwards;
+}
+.apple-fall.yellow {
+    background-image: url("../assets/Hemed/pictures/GameApple/appleyellow1.png");
+    animation: appleFallWobbleYellow 0.56s steps(1) 0s,
+               appleFallDrop         0.56s cubic-bezier(0.4, 0, 0.7, 1) 0.56s forwards;
+}
+/* Wobble — frames 1..8 of ApplePic on the tree. The shake comes from
+   alternating sprite frames; we add a small +/- 2px translateX for visual
+   bite, since the original sprites themselves show the apple wiggling. */
+@keyframes appleFallWobbleRed {
+    0%    { background-image: url("../assets/Hemed/pictures/GameApple/applered1.png"); transform: translateX(0); }
+    12.5% { background-image: url("../assets/Hemed/pictures/GameApple/applered2.png"); transform: translateX(-2px); }
+    25%   { background-image: url("../assets/Hemed/pictures/GameApple/applered3.png"); transform: translateX(2px); }
+    37.5% { background-image: url("../assets/Hemed/pictures/GameApple/applered4.png"); transform: translateX(-2px); }
+    50%   { background-image: url("../assets/Hemed/pictures/GameApple/applered5.png"); transform: translateX(2px); }
+    62.5% { background-image: url("../assets/Hemed/pictures/GameApple/applered6.png"); transform: translateX(-2px); }
+    75%   { background-image: url("../assets/Hemed/pictures/GameApple/applered7.png"); transform: translateX(1px); }
+    100%  { background-image: url("../assets/Hemed/pictures/GameApple/applered7.png"); transform: translateX(0); }
+}
+@keyframes appleFallWobbleYellow {
+    0%    { background-image: url("../assets/Hemed/pictures/GameApple/appleyellow1.png"); transform: translateX(0); }
+    12.5% { background-image: url("../assets/Hemed/pictures/GameApple/appleyellow2.png"); transform: translateX(-2px); }
+    25%   { background-image: url("../assets/Hemed/pictures/GameApple/appleyellow3.png"); transform: translateX(2px); }
+    37.5% { background-image: url("../assets/Hemed/pictures/GameApple/appleyellow4.png"); transform: translateX(-2px); }
+    50%   { background-image: url("../assets/Hemed/pictures/GameApple/appleyellow5.png"); transform: translateX(2px); }
+    62.5% { background-image: url("../assets/Hemed/pictures/GameApple/appleyellow6.png"); transform: translateX(-2px); }
+    75%   { background-image: url("../assets/Hemed/pictures/GameApple/appleyellow7.png"); transform: translateX(1px); }
+    100%  { background-image: url("../assets/Hemed/pictures/GameApple/appleyellow7.png"); transform: translateX(0); }
 }
 @keyframes appleFallDrop {
-    0%   { transform: translateY(0)    rotate(0deg);   opacity: 1; }
-    80%  { transform: translateY(280px) rotate(360deg); opacity: 1; }
-    100% { transform: translateY(310px) rotate(360deg); opacity: 0; }
+    0%   { transform: translateY(0)              rotate(0deg);   }
+    100% { transform: translateY(var(--fall-dy)) rotate(360deg); }
+}
+
+/* Wrong-char label — DrawString CharToDraw at (ApplePos.X+20, Y-50) in
+   RGB(220, 0, 0). It hovers above the apple and falls with it. */
+.apple-char-label {
+    position: absolute;
+    color: rgb(220, 0, 0);
+    font-weight: 700; font-size: 1.6rem;
+    text-shadow: 0 1px 2px rgba(255,255,255,0.9), 0 -1px 0 rgba(0,0,0,0.3);
+    pointer-events: none;
+    z-index: 7;
+    /* Matches the apple's wobble-then-drop timing so the char hovers above
+       during shake and drops with it. */
+    animation: appleFallDrop 0.56s cubic-bezier(0.4, 0, 0.7, 1) 0.56s forwards;
+}
+
+/* q_mark pop on freshly-filled answer cell — original Form_KeyUp:622-628
+   cycles QMark frames 2..6 (with Sleep 70ms each) at the CharsX position
+   before PaintText draws the actual letter. We collapse to a quick scale
+   pop using the existing q_mark sprites as keyframes. */
+.apple-char.popping {
+    animation: appleQMarkPop 0.35s steps(1) forwards;
+}
+@keyframes appleQMarkPop {
+    0%   { background-image: url("../assets/Hemed/pictures/GameApple/q_mark2.png"); transform: scale(1.2); color: transparent; }
+    20%  { background-image: url("../assets/Hemed/pictures/GameApple/q_mark3.png"); transform: scale(1.1); color: transparent; }
+    40%  { background-image: url("../assets/Hemed/pictures/GameApple/q_mark4.png"); transform: scale(1.0); color: transparent; }
+    60%  { background-image: url("../assets/Hemed/pictures/GameApple/q_mark5.png"); transform: scale(0.85); color: transparent; }
+    80%  { background-image: url("../assets/Hemed/pictures/GameApple/q_mark6.png"); transform: scale(0.7); }
+    100% { background-image: none; transform: scale(1); }
+}
+
+/* Goat walk-to-basket — fires on .pick state. Original TimerGoatBmp Case 0
+   walks the goat left from GoatX=629 to off-screen (GoatX < -200) via
+   GoatAni0 sprite cycle, drops the basket at BasketPos.X, then walks
+   back. We approximate via two-phase translate: out + return. */
+.apple-goat.pick {
+    animation: appleGoatWalkLeft 1.6s steps(1) forwards;
+}
+@keyframes appleGoatWalkLeft {
+    0%   { background-image: url("../assets/Hemed/pictures/GameApple/goatani0_0.png");  transform: translateX(0); }
+    10%  { background-image: url("../assets/Hemed/pictures/GameApple/goatani0_2.png");  transform: translateX(-70px); }
+    20%  { background-image: url("../assets/Hemed/pictures/GameApple/goatani0_4.png");  transform: translateX(-140px); }
+    30%  { background-image: url("../assets/Hemed/pictures/GameApple/goatani0_6.png");  transform: translateX(-220px); }
+    40%  { background-image: url("../assets/Hemed/pictures/GameApple/goatani0_8.png");  transform: translateX(-340px); }
+    50%  { background-image: url("../assets/Hemed/pictures/GameApple/goatani0_10.png"); transform: translateX(-470px); }
+    60%  { background-image: url("../assets/Hemed/pictures/GameApple/goatani0_9.png");  transform: translateX(-600px); }
+    70%  { background-image: url("../assets/Hemed/pictures/GameApple/goatani0_7.png");  transform: translateX(-540px); }
+    80%  { background-image: url("../assets/Hemed/pictures/GameApple/goatani0_5.png");  transform: translateX(-380px); }
+    90%  { background-image: url("../assets/Hemed/pictures/GameApple/goatani0_3.png");  transform: translateX(-180px); }
+    100% { background-image: url("../assets/Hemed/pictures/GameApple/goatani0_1.png");  transform: translateX(0); }
 }
 
 /* Goat at GoatX=629, GoatY=335 — 170×178 native. */
@@ -1004,12 +1094,21 @@ body {
     pointer-events: none;
 }
 .apple-goat.enter { animation: appleGoatEnter 0.72s steps(1); }
-.apple-goat.stand { background-image: url("../assets/Hemed/pictures/GameApple/goat_stand1.png"); }
+/* Idle stand — original cycles goatani1_0 / goatani0_0 etc. We use a
+   subtle vertical-shift breathing motion on the same stand sprite. */
+.apple-goat.stand {
+    background-image: url("../assets/Hemed/pictures/GameApple/goat_stand1.png");
+    animation: appleGoatBreath 3s ease-in-out infinite;
+}
+@keyframes appleGoatBreath {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-1.5px); }
+}
 .apple-goat.sad   { background-image: url("../assets/Hemed/pictures/GameApple/goat_sad1.png"); }
 .apple-goat.yes   { animation: appleGoatYes 0.64s steps(1); }
 .apple-goat.no    { animation: appleGoatNo  0.72s steps(1); }
 .apple-goat.eat   { animation: appleGoatEat 0.56s steps(1); }
-.apple-goat.pick  { animation: appleGoatPick 0.6s steps(1); }
+/* .apple-goat.pick is defined above with the walk-to-basket animation. */
 .apple-goat.win   { animation: appleGoatWin 1.2s steps(1) infinite; }
 
 @keyframes appleGoatEnter {

@@ -366,7 +366,7 @@ HND.startHaklada = function (root, app, unit, onComplete) {
         state.completed = true;
         const score = Math.max(0, 100 - Math.floor(state.penalty));
         HND.log("haklada FINISH", "score=" + score, "penalty=" + state.penalty);
-        HND.saveProgress(app.id, unit.id, "haklada", score);
+        HND.saveProgress(app.id, unit.id, "haklada", score, state.errorsByQ);
         setHakGoat("win");
         const stage = root.parentElement;
         setTimeout(function () {

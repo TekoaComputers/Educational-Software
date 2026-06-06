@@ -360,7 +360,7 @@ HND.startAmerican = function (root, app, unit, onComplete) {
         state.completed = true;
         const score = Math.max(0, 100 - Math.floor(state.penalty));
         HND.log("american FINISH", "score=" + score, "penalty=" + state.penalty);
-        HND.saveProgress(app.id, unit.id, "american", score);
+        HND.saveProgress(app.id, unit.id, "american", score, state.errorsByQ);
         const stage = root.parentElement;
         setTimeout(function () {
             HND.showScoreForm(
