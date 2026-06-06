@@ -52,12 +52,12 @@
     s.id = 'vk-styles';
     s.textContent = `
       #vk-panel {
-        position: fixed; right: 12px; bottom: 12px;
+        position: fixed; right: 12px; bottom: 56px;
         display: none; grid-template-columns: repeat(3, 48px);
         gap: 4px; padding: 24px 8px 8px 8px;  /* extra top padding for the close button */
         background: rgba(20, 20, 30, 0.78);
         border-radius: 10px;
-        z-index: 9999;
+        z-index: 2147483640;
         /* Force LTR so the grid flows 7-8-9 left-to-right (parent html has dir=rtl). */
         direction: ltr;
         user-select: none; -webkit-user-select: none;
@@ -85,13 +85,13 @@
       }
       #vk-close:hover, #vk-close:active { opacity: 1; }
       #vk-toggle {
-        position: fixed; right: 12px; bottom: 12px;
+        position: fixed; right: 12px; bottom: 56px;
         width: 44px; height: 44px;
         font: bold 22px sans-serif; color: #fff;
         background: rgba(20, 20, 30, 0.78);
         border: 1px solid rgba(255,255,255,0.15);
         border-radius: 22px;
-        cursor: pointer; z-index: 9999;
+        cursor: pointer; z-index: 2147483640;
         display: none; align-items: center; justify-content: center;
       }
       /* Show the floating toggle only when on a game screen AND panel is closed. */
