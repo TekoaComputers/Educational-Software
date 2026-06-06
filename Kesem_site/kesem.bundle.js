@@ -1812,13 +1812,12 @@ function applyKolKoreARamaLayout(state) {
         lamps[parseInt(el.dataset.index, 10)] = el;
     });
 
-    // Reset all to design defaults via inline-style clear so we don't bleed
-    // rama-1 overrides into rama 2 and vice versa.
+    // Only reset display — don't reset left/top/width/height here because
+    // the r1/r2 tables below provide fully explicit values for every visible
+    // icon, and clearing geometry without restoring it collapses icons to 0-height.
     [icons, lamps].forEach(function (set) {
         Object.keys(set).forEach(function (k) {
-            const el = set[k];
-            el.style.left = ""; el.style.top = ""; el.style.width = ""; el.style.height = "";
-            el.style.display = "";
+            set[k].style.display = "";
         });
     });
 
@@ -1833,62 +1832,62 @@ function applyKolKoreARamaLayout(state) {
             }
             if (lamps[i]) lamps[i].style.display = "none";
         }
-        // Explicit per-button positions per Sst.frm Case 0.
+        // Fully-explicit positions per Sst.frm Case 0 (left from design where
+        // the original never changed it; height = VB6 design Height/15).
         const r1 = {
-            0: { left: 367, top: 208 },
-            1: { top: 363 },
-            2: { left: 127 },
-            3: { left: 468, top: 363 },
-            4: { left:  40, top: 363 },
+            0: { left: 367, top: 208, width: 136, height: 74 },
+            1: { left: 257, top: 363, width: 136, height: 73 },
+            2: { left: 127, top: 208, width: 136, height: 74 },
+            3: { left: 468, top: 363, width: 136, height: 73 },
+            4: { left:  40, top: 363, width: 136, height: 73 },
         };
         for (let i = 0; i <= 4; i++) {
             const el = icons[i];
             if (!el) continue;
-            const ov = r1[i] || {};
-            if (ov.left != null) el.style.left = ov.left + "px";
-            if (ov.top  != null) el.style.top  = ov.top  + "px";
-            el.style.width = "136px";
+            const ov = r1[i];
+            el.style.left   = ov.left   + "px";
+            el.style.top    = ov.top    + "px";
+            el.style.width  = ov.width  + "px";
+            el.style.height = ov.height + "px";
             const lampEl = lamps[i];
             if (lampEl) {
-                // Lamp.Top = icon.Top + icon.Height + 3
-                const iconTop = parseFloat(el.style.top || "0");
-                const iconH = el.offsetHeight || 100;
-                lampEl.style.top = (iconTop + iconH + 3) + "px";
-                const iconLeft = parseFloat(el.style.left || "0");
-                lampEl.style.left = (iconLeft + 40) + "px";
+                lampEl.style.top  = (ov.top + ov.height + 3) + "px";
+                lampEl.style.left = (ov.left + 40) + "px";
             }
         }
     } else {
         // Rama 2 — 12 visible, narrower (Width=62).
+        // Fully-explicit positions: left/top from Sst.frm Case 1 where set,
+        // design-time values elsewhere; height = VB6 design Height/15.
         const r2 = {
-            1: { top: 213 },
-            2: { left: 45 },
-            3: { left: 461, top: 365 },
-            4: { left:  44, top: 367 },
+             0: { left: 454, top: 218, width: 62, height: 74 },
+             1: { left: 257, top: 213, width: 62, height: 73 },
+             2: { left:  45, top: 208, width: 62, height: 74 },
+             3: { left: 461, top: 365, width: 62, height: 73 },
+             4: { left:  44, top: 367, width: 62, height: 73 },
+             5: { left: 534, top: 218, width: 62, height: 73 },
+             6: { left: 338, top: 213, width: 62, height: 73 },
+             7: { left: 125, top: 210, width: 62, height: 73 },
+             8: { left: 540, top: 365, width: 62, height: 73 },
+             9: { left: 335, top: 365, width: 62, height: 73 },
+            10: { left: 125, top: 367, width: 62, height: 73 },
+            11: { left: 255, top: 365, width: 62, height: 73 },
         };
         for (let i = 0; i <= 11; i++) {
             const el = icons[i];
             if (!el) continue;
-            const ov = r2[i] || {};
-            if (ov.left != null) el.style.left = ov.left + "px";
-            if (ov.top  != null) el.style.top  = ov.top  + "px";
-            el.style.width = "62px";
-        }
-        // btnIcon(0).Top = btnIcon(5).Top  — must run AFTER btnIcon(5)'s top
-        // is locked-in. icons[5] uses design Left/Top via the renderer.
-        if (icons[0] && icons[5]) {
-            icons[0].style.left = "454px";
-            const top5 = icons[5].style.top || (window.getComputedStyle(icons[5]).top);
-            icons[0].style.top = top5;
+            const ov = r2[i];
+            el.style.left   = ov.left   + "px";
+            el.style.top    = ov.top    + "px";
+            el.style.width  = ov.width  + "px";
+            el.style.height = ov.height + "px";
         }
         for (let i = 0; i <= 11; i++) {
             const el = icons[i]; if (!el) continue;
             const lampEl = lamps[i]; if (!lampEl) continue;
-            const iconTop = parseFloat(el.style.top || (window.getComputedStyle(el).top) || "0");
-            const iconH = el.offsetHeight || 100;
-            lampEl.style.top = (iconTop + iconH + 3) + "px";
-            const iconLeft = parseFloat(el.style.left || (window.getComputedStyle(el).left) || "0");
-            lampEl.style.left = (iconLeft + 5) + "px";
+            const ov = r2[i];
+            lampEl.style.top  = (ov.top + ov.height + 3) + "px";
+            lampEl.style.left = (ov.left + 5) + "px";
         }
     }
 }
@@ -3202,9 +3201,15 @@ function handleAction(appId, action /*, ctrl */) {
         //   dam = CD_Dir + "\avi\_" & rama & Index+1 & ".avi"
         //   If exist(dam) Then VideoFile = dam: VideoBox.Show 1
         // One avi label per path tile (5 of them); index maps to btnIcon idx.
+        // KolKoreA ships _01.mp4–_05.mp4 (rama=1) and _31.mp4–_36.mp4 (rama=2)
+        // rather than the _${rama}N Heshbon convention.
         if (!currentSession) return;
         const idx = parseInt(action.split(":")[1], 10);
-        const vbPath = "\\avi\\_" + currentSession.rama + (idx + 1) + ".avi";
+        let aviRamaPrefix = currentSession.rama;
+        if (appId === "KolKoreA") {
+            aviRamaPrefix = (currentSession.rama - 1) * 3;
+        }
+        const vbPath = "\\avi\\_" + aviRamaPrefix + (idx + 1) + ".avi";
         const rel = resolveVideoPath(currentSession, vbPath);
         if (rel) playVideo(currentSession.config.assetsRoot + "/" + rel);
         else klog("avi: missing (" + vbPath + ")");
