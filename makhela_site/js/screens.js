@@ -1284,9 +1284,9 @@
         tempo.className = "tempo-control";
         tempo.innerHTML =
             '<span class="tempo-label">קצב</span>' +
-            '<button class="tempo-btn" data-act="fast">−</button>' +
+            '<button class="tempo-btn" data-act="fast">+</button>' +
             '<input type="range" min="80" max="600" step="20">' +
-            '<button class="tempo-btn" data-act="slow">+</button>';
+            '<button class="tempo-btn" data-act="slow">−</button>';
         stage.appendChild(tempo);
         const slider = tempo.querySelector("input[type=range]");
         slider.value = _tempoMs;
