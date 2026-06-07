@@ -118,9 +118,27 @@
     //              underlying stage background shows through everywhere
     //              outside the rect.
     //   onEnd:     callback when the anim is done.
+    // The currently-running anim's stop() — call it before kicking off a
+    // new playAnim so the old one's companion sound (Audio / PicoAudio) gets
+    // stopped. Without this, rapid song-line clicks each removed the prior
+    // video element but left its sound playing, stacking up (issue #10:
+    // "when clicking multiple lines at a rapid pace it doesnt reset what
+    // the kid is singing it just overlaps on itself").
+    //
+    // We intentionally only stop resources here — the previous anim's onEnd
+    // callback is NOT fired on interruption. Some callers use onEnd to
+    // navigate (MKH.go) or to chain into another anim; firing them on every
+    // user click would cause the wrong-clicked anim to also navigate.
+    let activeAnimStop = null;
+
     function playAnim(stage, url, opts) {
         opts = opts || {};
         if (!url) { if (opts.onEnd) opts.onEnd(); return null; }
+        if (activeAnimStop) {
+            const s = activeAnimStop;
+            activeAnimStop = null;
+            try { s(); } catch (e) {}
+        }
         MKH.log("anim", "play", url);
 
         const v = document.createElement("video");
@@ -140,14 +158,22 @@
         const sound = startCompanionSound(opts.sound);
 
         let fired = false;
-        function finish() {
+        // Interrupted by a new playAnim — stop resources, NO onEnd callback.
+        function stopOnly() {
             if (fired) return;
             fired = true;
+            if (activeAnimStop === stopOnly) activeAnimStop = null;
             try { v.pause(); } catch (e) {}
             sound.stop();
+        }
+        // Natural end (timeupdate near end / ended event / sound-ended hook).
+        function finish() {
+            if (fired) return;
+            stopOnly();
             MKH.log("anim", "ended", url);
             if (opts.onEnd) opts.onEnd();
         }
+        activeAnimStop = stopOnly;
 
         const STOP_WINDOW = 0.06;
         v.addEventListener("timeupdate", () => {
