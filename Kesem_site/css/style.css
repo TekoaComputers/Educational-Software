@@ -99,6 +99,20 @@ h1 {
     user-drag: none;
 }
 
+/* Mirror VB6's Timer1_Timer / Timer2_Timer: while MMControl2.Mode = 526
+   (any audio playing), the original swaps the act1 button picture to its
+   "_2" disabled sprite (nex2.bmp, sanb2.bmp, sana2.bmp, sev2.bmp) so the
+   user can see it's inert. We approximate that with a CSS dim on every
+   control marked data-audio-gated when the stage is in audio-busy mode.
+   Click handlers also short-circuit on audioBusy — the dim is purely the
+   "you can see it" half of the original behaviour.  */
+.frm-stage.audio-busy [data-audio-gated="1"] {
+    opacity: 0.45;
+    cursor: not-allowed;
+    filter: saturate(0.6);
+    transition: opacity .08s ease, filter .08s ease;
+}
+
 .frm-bg {
     position: absolute;
     inset: 0;

@@ -1687,6 +1687,18 @@ function onScreenChange(state, screenId) {
     const isGameScreen = screenId && screenId.indexOf("game") === 0;
     if (!isGameScreen) stopAllAudio(state);
 
+    // Mark which act1 buttons this game disables during audio, and start a
+    // poll that toggles .audio-busy on .frm-stage. CSS dims gated controls
+    // while audio plays so the user sees them inert (1:1 with original VB6
+    // sprite-swap on .Enabled = False). Outside game screens, stop the
+    // watcher and clear any leftover dim state.
+    if (isGameScreen) {
+        markAct1GatedControls(state);
+        startAudioGateWatcher(state);
+    } else {
+        stopAudioGateWatcher(state);
+    }
+
     if (screenId === "catalog") {
         wireDvashCatalog(state);
     } else if (screenId === "mashal") {
@@ -2850,13 +2862,62 @@ function stopAllAudio(state) {
 }
 
 // Mirrors Games*.frm Timer1_Timer / Timer2_Timer: while MMControl2.Mode = 526
-// (audio playing), act1 audio-replay buttons are forced to Enabled = False so
-// their clicks are no-ops. We check this at the act1 dispatch site below.
+// every interactive control except the exit hotspot is .Enabled = False —
+// Picture1, every act1 except (4), Picture2, btnGolos, btnHelp. We check
+// this at every click site (per-game) and via the act1 dispatch below.
 function audioBusy(state) {
     if (!state) return false;
     if (state.inputLocked) return true;
     const a = state._audio;
     return !!(a && a.src && !a.paused && !a.ended);
+}
+
+// Add `data-audio-gated="1"` to the act1 controls the current screen
+// disables during audio (per the Games*.frm Timer1/Timer2 tables). Used
+// by CSS to dim them when .frm-stage.audio-busy is set so silently-ignored
+// clicks don't read as "button broken" (issue #20).
+//
+//   game1 / game2 / game4 (Games.frm/Games2.frm/Games4.frm): 0, 1
+//   game3                  (Games3.frm):                       0, 2, 3
+//   game5                  (Games5.frm):                       0, 1
+//
+// idx 4 (Ezia/exit) is never gated.
+function markAct1GatedControls(state) {
+    if (!state || !state.stage) return;
+    const screen = state.currentScreen;
+    const gated = screen === "game3"
+        ? new Set([0, 2, 3])
+        : new Set([0, 1]);
+    state.stage.querySelectorAll(".frm-ctrl--act1").forEach(function (el) {
+        const idx = parseInt(el.dataset.index, 10);
+        if (gated.has(idx)) el.dataset.audioGated = "1";
+        else delete el.dataset.audioGated;
+    });
+}
+
+// Polls audioBusy and toggles .audio-busy on .frm-stage so CSS can dim
+// every control marked data-audio-gated. Cheap and reactive without
+// having to hook every audio play/pause/onended/stopAllAudio site.
+function startAudioGateWatcher(state) {
+    if (!state || state._audioGateTimer) return;
+    let lastBusy = null;
+    function tick() {
+        if (!state || !state.stage) return;
+        const busy = audioBusy(state);
+        if (busy !== lastBusy) {
+            lastBusy = busy;
+            state.stage.classList.toggle("audio-busy", busy);
+        }
+    }
+    tick();
+    state._audioGateTimer = setInterval(tick, 100);
+}
+
+function stopAudioGateWatcher(state) {
+    if (!state || !state._audioGateTimer) return;
+    clearInterval(state._audioGateTimer);
+    state._audioGateTimer = null;
+    if (state.stage) state.stage.classList.remove("audio-busy");
 }
 
 // Several Sst controls are designtime Visible=0 and unhidden at runtime by
@@ -3336,14 +3397,17 @@ function handleAction(appId, action /*, ctrl */) {
         if (!currentSession) return;
         const idx = parseInt(action.split(":")[1], 10);
         const screen = currentSession.currentScreen;
-        // Mirror Games*.frm Timer1/Timer2 disabling act1 audio-replay buttons
-        // while MMControl2.Mode = 526. Without this, a tap on the bottom
-        // "say it again" buttons mid-chain interrupts the running audio and
-        // detaches its onended → state.inputLocked never clears → game stuck.
-        //   Games.frm  (game1/2/4): block 0, 1
-        //   Games3.frm (game3):     block 0, 2, 3   (1 = hak inspect is allowed)
-        //   Games5.frm (game5):     block 0, 1
-        //   act1(4) (Ezia/exit) is never gated.
+        // Match the original 1:1: Games*.frm Timer1/Timer2 disable act1
+        // buttons while MMControl2.Mode = 526. Per-form table:
+        //   Games.frm  (game1/2/4): act1(0), act1(1) disabled
+        //   Games3.frm (game3):     act1(0), act1(2), act1(3) disabled
+        //                            (act1(1) = hak inspect stays enabled)
+        //   Games5.frm (game5):     act1(0), act1(1) disabled
+        //   act1(4) (Ezia/exit) is never disabled.
+        // The disabled state is also reflected visually — see
+        // applyAct1AudioGateClass below, which mirrors the VB6 sprite swap
+        // (nex1→nex2 etc.) using a CSS dim so silently-ignored clicks
+        // don't read as "broken".
         if (idx !== 4) {
             const gated = screen === "game3"
                 ? (idx === 0 || idx === 2 || idx === 3)
@@ -5006,7 +5070,11 @@ function runCorrectChain(state, idx, onComplete) {
 // === Per-game click handlers ==============================================
 
 function onCorrectClickGame1(state, vbIdx) {
-    if (state.inputLocked) { klog("game1 hotspot click ignored — input locked"); return; }
+    // Original Games.frm Timer1_Timer disables Picture1 + act1(0..1) while
+    // MMControl2.Mode = 526 — i.e. EVERY hotspot click is a no-op while any
+    // audio is playing, not just during the correct chain. Use audioBusy
+    // here (covers state.inputLocked too) to match 1:1.
+    if (audioBusy(state)) { klog("game1 hotspot click ignored — audio busy"); return; }
     klog("CLICK game1 hotspot[" + vbIdx + "] = target (correct)");
     markStageProgressAt(state, vbIdx - 1);
     runCorrectChain(state, vbIdx, function () {
@@ -5020,9 +5088,10 @@ function onCorrectClickGame1(state, vbIdx) {
 }
 
 function onCorrectClickGame2(state) {
-    // Ignore taps that arrive during the audio chain — matches original
-    // Picture1_MouseDown guard (`If act1(0).Enabled = True Then ...`).
-    if (state.inputLocked) { klog("game2 hotspot click ignored — input locked"); return; }
+    // Original Games2.frm Picture1_MouseDown is guarded by act1(0).Enabled,
+    // and Timer2_Timer pins that False whenever MMControl2.Mode = 526. So
+    // every click during ANY audio (chain or single-shot) is a no-op.
+    if (audioBusy(state)) { klog("game2 hotspot click ignored — audio busy"); return; }
     const idx = state.Gg_N;
     klog("CLICK game2 hotspot[" + idx + "] = target (Pobeda=" + state.Pobeda + ")");
     markStageProgressAt(state, state.Pobeda);
@@ -5054,6 +5123,11 @@ function onCorrectClickGame2(state) {
 }
 
 function onInspectClick(state, vbIdx) {
+    // Original Games3.frm Timer1_Timer disables Picture1 while MMControl2.Mode
+    // = 526, so hotspot Label1_MouseDown doesn't fire while audio plays. The
+    // generic pic1-level click filter only blocks bg clicks; the hotspot
+    // buttons themselves go through here. Gate on audioBusy.
+    if (audioBusy(state)) { klog("game3 hotspot click ignored — audio busy"); return; }
     const stage = state.activeStage;
     klog("CLICK game3 hotspot[" + vbIdx + "] (inspect)");
     markInspectProgress(state);
@@ -5280,6 +5354,9 @@ function flashGame3Hotspot(state, vbIdx) {
 
 // Game 4 helek=1: click on Picture2 piece preview. Correct if Gg_N==Pr_N.
 function onGame4PieceClick(state) {
+    // Original Games4.frm Timer2_Timer disables Picture2 + act1(0..1) while
+    // audio plays. Picture2_Click in the original is a no-op until audio ends.
+    if (audioBusy(state)) { klog("game4 piece click ignored — audio busy"); return; }
     klog("CLICK game4 Picture2 piece (Gg_N=" + state.Gg_N + " Pr_N=" + state.Pr_N + ")");
     if (state.Gg_N === state.Pr_N) {
         // Picture2_Click correct path: play Tguva11/22/33 (seder=15),
@@ -5302,7 +5379,7 @@ function onGame4PieceClick(state) {
 
 // Game 4 helek=2: click on Picture1 inside Label1(Pr_N) places the piece.
 function onCorrectClickGame4Place(state) {
-    if (state.inputLocked) { klog("game4 place click ignored — input locked"); return; }
+    if (audioBusy(state)) { klog("game4 place click ignored — audio busy"); return; }
     const idx = state.Pr_N;
     klog("CLICK game4 Picture1 hotspot[" + idx + "] = placement target (correct)");
     markStageProgressAt(state, state.Pobeda);
@@ -5329,7 +5406,7 @@ function onCorrectClickGame4Place(state) {
 
 // Game 5: click a Picture2 thumbnail. slotIdx is 1-based.
 function onGame5PieceClick(state, slotIdx, vbIdx) {
-    if (state.inputLocked) { klog("game5 click ignored — input locked"); return; }
+    if (audioBusy(state)) { klog("game5 click ignored — audio busy"); return; }
     klog("CLICK game5 Picture2[" + slotIdx + "] vbIdx=" + vbIdx + " Pr_N=" + state.Pr_N);
     if (slotIdx === state.Pr_N) {
         markStageProgressAt(state, state.Pobeda);
@@ -5393,7 +5470,7 @@ function onWrongClick(state) {
     // otherwise fast clicks land on the correct hotspot mid-wrong-cue,
     // trigger runCorrectChain, and the user hears the positive Tguva right
     // after their "wrong" click (the audio-mixup half of issue #15).
-    if (state.inputLocked) { klog("click ignored — input locked (audio chain)"); return; }
+    if (audioBusy(state)) { klog("wrong-area click ignored — audio busy"); return; }
     // Games.frm Tguva_Taut: MspTaut++; 1st → 7/8.wav, 2nd → 9/10.wav, 3rd → Remez.
     state.wrongCount = (state.wrongCount || 0) + 1;
     klog("CLICK Picture1 wrong-area (count=" + state.wrongCount + ")");
