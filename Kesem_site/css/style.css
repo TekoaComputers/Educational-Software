@@ -86,6 +86,17 @@ h1 {
     /* Controls that fall outside the visible BG region are clipped here —
        matches VB6's maximize-to-640x480 clipping behaviour. */
     overflow: hidden;
+    /* The original VB6 forms aren't browsable: you can't drag-select text or
+       images, can't long-press a tile to get a "save image" callout. Disable
+       all of that on the stage so the games feel app-native, not web-native. */
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
+.frm-stage img {
+    -webkit-user-drag: none;
+    user-drag: none;
 }
 
 .frm-bg {
