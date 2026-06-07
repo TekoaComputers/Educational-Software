@@ -50,15 +50,21 @@ HND.startMatch = function (root, app, unit, onComplete) {
         root.innerHTML = '<div class="error">אין נתוני התאמה ביחידה זו.</div>';
         return;
     }
-    // Hebrew layout: WhatToAsk = qRight (the visible question text on the
-    // right paper). WhatToAnswer = qLeft (audio side, the "translation").
-    const askCol = cols[2] || cols[0];
-    const ansCol = cols[1] || cols[0];
+    // Resolve per-unit calibration (orig CurrentCalibration). Match's
+    // slot is 1 (cal-block 1). Teacher units in Hemed+Nivim flip Q/A
+    // (19/31 Nivim units use WhatToAsk=qLeft), so don't hardcode.
+    const cal = HND.gameCalibrationFromSlot(unit, app.id, 1);
+    const askCol  = cal.askCol;
+    const ansCol  = cal.ansCol;
+    const askSide = cal.askSide;
+    const ansSide = cal.ansSide;
 
     const LINES_IN = 9;
-    const QCount   = Math.min(items.length, LINES_IN);
-    // IdOrder[]: random shuffled item indices, length QCount.
-    const idOrder = HND._shuffle(items.map(function (_, i) { return i; })).slice(0, QCount);
+    // Honor calibration QLimit (orig PlayGame:504) capped at LINES_IN.
+    const QCount   = Math.min(cal.qLimit > 0 ? cal.qLimit : items.length, LINES_IN);
+    // IdOrder[]: shuffled item indices when IfRandom (orig PlayGame:520-528).
+    const rawIdxs = items.map(function (_, i) { return i; });
+    const idOrder = (cal.ifRandom ? HND._shuffle(rawIdxs) : rawIdxs).slice(0, QCount);
     // LinePicOrder[]: which sprite-sheet row (0..9) each line uses.
     const linePicOrder = (function () {
         const arr = [];
@@ -251,8 +257,8 @@ HND.startMatch = function (root, app, unit, onComplete) {
         // marks the FIRST unanswered as the cursor for keyboard nav, not
         // the asked Q itself. We just play the audio for the asked Q.
         HND.log("match ask", "qId=" + state.qId, "origIdx=" + idOrder[state.qId]);
-        // Play the answer-side wave for this Q (audio "asks" the user).
-        HND.playWave(HND.unitWavePath(app.id, unit.id, idOrder[state.qId], "right"));
+        // Play the WhatToAsk-side wave for this Q (orig CmdSound_Click).
+        HND.playWave(HND.unitWavePath(app.id, unit.id, idOrder[state.qId], askSide));
         state.gameEnabled = true;
         // Goat looks at the visible cursor — pick first unanswered.
         for (let i = 0; i < QCount; i++) {
@@ -297,19 +303,15 @@ HND.startMatch = function (root, app, unit, onComplete) {
                 growFlower(state.qAnswered - 1, state.errorCount);
                 setGoatPose("cheer");
                 setTimeout(function () { setGoatPose(""); }, 800);
-                // Chain: play praise (answer) wave, then NextQuestion on done.
-                // Matches the original WaveMe_Done Case 2 → 1 flow.
-                HND.playWave(
-                    HND.unitWavePath(app.id, unit.id, idOrder[rowIdx], "left"),
-                    function onPraiseDone() {
-                        state.errorCount = 0;
-                        if (state.qAnswered >= QCount) {
-                            finishGame();
-                        } else {
-                            nextQuestion();
-                        }
-                    }
-                );
+                // Chain: play CombineQA sequence (orig WaveMe_Done flow).
+                // "0" = ans side only; "7" = ask then ans; "8" = right→left;
+                // "9" = left→right. Honors per-unit teacher overrides.
+                const onDone = function () {
+                    state.errorCount = 0;
+                    if (state.qAnswered >= QCount) finishGame();
+                    else                            nextQuestion();
+                };
+                HND.playCombineFromCal(app.id, unit.id, idOrder[rowIdx], cal, onDone);
             }, 200);
         } else {
             // Wrong — Penalty += 20/QCount, capped at 60.
@@ -344,13 +346,10 @@ HND.startMatch = function (root, app, unit, onComplete) {
     }
 
     function showHint() {
-        // Original PaintHint reads from WhatToHint (or WhatToAnswer if hint
-        // is disabled). It must reveal the *answer side* — never the ask
-        // side, which the user already hears. Prefer hint column if a
-        // distinct one exists, else fall back to ansCol.
+        // Orig PaintHint reads from WhatToHint (calibration field 9).
+        // Fall back to answer column if no hint side configured.
         const it = items[idOrder[state.qId]];
-        const hintCol = cols[0] !== askCol && cols[0] !== ansCol ? cols[0] : null;
-        const text = (hintCol && it[hintCol]) || it[ansCol] || "";
+        const text = (cal.hintCol && it[cal.hintCol]) || it[ansCol] || "";
         hintBox.textContent = "רמז: " + text;
     }
 

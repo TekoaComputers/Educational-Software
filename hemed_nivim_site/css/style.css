@@ -674,12 +674,17 @@ body {
 .am-options-layer { left: 0; top: 0; width: 800px; height: 600px; }
 
 .am-header {
-    left: 0; right: 0; top: 8px;
-    text-align: center; font-size: 1.1rem; font-weight: 700;
+    /* Orig Form_Paint:781-783 — DrawString TempStr at (400, 10), (400, 13),
+       (400, 12) in RGB(160,190,245) / RGB(110,110,225) / RGB(20,40,200).
+       Reproduce the 3-layer offset shadow effect via two text-shadow
+       offsets matching the orig +2/-2 px Y separation. */
+    left: 0; right: 0; top: 10px;
+    text-align: center; font-size: 22pt; font-weight: 700;
+    font-family: "David CLM", "Arial Hebrew", "Heebo", "Segoe UI", Arial, sans-serif;
     color: rgb(20, 40, 200);
     text-shadow:
-        0 1px 0 rgb(160, 190, 245),
-        0 -1px 0 rgb(110, 110, 225);
+        0 2px 0 rgb(160, 190, 245),
+        0 -2px 0 rgb(110, 110, 225);
     pointer-events: none;
 }
 /* Calibration.Instructions banner — Form_Paint at (400, 40) in
@@ -693,12 +698,31 @@ body {
 }
 
 .am-penalty {
+    /* Orig ShowPenalty:1036-1046 — 3-layer DrawString at (25, 487/488/489)
+       in RGB(255,220,180) cream / RGB(255,180,130) tan / RGB(190,80,20)
+       dark-orange. The clear-rect is (2, 487, 50, 25) so position the
+       text-cell at left=2, top=487, width=50, height=25, centered. */
     left: 2px; top: 487px; width: 50px; height: 25px;
-    text-align: center; font-size: 1.4rem; font-weight: 700;
+    text-align: center;
+    font: 700 22pt "David CLM", "Arial Hebrew", "Heebo", "Segoe UI", Arial, sans-serif;
     color: rgb(190, 80, 20);
     text-shadow:
-        0 1px 1px rgb(255, 220, 180),
+        0  1px 0 rgb(255, 220, 180),
         0 -1px 0 rgb(255, 180, 130);
+    pointer-events: none;
+    line-height: 25px;
+}
+
+/* American goat — 130×136. JS-driven via HND.createGoat (js/goat.js)
+   which sets left/top/background-image inline every tick. Orig
+   GameAmerican.frm Form_Load:376-378 starts the goat off-screen at
+   (900, 407) — the bottom-row equivalent of Haklada's GoatY=55 setup
+   (flower row at 462 → goat 55px above). */
+.am-goat {
+    width: 130px; height: 136px;
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent;
+    z-index: 3;
     pointer-events: none;
 }
 
@@ -760,7 +784,14 @@ body {
     66%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower4_2.png"); }
     100% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower4_3.png"); }
 }
+/* ============ American layout system (3 distinct grids, orig
+   getHotSpot:191-271). Layout class on the game-root: am-layout-text,
+   am-layout-text-pic, am-layout-pic-text. Each option/Q frame uses
+   --opt-i CSS var (0..3) to position itself in the grid. ============ */
+
+/* ---- Q frame (text mode default — orig:228-234) ---- */
 .am-q-frame {
+    /* Layout-text: QSpot.Left=150, Top=80, W=500, H=60 */
     left: 150px; top: 80px; width: 500px; height: 60px;
     background-image: url("../assets/Hemed/pictures/GameAmerican/text.png");
     background-size: 100% 100%; background-repeat: no-repeat;
@@ -771,10 +802,25 @@ body {
 .am-q-frame:hover {
     background-image: url("../assets/Hemed/pictures/GameAmerican/textfocus.png");
 }
-.am-q-text { color: #2a1d0a; font-size: 1.3rem; font-weight: 700; text-align: center; }
+/* Layout pic-text: Q is a small picture box (165×177) top-left
+   (orig:203-206 QSpot.Top=180, Left=5). */
+.am-layout-pic-text .am-q-frame {
+    left: 5px; top: 180px; width: 165px; height: 177px;
+    background-image: url("../assets/Hemed/pictures/GameAmerican/frame.png");
+    padding: 18px;
+}
+.am-layout-pic-text .am-q-frame:hover {
+    background-image: url("../assets/Hemed/pictures/GameAmerican/framefocus.png");
+}
+.am-q-text { color: #2a1d0a; font-size: 1.3rem; font-weight: 700; text-align: center; flex: 1; }
+.am-q-text.am-pic-loaded { font-size: 0; }    /* hide text when picture loads */
 
+/* ---- Option box (default = text-text vertical rows, orig:220-227) ---- */
 .am-option {
-    left: 170px; width: 500px; height: 60px;
+    /* Layout-text: 160 + i*62 for top, left=170, w=500, h=60 */
+    left: 170px;
+    top: calc(160px + var(--opt-i, 0) * 62px);
+    width: 500px; height: 60px;
     background-image: url("../assets/Hemed/pictures/GameAmerican/text.png");
     background-size: 100% 100%; background-repeat: no-repeat;
     display: flex; align-items: center; justify-content: center;
@@ -785,6 +831,35 @@ body {
 .am-option:hover,
 .am-option.focus {
     background-image: url("../assets/Hemed/pictures/GameAmerican/textfocus.png");
+}
+/* Layout pic-text: options indented to make room for Q picture
+   (orig:194-198 — Top = 148 + i*62, Left = 285). */
+.am-layout-pic-text .am-option {
+    left: 285px;
+    top: calc(148px + var(--opt-i, 0) * 62px);
+}
+/* Layout text-pic: option cards in a 4-across row (orig:248-254 —
+   Top=230, Left = 50 + i*180, W=165, H=177). */
+.am-layout-text-pic .am-option {
+    top: 230px;
+    left: calc(50px + var(--opt-i, 0) * 180px);
+    width: 165px; height: 177px;
+    background-image: url("../assets/Hemed/pictures/GameAmerican/frame.png");
+    padding: 18px;
+    flex-direction: column;
+}
+.am-layout-text-pic .am-option:hover,
+.am-layout-text-pic .am-option.focus {
+    background-image: url("../assets/Hemed/pictures/GameAmerican/framefocus.png");
+}
+.am-option-pic .am-option-text {
+    background-size: 100% 100%; background-repeat: no-repeat;
+    flex: 1; width: 100%;
+    color: transparent;     /* hide fallback text once picture loads */
+}
+.am-option-pic .am-option-text:not(.am-pic-loaded) {
+    color: #2a1d0a;         /* show text fallback when no picture */
+    background: none;
 }
 .am-option.done {
     background-image: url("../assets/Hemed/pictures/GameAmerican/textfocus.png");
@@ -798,13 +873,35 @@ body {
 }
 .am-option-text { color: #2a1d0a; font-size: 1.15rem; font-weight: 600; text-align: center; }
 
+/* ---- Hetz arrow per layout. Default text-text: pointing right
+   (orig:200-201 HetzhSpots.X=Left-90=80, Y=row-mid-45). ---- */
 .am-hetz {
-    left: 80px; width: 70px; height: 50px;
+    left: 80px;
+    top: calc(160px + var(--opt-i, 0) * 62px + 5px);
+    width: 70px; height: 50px;
     background-image: url("../assets/Hemed/pictures/GameAmerican/hetzright0_1.png");
     background-size: 100% 100%; background-repeat: no-repeat;
     opacity: 0;
-    transition: opacity 0.18s;
+    transition: opacity 0.18s, top 0.15s, left 0.15s;
     pointer-events: none;
+}
+/* Layout pic-text: arrow shifted right to align with indented options. */
+.am-layout-pic-text .am-hetz {
+    left: 195px;
+    top: calc(148px + var(--opt-i, 0) * 62px + 5px);
+}
+/* Layout text-pic: arrow points DOWN (orig:266 — HetzDown<i>_)
+   and sits ABOVE each picture card (orig:252-253 — X=card-mid-45,
+   Y=card-top-90 = 140). */
+.am-layout-text-pic .am-hetz {
+    width: 50px; height: 70px;
+    top: 140px;
+    left: calc(50px + var(--opt-i, 0) * 180px + 60px);
+}
+/* If HetzDown sprites aren't shipped we fall back by rotating the
+   right-arrow sprite 90° clockwise. Visual approximation. */
+.am-hetz.am-hetz-down {
+    transform: rotate(90deg);
 }
 /* HetzhStatus per .frm (lines 211-216, 617-619, 695-697):
      0 = idle           → static HetzRight0_1.png
@@ -850,14 +947,36 @@ body {
 }
 
 .am-sound {
-    /* QSpot.Right + 10 = 660; QSpot.Top = 80 */
-    left: 660px; top: 80px; width: 55px; height: 55px;
+    /* Layout-text default: orig CmdSound.Left = QSpot.Right+10 = 660,
+       Top = QSpot.Top+2 = 82. */
+    left: 660px; top: 82px; width: 55px; height: 55px;
     background-image: url("../assets/Hemed/pictures/GameAmerican/sound.png");
     background-size: 100% 100%; background-repeat: no-repeat;
     background-color: transparent;
     border: none; padding: 0; cursor: pointer;
 }
+/* Layout pic-text: CmdSound moves below the small Q picture box
+   (orig:208-209 — Left = QSpot.Left+50 = 55, Top = QSpot.Bottom = 357). */
+.am-layout-pic-text .am-sound {
+    left: 55px; top: 357px;
+}
 .am-sound:hover { background-image: url("../assets/Hemed/pictures/GameAmerican/sound_on.png"); }
+
+/* CmdRePlay mid-game button — orig GameAmerican.frm:90-102 button
+   at L=960, T=75 (twips → 64, 5 px), 55×55. Hidden until first Exit
+   click reveals it (orig CmdExit_Click:392-395). Uses the shared
+   replay_on/replay_off sprites at assets/<App>/pictures/. */
+.am-replay {
+    left: 64px; top: 5px; width: 55px; height: 55px;
+    background-image: url("../assets/Hemed/pictures/replay_off.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent;
+    border: none; padding: 0; cursor: pointer;
+    z-index: 50;
+}
+.am-replay:hover {
+    background-image: url("../assets/Hemed/pictures/replay_on.png");
+}
 
 
 /* --- Apple (GameApple.frm) --------------------------------------
@@ -1527,17 +1646,24 @@ body {
 .hak-flower-layer { left: 0; top: 0; width: 800px; height: 600px;
                     pointer-events: none; }
 .hak-header {
+    /* Orig Form_Paint draws 3-layered text at y=10/12/14 in
+       RGB(180,220,255)/RGB(150,200,255)/RGB(50,100,210) at 22pt
+       System Hebrew font (~29px). Approximate with CSS text-shadow. */
     left: 0; right: 0; top: 8px;
-    text-align: center; font-size: 1.05rem; font-weight: 700;
+    text-align: center; font-size: 22pt; font-weight: 700;
+    font-family: "David CLM", "Arial Hebrew", "Heebo", "Segoe UI", Arial, sans-serif;
     color: rgb(50, 100, 210);
     text-shadow:
-        0 1px 0 rgb(180, 220, 255),
-        0 -1px 0 rgb(150, 200, 255);
+        0 2px 0 rgb(180, 220, 255),
+        0 -2px 0 rgb(150, 200, 255);
     pointer-events: none;
 }
 .hak-q-visible {
-    /* Top plank text in practice mode (backtt.png). */
-    left: 100px; top: 305px; width: 600px; height: 50px;
+    /* Top plank text (practice mode, backtt.png). Original draws
+       at TextY-80=325 (clear band 50 tall) but the actual text is
+       offset down by (50-CurrFontSize)/2 ≈ 10 → text top at y=335.
+       TextX=390 center, TextMaxWidth=550 → spans x≈115..665. */
+    left: 115px; top: 325px; width: 550px; height: 50px;
     text-align: center;
     font-size: 1.6rem; font-weight: 700;
     color: #2a1d0a;
@@ -1546,40 +1672,55 @@ body {
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 .hak-typing {
-    /* Bottom plank where the user types. TextX=390, TextY=405. */
-    left: 50px; top: 380px; width: 700px; height: 60px;
+    /* Bottom plank where the user types. Original draw calls:
+       BigQMark cursor at TextY=405 (top), SmallQMark pending at
+       TextY+10=415, text baseline ≈ TextY+10. Top-align cells to
+       y=405 and offset the smaller ones down 10px to match. */
+    left: 90px; top: 405px; width: 620px; height: 60px;
     text-align: center;
     direction: rtl;
     font-size: 2rem;
     color: #2a1d0a;
     cursor: pointer;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
 }
 .hak-typing.shake { animation: shake 0.4s; }
 .hak-cell {
+    /* Original PaintText: real chars draw at the font's native advance,
+       Q-marks are exactly 21px (small) / 30px (cursor) wide, NO margin
+       between cells. Don't add min-width/margin or the row balloons. */
     display: inline-block;
-    min-width: 1em;
-    margin: 0 1px;
     text-align: center;
     transition: color 0.15s;
 }
-.hak-cell.typed       { color: #2a1d0a; font-weight: 700; }
-.hak-cell.non-letter  { color: rgba(80, 50, 20, 0.7); }
+/* Original DrawString at `TextY + (50 - CurrFontSize) / 2` ≈ TextY+10
+   for letters/spaces; SmallQMarkPic.MaskB at TextY+10. Push these
+   down 10px so their tops match. The cursor cell sits at TextY=top. */
+.hak-cell.typed       { color: #2a1d0a; font-weight: 700; margin-top: 10px; }
+.hak-cell.non-letter  { color: rgba(80, 50, 20, 0.7);
+                        margin-top: 10px;
+                        white-space: pre; /* keep word-gap spaces */ }
 .hak-cell.pending {
-    /* Small Q_mark.bmp sprite for unfilled chars. */
-    width: 22px; height: 30px; vertical-align: middle;
-    background-image: url("../assets/Hemed/pictures/GameHaklada/q_mark0.png");
+    /* SmallQMarkPic — Q_Mark.bmp (no number suffix), 21×35,
+       drawn 10px below TextY in the original. */
+    width: 21px; height: 35px; margin-top: 10px;
+    background-image: url("../assets/Hemed/pictures/GameHaklada/q_mark.png");
     background-size: 100% 100%; background-repeat: no-repeat;
 }
 .hak-cell.cursor {
-    /* Big animated Q_mark cursor on current char. */
-    width: 30px; height: 40px; vertical-align: middle;
+    /* BigQMarkPic — Q_Mark1..8.bmp animated, 30×50, drawn at TextY
+       (top of the typing band — i.e. no margin offset). Original
+       TimerQMark.Interval=110ms × 8 frames = 0.88s per cycle. */
+    width: 30px; height: 50px;
     background-size: 100% 100%; background-repeat: no-repeat;
-    animation: hakBigQMark 0.7s steps(1) infinite;
+    animation: hakBigQMark 0.88s steps(1) infinite;
 }
 .hak-cell.hint-show {
     /* Briefly show the expected letter in red after 2 wrong attempts. */
@@ -1613,9 +1754,13 @@ body {
     background-image: url("../assets/Hemed/pictures/GameHaklada/sound_off.png");
 }
 .hak-knas {
+    /* Original Knas label: Left=8 Top=544 W=73 H=41, Arial 21.75pt,
+       ForeColor &H00000040& (VB6 BGR → R=0 G=0 B=64 = dark blue),
+       BackStyle=0 (transparent). */
     left: 8px; top: 544px; width: 73px; height: 41px;
-    text-align: center; font-size: 1.6rem; font-weight: 700; color: #800000;
-    background: rgba(255,255,255,0.85); border-radius: 8px;
+    text-align: center; font: 700 21.75pt Arial, sans-serif;
+    color: rgb(0, 0, 64);
+    background: transparent;
     display: flex; align-items: center; justify-content: center;
 }
 
@@ -1629,103 +1774,126 @@ body {
     background-image: url("../assets/Hemed/pictures/GameHaklada/flower1_0.png");
     opacity: 0.5;
 }
-.hak-flower.kind-0.growing { animation: hakFlower1 0.75s steps(1) forwards; }
-.hak-flower.kind-1.growing { animation: hakFlower2 0.75s steps(1) forwards; }
-.hak-flower.kind-2.growing { animation: hakFlower3 0.75s steps(1) forwards; }
-@keyframes hakFlower1 {
-    0%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower1_0.png"); opacity: 0.5; }
-    20% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower1_2.png"); opacity: 1; }
-    40% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower1_4.png"); }
-    60% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower1_6.png"); }
-    80% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower1_8.png"); }
-    100%{ background-image: url("../assets/Hemed/pictures/GameHaklada/flower1_9.png"); opacity: 1; }
+/* Bloom is now JS-driven via growFlower().step(frame) — each call swaps
+   background-image to the next frame, in sync with goat tick. The
+   per-keyframe CSS @keyframes blocks below are retained as fallback
+   visual but unused unless a caller adds the `.growing.bloom-*` class. */
+@keyframes hakFlower1Full {
+    0%   { background-image: url("../assets/Hemed/pictures/GameHaklada/flower1_0.png"); opacity: 0.5; }
+    20%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower1_2.png"); opacity: 1; }
+    40%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower1_4.png"); }
+    60%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower1_6.png"); }
+    80%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower1_8.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower1_9.png"); }
 }
-@keyframes hakFlower2 {
-    0%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower2_0.png"); opacity: 0.5; }
-    20% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower2_2.png"); opacity: 1; }
-    40% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower2_4.png"); }
-    60% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower2_6.png"); }
-    80% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower2_8.png"); }
-    100%{ background-image: url("../assets/Hemed/pictures/GameHaklada/flower2_9.png"); opacity: 1; }
+@keyframes hakFlower1Half {
+    0%   { background-image: url("../assets/Hemed/pictures/GameHaklada/flower1_0.png"); opacity: 0.5; }
+    33%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower1_2.png"); opacity: 1; }
+    66%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower1_4.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower1_5.png"); }
 }
-@keyframes hakFlower3 {
-    0%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower3_0.png"); opacity: 0.5; }
-    20% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower3_2.png"); opacity: 1; }
-    40% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower3_4.png"); }
-    60% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower3_6.png"); }
-    80% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower3_8.png"); }
-    100%{ background-image: url("../assets/Hemed/pictures/GameHaklada/flower3_9.png"); opacity: 1; }
+@keyframes hakFlower1Sparse {
+    0%   { background-image: url("../assets/Hemed/pictures/GameHaklada/flower1_0.png"); opacity: 0.5; }
+    50%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower1_2.png"); opacity: 1; }
+    100% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower1_3.png"); }
 }
-/* Haklada goat — 130×136, sits on the grass at right of the signboard. */
+@keyframes hakFlower2Full {
+    0%   { background-image: url("../assets/Hemed/pictures/GameHaklada/flower2_0.png"); opacity: 0.5; }
+    20%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower2_2.png"); opacity: 1; }
+    40%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower2_4.png"); }
+    60%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower2_6.png"); }
+    80%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower2_8.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower2_9.png"); }
+}
+@keyframes hakFlower2Half {
+    0%   { background-image: url("../assets/Hemed/pictures/GameHaklada/flower2_0.png"); opacity: 0.5; }
+    33%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower2_2.png"); opacity: 1; }
+    66%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower2_4.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower2_5.png"); }
+}
+@keyframes hakFlower2Sparse {
+    0%   { background-image: url("../assets/Hemed/pictures/GameHaklada/flower2_0.png"); opacity: 0.5; }
+    50%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower2_2.png"); opacity: 1; }
+    100% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower2_3.png"); }
+}
+@keyframes hakFlower3Full {
+    0%   { background-image: url("../assets/Hemed/pictures/GameHaklada/flower3_0.png"); opacity: 0.5; }
+    20%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower3_2.png"); opacity: 1; }
+    40%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower3_4.png"); }
+    60%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower3_6.png"); }
+    80%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower3_8.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower3_9.png"); }
+}
+@keyframes hakFlower3Half {
+    0%   { background-image: url("../assets/Hemed/pictures/GameHaklada/flower3_0.png"); opacity: 0.5; }
+    33%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower3_2.png"); opacity: 1; }
+    66%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower3_4.png"); }
+    100% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower3_5.png"); }
+}
+@keyframes hakFlower3Sparse {
+    0%   { background-image: url("../assets/Hemed/pictures/GameHaklada/flower3_0.png"); opacity: 0.5; }
+    50%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower3_2.png"); opacity: 1; }
+    100% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower3_3.png"); }
+}
+/* Kind-3 = flower4_*.png ("eaten" state set by orig TimerGoat:719
+   `FlowerKind(Current - 1) = 3` for 3+ error flowers). flower4 has
+   only 4 frames so always render via the sparse 3-frame keyframe. */
+.hak-flower.kind-3.growing.bloom-full,
+.hak-flower.kind-3.growing.bloom-half,
+.hak-flower.kind-3.growing.bloom-sparse {
+    animation: hakFlower4Sparse 0.3s steps(1) forwards;
+}
+@keyframes hakFlower4Sparse {
+    0%   { background-image: url("../assets/Hemed/pictures/GameHaklada/flower4_0.png"); opacity: 0.5; }
+    50%  { background-image: url("../assets/Hemed/pictures/GameHaklada/flower4_1.png"); opacity: 1; }
+    100% { background-image: url("../assets/Hemed/pictures/GameHaklada/flower4_3.png"); }
+}
+/* Picture mode reveal (orig TimerShowPic blits successive bands of
+   QPic at 512,324 over ~330ms). We use a CSS clip-path reveal which
+   gets us the same visual without per-frame canvas blits. */
+.hak-pic {
+    left: 512px; top: 324px; width: 280px; height: 200px;
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent;
+    pointer-events: none;
+    z-index: 2;
+    clip-path: inset(0 0 100% 0);
+}
+.hak-pic.reveal { animation: hakPicReveal 0.33s steps(10) forwards; }
+@keyframes hakPicReveal {
+    from { clip-path: inset(0 0 100% 0); }
+    to   { clip-path: inset(0 0 0    0); }
+}
+/* Calibration instructions overlay (orig CmdHelp_Click draws
+   Instructions at (400, 40) in RGB(40,80,190); WaveMe_Done erases
+   via BitBlt 100,40,600,30 when game2.wav finishes). */
+.hak-help {
+    left: 100px; top: 40px; width: 600px; min-height: 30px;
+    text-align: center; font: 700 14pt Arial, sans-serif;
+    color: rgb(40, 80, 190);
+    background: rgba(255, 255, 255, 0.85);
+    border-radius: 6px;
+    padding: 6px 10px;
+    pointer-events: none;
+    z-index: 4;
+    direction: rtl;
+    display: none;
+}
+/* Haklada goat — 130×136. JS drives position + frame: see haklada.js
+   goatState / paintGoat / TimerGoat. Original GameHaklada.frm Form_Load
+   sets GoatX=900 (off-screen right) GoatY=55, then Form_Paint starts
+   TimerGoat with GoatStatus=1 (jump in). The 7 sprite families
+   (goat0..goat6) are each pre-loaded; haklada.js swaps the
+   background-image as the goat ticks. */
 .hak-goat {
-    left: 600px; top: 380px; width: 130px; height: 136px;
-    background-image: url("../assets/Hemed/pictures/GameHaklada/goat0_0.png");
+    /* No background-image / left / top here — haklada.js paintGoat()
+       sets all of them inline every tick. JS picks the correct per-app
+       asset path (Hemed vs Nivim) so we don't hardcode the wrong one. */
+    width: 130px; height: 136px;
     background-size: 100% 100%; background-repeat: no-repeat;
     background-color: transparent;
     z-index: 3;
     pointer-events: none;
-}
-.hak-goat.yes { animation: hakGoatYes 1.05s steps(1); }
-@keyframes hakGoatYes {
-    0%   { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_0.png"); }
-    5%   { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_1.png"); }
-    10%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_2.png"); }
-    15%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_3.png"); }
-    20%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_4.png"); }
-    25%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_5.png"); }
-    30%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_6.png"); }
-    35%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_7.png"); }
-    40%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_8.png"); }
-    45%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_9.png"); }
-    50%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_10.png"); }
-    55%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_11.png"); }
-    60%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_12.png"); }
-    65%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_13.png"); }
-    70%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_14.png"); }
-    75%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_15.png"); }
-    80%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_16.png"); }
-    85%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_17.png"); }
-    90%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_18.png"); }
-    95%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat1_19.png"); }
-    100% { background-image: url("../assets/Hemed/pictures/GameHaklada/goat0_0.png"); }
-}
-.hak-goat.no { animation: hakGoatNo 1.05s steps(1); }
-.hak-goat.win { animation: hakGoatWin 2.1s steps(1) infinite; }
-@keyframes hakGoatWin {
-    /* goat6 has 28 frames; sample 14 every ~150ms for a slow win loop. */
-    0%   { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_0.png"); }
-    7%   { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_2.png"); }
-    14%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_4.png"); }
-    21%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_6.png"); }
-    28%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_8.png"); }
-    35%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_10.png"); }
-    42%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_12.png"); }
-    49%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_14.png"); }
-    56%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_16.png"); }
-    63%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_18.png"); }
-    70%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_20.png"); }
-    77%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_22.png"); }
-    84%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_24.png"); }
-    91%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_26.png"); }
-    100% { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_0.png"); }
-}
-@keyframes hakGoatNo {
-    /* goat6 has 28 frames; sample 14 of them every ~75ms. */
-    0%   { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_0.png"); }
-    7%   { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_2.png"); }
-    14%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_4.png"); }
-    21%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_6.png"); }
-    28%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_8.png"); }
-    35%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_10.png"); }
-    42%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_12.png"); }
-    49%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_14.png"); }
-    56%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_16.png"); }
-    63%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_18.png"); }
-    70%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_20.png"); }
-    77%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_22.png"); }
-    84%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_24.png"); }
-    91%  { background-image: url("../assets/Hemed/pictures/GameHaklada/goat6_26.png"); }
-    100% { background-image: url("../assets/Hemed/pictures/GameHaklada/goat0_0.png"); }
 }
 
 /* QMark cursor — 8-frame cycle that bounces above the signboard.        */

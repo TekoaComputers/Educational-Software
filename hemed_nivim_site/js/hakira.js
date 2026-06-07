@@ -48,13 +48,15 @@ HND.startHakira = function (root, app, unit, onComplete) {
         "reset_off", "reset_on", "reset_down",
     ]);
 
-    // Column mapping. cols[0]=hint, cols[1]=qLeft (translation),
-    // cols[2]=qRight (Hebrew phrase). The wave files are named per the
-    // original Sides() function: _left.wav matches qLeft (translation),
-    // _right.wav matches qRight (Hebrew). _hint.wav rarely exists.
-    const hintCol = cols[0] && cols[0] !== cols[1] && cols[0] !== cols[2] ? cols[0] : null;
-    const ansCol  = cols[1] || cols[0];   // qLeft  → _left.wav
-    const askCol  = cols[2] || cols[0];   // qRight → _right.wav
+    // Per-unit calibration (orig CurrentCalibration). Hakira slot is 0
+    // (cal-block 0). 1 of 31 Nivim units flips, otherwise default.
+    const cal = HND.gameCalibrationFromSlot(unit, app.id, 0);
+    const askCol  = cal.askCol;
+    const ansCol  = cal.ansCol;
+    const askSide = cal.askSide;
+    const ansSide = cal.ansSide;
+    const hintCol = cal.hintCol && cal.hintCol !== askCol && cal.hintCol !== ansCol
+                  ? cal.hintCol : null;
 
     // LinesIn per the .frm: with hint → 6, without → 12.
     const LINES_IN = hintCol ? 6 : 12;
@@ -210,7 +212,7 @@ HND.startHakira = function (root, app, unit, onComplete) {
             HND.log("hakira Q", "pos=" + state.currentPos,
                     "text=" + (it[askCol] || "").slice(0, 40));
             if (HND.unitWaveExists(unit, origIdx, "right")) {
-                HND.playWave(HND.unitWavePath(app.id, unit.id, origIdx, "right"));
+                HND.playWave(HND.unitWavePath(app.id, unit.id, origIdx, askSide));
             }
             state.lineStatus = 1;
         }
@@ -227,7 +229,7 @@ HND.startHakira = function (root, app, unit, onComplete) {
             });
             HND.log("hakira A", "pos=" + state.currentPos);
             if (HND.unitWaveExists(unit, origIdx, "left")) {
-                HND.playWave(HND.unitWavePath(app.id, unit.id, origIdx, "left"));
+                HND.playWave(HND.unitWavePath(app.id, unit.id, origIdx, ansSide));
             }
             if (hintCol) {
                 state.lineStatus = 2;

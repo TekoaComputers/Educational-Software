@@ -70,8 +70,13 @@ load source JS directly — no build step.
   error tracking + nikod score board built in. `tools/port_hemed_nivim.py`
   is the porting script (forms + assets). **The original `Hemed.exe` /
   `Nivim.exe` binaries are broken** (silently exit even on a complete
-  install); the web port IS the canonical source — no `.frm` to refer
-  back to mid-development.
+  install), but the `.frm` sources ARE intact: [Hemed/](Hemed/) ships
+  the full set (`GameHaklada.frm`, `GameAmerican.frm`, `GameApple.frm`,
+  `GameConnect.frm`, `GameHakira.frm`, `GameHatama.frm`,
+  `GameHatamaPlus.frm`, `MainForm.frm`, …). Nivim only ships
+  `Nivim/MainForm.frm` but **reuses Hemed's game forms via shared
+  data**, so for any Nivim game-screen porting question always read
+  the matching `Hemed/Game*.frm`.
 - `makhela_site/` — **מקהלה (Aliza)** music-education game. Originally
   shipped as DOS; we have `makhela.jsdos` archived. **Rebuilt from
   scratch as pure JS** (no jsdos), with assets extracted via

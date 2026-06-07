@@ -48,8 +48,17 @@ HND.startApple = function (root, app, unit, onComplete) {
         HND.preloadFrames(app.id, "GameApple", names);
     })();
 
-    const askCol = cols[2] || cols[0];
-    const ansCol = cols[1] || cols[0];
+    // Per-unit calibration (orig CurrentCalibration). Apple's slot is 7
+    // (cal-block 4). Hemed+Nivim have several units with CombineQA="8"
+    // or "7" and a handful with WhatToAsk=qLeft (flipped Q/A).
+    const cal = HND.gameCalibrationFromSlot(unit, app.id, 4);
+    const askCol  = cal.askCol;
+    const ansCol  = cal.ansCol;
+    // Apple honors WhatToAskSound for audio (orig CurrentSoundPlay:454),
+    // independent of the text WhatToAsk side. Same in the CombineQA
+    // chain — see GameApple.frm:637-639.
+    const askSide = cal.askSoundSide;
+    const ansSide = cal.ansSoundSide;
 
     // Layout — Middle=50 default. With SideToAsk=qRight, askCol on left,
     // ansCol on right (in our Hebrew layout we flip: ans=cols[1] on the
@@ -71,8 +80,10 @@ HND.startApple = function (root, app, unit, onComplete) {
         [87, 473], [-9, 461], [25, 473], [186, 462], [151, 473],
     ];
 
-    const QCOUNT  = Math.min(items.length, 9);
-    const idOrder = HND._shuffle(items.map(function (_, i) { return i; })).slice(0, QCOUNT);
+    // Honor calibration QLimit + IfRandom (orig PlayGame:504-528).
+    const QCOUNT  = Math.min(cal.qLimit > 0 ? cal.qLimit : items.length, 9);
+    const rawIdxs = items.map(function (_, i) { return i; });
+    const idOrder = (cal.ifRandom ? HND._shuffle(rawIdxs) : rawIdxs).slice(0, QCOUNT);
 
     const state = {
         current: 0,
@@ -240,7 +251,7 @@ HND.startApple = function (root, app, unit, onComplete) {
     sound.addEventListener("click", function () {
         if (!state.gameEnabled) return;
         const idx = idOrder[state.current];
-        if (idx != null) HND.playWave(HND.unitWavePath(app.id, unit.id, idx, "right"));
+        if (idx != null) HND.playWave(HND.unitWavePath(app.id, unit.id, idx, askSide));
     });
 
     function isLetter(c) { return /[֐-׿A-Za-z0-9]/.test(c); }
@@ -322,7 +333,7 @@ HND.startApple = function (root, app, unit, onComplete) {
         clearFallenApples();
         // Play the question wave on every Q including the first. The user
         // reached this screen by clicking a game-sign, so audio is unlocked.
-        HND.playWave(HND.unitWavePath(app.id, unit.id, idx, "right"));
+        HND.playWave(HND.unitWavePath(app.id, unit.id, idx, askSide));
     }
 
     // `justFilled` is a Set of indices freshly filled in this keypress —
@@ -383,7 +394,7 @@ HND.startApple = function (root, app, unit, onComplete) {
         if (!state.userInteracted) {
             state.userInteracted = true;
             const idx = idOrder[state.current];
-            HND.playWave(HND.unitWavePath(app.id, unit.id, idx, "right"));
+            HND.playWave(HND.unitWavePath(app.id, unit.id, idx, askSide));
         }
         // Original .frm:593 — ignore repeats of the same physical key
         // within the same question (correct or wrong; either way, the
@@ -433,36 +444,20 @@ HND.startApple = function (root, app, unit, onComplete) {
                 // visually go INTO the basket — original goat physically
                 // picks each one up off the ground (frames 100..113).
                 fadeOutFallenApples();
-                // CombineQA dispatch on correct answer per .frm:950-973.
-                // Apple = cal block 4 (SLOT_TO_CAL_IDX[7]=4); slot 8 holds
-                // "WhatToAnswer+CombineQA" composite. Apple's default is
-                // WhatToAnswer (= left = translation).
-                const cq = HND.getCalibField(unit, APPLE_CAL_IDX, "CombineQA") || "0";
+                // CombineQA dispatch (orig .frm:950-973) — sequences ask/
+                // answer waves per cal mode "0"/"7"/"8"/"9". Audio sides
+                // are WhatToAskSound / WhatToAnswerSound (independent of
+                // the text Q/A side) per GameApple.frm:637-639.
                 const advance = function () {
                     state.current++;
                     if (state.current >= QCOUNT) winGame();
                     else initQuestion();
                 };
-                const wavePath = function (side) {
-                    return HND.unitWavePath(app.id, unit.id, idx, side);
-                };
-                if (cq === "7") {
-                    // play WhatToAsk then chain WhatToAnswer
-                    HND.playWave(wavePath("right"), function () {
-                        HND.playWave(wavePath("left"), advance);
-                    });
-                } else if (cq === "8") {
-                    HND.playWave(wavePath("right"), function () {
-                        HND.playWave(wavePath("left"), advance);
-                    });
-                } else if (cq === "9") {
-                    HND.playWave(wavePath("left"), function () {
-                        HND.playWave(wavePath("right"), advance);
-                    });
-                } else {
-                    // mode 0 (default): just the answer side
-                    HND.playWave(wavePath("left"), advance);
-                }
+                const audioCal = Object.assign({}, cal, {
+                    askSide: cal.askSoundSide,
+                    ansSide: cal.ansSoundSide,
+                });
+                HND.playCombineFromCal(app.id, unit.id, idx, audioCal, advance);
             }
         } else if (isLetter(e.key) || HEB_LAYOUT[e.code]) {
             state.errorCount++;

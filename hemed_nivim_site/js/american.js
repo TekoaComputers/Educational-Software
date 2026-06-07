@@ -42,14 +42,18 @@ HND.startAmerican = function (root, app, unit, onComplete) {
         for (let i = 1; i <= 8; i++) names.push("hetzright2_" + i);
         names.push("hetzright0_1");
         HND.preloadFrames(app.id, "GameAmerican", names);
-        // Shared flower sprites from GameHaklada. Frame counts:
-        //   flower1: 0..9, flower2: 0..9, flower3: 0..9, flower4: 0..3.
-        const goatFlowerNames = [];
-        for (let i = 0; i <= 9; i++) goatFlowerNames.push("flower1_" + i);
-        for (let i = 0; i <= 9; i++) goatFlowerNames.push("flower2_" + i);
-        for (let i = 0; i <= 9; i++) goatFlowerNames.push("flower3_" + i);
-        for (let i = 0; i <= 3; i++) goatFlowerNames.push("flower4_" + i);
-        HND.preloadFrames(app.id, "GameHaklada", goatFlowerNames);
+        // Shared flower + goat sprites from GameHaklada. Orig
+        // GameAmerican.frm:348-358 loads GoatPic(0..6) from
+        // PicPath\gamehaklada\goat<i>_* — same assets as Haklada.
+        const sharedNames = [];
+        for (let i = 0; i <= 9; i++) sharedNames.push("flower1_" + i);
+        for (let i = 0; i <= 9; i++) sharedNames.push("flower2_" + i);
+        for (let i = 0; i <= 9; i++) sharedNames.push("flower3_" + i);
+        for (let i = 0; i <= 3; i++) sharedNames.push("flower4_" + i);
+        for (let s = 0; s < HND.GOAT_FRAMES.length; s++)
+            for (let f = 0; f < HND.GOAT_FRAMES[s]; f++)
+                sharedNames.push("goat" + s + "_" + f);
+        HND.preloadFrames(app.id, "GameHaklada", sharedNames);
     })();
 
     // Original American has 3 modes mapped to GameMenu slots 2/3/4:
@@ -68,12 +72,41 @@ HND.startAmerican = function (root, app, unit, onComplete) {
     HND.log("american mode", "slot=" + modeSlot,
             "bySound=" + MODE_BY_SOUND, "byPic=" + MODE_BY_PIC);
 
-    const askCol = cols[2] || cols[0];   // Hebrew Q text
-    const ansCol = cols[1] || cols[0];   // translation A text
+    // Per-unit calibration. American has 3 modes (slots 2/3/4 → cal
+    // blocks 5/6/7). gameCalibrationFromSlot auto-picks the right
+    // block based on which mode the user selected from the game menu.
+    const cal = HND.gameCalibrationFromSlot(unit, app.id,
+                  modeSlot === 2 ? 5 : modeSlot === 3 ? 6 : 7);
+    const askCol  = cal.askCol;
+    const ansCol  = cal.ansCol;
+    // American honors WhatToAskSound / WhatToAnswerSound for AUDIO
+    // (orig CurrentSoundPlay:454 — `SetWaveName WhatToAskSound`). The
+    // teacher can show one side as text and PLAY a different side.
+    // Null means qDisabled — caller skips playback.
+    const askSide = cal.askSoundSide;
+
+    // Layout selection (orig getHotSpot:191-271 — 3 distinct grids):
+    //   text-text (both <3): default vertical rows
+    //   text-pic  (WhatToAnswer=qPicture): 4 picture cards across
+    //   pic-text  (WhatToAsk=qPicture): rows indented + small Q image
+    let layout;
+    if (cal.whatToAnswer === 3)      layout = "text-pic";
+    else if (cal.whatToAsk === 3)    layout = "pic-text";
+    else                              layout = "text-text";
+    HND.log("american layout", layout, "askMode=" + cal.whatToAsk,
+            "ansMode=" + cal.whatToAnswer);
     const FLOWER_SPACE = 65;
-    const QCOUNT = Math.min(items.length, 33);
-    const idOrder = HND._shuffle(items.map(function (_, i) { return i; })).slice(0, QCOUNT);
-    const flowerKinds = idOrder.map(function () { return Math.floor(Math.random() * 3); });
+    // Orig PlayGame: QCount = min(items, QLimit, 33).
+    const QCOUNT = Math.min(cal.qLimit > 0 ? cal.qLimit : items.length, 33);
+    const rawIdxs = items.map(function (_, i) { return i; });
+    const idOrder = (cal.ifRandom ? HND._shuffle(rawIdxs) : rawIdxs).slice(0, QCOUNT);
+    // FlowerKind dedup (orig PlayGame:513-517).
+    const flowerKinds = [];
+    for (let i = 0; i < QCOUNT; i++) {
+        let k = Math.floor(Math.random() * 3);
+        if (i > 0 && k === flowerKinds[i - 1]) k = Math.floor(Math.random() * 3);
+        flowerKinds.push(k);
+    }
 
     // GetFlowerX/Y (lines 514-533): same snaking 3-row path as Haklada.
     function flowerX(i) {
@@ -122,6 +155,9 @@ HND.startAmerican = function (root, app, unit, onComplete) {
     const penaltyBox  = HND._el("div", { class: "ctrl am-penalty", text: "0" });
     const optionsLayer = HND._el("div", { class: "ctrl am-options-layer" });
     root.innerHTML = "";
+    // Layout class drives all per-mode positioning (CSS handles the
+    // 3 .am-layout-* rules — see style.css).
+    root.classList.add("am-layout-" + layout);
     root.appendChild(flowerLayer);
     root.appendChild(header);
     if (helpBanner) root.appendChild(help);
@@ -129,6 +165,21 @@ HND.startAmerican = function (root, app, unit, onComplete) {
     root.appendChild(sound);
     root.appendChild(penaltyBox);
     root.appendChild(optionsLayer);
+    // Mark picture-vs-text on Q frame so CSS can swap the frame sprite.
+    if (cal.whatToAsk === 3) qFrame.classList.add("am-q-pic");
+    else                     qFrame.classList.add("am-q-text-mode");
+
+    // Goat — shared TimerGoat-style controller (js/goat.js). Orig
+    // GameAmerican.frm Form_Load:376-378 sets GoatX=900, GoatY=407
+    // (= flowerY(0)-55 since the bottom row sits at 462). The walking
+    // mechanics + flower-bloom sync are identical to Haklada — only
+    // the starting Y differs.
+    const goatCtl = HND.createGoat({
+        root: root,
+        appId: app.id,
+        flowerX: flowerX, flowerY: flowerY, QCOUNT: QCOUNT,
+        className: "am-goat",
+    });
 
     // Header — UnitName · UserName (RGB(20,40,200) per Form_Paint).
     let userName = "";
@@ -147,9 +198,20 @@ HND.startAmerican = function (root, app, unit, onComplete) {
         flowerLayer.appendChild(fl);
     }
 
+    // CmdSound visibility gate (orig PlayGame:365-369 + Form_Paint:769):
+    // shown only when CurrentUnit.ShowWave AND WhatToAskSound < qDisabled (4).
+    // resolveCalibration sets cal.askSide = null when WhatToAskSound = 4.
+    const flags = (unit && unit.flags) || [];
+    const showWave = flags[2] !== false;
+    const sideHasAudio = (askSide === "right" || askSide === "left" || askSide === "hint");
+    if (!showWave || !sideHasAudio) sound.style.display = "none";
+
     function playQWave() {
+        // Orig CurrentSoundPlay:455 — `If WhatToAskSound < 3 Then PlayWave`.
+        // cal.askSide is null when WhatToAskSound = 4 (qDisabled).
+        if (!askSide) return;
         const idx = idOrder[state.current];
-        if (idx != null) HND.playWave(HND.unitWavePath(app.id, unit.id, idx, "right"));
+        if (idx != null) HND.playWave(HND.unitWavePath(app.id, unit.id, idx, askSide));
     }
     sound.addEventListener("click", function (e) {
         e.stopPropagation();
@@ -163,36 +225,85 @@ HND.startAmerican = function (root, app, unit, onComplete) {
         if (state.current >= QCOUNT) { finishGame(); return; }
         const idx = idOrder[state.current];
         const correct = items[idx];
-        // Pick 3 distractors + the correct answer, shuffled.
-        const pool = items.map(function (_, i) { return i; })
-                          .filter(function (i) { return i !== idx; });
-        const distractors = HND._shuffle(pool).slice(0, 3);
+        // Pick 3 distractors from the SHUFFLED IdOrder pool (orig
+        // InitQuestion:148 — `HotSpotsId(i) = IdOrder(Int(Rnd*(QCount+1)))`),
+        // de-duped, plus the correct answer, then shuffled.
+        const distractors = [];
+        const taken = { [idx]: 1 };
+        const tryOrder = HND._shuffle(idOrder.slice());
+        for (let i = 0; i < tryOrder.length && distractors.length < 3; i++) {
+            const candidate = tryOrder[i];
+            if (!taken[candidate]) { distractors.push(candidate); taken[candidate] = 1; }
+        }
+        // Fall back to the whole items pool if QCOUNT is so small we
+        // can't fill 3 distractors from IdOrder (rare edge case).
+        if (distractors.length < 3) {
+            const rest = HND._shuffle(items.map(function (_, i) { return i; }))
+                            .filter(function (i) { return !taken[i]; });
+            while (distractors.length < 3 && rest.length) {
+                distractors.push(rest.shift());
+            }
+        }
         state.hotSpotsId = HND._shuffle(distractors.concat([idx]));
         state.hetzhPos = 0;
         state.currErrors = 0;
         HND.log("american question",
                 "q=" + (state.current + 1) + "/" + QCOUNT,
                 "origIdx=" + idx, "ask=" + (correct[askCol] || "").slice(0, 40));
-        if (MODE_BY_SOUND) {
-            // QuestionAsBonus / by-sound: blank the Q text — the user
-            // must listen to the wave to know what to pick.
+        // Q rendering depends on the layout and slot mode:
+        //   - layout pic-text  : Q is a per-item picture box
+        //   - MODE_BY_SOUND    : Q text hidden (🔊 placeholder)
+        //   - MODE_BY_PIC      : picture-like frame, text inside
+        //   - default text     : plain text in plank frame
+        if (layout === "pic-text") {
+            renderPictureInto(qFrame, qText, idx, correct[askCol] || "");
+        } else if (MODE_BY_SOUND) {
             qText.textContent = "🔊";
+            qText.style.backgroundImage = "";
             qFrame.classList.add("am-q-frame-sound");
+            qFrame.classList.remove("am-q-frame-pic", "am-q-revealed");
         } else if (MODE_BY_PIC) {
-            // by-picture: we don't ship per-unit images, so render the
-            // ask column inside a picture frame (closest visual proxy).
             qText.textContent = correct[askCol] || "";
+            qText.style.backgroundImage = "";
             qFrame.classList.add("am-q-frame-pic");
+            qFrame.classList.remove("am-q-frame-sound");
         } else {
             qText.textContent = correct[askCol] || "";
+            qText.style.backgroundImage = "";
             qFrame.classList.remove("am-q-frame-sound", "am-q-frame-pic");
         }
         renderOptions();
         state.gameEnabled = true;
-        // Play the question wave immediately on every Q including the first.
-        // The user reached this screen by clicking a game-sign, so audio is
-        // already unlocked by the browser's autoplay-policy session bit.
         playQWave();
+    }
+
+    // Per-item picture helper. Loads `data/<App>/unit_<id>/pic/<idx>.png`
+    // into a frame; falls back to the text label if the asset is missing
+    // (orig InitQuestion:162 — `If Exist(...) Then LoadPicture ...`).
+    // dataRoot path mirrors HND.unitWavePath's wave/ layout.
+    function pictureUrl(origIdx) {
+        const dataRoot = (HND.APPS[app.id] || {}).dataRoot || "data/" + app.id;
+        return dataRoot + "/unit_" + unit.id + "/pic/" + origIdx + ".png";
+    }
+    function renderPictureInto(frameEl, textEl, origIdx, fallbackText) {
+        const url = pictureUrl(origIdx);
+        // Test-load the image; only attach if it actually decodes.
+        const probe = new Image();
+        probe.onload = function () {
+            textEl.textContent = "";
+            textEl.style.backgroundImage = "url('" + url + "')";
+            textEl.style.backgroundSize  = "100% 100%";
+            textEl.style.backgroundRepeat = "no-repeat";
+            textEl.classList.add("am-pic-loaded");
+        };
+        probe.onerror = function () {
+            textEl.textContent = fallbackText;
+            textEl.style.backgroundImage = "";
+            textEl.classList.remove("am-pic-loaded");
+        };
+        probe.src = url;
+        // Show fallback text immediately while probe loads.
+        textEl.textContent = fallbackText;
     }
 
     // Build the 4 option rows once, then mutate focus state in place so we
@@ -203,25 +314,32 @@ HND.startAmerican = function (root, app, unit, onComplete) {
         optionsLayer.innerHTML = "";
         optionNodes = [];
         state.hotSpotsId.forEach(function (hotId, i) {
-            const top = 160 + i * 62;
             const opt = HND._el("div", {
                 class: "ctrl am-option",
-                style: "top:" + top + "px;",
+                style: "--opt-i:" + i + ";",     // CSS uses var() for position
+                "data-opt-i": i,
                 onclick: function () { onPickOption(i); },
                 onmouseenter: function () {
                     if (!state.gameEnabled) return;
                     setFocus(i);
                 },
             });
-            opt.appendChild(HND._el("span", {
-                class: "am-option-text",
-                text: items[hotId][ansCol] || "",
-            }));
+            const inner = HND._el("span", { class: "am-option-text" });
+            opt.appendChild(inner);
+            if (layout === "text-pic") {
+                // Option is a picture card (orig InitQuestion:160-168).
+                renderPictureInto(opt, inner, hotId, items[hotId][ansCol] || "");
+                opt.classList.add("am-option-pic");
+            } else {
+                inner.textContent = items[hotId][ansCol] || "";
+            }
             optionsLayer.appendChild(opt);
             optionNodes.push(opt);
         });
-        // Single hetz arrow that moves between option rows.
-        hetzNode = HND._el("div", { class: "ctrl am-hetz" });
+        // Single hetz arrow that moves between option rows (or above in text-pic).
+        hetzNode = HND._el("div", {
+            class: "ctrl am-hetz" + (layout === "text-pic" ? " am-hetz-down" : ""),
+        });
         optionsLayer.appendChild(hetzNode);
         applyFocus();
     }
@@ -235,7 +353,9 @@ HND.startAmerican = function (root, app, unit, onComplete) {
             else n.classList.remove("focus");
         });
         if (hetzNode) {
-            hetzNode.style.top = (160 + state.hetzhPos * 62 + 5) + "px";
+            // Hetz position derived per layout via CSS var, set here so
+            // CSS calc() in `.am-hetz` rules can interpolate.
+            hetzNode.style.setProperty("--opt-i", state.hetzhPos);
             hetzNode.classList.add("on");
         }
     }
@@ -259,11 +379,41 @@ HND.startAmerican = function (root, app, unit, onComplete) {
     function checkAnswer() {
         const idx = idOrder[state.current];
         const picked = state.hotSpotsId[state.hetzhPos];
-        const correct = (picked === idx);
+        // Synonym-aware correctness (orig CheckAnswer:564-580). Picked
+        // item is "right" if EITHER:
+        //   - same item ID                      (`IdOrder(Current) = HotSpotsId(HetzhPos)`)
+        //   - same WhatToAnswer text            (CompareByte branch line 572)
+        //   - same WhatToAsk text               (CompareByte branch line 577)
+        // — handles synonym pairs in the same unit (e.g. two items with
+        // the same Hebrew answer for different translations).
+        const exp = items[idx];
+        const got = items[picked];
+        const sameAnsText = !!(exp[ansCol] && got[ansCol] && exp[ansCol] === got[ansCol]);
+        const sameAskText = !!(exp[askCol] && got[askCol] && exp[askCol] === got[askCol]);
+        const correct = (picked === idx) || sameAnsText || sameAskText;
+
+        // If picked a SYNONYM (different ID, same text) — swap it into
+        // the current slot so it doesn't get asked again (orig:585-596).
+        if (correct && picked !== idx) {
+            for (let i = state.current + 1; i < idOrder.length; i++) {
+                if (idOrder[i] === picked) {
+                    idOrder[i] = idx;
+                    idOrder[state.current] = picked;
+                    break;
+                }
+            }
+        }
         if (correct) {
             HND.log("american CORRECT",
-                    "q=" + (state.current + 1), "errors=" + state.currErrors);
+                    "q=" + (state.current + 1), "errors=" + state.currErrors,
+                    "synonym=" + (picked !== idx));
             state.gameEnabled = false;
+            // Reveal the Q text now in by-sound mode (orig CheckAnswer:
+            // 599-610 redraws Q on correct when QuestionAsBonus=True).
+            if (MODE_BY_SOUND) {
+                qText.textContent = items[idx][askCol] || "";
+                qFrame.classList.add("am-q-revealed");
+            }
             // Hetz CORRECT cycle (HetzhStatus=1 → HetzRight1_1..5).
             const opt = optionNodes[state.hetzhPos];
             if (opt) opt.classList.add("done");
@@ -272,40 +422,47 @@ HND.startAmerican = function (root, app, unit, onComplete) {
                 void hetzNode.offsetWidth;
                 hetzNode.classList.add("correct", "done");
             }
-            // Match the original error-bucket → flower-end-frame mapping
-            // (GameAmerican.frm:993-1007): 0 err → grow-full (frame 9);
-            // 1 err → grow-half (frame 5); 2+ err → grow-dead (kind 3,
-            // frame 3, withered flower4_* sprites).
+            // Match orig error-bucket → goat status / flower target
+            // (GameAmerican.frm:993-1006): 0 err → status 1 (jump) +
+            // FlowerFrameTo=9; 1-2 err → status 2 + 5; 3+ err →
+            // status 5 + 3 with FlowerKind=3 (withered flower4 sprites).
             const cat = state.currErrors === 0 ? 0 :
-                        state.currErrors === 1 ? 1 : 2;
+                        state.currErrors <= 2 ? 1 : 2;
             state.errorsByQ.push(cat);
-            growFlower(state.current, cat);
-            // Original GameAmerican.frm:1010 — celebratory good_N.wav
-            // (good1..good3 random) AFTER the answer's left.wav. We chain
-            // both so the praise lines up with the goat's "yes" pose
-            // before advancing.
+            const bloom = growFlower(state.current, cat);
+            const goatStatus = cat === 0 ? 1 : cat === 1 ? 2 : 5;
+            // Orig sequencing (TimerGoat case 55 fires AFTER answer
+            // wave finishes — defer goat walk + good[N] until then).
             const goodN = 1 + Math.floor(Math.random() * 3);
-            HND.playWave(
-                HND.unitWavePath(app.id, unit.id, idx, "left"),
-                function () {
-                    HND.playWave(
-                        "assets/" + app.id + "/sounds/good" + goodN + ".wav",
-                        function () {
-                            state.current++;
-                            if (state.current >= QCOUNT) finishGame();
-                            else initQuestion();
-                        }
-                    );
-                }
-            );
+            const onAudioDone = function () {
+                goatCtl.setStatus(goatStatus,
+                                  Math.min(state.current + 1, QCOUNT - 1),
+                                  bloom);
+                HND.playWave(
+                    "assets/" + app.id + "/sounds/good" + goodN + ".wav",
+                    function () {
+                        state.current++;
+                        if (state.current >= QCOUNT) finishGame();
+                        else initQuestion();
+                    }
+                );
+            };
+            // Orig CheckAnswer:637-639 — the CombineQA chain uses
+            // WhatToAskSound / WhatToAnswerSound, not the text sides.
+            const audioCal = Object.assign({}, cal, {
+                askSide: cal.askSoundSide,
+                ansSide: cal.ansSoundSide,
+            });
+            HND.playCombineFromCal(app.id, unit.id, idx, audioCal, onAudioDone);
         } else {
             HND.log("american WRONG",
                     "q=" + (state.current + 1), "pickedIdx=" + picked, "errors=" + (state.currErrors + 1));
             state.currErrors++;
             state.penalty = Math.min(60, state.penalty + 20 / QCOUNT);
             penaltyBox.textContent = String(Math.floor(state.penalty));
-            // Original GameAmerican.frm:662 — ra.wav buzzer on wrong pick.
+            // Orig GameAmerican.frm:662-664 — ra.wav + GoatStatus=4.
             HND.playWave("assets/" + app.id + "/sounds/ra.wav");
+            goatCtl.setStatus(4);
             const opt = optionNodes[state.hetzhPos];
             if (opt) {
                 opt.classList.add("wrong");
@@ -337,22 +494,41 @@ HND.startAmerican = function (root, app, unit, onComplete) {
         }
     }
 
-    function growFlower(i, bucket) {
-        const seed = flowerLayer.querySelector('[data-slot="' + i + '"]');
-        if (!seed) return;
+    // Bloom controller — returns { step, finish } so the goat tick can
+    // advance the flower frame-by-frame as the goat walks past it
+    // (orig TimerGoat:852-860 increments FlowerStatus[Current-1] each
+    // frame > 4). Mirrors haklada.js growFlower exactly.
+    const SPRITE_BASE = "assets/" + app.id + "/pictures/GameHaklada/";
+    function growFlower(slotIdx, cat) {
+        const seed = flowerLayer.querySelector('[data-slot="' + slotIdx + '"]');
+        if (!seed) return { step: function () {}, finish: function () {} };
         seed.classList.remove("seed");
-        // bucket: 0 full bloom, 1 half bloom, 2 withered (kind→3)
-        if (bucket === 2) {
-            // GameAmerican.frm:850 — `FlowerKind(Current-1) = 3` swaps the
-            // green/pink/blue sprite for the withered flower4_* sequence.
-            ["kind-0", "kind-1", "kind-2"].forEach(function (k) { seed.classList.remove(k); });
+        const wilt = (cat === 2);
+        const target = cat === 0 ? 9 : cat === 1 ? 5 : 3;
+        const kindNum = wilt ? 4 : (flowerKinds[slotIdx] + 1);
+        const lastFrame = wilt ? 3 : 9;
+        const finalIdx  = Math.min(target, lastFrame);
+        if (wilt) {
+            ["kind-0", "kind-1", "kind-2"].forEach(function (k) {
+                seed.classList.remove(k);
+            });
             seed.classList.add("kind-3");
-            seed.classList.add("grown-dead");
-        } else if (bucket === 1) {
-            seed.classList.add("grown-half");
-        } else {
-            seed.classList.add("grown-full");
         }
+        function setFrame(f) {
+            seed.style.backgroundImage =
+                "url('" + SPRITE_BASE + "flower" + kindNum + "_" + f + ".png')";
+            seed.style.opacity = "1";
+        }
+        setFrame(0);
+        let cur = 0;
+        return {
+            step: function () {
+                if (cur >= target) return;
+                cur += 1;
+                setFrame(Math.min(cur, lastFrame));
+            },
+            finish: function () { cur = target; setFrame(finalIdx); },
+        };
     }
 
     function finishGame() {
@@ -361,8 +537,14 @@ HND.startAmerican = function (root, app, unit, onComplete) {
         const score = Math.max(0, 100 - Math.floor(state.penalty));
         HND.log("american FINISH", "score=" + score, "penalty=" + state.penalty);
         HND.saveProgress(app.id, unit.id, "american", score, state.errorsByQ);
+        // Orig TimerGoat:870-878 — Current>QCount triggers GoatStatus=6
+        // (win-loop) and plays Win.WAV. Goat dances at its last-walked
+        // position (the just-completed flower); raise z-index so it
+        // stays visible above our same-stage ScoreForm overlay.
+        goatCtl.element.style.zIndex = "60";
+        goatCtl.setStatus(6);
         const stage = root.parentElement;
-        setTimeout(function () {
+        const showScores = function () {
             HND.showScoreForm(
                 stage, app.id, unit.name, userName, score, state.errorsByQ,
                 function onExit() {
@@ -372,8 +554,108 @@ HND.startAmerican = function (root, app, unit, onComplete) {
                     location.hash = "#/" + app.id + "/unit/" + unit.id + "/american";
                 }
             );
-        }, 900);
+        };
+        let shown = false;
+        const showOnce = function () { if (!shown) { shown = true; showScores(); } };
+        HND.playWave("assets/" + app.id + "/sounds/win.wav", showOnce);
+        setTimeout(showOnce, 4000);
         if (onComplete) onComplete(score);
+    }
+
+    // Calibration instructions overlay + per-mode help wave (orig
+    // Form_Paint:786-790 auto-fires CmdHelp_Click). KindOfGame maps to
+    // game5/6/7.wav: 5=by-text (default), 6=by-picture, 7=by-sound.
+    // Only game5.wav is shipped in the port's shared assets — 6/7 fall
+    // back to game5 if missing (same orig fallback chain CmdHelp:409).
+    function showHelpOverlay() {
+        const text = (cal.instructionsFliped && window.HND_QASwitched)
+                   ? cal.instructionsFliped : cal.instructions;
+        if (text && text !== "0") {
+            help.textContent = text;
+            help.style.display = "block";
+        }
+        const hide = function () { help.style.display = "none"; };
+        const kindOfGame = MODE_BY_SOUND ? 2 : MODE_BY_PIC ? 1 : 0;
+        // Orig CmdHelp_Click:408-412 — if GameQASwitched, plays
+        // gameXFliped.wav instead. We try Fliped variant first when
+        // QASwitched flag is on; falls through to plain gameX.wav.
+        const suffix = (window.HND_QASwitched ? "Fliped" : "") + ".wav";
+        const wavName = "game" + (5 + kindOfGame) + suffix;
+        const primary = "assets/" + app.id + "/sounds/" + wavName;
+        const fallback = "assets/" + app.id + "/sounds/game5.wav";
+        const playOnce = function (url, onEnd) {
+            HND.playWave(url, onEnd);
+            // If url 404s, _missingWaves cache will reflect that on next
+            // play — try fallback after a short pause.
+            setTimeout(function () {
+                if (HND._missingWaves && HND._missingWaves[url] && url !== fallback) {
+                    HND.playWave(fallback, hide);
+                }
+            }, 500);
+        };
+        if (primary === fallback) HND.playWave(primary, hide);
+        else                       playOnce(primary, hide);
+        setTimeout(hide, 8000);   // hard cap if wave never ends
+    }
+
+    // Hook the outer app.js help icon so F1 / click replays our
+    // instruction overlay (orig F1=CmdHelp_Click in Form_KeyUp:466).
+    // Also hook the exit icon to drive the orig CmdExit_Click two-step:
+    // first click reveals a mid-game replay button; second exit confirms.
+    let replayBtn = null;
+    function showReplayButton() {
+        if (replayBtn) return;
+        replayBtn = HND._el("button", {
+            class: "ctrl am-replay",
+            title: "התחל מחדש",
+        });
+        replayBtn.addEventListener("click", function (e) {
+            e.stopPropagation();
+            // Orig CmdRePlay_Click:440-443 → Unload Me + PlayGame again.
+            // Re-route to same URL; app.js will rebuild the screen.
+            location.hash = "#/" + app.id + "/unit/" + unit.id + "/american";
+        });
+        root.appendChild(replayBtn);
+    }
+    if (root.parentElement) {
+        const helpBtn = root.parentElement.querySelector(".help-icon");
+        if (helpBtn) {
+            const cloneIt = helpBtn.cloneNode(true);
+            helpBtn.parentNode.replaceChild(cloneIt, helpBtn);
+            cloneIt.addEventListener("click", function (e) {
+                e.stopPropagation();
+                showHelpOverlay();
+            });
+        }
+        const exitBtn = root.parentElement.querySelector(".exit-icon");
+        if (exitBtn) {
+            const cloneIt = exitBtn.cloneNode(true);
+            exitBtn.parentNode.replaceChild(cloneIt, exitBtn);
+            cloneIt.addEventListener("click", function (e) {
+                if (!replayBtn) {
+                    // First exit-click: surface CmdRePlay (orig:392-395).
+                    e.stopPropagation();
+                    showReplayButton();
+                } // else: let outer handler fire to actually exit.
+            });
+        }
+    }
+
+    // Teardown on game leave — orig Form_Unload kills all timers + sprites.
+    // Browser equivalent: drop the keydown listener when our root is
+    // removed from the DOM.
+    let teardownObs = null;
+    function teardown() {
+        goatCtl.teardown();
+        document.removeEventListener("keydown", keyHandler);
+        if (teardownObs) teardownObs.disconnect();
+    }
+    if (root.parentElement && root.parentElement.parentElement) {
+        teardownObs = new MutationObserver(function () {
+            if (!root.isConnected) teardown();
+        });
+        teardownObs.observe(root.parentElement.parentElement,
+                            { childList: true, subtree: true });
     }
 
     // Keyboard nav per Form_KeyUp (lines 460-493).
@@ -393,5 +675,10 @@ HND.startAmerican = function (root, app, unit, onComplete) {
     }
     document.addEventListener("keydown", keyHandler);
 
+    // Show calibration instructions + play game5/6/7.wav on start.
+    showHelpOverlay();
+    // Orig Form_Paint:786 sets GoatStatus=1 once after firstPaint —
+    // goat jumps in from off-screen toward flower 0.
+    goatCtl.setStatus(1, 0);
     initQuestion();
 };

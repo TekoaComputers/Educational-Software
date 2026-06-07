@@ -60,6 +60,13 @@ def convert_pictures(src_dir: Path, dst_dir: Path):
     `SetBkColor Dc, 0` (line 108). Both the per-game PicClass renderers and
     the CmdPlus UserControl mask black pixels at draw time. JPGs are copied
     as-is (no mask convention — JPG has no alpha anyway).
+
+    GOTCHA: never round-trip the produced PNGs through `PIL.Image.convert("RGBA")`
+    after the fact — that promotes the palette-index-0 transparent pixels to
+    opaque RGB(0,0,0), silently turning every transparent corner into a solid
+    black halo. If you need RGBA-mode PNGs (e.g. a browser is mis-rendering
+    palette+tRNS at certain background-sizes), regenerate from the source BMP
+    via numpy alpha-keying — see `force_rgba_from_bmp()` below.
     """
     dst_dir.mkdir(parents=True, exist_ok=True)
     for f in src_dir.iterdir():
@@ -85,6 +92,26 @@ def convert_pictures(src_dir: Path, dst_dir: Path):
         elif ext == ".cur":
             # Cursor file — keep alongside as-is so future code can use it.
             shutil.copy(f, dst_dir / f.name.lower())
+
+
+def force_rgba_from_bmp(src_dir: Path, dst_dir: Path, prefixes=("goat", "flower", "q_mark")):
+    """Regenerate RGBA-mode PNGs from source BMPs with pure-black masked to
+    alpha=0. Use this instead of `convert_pictures` when a sprite family
+    needs guaranteed RGBA output (some browsers mis-render palette+tRNS at
+    background-size:100% 100%). Idempotent — safe to re-run."""
+    import numpy as np
+    from PIL import Image
+    for f in src_dir.iterdir():
+        if not f.is_file() or f.suffix.lower() != ".bmp":
+            continue
+        stem = f.stem.lower()
+        if not stem.startswith(prefixes):
+            continue
+        rgb = np.array(Image.open(f).convert("RGB"))
+        black = (rgb[:, :, 0] == 0) & (rgb[:, :, 1] == 0) & (rgb[:, :, 2] == 0)
+        alpha = np.where(black, 0, 255).astype(np.uint8)
+        rgba = np.dstack([rgb, alpha])
+        Image.fromarray(rgba, "RGBA").save(dst_dir / (stem + ".png"), optimize=True)
 
 
 def copy_sounds(src_dir: Path, dst_dir: Path):
@@ -193,6 +220,30 @@ def parse_data_txt(path: Path):
     header = cleaned[:21]
     columns = header[2:5]                                # hint / answer / question captions
 
+    # Per-side typography from header lines 5-13 (orig OpenUnitFile in
+    # GamesMoudle.bas:214-222). Color is VB6 RGB long (BGR-packed); size
+    # is points; name is e.g. "David" / "Arial".
+    def to_int(s, default=0):
+        try: return int(s)
+        except (ValueError, TypeError): return default
+    def vb6_long_to_css(s):
+        """VB6 OLE_COLOR Long (BGR packed) → CSS rgb()."""
+        n = to_int(s)
+        if n < 0:
+            return None        # system color reference; skip
+        r =  n        & 0xFF
+        g = (n >>  8) & 0xFF
+        b = (n >> 16) & 0xFF
+        return f"rgb({r},{g},{b})"
+    fonts = {
+        "hint":  {"color": vb6_long_to_css(cleaned[5]),
+                  "size":  to_int(cleaned[8]),  "name": cleaned[11]},
+        "left":  {"color": vb6_long_to_css(cleaned[6]),
+                  "size":  to_int(cleaned[9]),  "name": cleaned[12]},
+        "right": {"color": vb6_long_to_css(cleaned[7]),
+                  "size":  to_int(cleaned[10]), "name": cleaned[13]},
+    }
+
     try:
         line_count = int(cleaned[18])
     except (ValueError, IndexError):
@@ -202,6 +253,32 @@ def parse_data_txt(path: Path):
     BODY_START = 55                                      # GamesMoudle.bas:234 base offset
     ITEM_STRIDE = 7                                      # 3 strings + 3 bools + 1 separator
 
+    # Per-line SelectHint/SelectLeft/SelectRight Boolean arrays from the
+    # ITEM_STRIDE block. Original packs them as VB6 Byte arrays where
+    # &H00 = False (unselected) and &H01+ = True (selected) — see
+    # GamesMoudle.bas:236-240 and VarToBoolian in General.bas. The
+    # records arrive here as already-cleaned strings; True/False text
+    # form is what VarToBoolian (General.bas:196-206) parses.
+    def parse_select(raw, length):
+        """Convert orig packed Boolean to list-of-bool length-aligned to text."""
+        if not raw:
+            return [True] * length         # default = all selectable
+        # raw is e.g. "True False True False ..." OR a packed byte string.
+        toks = raw.replace("\r", " ").replace("\n", " ").split()
+        out = []
+        for t in toks:
+            if t.lower() in ("true", "-1", "1"):
+                out.append(True)
+            elif t.lower() in ("false", "0"):
+                out.append(False)
+        # If parse yielded nothing, fall back to all-selectable.
+        if not out:
+            out = [True] * length
+        # Pad / trim to match the text length so per-char indexing aligns.
+        if len(out) < length:
+            out.extend([True] * (length - len(out)))
+        return out[:length]
+
     items = []
     for i in range(n_items):
         base = BODY_START + i * ITEM_STRIDE
@@ -210,15 +287,26 @@ def parse_data_txt(path: Path):
         hint     = cleaned[base + 0]
         answer   = cleaned[base + 2]
         question = cleaned[base + 4]
-        # Skip items where ALL three fields are empty (file padding/unused slots).
         if not (hint or answer or question):
             continue
+        sel_hint  = parse_select(cleaned[base + 1] if base + 1 < len(cleaned) else "", len(hint))
+        sel_left  = parse_select(cleaned[base + 3] if base + 3 < len(cleaned) else "", len(answer))
+        sel_right = parse_select(cleaned[base + 5] if base + 5 < len(cleaned) else "", len(question))
+        # Select arrays are in VISUAL byte-order on disk; our strings are
+        # `fix_hebrew`-reversed to logical order, so reverse the boolean
+        # arrays for Hebrew strings to keep per-char correspondence.
+        if _HEBREW_RE.search(hint):     sel_hint  = sel_hint[::-1]
+        if _HEBREW_RE.search(answer):   sel_left  = sel_left[::-1]
+        if _HEBREW_RE.search(question): sel_right = sel_right[::-1]
         items.append({
             columns[0]: hint,
             columns[1]: answer,
             columns[2]: question,
+            "_sel_hint":  sel_hint,
+            "_sel_left":  sel_left,
+            "_sel_right": sel_right,
         })
-    return {"header": header, "columns": columns, "items": items}
+    return {"header": header, "columns": columns, "items": items, "fonts": fonts}
 
 
 def port_app(app_id: str, src_root: Path):

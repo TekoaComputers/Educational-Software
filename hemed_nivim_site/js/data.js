@@ -755,6 +755,127 @@ HND.getCalibField = function (unit, gameIdx, fieldName) {
     }
     return raw;
 };
+// Slot index (game-menu position 0..8) → cfg-block index in unit.cfg.
+// Mirrors SLOT_TO_CAL_IDX in app.js (the original GameMenu.frm's
+// CheckDisable mapping).
+HND.SLOT_TO_CAL_IDX = { 0:0, 1:1, 2:5, 3:6, 4:7, 5:2, 6:3, 7:4, 8:8 };
+
+// Resolve every side + audio + column + flag the orig CurrentCalibration
+// exposes — used by every game so per-unit teacher overrides are honored
+// (orig GamesMoudle.bas:18-40 CalibrationType). Pass `gameIdx` (which
+// 20-field cfg block to read) — most games take it as a constant; American
+// has 3 modes mapped to slots 2/3/4 → cfg indices 5/6/7 (per app.js).
+HND.resolveCalibration = function (unit, gameIdx) {
+    const get = function (k) { return HND.getCalibField(unit, gameIdx, k); };
+    const whatToAsk    = parseInt(get("WhatToAsk"),    10);
+    const whatToAnswer = parseInt(get("WhatToAnswer"), 10);
+    const whatToType   = parseInt(get("WhatToType"),   10) || 20;
+    const whatToHint   = parseInt(get("WhatToHint"),   10);
+    // Audio-side overrides (orig CurrentCalibration.WhatToAskSound /
+    // WhatToAnswerSound): when a unit's audio uses a different side
+    // than the text Q/A, these win. =4 (qDisabled) means no audio.
+    // Fall back to WhatToAsk/WhatToAnswer when absent or qPicture (3).
+    const askSoundRaw  = parseInt(get("WhatToAskSound"),    10);
+    const ansSoundRaw  = parseInt(get("WhatToAnswerSound"), 10);
+    const combineQA    = get("CombineQA") || "0";
+    const textForPic   = parseInt(get("TextForPicture"), 10);
+    const ifRandom     = String(get("IfRandom") || "True").toLowerCase() !== "false";
+    const qLimit       = parseInt(get("QLimit"), 10);
+    const instructions        = String((unit.cfg || [])[gameIdx * 20 + 4]  || "");
+    const instructionsFliped  = String((unit.cfg || [])[gameIdx * 20 + 18] || "");
+    // Side (qRight=0, qLeft=1, qHint=2, qPicture=3) → wave suffix +
+    // column index. qPicture falls back to TextForPicture per orig
+    // SetWaveName (GamesMoudle.bas:495).
+    const SIDE_NAME = { 0: "right", 1: "left", 2: "hint" };
+    const SIDE_COL  = { 0: 2, 1: 1, 2: 0 };
+    function sideName(s) {
+        if (s === 3) return SIDE_NAME[textForPic] || "right";
+        return SIDE_NAME[s] || "right";
+    }
+    function sideCol(s) {
+        if (s === 3) return SIDE_COL[textForPic] != null ? SIDE_COL[textForPic] : 2;
+        return SIDE_COL[s] != null ? SIDE_COL[s] : 2;
+    }
+    const cols = (unit.data && unit.data.columns) || [];
+    return {
+        gameIdx,
+        // raw integers (for switch statements in the per-game ports)
+        whatToAsk, whatToAnswer, whatToType, whatToHint, textForPic,
+        // CombineQA mode ("0"/"7"/"8"/"9")
+        combineQA,
+        ifRandom,
+        qLimit: qLimit > 0 ? qLimit : 0,
+        instructions,
+        instructionsFliped,
+        // wave-file suffix matching the TEXT side. Use askSide/ansSide
+        // for games that play whatever side the user sees (Haklada,
+        // Match, Connect, Hakira — orig .frms use SetWaveName(WhatToAsk)
+        // directly). qDisabled (4) → null so callers can skip play.
+        askSide:  sideName(whatToAsk),
+        ansSide:  sideName(whatToAnswer),
+        hintSide: sideName(whatToHint),
+        // Audio-side overrides for games that honor `WhatToAskSound` /
+        // `WhatToAnswerSound` (cfg fields 14/15). American + Apple are
+        // the only games where the orig .frm reads these — see e.g.
+        // GameAmerican.frm:454 `SetWaveName WhatToAskSound`. They let
+        // a teacher show one side as text but PLAY a different side
+        // as audio (e.g. text=translation, audio=Hebrew). =4 means
+        // qDisabled (no audio) → null. When the field is absent or
+        // out-of-range, fall back to the text side.
+        askSoundSide: (askSoundRaw === 4) ? null :
+                      (askSoundRaw >= 0 && askSoundRaw <= 2)
+                          ? sideName(askSoundRaw) : sideName(whatToAsk),
+        ansSoundSide: (ansSoundRaw === 4) ? null :
+                      (ansSoundRaw >= 0 && ansSoundRaw <= 2)
+                          ? sideName(ansSoundRaw) : sideName(whatToAnswer),
+        whatToAskSound:    askSoundRaw,
+        whatToAnswerSound: ansSoundRaw,
+        // data.columns indices (cols[0]=hint, cols[1]=left, cols[2]=right)
+        askCol:  cols[sideCol(whatToAsk)]    || cols[0],
+        ansCol:  cols[sideCol(whatToAnswer)] || cols[0],
+        hintCol: cols[sideCol(whatToHint)]   || cols[0],
+        picMode: whatToAsk === 3 || whatToAnswer === 3,
+        // per-unit typography (from data.txt header — see parse_data_txt)
+        fonts: (unit.data && unit.data.fonts) || {},
+    };
+};
+
+// Resolve calibration based on the slot the user clicked in the game
+// menu (sessionStorage.hnd.<app>.lastSlot, set in showGameMenu). Each
+// game called this from its startXxx() entry point so the cfg block is
+// auto-selected (especially for American which has 3 modes).
+HND.gameCalibrationFromSlot = function (unit, appId, fallbackGameIdx) {
+    let slotIdx = -1;
+    try { slotIdx = parseInt(sessionStorage.getItem("hnd." + appId + ".lastSlot"), 10); }
+    catch (e) {}
+    const idx = HND.SLOT_TO_CAL_IDX[slotIdx];
+    return HND.resolveCalibration(
+        unit,
+        idx != null ? idx : (fallbackGameIdx != null ? fallbackGameIdx : 0)
+    );
+};
+
+// Wrap HND.playCombineQA with auto-resolution of askSide/ansSide from
+// the calibration — most callers were threading these manually.
+HND.playCombineFromCal = function (appId, unitId, origIdx, cal, then) {
+    const p = function (side) { return HND.unitWavePath(appId, unitId, origIdx, side); };
+    // Skip null sides (qDisabled) — call the next link in the chain.
+    const playOrSkip = function (side, next) {
+        if (!side) { if (next) next(); return; }
+        HND.playWave(p(side), next || null);
+    };
+    const chain = function (a, b) {
+        playOrSkip(a, function () { playOrSkip(b, then); });
+    };
+    switch (String(cal.combineQA)) {
+        case "7": chain(cal.askSide, cal.ansSide); break;
+        case "8": chain("right", "left"); break;
+        case "9": chain("left",  "right"); break;
+        case "0":
+        default:  playOrSkip(cal.ansSide, then); break;
+    }
+};
+
 HND.setCalibField = function (unit, gameIdx, fieldName, value) {
     const cfg = unit.cfg = (unit.cfg || []).slice();      // clone before mutate
     const off = gameIdx * 20 + (HND.CFG_FIELDS[fieldName] || 0);

@@ -33,12 +33,18 @@ HND.startConnect = function (root, app, unit, onComplete) {
         "smallstar_0", "smallstar_1", "smallstar_2", "smallstar_3", "smallstar_4",
     ]);
 
-    const leftCol  = cols[2] || cols[0];   // qRight side text → ask
-    const rightCol = cols[1] || cols[0];   // qLeft side text  → answer
+    // Per-unit calibration (orig CurrentCalibration). Connect's slot is 8.
+    // 14/31 Nivim units use CombineQA="8" (right→left audio chain).
+    const cal = HND.gameCalibrationFromSlot(unit, app.id, 8);
+    const leftCol  = cal.askCol;     // "Q" box text — orig WhatToAsk side
+    const rightCol = cal.ansCol;     // "A" box text — orig WhatToAnswer side
+    const askSide  = cal.askSide;
+    const ansSide  = cal.ansSide;
     const MAX_LINES = 8;
 
-    // Game-wide state spanning ALL sets.
-    const pool = HND._shuffle(items.map(function (_, i) { return i; }));
+    // Game-wide state — honor IfRandom (orig PlayGame).
+    const rawPool = items.map(function (_, i) { return i; });
+    const pool = cal.ifRandom ? HND._shuffle(rawPool) : rawPool;
     const game = {
         pool: pool,                      // indices still waiting for a set
         totalPairs: pool.length,         // matches starCount in WinGame
@@ -269,11 +275,12 @@ HND.startConnect = function (root, app, unit, onComplete) {
         if (state.selected === null) {
             state.selected = i;
             HND.log("connect pick", "kind=" + b.kind, "pair=" + b.pairId);
-            HND.playWave(HND.unitWavePath(app.id, unit.id, b.origIdx,
-                                          b.kind === "Q" ? "left" : "right"));
+            // Selecting a box plays the OPPOSITE side's audio so the user
+            // can identify what to match (orig BoxClick:497 plays the
+            // selected box's `.wave` field, which is the opposite-side wave).
+            const pickSide = (b.kind === "Q") ? ansSide : askSide;
+            HND.playWave(HND.unitWavePath(app.id, unit.id, b.origIdx, pickSide));
             render();
-            // Anchor live rope at the selected box (no cursor yet → endpoint
-            // pinned at box center until mouse moves).
             updateLiveRope(b.x + b.w / 2, b.y + b.h / 2);
             return;
         }
@@ -284,8 +291,9 @@ HND.startConnect = function (root, app, unit, onComplete) {
             HND.log("connect CORRECT", "pair=" + b.pairId,
                     "set done=" + (Object.keys(state.matched).length) + "/" + ROUND);
             state.selected = null;
-            HND.playWave(HND.unitWavePath(app.id, unit.id, b.origIdx,
-                                          b.kind === "Q" ? "left" : "right"));
+            // On correct match, orig WaveMe_Done:787-810 dispatches by
+            // CombineQA — "0" plays just one side, "7"/"8"/"9" chain.
+            HND.playCombineFromCal(app.id, unit.id, b.origIdx, cal);
             spawnStars(prev, b);
             render();
             if (Object.keys(state.matched).length === ROUND) onSetComplete();
