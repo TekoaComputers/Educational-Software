@@ -6309,15 +6309,25 @@ const PRESETS = {
 const DEFAULT_PARAMS = { tur: 2, pa1: 2, pa2: 1, lbls: 5, lshorot: 10 };
 
 // === Audio ================================================================
-// One-shot Audio per channel so a new SFX cuts the previous. Channels:
+// One Audio element PER channel, reused across calls. Rapid clicks on the
+// bug-and-flower game used to layer "new Audio(…)" elements on top of each
+// other — pause() on the previous one isn't always instant, so the old SFX
+// kept bleeding through under the new one (issue #14: "sounds overlap").
+// Reusing the element + swapping .src guarantees only one sound on each
+// channel at any moment.
 //   fx    — feedback (good/wrong/blink)
 //   voice — number announcements, start/win/lose narration
 const audioCh = { fx: null, voice: null };
 function playWav(channel, name, onEnded) {
     let a = audioCh[channel];
-    if (a) { try { a.pause(); } catch (e) {} a.onended = null; }
-    a = new Audio(WAV + "/" + name);
-    audioCh[channel] = a;
+    if (!a) {
+        a = new Audio();
+        audioCh[channel] = a;
+    }
+    try { a.pause(); } catch (e) {}
+    a.onended = null;
+    a.currentTime = 0;
+    a.src = WAV + "/" + name;
     dbg("audio[" + channel + "] play:", name);
     if (onEnded) a.onended = function () { vdbg("audio[" + channel + "] ended:", name); onEnded(); };
     a.play().catch(function (err) {

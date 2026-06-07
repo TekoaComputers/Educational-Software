@@ -572,7 +572,16 @@ h1 {
     color: #b00;
     font-size: 18px;
 }
-.lmath-slider input[type=range] { flex: 1; min-width: 90px; }
+.lmath-slider input[type=range] {
+    flex: 1; min-width: 90px;
+    /* The .lmath-slider container is RTL (so label/value/track flow right→left
+       like Hebrew text). Modern browsers flip <input type=range> with the
+       parent's direction — low value to the right, high to the left. That
+       reads as "reversed" because the user expects thumb→right = more.
+       Force the slider track LTR; the container's RTL still arranges the
+       label/value around it. */
+    direction: ltr;
+}
 
 .lmath-settings-go,
 .lmath-settings-x {
