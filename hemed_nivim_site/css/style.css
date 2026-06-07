@@ -1406,72 +1406,146 @@ body {
 }
 .connect-box:hover { filter: brightness(1.15); }
 .connect-box.sel   { filter: brightness(1.3) drop-shadow(0 0 8px #ffd76a); }
-.connect-box.done  { filter: brightness(0.85) hue-rotate(80deg); cursor: default; }
-.connect-box.wrong { animation: shake 0.4s; filter: hue-rotate(-30deg) brightness(0.9); }
+/* Matched boxes — orig sets Show=False which then renders via boxPic2.bmp
+   (a slightly different sprite, indicating "completed"). We swap the
+   border tone to match. */
+.connect-box.done  { cursor: default; filter: brightness(0.9); }
 
-/* Star burst — 5-frame smallstar sprite, expand outward + fade. */
-.connect-star {
-    width: 25px; height: 25px;
-    background-image: url("../assets/Hemed/pictures/GameConnect/smallstar_0.png");
+/* ============ Win celebration (orig WinGame + WinTimer_Timer) ============ */
+
+/* Big stars (one per matched Q) rising from the score row. JS sets
+   left/top each tick via spring physics — no CSS keyframe needed. */
+.connect-bigstar {
+    width: 26px; height: 26px;
     background-size: 100% 100%; background-repeat: no-repeat;
     background-color: transparent;
     pointer-events: none;
-    animation: connectStarSpin 0.5s steps(1),
-               connectStarFly 0.9s ease-out forwards;
-}
-@keyframes connectStarSpin {
-    0%   { background-image: url("../assets/Hemed/pictures/GameConnect/smallstar_0.png"); }
-    25%  { background-image: url("../assets/Hemed/pictures/GameConnect/smallstar_1.png"); }
-    50%  { background-image: url("../assets/Hemed/pictures/GameConnect/smallstar_2.png"); }
-    75%  { background-image: url("../assets/Hemed/pictures/GameConnect/smallstar_3.png"); }
-    100% { background-image: url("../assets/Hemed/pictures/GameConnect/smallstar_4.png"); }
-}
-@keyframes connectStarFly {
-    0%   { transform: translate(0,0) scale(0.4); opacity: 1; }
-    100% { transform: translate(var(--dx), var(--dy)) scale(1.2); opacity: 0; }
-}
-
-.connect-header {
-    left: 0; right: 0; top: 6px;
-    text-align: center; color: #f6e7c2;
-    font-size: 1.05rem; font-weight: 700;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.8);
-    pointer-events: none;
-}
-
-/* Win celebration stars — bigger star_0..3 cycle flying upward. */
-.connect-bigstar {
-    width: 35px; height: 35px;
-    background-image: url("../assets/Hemed/pictures/GameConnect/star_0.png");
-    background-size: 100% 100%; background-repeat: no-repeat;
-    pointer-events: none;
-    animation: connectBigStarSpin 0.4s steps(1) infinite,
-               connectBigStarFly 1.8s ease-out forwards;
     z-index: 9;
 }
-@keyframes connectBigStarSpin {
-    0%   { background-image: url("../assets/Hemed/pictures/GameConnect/star_0.png"); }
-    25%  { background-image: url("../assets/Hemed/pictures/GameConnect/star_1.png"); }
-    50%  { background-image: url("../assets/Hemed/pictures/GameConnect/star_2.png"); }
-    75%  { background-image: url("../assets/Hemed/pictures/GameConnect/star_3.png"); }
-    100% { background-image: url("../assets/Hemed/pictures/GameConnect/star_0.png"); }
+.connect-bigstar.frame-1 { background-image: url("../assets/Hemed/pictures/GameConnect/star_1.png"); }
+.connect-bigstar.frame-2 { background-image: url("../assets/Hemed/pictures/GameConnect/star_2.png"); }
+.connect-bigstar.frame-3 { background-image: url("../assets/Hemed/pictures/GameConnect/star_3.png"); }
+/* star_4 not shipped — orig PicClass tops out at frame 3 too */
+
+/* Small star explosion shards (orig smallStars — bouncy physics in JS). */
+.connect-smallstar {
+    width: 16px; height: 16px;
+    position: absolute;
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent;
+    pointer-events: none;
+    z-index: 8;
 }
-@keyframes connectBigStarFly {
-    0%   { transform: translate(0,0) scale(0.4); opacity: 1; }
-    100% { transform: translate(var(--tx), var(--ty)) scale(1.5); opacity: 0; }
+.connect-smallstar.frame-0 { background-image: url("../assets/Hemed/pictures/GameConnect/smallstar_0.png"); }
+.connect-smallstar.frame-1 { background-image: url("../assets/Hemed/pictures/GameConnect/smallstar_1.png"); }
+.connect-smallstar.frame-2 { background-image: url("../assets/Hemed/pictures/GameConnect/smallstar_2.png"); }
+.connect-smallstar.frame-3 { background-image: url("../assets/Hemed/pictures/GameConnect/smallstar_3.png"); }
+/* smallstar_4 also missing — clamped in JS */
+
+/* Score count-up + praise text in the centre of the win layer. */
+.connect-win-layer { left: 0; top: 0; width: 800px; height: 600px;
+                     pointer-events: none; z-index: 7; }
+.connect-win-score {
+    left: 0; right: 0; top: 200px;
+    text-align: center;
+    font-family: "David CLM", "Heebo", "Segoe UI", Arial, sans-serif;
+    font-weight: 700;
+    transition: color 0.2s;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    pointer-events: none;
+}
+.connect-win-praise {
+    left: 0; right: 0; top: 140px;
+    text-align: center;
+    color: rgb(230, 230, 254);
+    font-family: "David CLM", "Heebo", "Segoe UI", Arial, sans-serif;
+    font-weight: 700;
+    font-size: 28pt;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    pointer-events: none;
 }
 
-.connect-status {
-    left: 50px; bottom: 8px; width: 700px;
-    text-align: center; color: #f6e7c2; font-size: 0.95rem; font-weight: 700;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+/* Ball cursor sprite that follows the mouse while a box is picked.
+   Orig:736 — ballPic.MaskB mX - ballPic.Width/2, mY - ballPic.Height/2.
+   24×24 approximation; CSS positioning driven by JS each tick. */
+.connect-ball {
+    width: 24px; height: 24px;
+    background-image: url("../assets/Hemed/pictures/GameConnect/ball.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent;
+    pointer-events: none;
+    opacity: 0;
+    z-index: 6;
+    transition: opacity 0.15s;
 }
-.connect-status.done {
-    left: 80px; top: 240px; width: 640px;
-    background: rgba(255,255,255,0.92); color: #2b5e22;
-    border: 3px solid #4a8d3a; border-radius: 12px;
-    padding: 1rem; font-size: 1.4rem;
-    bottom: auto;
+
+/* Per-Q score-row stars at y=545 (orig Timer_Timer:661-687 — draws
+   starPic frames alternating right/left side, frame index based on
+   ErrorCount: more errors = lower frame = less-bloomed star). */
+.connect-score-row { left: 0; top: 0; width: 800px; height: 600px;
+                     pointer-events: none; }
+.connect-qstar {
+    position: absolute; width: 18px; height: 18px;
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent;
+    pointer-events: none;
+}
+.connect-qstar.frame-0 { background-image: url("../assets/Hemed/pictures/GameConnect/star_0.png"); opacity: 0.5; }
+.connect-qstar.frame-1 { background-image: url("../assets/Hemed/pictures/GameConnect/star_1.png"); }
+.connect-qstar.frame-2 { background-image: url("../assets/Hemed/pictures/GameConnect/star_2.png"); }
+.connect-qstar.frame-3 { background-image: url("../assets/Hemed/pictures/GameConnect/star_3.png"); }
+/* qstar frame-4 — star atlas only ships 0..3; clamped in JS */
+
+/* Picture-mode box (orig LoadBox:600-608 — boxPic frames around a
+   per-item picture). Bigger than text box; pic asset as background. */
+.connect-box.pic {
+    background-size: 100% 100%; background-repeat: no-repeat;
+    color: transparent;     /* hide text once bg image loads */
+    padding: 0;
+    border: 4px solid #d8b07a;
+    border-radius: 8px;
+}
+.connect-box-cap {
+    /* Fallback caption shown ONLY if picture asset failed to load.
+       Position bottom-center, small dark band. */
+    position: absolute; left: 0; right: 0; bottom: 2px;
+    color: #2a1d0a; font-size: 0.8rem; text-align: center;
+    background: rgba(255,255,255,0.7);
+    padding: 1px 4px;
+}
+.connect-box.pic:not([style*="data:"]) .connect-box-cap {
+    /* When bg-image URL is unresolved or 404'd, keep caption visible.
+       The default `display` for the cap is inline; no override needed. */
+}
+
+/* Instructions overlay (orig Timer_Timer:769-774 — DrawString
+   CurrentCalibration.Instructions at (400, 10) in RGB(254,210,190)
+   for `showTip` frames after CmdHelp_Click). */
+.connect-tip {
+    left: 100px; top: 6px; width: 600px;
+    text-align: center; color: rgb(254, 210, 190);
+    font: 700 1.05rem "David CLM", "Heebo", "Segoe UI", Arial, sans-serif;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.85);
+    background: rgba(0,0,0,0.35);
+    border-radius: 6px;
+    padding: 4px 10px;
+    pointer-events: none;
+    z-index: 4;
+    direction: rtl;
+}
+
+/* CmdRePlay button (orig:81-93 at L=960,T=120,55×55). Shows after
+   first exit-click; click re-routes to same game URL. */
+.connect-replay {
+    left: 64px; top: 8px; width: 55px; height: 55px;
+    background-image: url("../assets/Hemed/pictures/replay_off.png");
+    background-size: 100% 100%; background-repeat: no-repeat;
+    background-color: transparent;
+    border: none; padding: 0; cursor: pointer;
+    z-index: 50;
+}
+.connect-replay:hover {
+    background-image: url("../assets/Hemed/pictures/replay_on.png");
 }
 
 /* --- Hakira (GameHakira.frm) -----------------------------------

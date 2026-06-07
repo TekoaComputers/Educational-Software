@@ -632,11 +632,16 @@ HND.startAmerican = function (root, app, unit, onComplete) {
             const cloneIt = exitBtn.cloneNode(true);
             exitBtn.parentNode.replaceChild(cloneIt, exitBtn);
             cloneIt.addEventListener("click", function (e) {
+                // Clone wiped app.js's exit handler — re-implement orig
+                // CmdExit_Click:388-397 two-step:
+                //   1st click: surface CmdRePlay.
+                //   2nd click (replay already visible): exit to menu.
+                e.stopPropagation();
                 if (!replayBtn) {
-                    // First exit-click: surface CmdRePlay (orig:392-395).
-                    e.stopPropagation();
                     showReplayButton();
-                } // else: let outer handler fire to actually exit.
+                } else {
+                    location.hash = "#/" + app.id + "/unit/" + unit.id + "/games";
+                }
             });
         }
     }
