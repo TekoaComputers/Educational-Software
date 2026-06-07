@@ -5385,22 +5385,32 @@ function markInspectProgress(state) {
 
 function onWrongClick(state) {
     // Games2.frm Picture1_MouseDown is guarded by `If act1(0).Enabled = True`,
-    // and act1(0).Enabled is forced False whenever an audio chain is playing.
-    // So a click between the correct answer and the next round's setup is a
-    // no-op in the original. Mirror that here.
+    // and Games.frm Timer1_Timer forces Picture1.Enabled + act1(0..1).Enabled
+    // = False whenever MMControl2.Mode = 526 (audio playing). So while any
+    // cue is playing — wrong OR correct — Picture1 clicks don't fire.
+    // We mirror that with state.inputLocked: the correct-chain already sets
+    // it; the wrong cue path also has to lock for the duration of its audio,
+    // otherwise fast clicks land on the correct hotspot mid-wrong-cue,
+    // trigger runCorrectChain, and the user hears the positive Tguva right
+    // after their "wrong" click (the audio-mixup half of issue #15).
     if (state.inputLocked) { klog("click ignored — input locked (audio chain)"); return; }
     // Games.frm Tguva_Taut: MspTaut++; 1st → 7/8.wav, 2nd → 9/10.wav, 3rd → Remez.
     state.wrongCount = (state.wrongCount || 0) + 1;
     klog("CLICK Picture1 wrong-area (count=" + state.wrongCount + ")");
     if (state.wrongCount === 1) {
-        playResponse(state, pickAlt(state, [7, 8]));
+        state.inputLocked = true;
+        playResponse(state, pickAlt(state, [7, 8]), function () {
+            state.inputLocked = false;
+        });
     } else if (state.wrongCount === 2) {
         // After 9/10.wav, the original also queues direction sounds (right1/
         // left1/up1/dn1.wav) based on click position vs the correct hotspot.
         // Those wavs are NOT present in the source distribution, but we still
         // chain the call (playAudio silently skips files not in the manifest).
+        state.inputLocked = true;
         playResponse(state, pickAlt(state, [9, 10]), function () {
             playDirectionHint(state);
+            state.inputLocked = false;
         });
     } else if (state.wrongCount >= 3) {
         showHint(state);
