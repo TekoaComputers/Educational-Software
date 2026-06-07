@@ -3451,7 +3451,12 @@ function handleAction(appId, action /*, ctrl */) {
 // part of misger.bmp itself; invisible click areas (Label2(0)=15,120,65x64
 // for YES and Label2(1)=160,130,59x54 for NO) overlay those graphics. In
 // mid-game mode also shows Picture1(2)=misgerb.png next-stage button at
-// (13,15,57x41), Picture1(3)=misgera.png prev-stage at (185,15,52x41), and
+// (13,15) and Picture1(3)=misgera.png prev-stage at (185,15). Both have
+// AutoSize=-1 in the original, so they render at the IMAGE's natural dims
+// (38x25 px in every app's misgera.bmp / misgerb.bmp) — NOT the design
+// Width/Height (57x41, 52x41) the .frm declares. Using the design size
+// stretches the arrows past the wells baked into misger.png and looks
+// mispositioned (issue feedback: "prev-stage not positioned correctly").
 // Combo1 stage dropdown at (32,72,169x27). Plays aastop.wav (exit) or
 // stopmas.wav (mid-game) per Ezia / picexi_Click.
 function buildMisgerModal(opts) {
@@ -3523,8 +3528,10 @@ function buildMisgerModal(opts) {
     }
 
     if (mode === "back") {
+        // AutoSize=-1 in the original .frm — both arrows are 38x25 natural.
+        const ARROW_W = 38, ARROW_H = 25;
         if (onNextStage) {
-            const next = mkEl("img", place(13, 15, 57, 41));
+            const next = mkEl("img", place(13, 15, ARROW_W, ARROW_H));
             next.src = root + "/menu/misgerb.png";
             next.title = "שלב הבא";
             next.style.cursor = "pointer";
@@ -3532,7 +3539,7 @@ function buildMisgerModal(opts) {
             box.appendChild(next);
         }
         if (onPrevStage) {
-            const prev = mkEl("img", place(185, 15, 52, 41));
+            const prev = mkEl("img", place(185, 15, ARROW_W, ARROW_H));
             prev.src = root + "/menu/misgera.png";
             prev.title = "שלב קודם";
             prev.style.cursor = "pointer";
