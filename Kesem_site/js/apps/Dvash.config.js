@@ -65,12 +65,31 @@ export default {
         },
         game1:  { layoutFile: "data/layout/_shared/games.json",  background: "assets/Dvash/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Dvash/menu/hetz7.png" } },
         game2:  { layoutFile: "data/layout/_shared/games2.json", background: "assets/Dvash/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Dvash/menu/hetz7.png" } },
-        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/Dvash/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Dvash/menu/hetz7.png" } },
+        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/Dvash/menu/masah.png",  designSize: [640, 480], images: {
+            picexi: "assets/Dvash/menu/hetz7.png",
+            Picture22: "assets/Dvash/menu/screen2.png",
+            wa: [
+                "assets/Dvash/menu/playb1.png", "assets/Dvash/menu/rec1.png",
+                "assets/Dvash/menu/playc1.png", "assets/Dvash/menu/playa1.png",
+                "assets/Dvash/menu/close1.png", "assets/Dvash/menu/as1.png",
+            ],
+            dif: ["assets/Dvash/menu/up1a1.png", "assets/Dvash/menu/up1c1.png"],
+        }, imagesHover: {
+            wa: [
+                "assets/Dvash/menu/playb2.png", "assets/Dvash/menu/rec2.png",
+                "assets/Dvash/menu/playc2.png", "assets/Dvash/menu/playa2.png",
+                "assets/Dvash/menu/close2.png", "assets/Dvash/menu/as2.png",
+            ],
+            dif: ["assets/Dvash/menu/up1a2.png", "assets/Dvash/menu/up1c2.png"],
+        } },
         game4:  { layoutFile: "data/layout/_shared/games4.json", background: "assets/Dvash/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Dvash/menu/hetz7.png", btnArw: ["assets/Dvash/menu/hetz6.png", "assets/Dvash/menu/hetz5.png"] } },
         game5:  { layoutFile: "data/layout/_shared/games5.json", background: "assets/Dvash/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Dvash/menu/hetz7.png" } },
         misger: { layoutFile: "data/layout/_shared/misger.json", background: "assets/Dvash/menu/misger.png", designSize: [240, 200], images: { picexi: "assets/Dvash/menu/hetz7.png" } },
     },
     tafroshFile: "data/tafrosh/Dvash.json",
+    // Dvash/levk.vbp VersionFileDescription="X" → App.FileDescription = "X"
+    // at runtime, which disables the hak/record button in Games3 Form_Load.
+    fileDescriptionX: true,
     defaultRama: 1,
     maxRama: 3,                       // 3 Icon_s tabs on Sst
     bgRamaMax: 1,                     // no per-rama BG image; Picture1 carries the art

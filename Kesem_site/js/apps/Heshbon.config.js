@@ -28,7 +28,23 @@ export default {
         },
         game1:  { layoutFile: "data/layout/_shared/games.json",  background: "assets/Heshbon/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Heshbon/menu/hetz7.png" } },
         game2:  { layoutFile: "data/layout/_shared/games2.json", background: "assets/Heshbon/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Heshbon/menu/hetz7.png" } },
-        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/Heshbon/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Heshbon/menu/hetz7.png" } },
+        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/Heshbon/menu/masah.png",  designSize: [640, 480], images: {
+            picexi: "assets/Heshbon/menu/hetz7.png",
+            Picture22: "assets/Heshbon/menu/screen2.png",
+            wa: [
+                "assets/Heshbon/menu/playb1.png", "assets/Heshbon/menu/rec1.png",
+                "assets/Heshbon/menu/playc1.png", "assets/Heshbon/menu/playa1.png",
+                "assets/Heshbon/menu/close1.png", "assets/Heshbon/menu/as1.png",
+            ],
+            dif: ["assets/Heshbon/menu/up1a1.png", "assets/Heshbon/menu/up1c1.png"],
+        }, imagesHover: {
+            wa: [
+                "assets/Heshbon/menu/playb2.png", "assets/Heshbon/menu/rec2.png",
+                "assets/Heshbon/menu/playc2.png", "assets/Heshbon/menu/playa2.png",
+                "assets/Heshbon/menu/close2.png", "assets/Heshbon/menu/as2.png",
+            ],
+            dif: ["assets/Heshbon/menu/up1a2.png", "assets/Heshbon/menu/up1c2.png"],
+        } },
         game4:  { layoutFile: "data/layout/_shared/games4.json", background: "assets/Heshbon/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Heshbon/menu/hetz7.png", btnArw: ["assets/Heshbon/menu/hetz6.png", "assets/Heshbon/menu/hetz5.png"] } },
         game5:  { layoutFile: "data/layout/_shared/games5.json", background: "assets/Heshbon/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Heshbon/menu/hetz7.png" } },
         misger: { layoutFile: "data/layout/_shared/misger.json", background: "assets/Heshbon/menu/misger.png", designSize: [240, 200], images: { picexi: "assets/Heshbon/menu/hetz7.png" } },

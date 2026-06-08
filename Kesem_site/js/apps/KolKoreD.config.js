@@ -40,7 +40,23 @@ export default {
         },
         game1:  { layoutFile: "data/layout/_shared/games.json",  background: "assets/KolKoreD/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreD/menu/hetz7.png" } },
         game2:  { layoutFile: "data/layout/_shared/games2.json", background: "assets/KolKoreD/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreD/menu/hetz7.png" } },
-        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/KolKoreD/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreD/menu/hetz7.png" } },
+        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/KolKoreD/menu/masah.png",  designSize: [640, 480], images: {
+            picexi: "assets/KolKoreD/menu/hetz7.png",
+            Picture22: "assets/KolKoreD/menu/screen2.png",
+            wa: [
+                "assets/KolKoreD/menu/playb1.png", "assets/KolKoreD/menu/rec1.png",
+                "assets/KolKoreD/menu/playc1.png", "assets/KolKoreD/menu/playa1.png",
+                "assets/KolKoreD/menu/close1.png", "assets/KolKoreD/menu/as1.png",
+            ],
+            dif: ["assets/KolKoreD/menu/up1a1.png", "assets/KolKoreD/menu/up1c1.png"],
+        }, imagesHover: {
+            wa: [
+                "assets/KolKoreD/menu/playb2.png", "assets/KolKoreD/menu/rec2.png",
+                "assets/KolKoreD/menu/playc2.png", "assets/KolKoreD/menu/playa2.png",
+                "assets/KolKoreD/menu/close2.png", "assets/KolKoreD/menu/as2.png",
+            ],
+            dif: ["assets/KolKoreD/menu/up1a2.png", "assets/KolKoreD/menu/up1c2.png"],
+        } },
         game4:  { layoutFile: "data/layout/_shared/games4.json", background: "assets/KolKoreD/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreD/menu/hetz7.png", btnArw: ["assets/KolKoreD/menu/hetz6.png", "assets/KolKoreD/menu/hetz5.png"] } },
         game5:  { layoutFile: "data/layout/_shared/games5.json", background: "assets/KolKoreD/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreD/menu/hetz7.png" } },
         misger: { layoutFile: "data/layout/_shared/misger.json", background: "assets/KolKoreD/menu/misger.png", designSize: [240, 200], images: { picexi: "assets/KolKoreD/menu/hetz7.png" } },

@@ -33,7 +33,23 @@ export default {
         },
         game1:  { layoutFile: "data/layout/_shared/games.json",  background: "assets/Shirim/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Shirim/menu/hetz7.png" } },
         game2:  { layoutFile: "data/layout/_shared/games2.json", background: "assets/Shirim/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Shirim/menu/hetz7.png" } },
-        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/Shirim/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Shirim/menu/hetz7.png" } },
+        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/Shirim/menu/masah.png",  designSize: [640, 480], images: {
+            picexi: "assets/Shirim/menu/hetz7.png",
+            Picture22: "assets/Shirim/menu/screen2.png",
+            wa: [
+                "assets/Shirim/menu/playb1.png", "assets/Shirim/menu/rec1.png",
+                "assets/Shirim/menu/playc1.png", "assets/Shirim/menu/playa1.png",
+                "assets/Shirim/menu/close1.png", "assets/Shirim/menu/as1.png",
+            ],
+            dif: ["assets/Shirim/menu/up1a1.png", "assets/Shirim/menu/up1c1.png"],
+        }, imagesHover: {
+            wa: [
+                "assets/Shirim/menu/playb2.png", "assets/Shirim/menu/rec2.png",
+                "assets/Shirim/menu/playc2.png", "assets/Shirim/menu/playa2.png",
+                "assets/Shirim/menu/close2.png", "assets/Shirim/menu/as2.png",
+            ],
+            dif: ["assets/Shirim/menu/up1a2.png", "assets/Shirim/menu/up1c2.png"],
+        } },
         game4:  { layoutFile: "data/layout/_shared/games4.json", background: "assets/Shirim/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Shirim/menu/hetz7.png", btnArw: ["assets/Shirim/menu/hetz6.png", "assets/Shirim/menu/hetz5.png"] } },
         game5:  { layoutFile: "data/layout/_shared/games5.json", background: "assets/Shirim/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Shirim/menu/hetz7.png" } },
         misger: { layoutFile: "data/layout/_shared/misger.json", background: "assets/Shirim/menu/misger.png", designSize: [240, 200], images: { picexi: "assets/Shirim/menu/hetz7.png" } },

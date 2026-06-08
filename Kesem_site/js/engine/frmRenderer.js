@@ -51,6 +51,11 @@ function actionFor(ctrl, appId) {
     // (same treatment as KolKoreC/D btnexi(0/1) for the Hidy form).
     if (appId === "KolKoreB" && name === "mini")    return "kkb:mini";
     if (name === "btnIcon")   return `maslul:${idx + 1}`;
+    // Games3 hak inspect overlay (Picture22): wa[0..4] = audio/record buttons,
+    // dif[0/1] = prev/next hotspot navigation. wa[5] is a decorative warning
+    // indicator with no click handler in the original.
+    if (name === "wa")         return `wa:${idx}`;
+    if (name === "dif")        return `dif:${idx}`;
     if (name === "btnHofshi") return "hofshi";
     if (name === "btnSeret") {
         if (appId === "Yeled" && idx === 2) return "exit";

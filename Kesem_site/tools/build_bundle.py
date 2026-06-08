@@ -151,6 +151,39 @@ def main():
         parts.append(f"  \"{app}\": {json.dumps(rels)},")
     parts.append("};")
 
+    # KolKoreB letter-stroke data — Sst.frm btnIcon_Click reads
+    # AppPath\<idx+1>.txt and Timer1_Timer draws each segment via Sst.Line at
+    # design coords (Psa(i).Xs + Label2.Left, Psa(i).Ys + Label2.Top). File
+    # format: line 1 = intra, line 2 = nompS, then (nompS+1) triplets of
+    # (w, Xs, Ys). Bake the parsed data into the bundle so the runtime
+    # doesn't need fetch (which is blocked under file:// origins).
+    parts.append("const KOLKOREB_STROKES = {")
+    kkb_letters = SITE / "assets" / "KolKoreB" / "letters"
+    if kkb_letters.is_dir():
+        for i in range(1, 8):
+            f = kkb_letters / f"{i}.txt"
+            if not f.exists():
+                continue
+            nums = []
+            for tok in f.read_text(encoding="utf-8").split():
+                try:
+                    nums.append(int(tok))
+                except ValueError:
+                    pass
+            if len(nums) < 2:
+                continue
+            intra = nums[0]
+            nompS = nums[1]
+            pts = []
+            for k in range(0, nompS + 1):
+                base = 2 + k * 3
+                if base + 2 >= len(nums):
+                    break
+                pts.append({"w": nums[base], "x": nums[base + 1], "y": nums[base + 2]})
+            data = {"intra": intra, "nompS": nompS, "pts": pts}
+            parts.append(f"  \"{i}\": {json.dumps(data)},")
+    parts.append("};")
+
     # 4) Engine.
     engine_src = (JS / "engine" / "frmRenderer.js").read_text(encoding="utf-8")
     parts.append("// === engine: frmRenderer.js ===")
@@ -370,6 +403,99 @@ function applyKolKoreDRamaLayout(state) {
 // this intercept the rama stays pinned at 1. We mirror the KolKoreC/D
 // approach (sans flip animation): capture-phase listener computes the
 // toggle target and reuses setRamaUtil to swap state + repaint icons.
+// === KolKoreB Sst letter-stroke animation =================================
+// Sst.frm btnIcon_Click (line 1019) reads "<AppPath>\<cHos+1>.txt" — a list
+// of stroke points used by Timer1_Timer (line 1550) to draw the activity's
+// Hebrew letter or digit using Sst.Line at design coords
+// (Psa(i).Xs + Label2.Left, Psa(i).Ys + Label2.Top). File format:
+//   line 1: intra        (animation interval; original ignores it and uses 100)
+//   line 2: nompS        (number of segments)
+//   then nompS+1 triplets of (w, Xs, Ys) — w=0 marks a pen lift.
+// Timer1 walks the points, drawing two passes per segment: a thick "shadow"
+// stroke in cPs2, then a thin "highlight" stroke in cPs.
+//
+// In the port: load and cache the file via fetch, then drive the same walk
+// on a single <canvas> overlay positioned at Label2's design rect.
+function kkbLoadStrokes(state, idx) {
+    // Strokes are baked into the bundle as KOLKOREB_STROKES at build time
+    // — see build_bundle.py. Runtime fetch was blocked under file:// origins
+    // by CORS. The data shape matches what the old fetch path returned:
+    // { intra, nompS, pts: [{w, x, y}, ...] }.
+    const key = String(idx + 1);
+    return (typeof KOLKOREB_STROKES !== "undefined" && KOLKOREB_STROKES[key]) || null;
+}
+
+function kkbAnimateStrokes(state, idx) {
+    const stage = state.stage;
+    // Label2 in KolKoreB Sst.frm: VB.Label at L=1500 T=1650 W=840 H=840 twips
+    // → px(100, 110) 56×56. The point coords are small offsets inside that
+    // box; total drawing area ≈ 30×30 px in the original. We give a generous
+    // 80×80 canvas to absorb any overshoot.
+    let canvas = stage.querySelector(".kkb-letter-canvas");
+    if (!canvas) {
+        canvas = document.createElement("canvas");
+        canvas.className = "kkb-letter-canvas";
+        const W = 80, H = 80;
+        canvas.width = W; canvas.height = H;
+        Object.assign(canvas.style, {
+            position: "absolute",
+            left: "100px",     // Label2.Left
+            top: "110px",      // Label2.Top
+            width: W + "px", height: H + "px",
+            pointerEvents: "none",
+            zIndex: "5",
+        });
+        stage.appendChild(canvas);
+    }
+    if (state._kkbStrokeTimer) {
+        clearInterval(state._kkbStrokeTimer);
+        state._kkbStrokeTimer = null;
+    }
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const data = kkbLoadStrokes(state, idx);
+    if (!data || !data.pts || !data.pts.length) return;
+    // VB6 pen colors per rama (Sst.frm:1037-1048).
+    const rama = String(state.rama);
+    const cPs2 = rama === "1" ? "rgb(215,205,185)" : "rgb(205,205,255)";
+    const cPs  = rama === "1" ? "rgb(255,245,235)" : "rgb(235,235,255)";
+    const pts = data.pts;
+    const n = pts.length;
+    let i = 1;
+    // Timer1.Interval = 100ms; per tick the original loop runs 3 times
+    // (For i = 0 To 2). Use a ~33ms step to match — at 30Hz the user
+    // sees a continuous stroke draw.
+    state._kkbStrokeTimer = setInterval(function () {
+        if (i >= n) {
+            clearInterval(state._kkbStrokeTimer);
+            state._kkbStrokeTimer = null;
+            return;
+        }
+        const a = pts[i - 1], b = pts[i];
+        const c = pts[i + 1] || null;
+        // Pen-lift breaks (w == 0) match the original guard
+        // "If Psa(timErC).w > 0 And Psa(timErC - 1).w > 0".
+        if (a && b && a.w > 0 && b.w > 0) {
+            if (c && c.w > 0) {
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = cPs2;
+                ctx.beginPath();
+                ctx.moveTo(c.x, c.y);
+                ctx.lineTo(b.x, b.y);
+                ctx.stroke();
+            }
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = cPs;
+            ctx.beginPath();
+            ctx.moveTo(b.x, b.y);
+            ctx.lineTo(a.x, a.y);
+            ctx.stroke();
+        }
+        i++;
+    }, 33);
+}
+
 // === KolKoreB Sst pick + star preview ====================================
 // The KolKoreB Sst is a two-pane "select then launch" UI not present in
 // the other KolKore apps. Form layout:
@@ -444,6 +570,9 @@ function kkbPickActivity(state, idx) {
     // cHos+i*7 (per the original Lampas() reading "<rama>b<cHos>b<i>.txt"),
     // so changing cHos changes which slots the two lamps reflect.
     wireSstLamps(state);
+    // Animate the activity's letter strokes at Label2's position
+    // (Sst.frm btnIcon_Click → reads (cHos+1).txt, starts Timer1).
+    kkbAnimateStrokes(state, idx);
     klog("kkb: pick btnIcon[" + idx + "] cHos=" + idx + " rama=" + rama);
 }
 
@@ -464,6 +593,54 @@ function wireKolKoreBRamaToggle(state) {
             setRamaUtil(state, target);
         }, true);   // capture: fires before renderer's default rama:1 listener
     });
+    // Paint Label3's instruction caption ("בחרו בנושא מימין ולחצו על המסלול
+    // בדף השמאלי"). The renderer doesn't auto-render Label.Caption — we inject
+    // a positioned span inside the .frm-ctrl--Label3 box. Walk the layout
+    // tree to pull the caption + ForeColor straight from the .frm.
+    paintKolKoreBLabels(state);
+}
+
+function paintKolKoreBLabels(state) {
+    const layout = state.layouts && state.layouts.sst;
+    if (!layout) return;
+    function walk(c) {
+        const name = c.name;
+        const cap  = c.props && c.props.Caption;
+        if (c.type === "VB.Label" && name && cap) {
+            const sel = ".frm-ctrl--" + name;
+            const el = state.stage.querySelector(sel);
+            if (el && !el.querySelector(".kkb-caption")) {
+                // VB6 BGR → CSS RGB conversion. VB color = &H00BBGGRR.
+                const bgr = parseInt(c.props.ForeColor, 10) || 0;
+                const r = bgr & 0xff;
+                const g = (bgr >> 8) & 0xff;
+                const b = (bgr >> 16) & 0xff;
+                const span = document.createElement("span");
+                span.className = "kkb-caption";
+                const align = c.props.Alignment === 2 ? "center"
+                            : c.props.Alignment === 1 ? "right" : "left";
+                Object.assign(span.style, {
+                    position: "absolute", inset: "0",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: align === "center" ? "center" : (align === "right" ? "flex-end" : "flex-start"),
+                    pointerEvents: "none",
+                    fontFamily: "'David', 'Arial Hebrew', serif",
+                    fontSize: "12px",
+                    fontWeight: "400",
+                    color: "rgb(" + r + "," + g + "," + b + ")",
+                    direction: "rtl",
+                    textAlign: align,
+                    whiteSpace: "pre-wrap",
+                    lineHeight: "1.2",
+                });
+                span.textContent = cap;
+                el.appendChild(span);
+            }
+        }
+        (c.children || []).forEach(walk);
+    }
+    walk(layout);
 }
 
 // KolKoreA Sst.Icon_s_Click swaps the entire grid between two layouts.
@@ -2080,6 +2257,25 @@ function handleAction(appId, action /*, ctrl */) {
         kkbPickActivity(currentSession, idx);
         return;
     }
+    // Games3 hak panel (Picture22) — wa[0..5] + dif[0..1] dispatch.
+    if (action && action.indexOf("wa:") === 0) {
+        if (!currentSession) return;
+        const idx = parseInt(action.split(":")[1], 10);
+        const nom = currentSession._hakNom || 1;
+        if (idx === 0)      playGame3HakName(currentSession, nom);    // playb
+        else if (idx === 1) game3HakToggleRecord(currentSession);     // rec
+        else if (idx === 2) game3HakPlayRecording(currentSession);    // playc
+        else if (idx === 3) playGame3HakElab(currentSession, nom);    // playa
+        else if (idx === 4) closeGame3HakZoom(currentSession);        // close
+        // idx === 5 (as = warning indicator) has no click handler in the original.
+        return;
+    }
+    if (action && action.indexOf("dif:") === 0) {
+        if (!currentSession) return;
+        const idx = parseInt(action.split(":")[1], 10);
+        game3HakDif(currentSession, idx === 0 ? -1 : 1);
+        return;
+    }
     if (action && action.indexOf("kkb:start:") === 0) {
         if (!currentSession) return;
         const idx = parseInt(action.split(":")[2], 10);
@@ -2864,6 +3060,20 @@ function initGameTurn(state, stage) {
     state.targetHotspot = state.Gg_N;
 
     if (stage.gameNumber === 3) {
+        // Games3.frm has act1(1) (the hak/microphone button — entry into the
+        // record + compare panel) with Visible=0 at design time. Form_Load
+        // line ~1233 sets act1(1).Visible = True only when
+        //   g1m = 0 AND App.FileDescription <> "X".
+        // g1m is set per original gameNumber: 0 for game3, 1/2/12 for the
+        // 6/7/8 aliases (KolKoreC/D-only). App.FileDescription comes from
+        // the .vbp's VersionFileDescription — Brahot/Dvash/Hagim/Shabat ship
+        // with "X", which disables recording entirely in those apps even
+        // though the .frm has the controls. Mirror both gates.
+        const origGn = stage._origGameNumber != null ? stage._origGameNumber : stage.gameNumber;
+        const g1m = origGn === 6 ? 1 : origGn === 7 ? 2 : origGn === 8 ? 12 : 0;
+        const fileDescX = state.config && state.config.fileDescriptionX === true;
+        const recBtn = state.stage.querySelector('.frm-ctrl--act1[data-index="1"]');
+        if (recBtn) recBtn.style.display = (g1m === 0 && !fileDescX) ? "" : "none";
         // Games3 inspect mode (Form_Activate plays Ras_Wav; no auto-chain).
         playRasWav(state);
     } else if (stage.gameNumber === 5) {
@@ -3942,175 +4152,261 @@ function cycleGame3Hotspot(state) {
     onInspectClick(state, next);
 }
 
-// Games3 act1(1) HAK ("חקירה" — investigate) inspect zoom panel. Per the
-// original Games3.act1_Click Case 1: hide Picture1/Spic1/Navi, show Picture22
-// (overlay) + Picture2 with a 2x cropped patch from Picture1 at Label1(nom),
-// expose wa(0..5) playback buttons + dif(0..1) navigation arrows.
-//
-// We render a modal overlay containing:
-//   • Canvas: cropped + scaled patch of the current hotspot
-//   • dif arrows: prev/next hotspot (nom-1 / nom+1, wraps)
-//   • wa(0) play-name (Mhiza_Hadasha("wav", nom))
-//   • wa(3) play-elaboration (Mhiza_5(nom) = wav/<razNom>/<nom>_2.wav)
-//   • wa(4) close — returns to Picture1 view
-//
-// Recording (wa(1)/wa(2) — record/playback the user's own voice) is omitted;
-// it'd need MediaRecorder permission and a UX flow we haven't built.
+// Games3 act1(1) HAK ("חקירה" — investigate) inspect zoom panel. Mirrors
+// Games3.act1_Click Case 1: hide Spic1, show Picture22 (already in the
+// layout, .Visible=0 at design time with screen2.jpg as its picture). The
+// children inside Picture22 (wa[0..5], dif[0..1], Picture2) come from the
+// shared games3.json layout — we just flip Picture22.display="" and paint
+// the current hotspot's crop into the Picture2 canvas. wa/dif clicks route
+// through actionFor → "wa:N" / "dif:N" handlers below.
 function openGame3HakZoom(state) {
     const stage = state.activeStage;
     if (!stage || !stage.hotspots || !stage.hotspots.length) return;
-    if (state._hakOverlay) return;     // already open
 
     let nom = state.game3CycleIdx || state.inspectCount || 1;
     if (nom < 1) nom = 1;
     if (nom > state.maxTurn) nom = state.maxTurn;
+    state._hakNom = nom;
 
-    const overlay = document.createElement("div");
-    overlay.className = "hak-overlay";
-    Object.assign(overlay.style, {
-        position: "fixed", inset: "0",
-        background: "rgba(0,0,0,.78)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        zIndex: "1500",
-    });
-    state._hakOverlay = overlay;
+    // Show Picture22 (rendered from the layout, Visible=0 at design time).
+    const pic22 = state.stage.querySelector(".frm-ctrl--Picture22");
+    const spic1 = state.stage.querySelector(".frm-ctrl--Spic1");
+    if (!pic22) return;
+    if (spic1)  spic1.style.display  = "none";
+    pic22.style.display = "";
 
-    // Panel = original Picture22 background (screen2.jpg if it exists, else
-    // a neutral dark frame). Sized to roughly match the original 520x345 box.
-    const box = document.createElement("div");
-    Object.assign(box.style, {
-        position: "relative",
-        width: "560px",
-        maxWidth: "92vw",
-        background: "#1a1a1a",
-        border: "3px solid #8a5b13",
-        borderRadius: "10px",
-        padding: "1rem",
-        boxShadow: "0 10px 30px rgba(0,0,0,.5)",
-        display: "flex", flexDirection: "column", gap: ".75rem", alignItems: "center",
-    });
-    overlay.appendChild(box);
-
-    const title = document.createElement("div");
-    title.textContent = "חקירה";
-    Object.assign(title.style, {
-        color: "#fbcf66", fontSize: "1.4rem", fontWeight: "700",
-    });
-    box.appendChild(title);
-
-    // Cropped patch — 2x scale, like the original which paints into Picture2
-    // at the patch's native dimensions then displays at form scale.
-    const canvas = document.createElement("canvas");
-    canvas.style.background = "#000";
-    canvas.style.border = "2px solid #fbcf66";
-    box.appendChild(canvas);
-
-    function refreshPatch() {
-        const rec = stage.hotspots[nom - 1];
-        if (!rec || !state.stageImg) return;
-        const SCALE = 2;
-        canvas.width  = rec.w;
-        canvas.height = rec.h;
-        canvas.style.width  = (rec.w * SCALE) + "px";
-        canvas.style.height = (rec.h * SCALE) + "px";
-        try {
-            const ctx = canvas.getContext("2d");
-            ctx.imageSmoothingEnabled = false;
-            ctx.drawImage(state.stageImg, rec.x, rec.y, rec.w, rec.h, 0, 0, rec.w, rec.h);
-        } catch (e) {}
-        nameLabel.textContent = rec.name || "";
+    // Games3.frm:980 — wa(3) is hidden when the first stage's elaboration
+    // wav is missing: `If Not exist(\WAV\<razNom>\1_2) Then wa(3).Visible
+    // = False`. Re-evaluate the same check against our audio manifest so
+    // an empty playa-speaker button doesn't sit between the dif arrows.
+    const wa3 = pic22.querySelector('.frm-ctrl--wa[data-index="3"]');
+    if (wa3) {
+        const rel = "wav/" + stage.razNom + "/1_2.wav";
+        const has = state.audioFiles && state.audioFiles.has(rel);
+        wa3.style.display = has ? "" : "none";
     }
 
-    const nameLabel = document.createElement("div");
-    Object.assign(nameLabel.style, {
-        color: "#fff", fontSize: "1rem", direction: "rtl", textAlign: "center",
-    });
-    box.appendChild(nameLabel);
-
-    function row() {
-        const r = document.createElement("div");
-        Object.assign(r.style, {
-            display: "flex", gap: ".75rem", alignItems: "center", justifyContent: "center",
-            flexWrap: "wrap",
-        });
-        return r;
-    }
-    function btn(label, title, handler) {
-        const b = document.createElement("button");
-        b.type = "button";
-        b.title = title;
-        b.textContent = label;
-        Object.assign(b.style, {
-            minWidth: "40px", height: "40px", padding: "0 .9rem",
-            background: "rgba(0,0,0,.6)", color: "#fbcf66",
-            border: "2px solid #fbcf66", borderRadius: "999px",
-            fontFamily: "inherit", fontSize: "1rem", cursor: "pointer",
-        });
-        b.addEventListener("click", handler);
-        return b;
+    // Initial wa enabled state on hak open (matches Games3.frm act1_Click
+    // Case 1 + Form_Load defaults): wa(0/1/3/4) clickable, wa(2) disabled
+    // until the user makes a recording, wa(5) is decorative (no handler).
+    setWaEnabled(state, 0, true);
+    setWaEnabled(state, 1, true);
+    setWaEnabled(state, 2, false);
+    setWaEnabled(state, 3, true);
+    setWaEnabled(state, 4, true);
+    setWaEnabled(state, 5, false);
+    // wa(2) sprite: stays on playc1 if a recording from this hak session
+    // already exists (e.g. user closed + reopened), else playc3 (dimmed)
+    // to visually match Enabled=False.
+    const wa2_open = state.stage.querySelector('.frm-ctrl--wa[data-index="2"] img.frm-img');
+    if (wa2_open) {
+        const have = state._kkbRec && state._kkbRec.url;
+        wa2_open.src = state.config.assetsRoot + "/menu/" + (have ? "playc1.png" : "playc3.png");
+        // Sync enabled with whether there's a recording to play.
+        if (have) setWaEnabled(state, 2, true);
     }
 
-    function wavName(idx) {
-        return audioBase(state) + "/wav/" + stage.razNom + "/" + idx + ".wav";
+    // Paint Picture2 (the magnified patch) with the current hotspot crop.
+    paintGame3HakPatch(state);
+    // Per original Form_Activate: opening HAK plays the hotspot's name wav.
+    playGame3HakName(state, nom);
+}
+
+// Mirrors Games3.dif_Click + the Picture2.PaintPicture inside it: crops the
+// current hotspot rect from the stage image, paints it into the Picture2
+// PictureBox inside Picture22, and centers Picture2 inside Shape2's bounds.
+function paintGame3HakPatch(state) {
+    const stage = state.activeStage;
+    const nom = state._hakNom || 1;
+    const rec = stage && stage.hotspots && stage.hotspots[nom - 1];
+    const pic22 = state.stage.querySelector(".frm-ctrl--Picture22");
+    const pic2  = pic22 && pic22.querySelector(".frm-ctrl--Picture2");
+    if (!rec || !pic22 || !pic2 || !state.stageImg) return;
+    // Picture2 native size = the hotspot's Label1 size (Picture2.Width = Label1.Width)
+    pic2.style.width  = rec.w + "px";
+    pic2.style.height = rec.h + "px";
+    // Center inside Picture22 (Shape2 in the .frm bounds the centering region,
+    // but the practical effect is "center the patch in the available space").
+    const pic22W = pic22.offsetWidth || 540;
+    const pic22H = pic22.offsetHeight || 345;
+    pic2.style.left = Math.max(40, Math.floor((pic22W - rec.w) / 2)) + "px";
+    pic2.style.top  = Math.max(60, Math.floor((pic22H - rec.h) / 2)) + "px";
+    // Paint the crop via a child canvas inside Picture2.
+    let cv = pic2.querySelector(".hak-canvas");
+    if (!cv) {
+        cv = document.createElement("canvas");
+        cv.className = "hak-canvas";
+        Object.assign(cv.style, { position: "absolute", inset: "0", width: "100%", height: "100%" });
+        pic2.appendChild(cv);
     }
-    function wavElab(idx) {
-        return audioBase(state) + "/wav/" + stage.razNom + "/" + idx + "_2.wav";
+    cv.width = rec.w;
+    cv.height = rec.h;
+    try {
+        const ctx = cv.getContext("2d");
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(state.stageImg, rec.x, rec.y, rec.w, rec.h, 0, 0, rec.w, rec.h);
+    } catch (e) {}
+}
+
+// Plays the hotspot-NAME wav (Mhiza_Hadasha("wav", nom) → wav/<razNom>/<nom>.wav).
+function playGame3HakName(state, nom) {
+    const stage = state.activeStage;
+    if (!stage) return;
+    const url = audioBase(state) + "/wav/" + stage.razNom + "/" + nom + ".wav";
+    playAudio(state, url);
+}
+
+// Plays the hotspot ELABORATION wav (Mhiza_5(nom) → wav/<razNom>/<nom>_2.wav).
+function playGame3HakElab(state, nom) {
+    const stage = state.activeStage;
+    if (!stage) return;
+    const url = audioBase(state) + "/wav/" + stage.razNom + "/" + nom + "_2.wav";
+    playAudio(state, url);
+}
+
+// Toggle a wa control's "enabled" state. Original Games3.wa_Click /
+// dif_Click toggle wa(0/1/2/3).Enabled depending on flow:
+//   - During recording: wa(0)/(2)/(3) are disabled; wa(1) stays enabled
+//     (so the user can click stop).
+//   - After dif (prev/next hotspot): wa(2).Enabled = False (recording for
+//     the prior hotspot is no longer relevant).
+//   - After a stop: wa(0/2/3).Enabled = True again.
+// VB6's Enabled=False both blocks click events AND prevents the MouseMove
+// hover-swap from sticking (the disabled sprite is repainted after).
+// In the port we set pointer-events:none to do both at once — the renderer's
+// imagesHover mouseenter listener won't fire, so hover doesn't repaint the
+// disabled sprite back to its enabled-looking _2 hover variant.
+function setWaEnabled(state, idx, enabled) {
+    const el = state.stage.querySelector('.frm-ctrl--wa[data-index="' + idx + '"]');
+    if (!el) return;
+    el.style.pointerEvents = enabled ? "" : "none";
+    el.style.cursor        = enabled ? "pointer" : "default";
+}
+
+// wa(4) close → hide Picture22, show Spic1 (mirrors Games3.wa_Click Case 4).
+function closeGame3HakZoom(state) {
+    const pic22 = state.stage.querySelector(".frm-ctrl--Picture22");
+    const spic1 = state.stage.querySelector(".frm-ctrl--Spic1");
+    if (pic22) pic22.style.display = "none";
+    if (spic1) spic1.style.display = "";
+    stopAllAudio(state);
+    // Tear down any active MediaRecorder.
+    if (state._kkbRec && state._kkbRec.mr && state._kkbRec.mr.state === "recording") {
+        try { state._kkbRec.mr.stop(); } catch (e) {}
     }
-
-    // dif(0)/dif(1) — prev/next hotspot, wraps. Mirrors Games3.dif_Click:
-    //   nom = nom - 1 (or + 1)
-    //   If nom = nomer Then nom = 1
-    //   If nom = 0 Then nom = nomer - 1
-    function changeNom(delta) {
-        const max = state.maxTurn;
-        nom = nom + delta;
-        if (nom > max) nom = 1;
-        if (nom < 1) nom = max;
-        klog("CLICK hak dif → nom=" + nom);
-        refreshPatch();
+    if (state._kkbRec && state._kkbRec.stream) {
+        try { state._kkbRec.stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
+        state._kkbRec.stream = null;
     }
+}
 
-    const navRow = row();
-    navRow.appendChild(btn("◀", "הקודם", function () { changeNom(-1); }));
-    navRow.appendChild(btn("▶", "הבא",   function () { changeNom(1); }));
-    box.appendChild(navRow);
-
-    const playRow = row();
-    playRow.appendChild(btn("🔊 שם", "השמע שם", function () {
-        klog("CLICK hak wa(0) play-name nom=" + nom);
-        playAudio(state, wavName(nom));
-    }));
-    playRow.appendChild(btn("🔉 פירוט", "השמע הסבר", function () {
-        klog("CLICK hak wa(3) play-elaboration nom=" + nom);
-        playAudio(state, wavElab(nom));
-    }));
-    box.appendChild(playRow);
-
-    const closeBtn = btn("✕ סגור", "סגור חקירה", function () { dismiss(); });
-    closeBtn.style.marginTop = ".5rem";
-    closeBtn.style.borderColor = "#ff8a8a";
-    closeBtn.style.color = "#ff8a8a";
-    box.appendChild(closeBtn);
-
-    function dismiss() {
-        klog("CLICK hak wa(4) close");
-        stopAllAudio(state);
-        overlay.remove();
-        state._hakOverlay = null;
-        document.removeEventListener("keydown", onKey);
+// dif(0)/dif(1) handler — prev/next hotspot, wraps. Mirrors Games3.dif_Click,
+// which also resets wa(2): Enabled = False + Picture swap to playc3.bmp
+// (dimmed). The user's recorded blob is for the previous hotspot, so we
+// invalidate it before navigating away.
+function game3HakDif(state, delta) {
+    const max = state.maxTurn;
+    let nom = state._hakNom || 1;
+    nom = nom + delta;
+    if (nom > max) nom = 1;
+    if (nom < 1)   nom = max;
+    state._hakNom = nom;
+    klog("CLICK game3 dif → nom=" + nom);
+    // Clear the previous hotspot's recording. Stop any in-flight recorder
+    // first so it doesn't dump bytes into the new hotspot's slot.
+    if (state._kkbRec) {
+        if (state._kkbRec.mr && state._kkbRec.mr.state === "recording") {
+            try { state._kkbRec.mr.stop(); } catch (e) {}
+        }
+        if (state._kkbRec.url) {
+            try { URL.revokeObjectURL(state._kkbRec.url); } catch (e) {}
+            state._kkbRec.url = null;
+        }
     }
-    function onKey(e) { if (e.key === "Escape") dismiss(); }
-    document.addEventListener("keydown", onKey);
+    // wa(2): disabled-looking until a new recording exists (playc3 = dimmed).
+    // Also pin Enabled=False so the hover swap doesn't repaint it to playc2.
+    const root = state.config.assetsRoot;
+    const wa2img = state.stage.querySelector('.frm-ctrl--wa[data-index="2"] img.frm-img');
+    if (wa2img) wa2img.src = root + "/menu/playc3.png";
+    setWaEnabled(state, 2, false);
+    paintGame3HakPatch(state);
+}
 
-    overlay.addEventListener("click", function (e) {
-        if (e.target === overlay) dismiss();
-    });
+// wa(1) toggle record — opens mic via getUserMedia + MediaRecorder, swaps
+// wa(0/1/2) sprites to their "_3" disabled variants while recording (per
+// Games3.wa_Click Case 1). Stops on second click and restores idle sprites.
+function game3HakToggleRecord(state) {
+    if (!state._kkbRec) state._kkbRec = {};
+    const r = state._kkbRec;
+    const root = state.config.assetsRoot;
+    function setWaSrc(idx, file) {
+        const el = state.stage.querySelector('.frm-ctrl--wa[data-index="' + idx + '"] img.frm-img');
+        if (el) el.src = root + "/menu/" + file;
+    }
+    if (r.mr && r.mr.state === "recording") {
+        try { r.mr.stop(); } catch (e) {}
+        return;
+    }
+    function startWithStream(stream) {
+        const chunks = [];
+        const mr = new MediaRecorder(stream);
+        r.mr = mr;
+        mr.ondataavailable = function (e) { if (e.data && e.data.size > 0) chunks.push(e.data); };
+        mr.onstop = function () {
+            // KEEP the stream alive — re-using it for the next record skips
+            // the browser's permission prompt that would otherwise re-fire
+            // every time tracks get stopped. The stream is torn down only
+            // when the hak panel closes (closeGame3HakZoom).
+            const hasRecording = chunks.length > 0;
+            if (hasRecording) {
+                if (r.url) { try { URL.revokeObjectURL(r.url); } catch (e) {} }
+                r.url = URL.createObjectURL(new Blob(chunks, { type: mr.mimeType || "audio/webm" }));
+            }
+            setWaSrc(0, "playb1.png");
+            setWaSrc(1, "rec1.png");
+            setWaSrc(2, "playc1.png");
+            // Mirror Games3.wa_Click Case 1 stop branch:
+            //   wa(0/2/3).Enabled = True ; dif(0/1).Enabled = True
+            setWaEnabled(state, 0, true);
+            setWaEnabled(state, 2, hasRecording);     // only enable when we have a blob
+            setWaEnabled(state, 3, true);
+            klog("CLICK game3 wa(1) stop");
+        };
+        mr.start();
+        setWaSrc(0, "playb3.png");
+        setWaSrc(1, "rec3.png");
+        setWaSrc(2, "playc3.png");
+        // Mirror Games3.wa_Click Case 1 start branch:
+        //   wa(0/2/3).Enabled = False ; dif(0/1).Enabled = False
+        setWaEnabled(state, 0, false);
+        setWaEnabled(state, 2, false);
+        setWaEnabled(state, 3, false);
+        klog("CLICK game3 wa(1) record-start");
+    }
+    if (r.stream && r.stream.active) {
+        startWithStream(r.stream);
+        return;
+    }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        klog("game3 rec: getUserMedia not supported");
+        return;
+    }
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+        r.stream = stream;
+        startWithStream(stream);
+    }).catch(function (err) { klog("game3 rec: getUserMedia failed", err && err.message); });
+}
 
-    document.body.appendChild(overlay);
-    refreshPatch();
-    // Per original: opening HAK immediately plays Mhiza_2(1) (or fallback music).
-    // Use the elaboration audio for the current hotspot as the auto-play.
-    playAudio(state, wavName(nom));
+// wa(2) play recorded — plays the MediaRecorder blob (Games3.wa_Click Case 2
+// runs rec.Command = "Prev"; rec.Command = "play" on MMControl).
+function game3HakPlayRecording(state) {
+    if (!state._kkbRec || !state._kkbRec.url) {
+        klog("game3 wa(2): no recording yet");
+        return;
+    }
+    klog("CLICK game3 wa(2) play-recording");
+    const a = new Audio(state._kkbRec.url);
+    a.play().catch(function () {});
 }
 
 // Flash the current hotspot rect — Games3.startgame draws a grey-then-blue

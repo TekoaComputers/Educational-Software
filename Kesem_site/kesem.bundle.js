@@ -22,7 +22,22 @@ const CONFIGS = {
         },
         game1:  { layoutFile: "data/layout/_shared/games.json",  background: "assets/Brahot/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Brahot/menu/hetz7.png" } },
         game2:  { layoutFile: "data/layout/_shared/games2.json", background: "assets/Brahot/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Brahot/menu/hetz7.png" } },
-        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/Brahot/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Brahot/menu/hetz7.png" } },
+        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/Brahot/menu/masah.png",  designSize: [640, 480], images: {
+            picexi: "assets/Brahot/menu/hetz7.png",
+            wa: [
+                "assets/Brahot/menu/playb1.png", "assets/Brahot/menu/rec1.png",
+                "assets/Brahot/menu/playc1.png", "assets/Brahot/menu/playa1.png",
+                "assets/Brahot/menu/close1.png", "assets/Brahot/menu/as1.png",
+            ],
+            dif: ["assets/Brahot/menu/up1a1.png", "assets/Brahot/menu/up1c1.png"],
+        }, imagesHover: {
+            wa: [
+                "assets/Brahot/menu/playb2.png", "assets/Brahot/menu/rec2.png",
+                "assets/Brahot/menu/playc2.png", "assets/Brahot/menu/playa2.png",
+                "assets/Brahot/menu/close2.png", "assets/Brahot/menu/as2.png",
+            ],
+            dif: ["assets/Brahot/menu/up1a2.png", "assets/Brahot/menu/up1c2.png"],
+        } },
         game4:  { layoutFile: "data/layout/_shared/games4.json", background: "assets/Brahot/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Brahot/menu/hetz7.png", btnArw: ["assets/Brahot/menu/hetz6.png", "assets/Brahot/menu/hetz5.png"] } },
         game5:  { layoutFile: "data/layout/_shared/games5.json", background: "assets/Brahot/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Brahot/menu/hetz7.png" } },
         misger: { layoutFile: "data/layout/_shared/misger.json", background: "assets/Brahot/menu/misger.png", designSize: [240, 200], images: { picexi: "assets/Brahot/menu/hetz7.png" } },
@@ -34,6 +49,9 @@ const CONFIGS = {
         mashal: { layoutFile: "data/layout/_shared/mashal.json", background: "assets/Brahot/menu/mashal.png", designSize: [640, 480] },
     },
     tafroshFile: "data/tafrosh/Brahot.json",
+    // Brahot/levk.vbp VersionFileDescription="X" → App.FileDescription = "X"
+    // at runtime, which disables the hak/record button in Games3 Form_Load.
+    fileDescriptionX: true,
     defaultRama: 1,
     maxRama: 2,             // user-selectable rama tabs (Icon_s count)
     bgRamaMax: 2,           // clamp BG lookup (only brahot1/2.png exist on disk)
@@ -127,12 +145,31 @@ const CONFIGS = {
         },
         game1:  { layoutFile: "data/layout/_shared/games.json",  background: "assets/Dvash/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Dvash/menu/hetz7.png" } },
         game2:  { layoutFile: "data/layout/_shared/games2.json", background: "assets/Dvash/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Dvash/menu/hetz7.png" } },
-        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/Dvash/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Dvash/menu/hetz7.png" } },
+        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/Dvash/menu/masah.png",  designSize: [640, 480], images: {
+            picexi: "assets/Dvash/menu/hetz7.png",
+            Picture22: "assets/Dvash/menu/screen2.png",
+            wa: [
+                "assets/Dvash/menu/playb1.png", "assets/Dvash/menu/rec1.png",
+                "assets/Dvash/menu/playc1.png", "assets/Dvash/menu/playa1.png",
+                "assets/Dvash/menu/close1.png", "assets/Dvash/menu/as1.png",
+            ],
+            dif: ["assets/Dvash/menu/up1a1.png", "assets/Dvash/menu/up1c1.png"],
+        }, imagesHover: {
+            wa: [
+                "assets/Dvash/menu/playb2.png", "assets/Dvash/menu/rec2.png",
+                "assets/Dvash/menu/playc2.png", "assets/Dvash/menu/playa2.png",
+                "assets/Dvash/menu/close2.png", "assets/Dvash/menu/as2.png",
+            ],
+            dif: ["assets/Dvash/menu/up1a2.png", "assets/Dvash/menu/up1c2.png"],
+        } },
         game4:  { layoutFile: "data/layout/_shared/games4.json", background: "assets/Dvash/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Dvash/menu/hetz7.png", btnArw: ["assets/Dvash/menu/hetz6.png", "assets/Dvash/menu/hetz5.png"] } },
         game5:  { layoutFile: "data/layout/_shared/games5.json", background: "assets/Dvash/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Dvash/menu/hetz7.png" } },
         misger: { layoutFile: "data/layout/_shared/misger.json", background: "assets/Dvash/menu/misger.png", designSize: [240, 200], images: { picexi: "assets/Dvash/menu/hetz7.png" } },
     },
     tafroshFile: "data/tafrosh/Dvash.json",
+    // Dvash/levk.vbp VersionFileDescription="X" → App.FileDescription = "X"
+    // at runtime, which disables the hak/record button in Games3 Form_Load.
+    fileDescriptionX: true,
     defaultRama: 1,
     maxRama: 3,                       // 3 Icon_s tabs on Sst
     bgRamaMax: 1,                     // no per-rama BG image; Picture1 carries the art
@@ -182,7 +219,23 @@ const CONFIGS = {
         },
         game1:  { layoutFile: "data/layout/_shared/games.json",  background: "assets/EnglishA/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/EnglishA/menu/hetz7.png" } },
         game2:  { layoutFile: "data/layout/_shared/games2.json", background: "assets/EnglishA/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/EnglishA/menu/hetz7.png" } },
-        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/EnglishA/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/EnglishA/menu/hetz7.png" } },
+        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/EnglishA/menu/masah.png",  designSize: [640, 480], images: {
+            picexi: "assets/EnglishA/menu/hetz7.png",
+            Picture22: "assets/EnglishA/menu/screen2.png",
+            wa: [
+                "assets/EnglishA/menu/playb1.png", "assets/EnglishA/menu/rec1.png",
+                "assets/EnglishA/menu/playc1.png", "assets/EnglishA/menu/playa1.png",
+                "assets/EnglishA/menu/close1.png", "assets/EnglishA/menu/as1.png",
+            ],
+            dif: ["assets/EnglishA/menu/up1a1.png", "assets/EnglishA/menu/up1c1.png"],
+        }, imagesHover: {
+            wa: [
+                "assets/EnglishA/menu/playb2.png", "assets/EnglishA/menu/rec2.png",
+                "assets/EnglishA/menu/playc2.png", "assets/EnglishA/menu/playa2.png",
+                "assets/EnglishA/menu/close2.png", "assets/EnglishA/menu/as2.png",
+            ],
+            dif: ["assets/EnglishA/menu/up1a2.png", "assets/EnglishA/menu/up1c2.png"],
+        } },
         game4:  { layoutFile: "data/layout/_shared/games4.json", background: "assets/EnglishA/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/EnglishA/menu/hetz7.png", btnArw: ["assets/EnglishA/menu/hetz6.png", "assets/EnglishA/menu/hetz5.png"] } },
         game5:  { layoutFile: "data/layout/_shared/games5.json", background: "assets/EnglishA/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/EnglishA/menu/hetz7.png" } },
         misger: { layoutFile: "data/layout/_shared/misger.json", background: "assets/EnglishA/menu/misger.png", designSize: [240, 200], images: { picexi: "assets/EnglishA/menu/hetz7.png" } },
@@ -234,7 +287,23 @@ const CONFIGS = {
         },
         game1:  { layoutFile: "data/layout/_shared/games.json",  background: "assets/EnglishB/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/EnglishB/menu/hetz7.png" } },
         game2:  { layoutFile: "data/layout/_shared/games2.json", background: "assets/EnglishB/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/EnglishB/menu/hetz7.png" } },
-        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/EnglishB/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/EnglishB/menu/hetz7.png" } },
+        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/EnglishB/menu/masah.png",  designSize: [640, 480], images: {
+            picexi: "assets/EnglishB/menu/hetz7.png",
+            Picture22: "assets/EnglishB/menu/screen2.png",
+            wa: [
+                "assets/EnglishB/menu/playb1.png", "assets/EnglishB/menu/rec1.png",
+                "assets/EnglishB/menu/playc1.png", "assets/EnglishB/menu/playa1.png",
+                "assets/EnglishB/menu/close1.png", "assets/EnglishB/menu/as1.png",
+            ],
+            dif: ["assets/EnglishB/menu/up1a1.png", "assets/EnglishB/menu/up1c1.png"],
+        }, imagesHover: {
+            wa: [
+                "assets/EnglishB/menu/playb2.png", "assets/EnglishB/menu/rec2.png",
+                "assets/EnglishB/menu/playc2.png", "assets/EnglishB/menu/playa2.png",
+                "assets/EnglishB/menu/close2.png", "assets/EnglishB/menu/as2.png",
+            ],
+            dif: ["assets/EnglishB/menu/up1a2.png", "assets/EnglishB/menu/up1c2.png"],
+        } },
         game4:  { layoutFile: "data/layout/_shared/games4.json", background: "assets/EnglishB/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/EnglishB/menu/hetz7.png", btnArw: ["assets/EnglishB/menu/hetz6.png", "assets/EnglishB/menu/hetz5.png"] } },
         game5:  { layoutFile: "data/layout/_shared/games5.json", background: "assets/EnglishB/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/EnglishB/menu/hetz7.png" } },
         misger: { layoutFile: "data/layout/_shared/misger.json", background: "assets/EnglishB/menu/misger.png", designSize: [240, 200], images: { picexi: "assets/EnglishB/menu/hetz7.png" } },
@@ -296,7 +365,23 @@ const CONFIGS = {
         },
         game1:  { layoutFile: "data/layout/_shared/games.json",  background: "assets/EnglishC/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/EnglishC/menu/hetz7.png" } },
         game2:  { layoutFile: "data/layout/_shared/games2.json", background: "assets/EnglishC/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/EnglishC/menu/hetz7.png" } },
-        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/EnglishC/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/EnglishC/menu/hetz7.png" } },
+        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/EnglishC/menu/masah.png",  designSize: [640, 480], images: {
+            picexi: "assets/EnglishC/menu/hetz7.png",
+            Picture22: "assets/EnglishC/menu/screen2.png",
+            wa: [
+                "assets/EnglishC/menu/playb1.png", "assets/EnglishC/menu/rec1.png",
+                "assets/EnglishC/menu/playc1.png", "assets/EnglishC/menu/playa1.png",
+                "assets/EnglishC/menu/close1.png", "assets/EnglishC/menu/as1.png",
+            ],
+            dif: ["assets/EnglishC/menu/up1a1.png", "assets/EnglishC/menu/up1c1.png"],
+        }, imagesHover: {
+            wa: [
+                "assets/EnglishC/menu/playb2.png", "assets/EnglishC/menu/rec2.png",
+                "assets/EnglishC/menu/playc2.png", "assets/EnglishC/menu/playa2.png",
+                "assets/EnglishC/menu/close2.png", "assets/EnglishC/menu/as2.png",
+            ],
+            dif: ["assets/EnglishC/menu/up1a2.png", "assets/EnglishC/menu/up1c2.png"],
+        } },
         game4:  { layoutFile: "data/layout/_shared/games4.json", background: "assets/EnglishC/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/EnglishC/menu/hetz7.png", btnArw: ["assets/EnglishC/menu/hetz6.png", "assets/EnglishC/menu/hetz5.png"] } },
         game5:  { layoutFile: "data/layout/_shared/games5.json", background: "assets/EnglishC/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/EnglishC/menu/hetz7.png" } },
         misger: { layoutFile: "data/layout/_shared/misger.json", background: "assets/EnglishC/menu/misger.png", designSize: [240, 200], images: { picexi: "assets/EnglishC/menu/hetz7.png" } },
@@ -337,13 +422,31 @@ const CONFIGS = {
         },
         game1:  { layoutFile: "data/layout/_shared/games.json",  background: "assets/Hagim/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Hagim/menu/hetz7.png" } },
         game2:  { layoutFile: "data/layout/_shared/games2.json", background: "assets/Hagim/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Hagim/menu/hetz7.png" } },
-        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/Hagim/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Hagim/menu/hetz7.png" } },
+        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/Hagim/menu/masah.png",  designSize: [640, 480], images: {
+            picexi: "assets/Hagim/menu/hetz7.png",
+            wa: [
+                "assets/Hagim/menu/playb1.png", "assets/Hagim/menu/rec1.png",
+                "assets/Hagim/menu/playc1.png", "assets/Hagim/menu/playa1.png",
+                "assets/Hagim/menu/close1.png", "assets/Hagim/menu/as1.png",
+            ],
+            dif: ["assets/Hagim/menu/up1a1.png", "assets/Hagim/menu/up1c1.png"],
+        }, imagesHover: {
+            wa: [
+                "assets/Hagim/menu/playb2.png", "assets/Hagim/menu/rec2.png",
+                "assets/Hagim/menu/playc2.png", "assets/Hagim/menu/playa2.png",
+                "assets/Hagim/menu/close2.png", "assets/Hagim/menu/as2.png",
+            ],
+            dif: ["assets/Hagim/menu/up1a2.png", "assets/Hagim/menu/up1c2.png"],
+        } },
         game4:  { layoutFile: "data/layout/_shared/games4.json", background: "assets/Hagim/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Hagim/menu/hetz7.png", btnArw: ["assets/Hagim/menu/hetz6.png", "assets/Hagim/menu/hetz5.png"] } },
         game5:  { layoutFile: "data/layout/_shared/games5.json", background: "assets/Hagim/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Hagim/menu/hetz7.png" } },
         misger: { layoutFile: "data/layout/_shared/misger.json", background: "assets/Hagim/menu/misger.png", designSize: [240, 200], images: { picexi: "assets/Hagim/menu/hetz7.png" } },
         mashal: { layoutFile: "data/layout/_shared/mashal.json", background: "assets/Hagim/menu/mashal.png", designSize: [640, 480] },
     },
     tafroshFile: "data/tafrosh/Hagim.json",
+    // Hagim/levk.vbp VersionFileDescription="X" → App.FileDescription = "X"
+    // at runtime, which disables the hak/record button in Games3 Form_Load.
+    fileDescriptionX: true,
     defaultRama: 1,
     maxRama: 4,
     bgRamaMax: 4,
@@ -392,7 +495,23 @@ const CONFIGS = {
         },
         game1:  { layoutFile: "data/layout/_shared/games.json",  background: "assets/Heshbon/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Heshbon/menu/hetz7.png" } },
         game2:  { layoutFile: "data/layout/_shared/games2.json", background: "assets/Heshbon/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Heshbon/menu/hetz7.png" } },
-        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/Heshbon/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Heshbon/menu/hetz7.png" } },
+        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/Heshbon/menu/masah.png",  designSize: [640, 480], images: {
+            picexi: "assets/Heshbon/menu/hetz7.png",
+            Picture22: "assets/Heshbon/menu/screen2.png",
+            wa: [
+                "assets/Heshbon/menu/playb1.png", "assets/Heshbon/menu/rec1.png",
+                "assets/Heshbon/menu/playc1.png", "assets/Heshbon/menu/playa1.png",
+                "assets/Heshbon/menu/close1.png", "assets/Heshbon/menu/as1.png",
+            ],
+            dif: ["assets/Heshbon/menu/up1a1.png", "assets/Heshbon/menu/up1c1.png"],
+        }, imagesHover: {
+            wa: [
+                "assets/Heshbon/menu/playb2.png", "assets/Heshbon/menu/rec2.png",
+                "assets/Heshbon/menu/playc2.png", "assets/Heshbon/menu/playa2.png",
+                "assets/Heshbon/menu/close2.png", "assets/Heshbon/menu/as2.png",
+            ],
+            dif: ["assets/Heshbon/menu/up1a2.png", "assets/Heshbon/menu/up1c2.png"],
+        } },
         game4:  { layoutFile: "data/layout/_shared/games4.json", background: "assets/Heshbon/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Heshbon/menu/hetz7.png", btnArw: ["assets/Heshbon/menu/hetz6.png", "assets/Heshbon/menu/hetz5.png"] } },
         game5:  { layoutFile: "data/layout/_shared/games5.json", background: "assets/Heshbon/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Heshbon/menu/hetz7.png" } },
         misger: { layoutFile: "data/layout/_shared/misger.json", background: "assets/Heshbon/menu/misger.png", designSize: [240, 200], images: { picexi: "assets/Heshbon/menu/hetz7.png" } },
@@ -475,7 +594,23 @@ const CONFIGS = {
         },
         game1:  { layoutFile: "data/layout/_shared/games.json",  background: "assets/Ivrit/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Ivrit/menu/hetz7.png" } },
         game2:  { layoutFile: "data/layout/_shared/games2.json", background: "assets/Ivrit/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Ivrit/menu/hetz7.png" } },
-        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/Ivrit/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Ivrit/menu/hetz7.png" } },
+        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/Ivrit/menu/masah.png",  designSize: [640, 480], images: {
+            picexi: "assets/Ivrit/menu/hetz7.png",
+            Picture22: "assets/Ivrit/menu/screen2.png",
+            wa: [
+                "assets/Ivrit/menu/playb1.png", "assets/Ivrit/menu/rec1.png",
+                "assets/Ivrit/menu/playc1.png", "assets/Ivrit/menu/playa1.png",
+                "assets/Ivrit/menu/close1.png", "assets/Ivrit/menu/as1.png",
+            ],
+            dif: ["assets/Ivrit/menu/up1a1.png", "assets/Ivrit/menu/up1c1.png"],
+        }, imagesHover: {
+            wa: [
+                "assets/Ivrit/menu/playb2.png", "assets/Ivrit/menu/rec2.png",
+                "assets/Ivrit/menu/playc2.png", "assets/Ivrit/menu/playa2.png",
+                "assets/Ivrit/menu/close2.png", "assets/Ivrit/menu/as2.png",
+            ],
+            dif: ["assets/Ivrit/menu/up1a2.png", "assets/Ivrit/menu/up1c2.png"],
+        } },
         game4:  { layoutFile: "data/layout/_shared/games4.json", background: "assets/Ivrit/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Ivrit/menu/hetz7.png", btnArw: ["assets/Ivrit/menu/hetz6.png", "assets/Ivrit/menu/hetz5.png"] } },
         game5:  { layoutFile: "data/layout/_shared/games5.json", background: "assets/Ivrit/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Ivrit/menu/hetz7.png" } },
         misger: { layoutFile: "data/layout/_shared/misger.json", background: "assets/Ivrit/menu/misger.png", designSize: [240, 200], images: { picexi: "assets/Ivrit/menu/hetz7.png" } },
@@ -540,7 +675,23 @@ const CONFIGS = {
         },
         game1:  { layoutFile: "data/layout/_shared/games.json",  background: "assets/KolKoreA/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreA/menu/hetz7.png" } },
         game2:  { layoutFile: "data/layout/_shared/games2.json", background: "assets/KolKoreA/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreA/menu/hetz7.png" } },
-        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/KolKoreA/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreA/menu/hetz7.png" } },
+        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/KolKoreA/menu/masah.png",  designSize: [640, 480], images: {
+            picexi: "assets/KolKoreA/menu/hetz7.png",
+            Picture22: "assets/KolKoreA/menu/screen2.png",
+            wa: [
+                "assets/KolKoreA/menu/playb1.png", "assets/KolKoreA/menu/rec1.png",
+                "assets/KolKoreA/menu/playc1.png", "assets/KolKoreA/menu/playa1.png",
+                "assets/KolKoreA/menu/close1.png", "assets/KolKoreA/menu/as1.png",
+            ],
+            dif: ["assets/KolKoreA/menu/up1a1.png", "assets/KolKoreA/menu/up1c1.png"],
+        }, imagesHover: {
+            wa: [
+                "assets/KolKoreA/menu/playb2.png", "assets/KolKoreA/menu/rec2.png",
+                "assets/KolKoreA/menu/playc2.png", "assets/KolKoreA/menu/playa2.png",
+                "assets/KolKoreA/menu/close2.png", "assets/KolKoreA/menu/as2.png",
+            ],
+            dif: ["assets/KolKoreA/menu/up1a2.png", "assets/KolKoreA/menu/up1c2.png"],
+        } },
         game4:  { layoutFile: "data/layout/_shared/games4.json", background: "assets/KolKoreA/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreA/menu/hetz7.png", btnArw: ["assets/KolKoreA/menu/hetz6.png", "assets/KolKoreA/menu/hetz5.png"] } },
         game5:  { layoutFile: "data/layout/_shared/games5.json", background: "assets/KolKoreA/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreA/menu/hetz7.png" } },
         misger: { layoutFile: "data/layout/_shared/misger.json", background: "assets/KolKoreA/menu/misger.png", designSize: [240, 200], images: { picexi: "assets/KolKoreA/menu/hetz7.png" } },
@@ -602,11 +753,47 @@ const CONFIGS = {
                 // Previously unbound — the exit button rendered as an invisible
                 // hotspot (issue #23: "missing exit button").
                 btnexi: "assets/KolKoreB/menu/xsst.png",
+                // Sst.frm line 1328: btnSeret(0) = LoadPicture(qsst.bmp).
+                // It's the small "?" help button at top-right (605, 170) that
+                // plays PathFilm\_tafnew.avi. Previously unbound → invisible.
+                btnSeret: "assets/KolKoreB/menu/qsst.png",
+                // Sst.frm line 1327: mini = LoadPicture(_sst.bmp). The "−"
+                // minimize button at (590, 0). VB6 default property on a
+                // PictureBox is Picture, so the no-suffix assignment sets
+                // the image. Previously unbound → invisible click hotspot.
+                mini: "assets/KolKoreB/menu/_sst.png",
             },
         },
         game1:  { layoutFile: "data/layout/_shared/games.json",  background: "assets/KolKoreB/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreB/menu/hetz7.png" } },
         game2:  { layoutFile: "data/layout/_shared/games2.json", background: "assets/KolKoreB/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreB/menu/hetz7.png" } },
-        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/KolKoreB/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreB/menu/hetz7.png" } },
+        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/KolKoreB/menu/masah.png",  designSize: [640, 480], images: {
+            picexi: "assets/KolKoreB/menu/hetz7.png",
+            // Games3 hak inspect overlay — Picture22 BG (screen2.bmp) + the
+            // 6 wa control sprites + 2 dif nav arrow sprites. Loaded straight
+            // from Games3.frm Form_Load + wa_Click idle states.
+            Picture22: "assets/KolKoreB/menu/screen2.png",
+            wa: [
+                "assets/KolKoreB/menu/playb1.png",  // 0 — play original (Mhiza_Hadasha name)
+                "assets/KolKoreB/menu/rec1.png",    // 1 — record (toggle to rec3 while recording)
+                "assets/KolKoreB/menu/playc1.png",  // 2 — play user's recording
+                "assets/KolKoreB/menu/playa1.png",  // 3 — play elaboration (Mhiza_5 _2.wav)
+                "assets/KolKoreB/menu/close1.png",  // 4 — close panel
+                "assets/KolKoreB/menu/as1.png",     // 5 — warning/hint indicator (no click)
+            ],
+            dif: [
+                "assets/KolKoreB/menu/up1a1.png",   // 0 — prev hotspot
+                "assets/KolKoreB/menu/up1c1.png",   // 1 — next hotspot
+            ],
+        }, imagesHover: {
+            // Original wa_MouseMove + dif_MouseMove swap to the "_2" sprite
+            // on hover. Renderer wires mouseenter/mouseleave → src toggle.
+            wa: [
+                "assets/KolKoreB/menu/playb2.png", "assets/KolKoreB/menu/rec2.png",
+                "assets/KolKoreB/menu/playc2.png", "assets/KolKoreB/menu/playa2.png",
+                "assets/KolKoreB/menu/close2.png", "assets/KolKoreB/menu/as2.png",
+            ],
+            dif: ["assets/KolKoreB/menu/up1a2.png", "assets/KolKoreB/menu/up1c2.png"],
+        } },
         game4:  { layoutFile: "data/layout/_shared/games4.json", background: "assets/KolKoreB/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreB/menu/hetz7.png", btnArw: ["assets/KolKoreB/menu/hetz6.png", "assets/KolKoreB/menu/hetz5.png"] } },
         game5:  { layoutFile: "data/layout/_shared/games5.json", background: "assets/KolKoreB/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreB/menu/hetz7.png" } },
         misger: { layoutFile: "data/layout/_shared/misger.json", background: "assets/KolKoreB/menu/misger.png", designSize: [240, 200], images: { picexi: "assets/KolKoreB/menu/hetz7.png" } },
@@ -667,7 +854,23 @@ const CONFIGS = {
         },
         game1:  { layoutFile: "data/layout/_shared/games.json",  background: "assets/KolKoreC/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreC/menu/hetz7.png" } },
         game2:  { layoutFile: "data/layout/_shared/games2.json", background: "assets/KolKoreC/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreC/menu/hetz7.png" } },
-        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/KolKoreC/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreC/menu/hetz7.png" } },
+        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/KolKoreC/menu/masah.png",  designSize: [640, 480], images: {
+            picexi: "assets/KolKoreC/menu/hetz7.png",
+            Picture22: "assets/KolKoreC/menu/screen2.png",
+            wa: [
+                "assets/KolKoreC/menu/playb1.png", "assets/KolKoreC/menu/rec1.png",
+                "assets/KolKoreC/menu/playc1.png", "assets/KolKoreC/menu/playa1.png",
+                "assets/KolKoreC/menu/close1.png", "assets/KolKoreC/menu/as1.png",
+            ],
+            dif: ["assets/KolKoreC/menu/up1a1.png", "assets/KolKoreC/menu/up1c1.png"],
+        }, imagesHover: {
+            wa: [
+                "assets/KolKoreC/menu/playb2.png", "assets/KolKoreC/menu/rec2.png",
+                "assets/KolKoreC/menu/playc2.png", "assets/KolKoreC/menu/playa2.png",
+                "assets/KolKoreC/menu/close2.png", "assets/KolKoreC/menu/as2.png",
+            ],
+            dif: ["assets/KolKoreC/menu/up1a2.png", "assets/KolKoreC/menu/up1c2.png"],
+        } },
         game4:  { layoutFile: "data/layout/_shared/games4.json", background: "assets/KolKoreC/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreC/menu/hetz7.png", btnArw: ["assets/KolKoreC/menu/hetz6.png", "assets/KolKoreC/menu/hetz5.png"] } },
         game5:  { layoutFile: "data/layout/_shared/games5.json", background: "assets/KolKoreC/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreC/menu/hetz7.png" } },
         misger: { layoutFile: "data/layout/_shared/misger.json", background: "assets/KolKoreC/menu/misger.png", designSize: [240, 200], images: { picexi: "assets/KolKoreC/menu/hetz7.png" } },
@@ -742,7 +945,23 @@ const CONFIGS = {
         },
         game1:  { layoutFile: "data/layout/_shared/games.json",  background: "assets/KolKoreD/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreD/menu/hetz7.png" } },
         game2:  { layoutFile: "data/layout/_shared/games2.json", background: "assets/KolKoreD/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreD/menu/hetz7.png" } },
-        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/KolKoreD/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreD/menu/hetz7.png" } },
+        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/KolKoreD/menu/masah.png",  designSize: [640, 480], images: {
+            picexi: "assets/KolKoreD/menu/hetz7.png",
+            Picture22: "assets/KolKoreD/menu/screen2.png",
+            wa: [
+                "assets/KolKoreD/menu/playb1.png", "assets/KolKoreD/menu/rec1.png",
+                "assets/KolKoreD/menu/playc1.png", "assets/KolKoreD/menu/playa1.png",
+                "assets/KolKoreD/menu/close1.png", "assets/KolKoreD/menu/as1.png",
+            ],
+            dif: ["assets/KolKoreD/menu/up1a1.png", "assets/KolKoreD/menu/up1c1.png"],
+        }, imagesHover: {
+            wa: [
+                "assets/KolKoreD/menu/playb2.png", "assets/KolKoreD/menu/rec2.png",
+                "assets/KolKoreD/menu/playc2.png", "assets/KolKoreD/menu/playa2.png",
+                "assets/KolKoreD/menu/close2.png", "assets/KolKoreD/menu/as2.png",
+            ],
+            dif: ["assets/KolKoreD/menu/up1a2.png", "assets/KolKoreD/menu/up1c2.png"],
+        } },
         game4:  { layoutFile: "data/layout/_shared/games4.json", background: "assets/KolKoreD/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreD/menu/hetz7.png", btnArw: ["assets/KolKoreD/menu/hetz6.png", "assets/KolKoreD/menu/hetz5.png"] } },
         game5:  { layoutFile: "data/layout/_shared/games5.json", background: "assets/KolKoreD/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreD/menu/hetz7.png" } },
         misger: { layoutFile: "data/layout/_shared/misger.json", background: "assets/KolKoreD/menu/misger.png", designSize: [240, 200], images: { picexi: "assets/KolKoreD/menu/hetz7.png" } },
@@ -795,13 +1014,31 @@ const CONFIGS = {
         },
         game1:  { layoutFile: "data/layout/_shared/games.json",  background: "assets/Shabat/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Shabat/menu/hetz7.png" } },
         game2:  { layoutFile: "data/layout/_shared/games2.json", background: "assets/Shabat/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Shabat/menu/hetz7.png" } },
-        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/Shabat/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Shabat/menu/hetz7.png" } },
+        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/Shabat/menu/masah.png",  designSize: [640, 480], images: {
+            picexi: "assets/Shabat/menu/hetz7.png",
+            wa: [
+                "assets/Shabat/menu/playb1.png", "assets/Shabat/menu/rec1.png",
+                "assets/Shabat/menu/playc1.png", "assets/Shabat/menu/playa1.png",
+                "assets/Shabat/menu/close1.png", "assets/Shabat/menu/as1.png",
+            ],
+            dif: ["assets/Shabat/menu/up1a1.png", "assets/Shabat/menu/up1c1.png"],
+        }, imagesHover: {
+            wa: [
+                "assets/Shabat/menu/playb2.png", "assets/Shabat/menu/rec2.png",
+                "assets/Shabat/menu/playc2.png", "assets/Shabat/menu/playa2.png",
+                "assets/Shabat/menu/close2.png", "assets/Shabat/menu/as2.png",
+            ],
+            dif: ["assets/Shabat/menu/up1a2.png", "assets/Shabat/menu/up1c2.png"],
+        } },
         game4:  { layoutFile: "data/layout/_shared/games4.json", background: "assets/Shabat/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Shabat/menu/hetz7.png", btnArw: ["assets/Shabat/menu/hetz6.png", "assets/Shabat/menu/hetz5.png"] } },
         game5:  { layoutFile: "data/layout/_shared/games5.json", background: "assets/Shabat/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Shabat/menu/hetz7.png" } },
         misger: { layoutFile: "data/layout/_shared/misger.json", background: "assets/Shabat/menu/misger.png", designSize: [240, 200], images: { picexi: "assets/Shabat/menu/hetz7.png" } },
         mashal: { layoutFile: "data/layout/_shared/mashal.json", background: "assets/Shabat/menu/mashal.png", designSize: [640, 480] },
     },
     tafroshFile: "data/tafrosh/Shabat.json",
+    // Shabat/levk.vbp VersionFileDescription="X" → App.FileDescription = "X"
+    // at runtime, which disables the hak/record button in Games3 Form_Load.
+    fileDescriptionX: true,
     defaultRama: 1,
     maxRama: 3,
     bgRamaMax: 3,
@@ -855,7 +1092,23 @@ const CONFIGS = {
         },
         game1:  { layoutFile: "data/layout/_shared/games.json",  background: "assets/Shirim/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Shirim/menu/hetz7.png" } },
         game2:  { layoutFile: "data/layout/_shared/games2.json", background: "assets/Shirim/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Shirim/menu/hetz7.png" } },
-        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/Shirim/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Shirim/menu/hetz7.png" } },
+        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/Shirim/menu/masah.png",  designSize: [640, 480], images: {
+            picexi: "assets/Shirim/menu/hetz7.png",
+            Picture22: "assets/Shirim/menu/screen2.png",
+            wa: [
+                "assets/Shirim/menu/playb1.png", "assets/Shirim/menu/rec1.png",
+                "assets/Shirim/menu/playc1.png", "assets/Shirim/menu/playa1.png",
+                "assets/Shirim/menu/close1.png", "assets/Shirim/menu/as1.png",
+            ],
+            dif: ["assets/Shirim/menu/up1a1.png", "assets/Shirim/menu/up1c1.png"],
+        }, imagesHover: {
+            wa: [
+                "assets/Shirim/menu/playb2.png", "assets/Shirim/menu/rec2.png",
+                "assets/Shirim/menu/playc2.png", "assets/Shirim/menu/playa2.png",
+                "assets/Shirim/menu/close2.png", "assets/Shirim/menu/as2.png",
+            ],
+            dif: ["assets/Shirim/menu/up1a2.png", "assets/Shirim/menu/up1c2.png"],
+        } },
         game4:  { layoutFile: "data/layout/_shared/games4.json", background: "assets/Shirim/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Shirim/menu/hetz7.png", btnArw: ["assets/Shirim/menu/hetz6.png", "assets/Shirim/menu/hetz5.png"] } },
         game5:  { layoutFile: "data/layout/_shared/games5.json", background: "assets/Shirim/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Shirim/menu/hetz7.png" } },
         misger: { layoutFile: "data/layout/_shared/misger.json", background: "assets/Shirim/menu/misger.png", designSize: [240, 200], images: { picexi: "assets/Shirim/menu/hetz7.png" } },
@@ -910,7 +1163,23 @@ const CONFIGS = {
         },
         game1:  { layoutFile: "data/layout/_shared/games.json",  background: "assets/Shirim&Meshalim/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Shirim&Meshalim/menu/hetz7.png" } },
         game2:  { layoutFile: "data/layout/_shared/games2.json", background: "assets/Shirim&Meshalim/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Shirim&Meshalim/menu/hetz7.png" } },
-        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/Shirim&Meshalim/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Shirim&Meshalim/menu/hetz7.png" } },
+        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/Shirim&Meshalim/menu/masah.png",  designSize: [640, 480], images: {
+            picexi: "assets/Shirim&Meshalim/menu/hetz7.png",
+            Picture22: "assets/Shirim&Meshalim/menu/screen2.png",
+            wa: [
+                "assets/Shirim&Meshalim/menu/playb1.png", "assets/Shirim&Meshalim/menu/rec1.png",
+                "assets/Shirim&Meshalim/menu/playc1.png", "assets/Shirim&Meshalim/menu/playa1.png",
+                "assets/Shirim&Meshalim/menu/close1.png", "assets/Shirim&Meshalim/menu/as1.png",
+            ],
+            dif: ["assets/Shirim&Meshalim/menu/up1a1.png", "assets/Shirim&Meshalim/menu/up1c1.png"],
+        }, imagesHover: {
+            wa: [
+                "assets/Shirim&Meshalim/menu/playb2.png", "assets/Shirim&Meshalim/menu/rec2.png",
+                "assets/Shirim&Meshalim/menu/playc2.png", "assets/Shirim&Meshalim/menu/playa2.png",
+                "assets/Shirim&Meshalim/menu/close2.png", "assets/Shirim&Meshalim/menu/as2.png",
+            ],
+            dif: ["assets/Shirim&Meshalim/menu/up1a2.png", "assets/Shirim&Meshalim/menu/up1c2.png"],
+        } },
         game4:  { layoutFile: "data/layout/_shared/games4.json", background: "assets/Shirim&Meshalim/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Shirim&Meshalim/menu/hetz7.png", btnArw: ["assets/Shirim&Meshalim/menu/hetz6.png", "assets/Shirim&Meshalim/menu/hetz5.png"] } },
         game5:  { layoutFile: "data/layout/_shared/games5.json", background: "assets/Shirim&Meshalim/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Shirim&Meshalim/menu/hetz7.png" } },
         misger: { layoutFile: "data/layout/_shared/misger.json", background: "assets/Shirim&Meshalim/menu/misger.png", designSize: [240, 200], images: { picexi: "assets/Shirim&Meshalim/menu/hetz7.png" } },
@@ -962,7 +1231,23 @@ const CONFIGS = {
         },
         game1:  { layoutFile: "data/layout/_shared/games.json",  background: "assets/Yeled/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Yeled/menu/hetz7.png" } },
         game2:  { layoutFile: "data/layout/_shared/games2.json", background: "assets/Yeled/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Yeled/menu/hetz7.png" } },
-        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/Yeled/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Yeled/menu/hetz7.png" } },
+        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/Yeled/menu/masah.png",  designSize: [640, 480], images: {
+            picexi: "assets/Yeled/menu/hetz7.png",
+            Picture22: "assets/Yeled/menu/screen2.png",
+            wa: [
+                "assets/Yeled/menu/playb1.png", "assets/Yeled/menu/rec1.png",
+                "assets/Yeled/menu/playc1.png", "assets/Yeled/menu/playa1.png",
+                "assets/Yeled/menu/close1.png", "assets/Yeled/menu/as1.png",
+            ],
+            dif: ["assets/Yeled/menu/up1a1.png", "assets/Yeled/menu/up1c1.png"],
+        }, imagesHover: {
+            wa: [
+                "assets/Yeled/menu/playb2.png", "assets/Yeled/menu/rec2.png",
+                "assets/Yeled/menu/playc2.png", "assets/Yeled/menu/playa2.png",
+                "assets/Yeled/menu/close2.png", "assets/Yeled/menu/as2.png",
+            ],
+            dif: ["assets/Yeled/menu/up1a2.png", "assets/Yeled/menu/up1c2.png"],
+        } },
         game4:  { layoutFile: "data/layout/_shared/games4.json", background: "assets/Yeled/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Yeled/menu/hetz7.png", btnArw: ["assets/Yeled/menu/hetz6.png", "assets/Yeled/menu/hetz5.png"] } },
         game5:  { layoutFile: "data/layout/_shared/games5.json", background: "assets/Yeled/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Yeled/menu/hetz7.png" } },
         misger: { layoutFile: "data/layout/_shared/misger.json", background: "assets/Yeled/menu/misger.png", designSize: [240, 200], images: { picexi: "assets/Yeled/menu/hetz7.png" } },
@@ -1077,6 +1362,15 @@ const AUDIO_FILES = {
   "Shirim&Meshalim": ["rasb_wav/101_101_3.wav", "rasb_wav/101_102_1.wav", "rasb_wav/102_101_1.wav", "rasb_wav/103_101_3.wav", "rasb_wav/103_102_1.wav", "rasb_wav/104_101_3.wav", "rasb_wav/104_102_5.wav", "rasb_wav/105_101_1.wav", "rasb_wav/106_101_3.wav", "rasb_wav/106_102_1.wav", "rasb_wav/107_101_3.wav", "rasb_wav/107_102_1.wav", "rasb_wav/108_101_3.wav", "rasb_wav/109_101_3.wav", "rasb_wav/110_101_4.wav", "rasb_wav/111_101_1.wav", "rasb_wav/112_101_3.wav", "rasb_wav/112_102_4.wav", "rasb_wav/113_101_3.wav", "rasb_wav/113_102_5.wav", "rasb_wav/114_101_3.wav", "rasb_wav/114_102_2.wav", "rasb_wav/115_101_3.wav", "rasb_wav/115_102_3.wav", "rasb_wav/115_103_1.wav", "rasb_wav/116_101_3.wav", "rasb_wav/116_102_1.wav", "rasb_wav/117_101_3.wav", "rasb_wav/117_102_1.wav", "rasb_wav/118_101_3.wav", "rasb_wav/118_102_3.wav", "rasb_wav/118_103_1.wav", "rasb_wav/119_101_3.wav", "rasb_wav/119_102_4.wav", "rasb_wav/120_101_3.wav", "rasb_wav/120_102_1.wav", "rasb_wav/121_101_3.wav", "rasb_wav/122_101_3.wav", "rasb_wav/122_102_2.wav", "rasb_wav/123_101_5.wav", "rasb_wav/124_101_3.wav", "rasb_wav/124_102_5.wav", "rasb_wav/125_101_3.wav", "rasb_wav/125_102_4.wav", "rasb_wav/126_101_3.wav", "rasb_wav/126_102_1.wav", "rasb_wav/126_103_1.wav", "rasb_wav/127_101_3.wav", "rasb_wav/128_101_3.wav", "rasb_wav/129_101_3.wav", "rasb_wav/130_101_1.wav", "rasb_wav/131_101_1.wav", "rasb_wav/132_101_3.wav", "rasb_wav/133_101_3.wav", "rasb_wav/134_101_3.wav", "rasb_wav/135_101_3.wav", "rasb_wav/136_101_2.wav", "rasb_wav/137_101_5.wav", "rasb_wav/138_101_1.wav", "rasb_wav/139_101_4.wav", "rasb_wav/140_101_3.wav", "rasb_wav/140_102_5.wav", "rasb_wav/141_101_3.wav", "rasb_wav/141_102_5.wav", "rasb_wav/142_101_3.wav", "rasb_wav/142_102_1.wav", "rasb_wav/143_101_1.wav", "rasb_wav/145_101_3.wav", "rasb_wav/145_102_2.wav", "rasb_wav/146_101_3.wav", "rasb_wav/147_101_5.wav", "rasb_wav/148_101_3.wav", "rasb_wav/148_102_1.wav", "rasb_wav/149_101_1.wav", "rasb_wav/150_101_4.wav", "rasb_wav/151_101_3.wav", "rasb_wav/151_102_5.wav", "rasb_wav/152_101_3.wav", "rasb_wav/152_102_2.wav", "rasb_wav/153_101_3.wav", "rasb_wav/154_101_2.wav", "rasb_wav/155_101_3.wav", "rasb_wav/155_102_3.wav", "rasb_wav/156_101_3.wav", "rasb_wav/157_101_3.wav", "rasb_wav/158_101_3.wav", "rasb_wav/159_101_1.wav", "rasb_wav/159_102_3.wav", "rasb_wav/160_101_1.wav", "rasb_wav/161_101_3.wav", "rasb_wav/162_101_3.wav", "rasb_wav/163_101_3.wav", "rasb_wav/163_102_1.wav", "rasb_wav/164_101_3.wav", "rasb_wav/164_102_3.wav", "rasb_wav/165_101_3.wav", "rasb_wav/166_101_3.wav", "rasb_wav/167_101_1.wav", "rasb_wav/168_101_1.wav", "rasb_wav/169_101_5.wav", "rasb_wav/170_101_1.wav", "rasb_wav/170_101_3.wav", "rasb_wav/171_101_1.wav", "rasb_wav/172_101_3.wav", "rasb_wav/173_101_2.wav", "rasb_wav/174_101_1.wav", "rasb_wav/175_101_3.wav", "rasb_wav/175_102_1.wav", "rasb_wav/176_101_3.wav", "rasb_wav/176_102_5.wav", "rasb_wav/177_101_4.wav", "rasb_wav/178_101_5.wav", "rasb_wav/178_102_3.wav", "rasb_wav/179_101_3.wav", "rasb_wav/179_102_1.wav", "rasb_wav/180_101_3.wav", "rasb_wav/180_102_5.wav", "rasb_wav/180_103_2.wav", "rasb_wav/181_101_3.wav", "rasb_wav/181_102_2.wav", "rasb_wav/182_101_5.wav", "rasb_wav/182_102_5.wav", "rasb_wav/183_101_3.wav", "rasb_wav/183_102_2.wav", "rasb_wav/184_101_3.wav", "rasb_wav/184_102_2.wav", "rasb_wav/185_101_3.wav", "rasb_wav/185_102_1.wav", "rasb_wav/186_101_1.wav", "rasb_wav/186_102_3.wav", "rasb_wav/187_101_3.wav", "rasb_wav/187_102_5.wav", "rasb_wav/188_101_3.wav", "rasb_wav/188_102_2.wav", "rasb_wav/189_101_3.wav", "rasb_wav/190_101_3.wav", "rasb_wav/190_102_1.wav", "rasb_wav/191_101_3.wav", "rasb_wav/192_101_3.wav", "rasb_wav/192_102_1.wav", "rasb_wav/193_101_3.wav", "rasb_wav/193_102_1.wav", "rasb_wav/194_101_3.wav", "rasb_wav/194_102_1.wav", "rasb_wav/195_101_3.wav", "rasb_wav/195_102_1.wav", "rasb_wav/196_101_1.wav", "rasb_wav/197_101_4.wav", "rasb_wav/198_101_3.wav", "rasb_wav/198_102_1.wav", "rasb_wav/199_101_3.wav", "rasb_wav/199_102_1.wav", "rasb_wav/200_101_5.wav", "rasb_wav/201_101_5.wav", "rasb_wav/202_101_3.wav", "rasb_wav/202_102_2.wav", "rasb_wav/203_101_3.wav", "rasb_wav/203_102_2.wav", "rasb_wav/204_101_2.wav", "rasb_wav/205_101_3.wav", "rasb_wav/206_101_5.wav", "rasb_wav/207_101_1.wav", "rasb_wav/208_101_3.wav", "wav/1.wav", "wav/10.wav", "wav/101_101/1.wav", "wav/101_101/10.wav", "wav/101_101/11.wav", "wav/101_101/12.wav", "wav/101_101/13.wav", "wav/101_101/14.wav", "wav/101_101/2.wav", "wav/101_101/3.wav", "wav/101_101/4.wav", "wav/101_101/5.wav", "wav/101_101/6.wav", "wav/101_101/7.wav", "wav/101_101/8.wav", "wav/101_101/9.wav", "wav/101_102/1.wav", "wav/101_102/1_2.wav", "wav/101_102/2.wav", "wav/101_102/2_2.wav", "wav/101_102/3.wav", "wav/101_102/3_2.wav", "wav/101_102/4.wav", "wav/101_102/4_2.wav", "wav/101_102/5.wav", "wav/101_102/5_2.wav", "wav/101_102/6.wav", "wav/101_102/6_2.wav", "wav/102_101/1.wav", "wav/102_101/1_2.wav", "wav/103_101/1.wav", "wav/103_101/2.wav", "wav/104_101/1.wav", "wav/104_101/2.wav", "wav/104_101/3.wav", "wav/104_101/4.wav", "wav/104_101/5.wav", "wav/104_101/6.wav", "wav/104_101/7.wav", "wav/104_101/8.wav", "wav/104_101/9.wav", "wav/104_102/1.wav", "wav/104_102/2.wav", "wav/104_102/3.wav", "wav/104_102/4.wav", "wav/104_102/5.wav", "wav/104_102/6.wav", "wav/104_102/7.wav", "wav/104_102/8.wav", "wav/104_102/9.wav", "wav/105_101/1.wav", "wav/105_101/1_2.wav", "wav/105_101/2.wav", "wav/105_101/2_2.wav", "wav/105_101/3.wav", "wav/105_101/3_2.wav", "wav/105_101/4.wav", "wav/105_101/4_2.wav", "wav/105_101/5.wav", "wav/105_101/5_2.wav", "wav/106_101/1.wav", "wav/106_101/2.wav", "wav/106_101/3.wav", "wav/106_101/4.wav", "wav/106_101/5.wav", "wav/106_101/6.wav", "wav/106_101/7.wav", "wav/106_101/8.wav", "wav/106_102/1.wav", "wav/106_102/1_2.wav", "wav/106_102/2.wav", "wav/106_102/2_2.wav", "wav/106_102/3.wav", "wav/106_102/3_2.wav", "wav/106_102/4.wav", "wav/106_102/4_2.wav", "wav/107_101/1.wav", "wav/107_101/2.wav", "wav/107_101/3.wav", "wav/107_101/4.wav", "wav/107_101/5.wav", "wav/107_101/6.wav", "wav/107_101/7.wav", "wav/107_102/1.wav", "wav/107_102/1_2.wav", "wav/107_102/2.wav", "wav/107_102/2_2.wav", "wav/107_102/3.wav", "wav/107_102/3_2.wav", "wav/107_102/4.wav", "wav/107_102/4_2.wav", "wav/108_101/1.wav", "wav/108_101/10.wav", "wav/108_101/10_2.wav", "wav/108_101/11.wav", "wav/108_101/11_2.wav", "wav/108_101/12.wav", "wav/108_101/12_2.wav", "wav/108_101/13.wav", "wav/108_101/13_2.wav", "wav/108_101/14.wav", "wav/108_101/14_2.wav", "wav/108_101/1_2.wav", "wav/108_101/2.wav", "wav/108_101/2_2.wav", "wav/108_101/3.wav", "wav/108_101/3_2.wav", "wav/108_101/4.wav", "wav/108_101/4_2.wav", "wav/108_101/5.wav", "wav/108_101/5_2.wav", "wav/108_101/6.wav", "wav/108_101/6_2.wav", "wav/108_101/7.wav", "wav/108_101/7_2.wav", "wav/108_101/8.wav", "wav/108_101/8_2.wav", "wav/108_101/9.wav", "wav/108_101/9_2.wav", "wav/109_101/1.wav", "wav/109_101/10.wav", "wav/109_101/10_2.wav", "wav/109_101/11.wav", "wav/109_101/11_2.wav", "wav/109_101/12.wav", "wav/109_101/12_2.wav", "wav/109_101/1_2.wav", "wav/109_101/2.wav", "wav/109_101/2_2.wav", "wav/109_101/3.wav", "wav/109_101/3_2.wav", "wav/109_101/4.wav", "wav/109_101/4_2.wav", "wav/109_101/5.wav", "wav/109_101/5_2.wav", "wav/109_101/6.wav", "wav/109_101/6_2.wav", "wav/109_101/7.wav", "wav/109_101/7_2.wav", "wav/109_101/8.wav", "wav/109_101/8_2.wav", "wav/109_101/9.wav", "wav/109_101/9_2.wav", "wav/11.wav", "wav/110_101/1.wav", "wav/110_101/1_2.wav", "wav/110_101/2.wav", "wav/110_101/2_2.wav", "wav/110_101/3.wav", "wav/110_101/3_2.wav", "wav/110_101/4.wav", "wav/110_101/4_2.wav", "wav/110_101/5.wav", "wav/110_101/5_2.wav", "wav/110_101/6.wav", "wav/110_101/6_2.wav", "wav/111_101/1.wav", "wav/111_101/1_2.wav", "wav/111_101/2.wav", "wav/111_101/2_2.wav", "wav/111_101/3.wav", "wav/111_101/3_2.wav", "wav/111_101/4.wav", "wav/111_101/4_2.wav", "wav/111_101/5.wav", "wav/111_101/5_2.wav", "wav/111_101/6.wav", "wav/111_101/6_2.wav", "wav/112_101/1.wav", "wav/112_101/2.wav", "wav/112_101/3.wav", "wav/112_101/4.wav", "wav/112_101/5.wav", "wav/112_101/6.wav", "wav/112_101/7.wav", "wav/112_101/8.wav", "wav/112_102/1.wav", "wav/112_102/1_2.wav", "wav/112_102/2.wav", "wav/112_102/2_2.wav", "wav/112_102/3.wav", "wav/112_102/3_2.wav", "wav/112_102/4.wav", "wav/112_102/4_2.wav", "wav/112_102/5.wav", "wav/112_102/5_2.wav", "wav/112_102/6.wav", "wav/112_102/6_2.wav", "wav/113_101/1.wav", "wav/113_101/1_2.wav", "wav/113_101/2.wav", "wav/113_101/2_2.wav", "wav/113_101/3.wav", "wav/113_101/3_2.wav", "wav/113_101/4.wav", "wav/113_101/4_2.wav", "wav/113_101/5.wav", "wav/113_101/5_2.wav", "wav/113_101/6.wav", "wav/113_101/6_2.wav", "wav/113_101/7.wav", "wav/113_101/7_2.wav", "wav/113_101/8.wav", "wav/113_101/8_2.wav", "wav/113_101/9.wav", "wav/113_101/9_2.wav", "wav/113_102/1.wav", "wav/113_102/2.wav", "wav/113_102/3.wav", "wav/113_102/4.wav", "wav/113_102/5.wav", "wav/113_102/6.wav", "wav/113_102/7.wav", "wav/113_102/8.wav", "wav/113_102/9.wav", "wav/114_101/1.wav", "wav/114_101/2.wav", "wav/114_101/3.wav", "wav/114_101/4.wav", "wav/114_101/5.wav", "wav/114_102/1.wav", "wav/114_102/1_2.wav", "wav/114_102/2.wav", "wav/114_102/2_2.wav", "wav/114_102/3.wav", "wav/114_102/4.wav", "wav/114_102/4_2.wav", "wav/114_102/5.wav", "wav/114_102/5_2.wav", "wav/115_101/1.wav", "wav/115_101/2.wav", "wav/115_101/3.wav", "wav/115_101/4.wav", "wav/115_101/5.wav", "wav/115_102/1.wav", "wav/115_102/1_2.wav", "wav/115_102/2.wav", "wav/115_102/2_2.wav", "wav/115_102/3.wav", "wav/115_102/3_2.wav", "wav/115_102/4.wav", "wav/115_102/4_2.wav", "wav/115_102/5.wav", "wav/115_102/5_2.wav", "wav/115_102/6.wav", "wav/115_102/6_2.wav", "wav/115_103/1.wav", "wav/115_103/1_2.wav", "wav/115_103/2.wav", "wav/115_103/2_2.wav", "wav/115_103/3.wav", "wav/115_103/3_2.wav", "wav/116_101/1.wav", "wav/116_101/2.wav", "wav/116_101/3.wav", "wav/116_101/4.wav", "wav/116_102/1.wav", "wav/116_102/1_2.wav", "wav/116_102/2.wav", "wav/116_102/2_2.wav", "wav/116_102/3.wav", "wav/116_102/3_2.wav", "wav/116_102/4.wav", "wav/116_102/4_2.wav", "wav/117_101/1.wav", "wav/117_101/2.wav", "wav/117_101/3.wav", "wav/117_102/1.wav", "wav/117_102/1_2.wav", "wav/117_102/2.wav", "wav/117_102/2_2.wav", "wav/117_102/3.wav", "wav/117_102/3_2.wav", "wav/118_101/1.wav", "wav/118_101/2.wav", "wav/118_101/3.wav", "wav/118_101/4.wav", "wav/118_101/5.wav", "wav/118_102/1.wav", "wav/118_102/1_2.wav", "wav/118_102/2.wav", "wav/118_102/2_2.wav", "wav/118_102/3.wav", "wav/118_102/3_2.wav", "wav/118_102/4.wav", "wav/118_102/4_2.wav", "wav/118_102/5.wav", "wav/118_102/5_2.wav", "wav/118_102/6.wav", "wav/118_102/6_2.wav", "wav/118_103/1.wav", "wav/118_103/1_2.wav", "wav/118_103/2.wav", "wav/118_103/2_2.wav", "wav/118_103/3.wav", "wav/118_103/3_2.wav", "wav/119_101/1.wav", "wav/119_101/1_2.wav", "wav/119_101/2.wav", "wav/119_101/2_2.wav", "wav/119_101/3.wav", "wav/119_101/3_2.wav", "wav/119_101/4.wav", "wav/119_101/4_2.wav", "wav/119_102/1.wav", "wav/119_102/1_2.wav", "wav/119_102/2.wav", "wav/119_102/2_2.wav", "wav/119_102/3.wav", "wav/119_102/3_2.wav", "wav/119_102/4.wav", "wav/119_102/4_2.wav", "wav/120_101/1.wav", "wav/120_101/2.wav", "wav/120_101/3.wav", "wav/120_101/4.wav", "wav/120_101/5.wav", "wav/120_101/6.wav", "wav/120_101/7.wav", "wav/120_101/8.wav", "wav/120_101/9.wav", "wav/120_102/1.wav", "wav/120_102/1_2.wav", "wav/120_102/2.wav", "wav/120_102/2_2.wav", "wav/120_102/3.wav", "wav/120_102/3_2.wav", "wav/120_102/4.wav", "wav/120_102/4_2.wav", "wav/121_101/1.wav", "wav/121_101/10.wav", "wav/121_101/10_2.wav", "wav/121_101/11.wav", "wav/121_101/11_2.wav", "wav/121_101/12.wav", "wav/121_101/12_2.wav", "wav/121_101/13.wav", "wav/121_101/13_2.wav", "wav/121_101/14.wav", "wav/121_101/14_2.wav", "wav/121_101/15.wav", "wav/121_101/15_2.wav", "wav/121_101/16.wav", "wav/121_101/16_2.wav", "wav/121_101/17.wav", "wav/121_101/17_2.wav", "wav/121_101/18.wav", "wav/121_101/18_2.wav", "wav/121_101/19.wav", "wav/121_101/19_2.wav", "wav/121_101/1_2.wav", "wav/121_101/2.wav", "wav/121_101/2_2.wav", "wav/121_101/3.wav", "wav/121_101/3_2.wav", "wav/121_101/4.wav", "wav/121_101/4_2.wav", "wav/121_101/5.wav", "wav/121_101/5_2.wav", "wav/121_101/6.wav", "wav/121_101/6_2.wav", "wav/121_101/7.wav", "wav/121_101/7_2.wav", "wav/121_101/8.wav", "wav/121_101/8_2.wav", "wav/121_101/9.wav", "wav/121_101/9_2.wav", "wav/122_101/1.wav", "wav/122_101/10.wav", "wav/122_101/10_2.wav", "wav/122_101/1_2.wav", "wav/122_101/2.wav", "wav/122_101/2_2.wav", "wav/122_101/3.wav", "wav/122_101/3_2.wav", "wav/122_101/4.wav", "wav/122_101/4_2.wav", "wav/122_101/5.wav", "wav/122_101/5_2.wav", "wav/122_101/6.wav", "wav/122_101/6_2.wav", "wav/122_101/7.wav", "wav/122_101/7_2.wav", "wav/122_101/8.wav", "wav/122_101/8_2.wav", "wav/122_101/9.wav", "wav/122_101/9_2.wav", "wav/123_101/1.wav", "wav/123_101/2.wav", "wav/123_101/3.wav", "wav/123_101/4.wav", "wav/123_101/5.wav", "wav/123_101/6.wav", "wav/123_101/7.wav", "wav/123_101/8.wav", "wav/123_101/9.wav", "wav/124_101/1.wav", "wav/124_101/1_2.wav", "wav/124_101/2.wav", "wav/124_101/2_2.wav", "wav/124_101/3.wav", "wav/124_101/3_2.wav", "wav/124_101/4.wav", "wav/124_101/4_2.wav", "wav/124_101/5.wav", "wav/124_101/5_2.wav", "wav/124_101/6.wav", "wav/124_101/6_2.wav", "wav/124_101/7.wav", "wav/124_101/7_2.wav", "wav/124_102/1.wav", "wav/124_102/2.wav", "wav/124_102/3.wav", "wav/124_102/4.wav", "wav/124_102/5.wav", "wav/124_102/6.wav", "wav/124_102/7.wav", "wav/125_101/1.wav", "wav/125_101/1_2.wav", "wav/125_101/2.wav", "wav/125_101/2_2.wav", "wav/125_101/3.wav", "wav/125_101/3_2.wav", "wav/125_101/4.wav", "wav/125_101/4_2.wav", "wav/125_101/5.wav", "wav/125_101/5_2.wav", "wav/125_101/6.wav", "wav/125_101/6_2.wav", "wav/125_101/7.wav", "wav/125_101/7_2.wav", "wav/125_101/8.wav", "wav/125_101/8_2.wav", "wav/125_102/1.wav", "wav/125_102/1_2.wav", "wav/125_102/2.wav", "wav/125_102/2_2.wav", "wav/125_102/3.wav", "wav/125_102/3_2.wav", "wav/125_102/4.wav", "wav/125_102/4_2.wav", "wav/125_102/5.wav", "wav/125_102/5_2.wav", "wav/126_101/1.wav", "wav/126_101/10.wav", "wav/126_101/11.wav", "wav/126_101/12.wav", "wav/126_101/13.wav", "wav/126_101/14.wav", "wav/126_101/15.wav", "wav/126_101/16.wav", "wav/126_101/17.wav", "wav/126_101/18.wav", "wav/126_101/19.wav", "wav/126_101/2.wav", "wav/126_101/20.wav", "wav/126_101/21.wav", "wav/126_101/22.wav", "wav/126_101/23.wav", "wav/126_101/24.wav", "wav/126_101/25.wav", "wav/126_101/26.wav", "wav/126_101/27.wav", "wav/126_101/28.wav", "wav/126_101/29.wav", "wav/126_101/3.wav", "wav/126_101/30.wav", "wav/126_101/31.wav", "wav/126_101/4.wav", "wav/126_101/5.wav", "wav/126_101/6.wav", "wav/126_101/7.wav", "wav/126_101/8.wav", "wav/126_101/9.wav", "wav/126_102/1.wav", "wav/126_102/1_2.wav", "wav/126_102/2.wav", "wav/126_102/2_2.wav", "wav/126_102/3.wav", "wav/126_102/3_2.wav", "wav/126_102/4.wav", "wav/126_102/4_2.wav", "wav/126_103/1.wav", "wav/126_103/1_2.wav", "wav/126_103/2.wav", "wav/126_103/2_2.wav", "wav/127_101/1.wav", "wav/127_101/2.wav", "wav/127_101/3.wav", "wav/127_101/4.wav", "wav/127_101/5.wav", "wav/128_101/1.wav", "wav/128_101/2.wav", "wav/128_101/3.wav", "wav/128_101/4.wav", "wav/128_101/5.wav", "wav/129_101/1.wav", "wav/129_101/2.wav", "wav/130_101/1.wav", "wav/130_101/1_2.wav", "wav/130_101/2.wav", "wav/130_101/2_2.wav", "wav/130_101/3.wav", "wav/130_101/3_2.wav", "wav/130_101/4.wav", "wav/130_101/4_2.wav", "wav/130_101/5.wav", "wav/130_101/5_2.wav", "wav/131_101/1.wav", "wav/131_101/1_2.wav", "wav/131_101/2.wav", "wav/131_101/2_2.wav", "wav/131_101/3.wav", "wav/131_101/3_2.wav", "wav/131_101/4.wav", "wav/131_101/4_2.wav", "wav/131_101/5.wav", "wav/131_101/5_2.wav", "wav/131_101/6.wav", "wav/131_101/6_2.wav", "wav/132_101/1.wav", "wav/132_101/2.wav", "wav/132_101/3.wav", "wav/132_101/4.wav", "wav/132_101/5.wav", "wav/132_101/6.wav", "wav/133_101/1.wav", "wav/133_101/2.wav", "wav/133_101/3.wav", "wav/133_101/4.wav", "wav/133_101/5.wav", "wav/133_101/6.wav", "wav/133_101/7.wav", "wav/133_101/8.wav", "wav/134_101/1.wav", "wav/134_101/1_2.wav", "wav/134_101/2.wav", "wav/134_101/2_2.wav", "wav/134_101/3.wav", "wav/134_101/3_2.wav", "wav/134_101/4.wav", "wav/134_101/4_2.wav", "wav/134_101/5.wav", "wav/134_101/5_2.wav", "wav/134_101/6.wav", "wav/134_101/6_2.wav", "wav/134_101/7.wav", "wav/134_101/7_2.wav", "wav/134_101/8.wav", "wav/134_101/8_2.wav", "wav/135_101/1.wav", "wav/135_101/10.wav", "wav/135_101/10_2.wav", "wav/135_101/11.wav", "wav/135_101/11_2.wav", "wav/135_101/1_2.wav", "wav/135_101/2.wav", "wav/135_101/2_2.wav", "wav/135_101/3.wav", "wav/135_101/3_2.wav", "wav/135_101/4.wav", "wav/135_101/4_2.wav", "wav/135_101/5.wav", "wav/135_101/5_2.wav", "wav/135_101/6.wav", "wav/135_101/6_2.wav", "wav/135_101/7.wav", "wav/135_101/7_2.wav", "wav/135_101/8.wav", "wav/135_101/8_2.wav", "wav/135_101/9.wav", "wav/135_101/9_2.wav", "wav/136_101/1.wav", "wav/136_101/1_2.wav", "wav/136_101/2.wav", "wav/136_101/2_2.wav", "wav/136_101/3.wav", "wav/136_101/3_2.wav", "wav/136_101/4.wav", "wav/136_101/4_2.wav", "wav/136_101/5.wav", "wav/136_101/5_2.wav", "wav/137_101/1.wav", "wav/137_101/2.wav", "wav/137_101/3.wav", "wav/137_101/4.wav", "wav/137_101/5.wav", "wav/137_101/6.wav", "wav/137_101/7.wav", "wav/137_101/8.wav", "wav/137_101/9.wav", "wav/138_101/1.wav", "wav/138_101/1_2.wav", "wav/138_101/2.wav", "wav/138_101/2_2.wav", "wav/138_101/3.wav", "wav/138_101/3_2.wav", "wav/138_101/4.wav", "wav/138_101/4_2.wav", "wav/139_101/1.wav", "wav/139_101/1_2.wav", "wav/139_101/2.wav", "wav/139_101/2_2.wav", "wav/139_101/3.wav", "wav/139_101/3_2.wav", "wav/139_101/4.wav", "wav/139_101/4_2.wav", "wav/139_101/5.wav", "wav/139_101/5_2.wav", "wav/139_101/6.wav", "wav/139_101/6_2.wav", "wav/140_101/1.wav", "wav/140_101/1_2.wav", "wav/140_101/2.wav", "wav/140_101/2_2.wav", "wav/140_101/3.wav", "wav/140_101/3_2.wav", "wav/140_101/4.wav", "wav/140_101/4_2.wav", "wav/140_101/5.wav", "wav/140_101/5_2.wav", "wav/140_101/6.wav", "wav/140_101/6_2.wav", "wav/140_102/1.wav", "wav/140_102/2.wav", "wav/140_102/3.wav", "wav/140_102/4.wav", "wav/140_102/5.wav", "wav/140_102/6.wav", "wav/141_101/1.wav", "wav/141_101/1_2.wav", "wav/141_101/2.wav", "wav/141_101/2_2.wav", "wav/141_101/3.wav", "wav/141_101/3_2.wav", "wav/141_101/4.wav", "wav/141_101/4_2.wav", "wav/141_101/5.wav", "wav/141_101/5_2.wav", "wav/141_101/6.wav", "wav/141_101/6_2.wav", "wav/141_101/7.wav", "wav/141_101/7_2.wav", "wav/141_101/8.wav", "wav/141_101/8_2.wav", "wav/141_101/9.wav", "wav/141_101/9_2.wav", "wav/141_102/1.wav", "wav/141_102/2.wav", "wav/141_102/3.wav", "wav/141_102/4.wav", "wav/141_102/5.wav", "wav/141_102/6.wav", "wav/141_102/7.wav", "wav/141_102/8.wav", "wav/141_102/9.wav", "wav/142_101/1.wav", "wav/142_101/2.wav", "wav/142_101/3.wav", "wav/142_101/4.wav", "wav/142_101/5.wav", "wav/142_101/6.wav", "wav/142_101/7.wav", "wav/142_101/8.wav", "wav/142_102/1.wav", "wav/142_102/1_2.wav", "wav/142_102/2.wav", "wav/142_102/2_2.wav", "wav/142_102/3.wav", "wav/142_102/3_2.wav", "wav/142_102/4.wav", "wav/142_102/4_2.wav", "wav/143_101/1.wav", "wav/143_101/1_2.wav", "wav/143_101/2.wav", "wav/143_101/2_2.wav", "wav/143_101/3.wav", "wav/143_101/3_2.wav", "wav/143_101/4.wav", "wav/143_101/4_2.wav", "wav/143_101/5.wav", "wav/143_101/5_2.wav", "wav/143_101/6.wav", "wav/143_101/6_2.wav", "wav/145_101/1.wav", "wav/145_101/1_2.wav", "wav/145_101/2.wav", "wav/145_101/2_2.wav", "wav/145_101/3.wav", "wav/145_101/3_2.wav", "wav/145_101/4.wav", "wav/145_101/4_2.wav", "wav/146_101/1.wav", "wav/146_101/2.wav", "wav/146_101/3.wav", "wav/146_101/4.wav", "wav/146_101/5.wav", "wav/146_101/6.wav", "wav/146_101/7.wav", "wav/146_101/8.wav", "wav/147_101/1.wav", "wav/147_101/2.wav", "wav/147_101/3.wav", "wav/147_101/4.wav", "wav/147_101/5.wav", "wav/147_101/6.wav", "wav/147_101/7.wav", "wav/147_101/8.wav", "wav/148_101/1.wav", "wav/148_101/2.wav", "wav/148_101/3.wav", "wav/148_101/4.wav", "wav/148_101/5.wav", "wav/148_101/6.wav", "wav/148_102/1.wav", "wav/148_102/1_2.wav", "wav/148_102/2.wav", "wav/148_102/2_2.wav", "wav/148_102/3.wav", "wav/148_102/3_2.wav", "wav/149_101/1.wav", "wav/149_101/1_2.wav", "wav/149_101/2.wav", "wav/149_101/2_2.wav", "wav/149_101/3.wav", "wav/149_101/3_2.wav", "wav/149_101/4.wav", "wav/149_101/4_2.wav", "wav/149_101/5.wav", "wav/149_101/5_2.wav", "wav/149_101/6.wav", "wav/149_101/6_2.wav", "wav/150_101/1.wav", "wav/150_101/1_2.wav", "wav/150_101/2.wav", "wav/150_101/2_2.wav", "wav/150_101/3.wav", "wav/150_101/3_2.wav", "wav/150_101/4.wav", "wav/150_101/4_2.wav", "wav/150_101/5.wav", "wav/150_101/5_2.wav", "wav/151_101/1.wav", "wav/151_101/10.wav", "wav/151_101/10_2.wav", "wav/151_101/11.wav", "wav/151_101/11_2.wav", "wav/151_101/12.wav", "wav/151_101/12_2.wav", "wav/151_101/1_2.wav", "wav/151_101/2.wav", "wav/151_101/2_2.wav", "wav/151_101/3.wav", "wav/151_101/3_2.wav", "wav/151_101/4.wav", "wav/151_101/4_2.wav", "wav/151_101/5.wav", "wav/151_101/5_2.wav", "wav/151_101/6.wav", "wav/151_101/6_2.wav", "wav/151_101/7.wav", "wav/151_101/7_2.wav", "wav/151_101/8.wav", "wav/151_101/8_2.wav", "wav/151_101/9.wav", "wav/151_101/9_2.wav", "wav/151_102/1.wav", "wav/151_102/1_2.wav", "wav/151_102/2.wav", "wav/151_102/2_2.wav", "wav/151_102/3.wav", "wav/151_102/3_2.wav", "wav/151_102/4.wav", "wav/151_102/4_2.wav", "wav/151_102/5.wav", "wav/151_102/5_2.wav", "wav/151_102/6.wav", "wav/151_102/6_2.wav", "wav/151_102/7.wav", "wav/151_102/7_2.wav", "wav/152_101/1.wav", "wav/152_101/2.wav", "wav/152_101/3.wav", "wav/152_101/4.wav", "wav/152_101/5.wav", "wav/152_101/6.wav", "wav/152_101/7.wav", "wav/153_101/1.wav", "wav/153_101/2.wav", "wav/153_101/3.wav", "wav/153_101/4.wav", "wav/153_101/5.wav", "wav/153_101/6.wav", "wav/153_101/7.wav", "wav/154_101/1.wav", "wav/154_101/1_2.wav", "wav/154_101/2.wav", "wav/154_101/2_2.wav", "wav/154_101/3.wav", "wav/154_101/3_2.wav", "wav/154_101/4.wav", "wav/154_101/4_2.wav", "wav/154_101/5.wav", "wav/154_101/5_2.wav", "wav/154_101/6.wav", "wav/154_101/6_2.wav", "wav/154_101/7.wav", "wav/154_101/7_2.wav", "wav/155_101/1.wav", "wav/155_101/2.wav", "wav/156_101/1.wav", "wav/156_101/2.wav", "wav/157_101/1.wav", "wav/157_101/2.wav", "wav/158_101/1.wav", "wav/158_101/2.wav", "wav/159_101/1.wav", "wav/159_101/1_2.wav", "wav/159_101/2.wav", "wav/159_101/2_2.wav", "wav/159_101/3.wav", "wav/159_101/3_2.wav", "wav/159_101/4.wav", "wav/159_101/4_2.wav", "wav/160_101/1.wav", "wav/160_101/1_2.wav", "wav/160_101/2.wav", "wav/160_101/2_2.wav", "wav/160_101/3.wav", "wav/160_101/3_2.wav", "wav/160_101/4.wav", "wav/160_101/4_2.wav", "wav/161_101/1.wav", "wav/161_101/1_2.wav", "wav/161_101/2.wav", "wav/161_101/2_2.wav", "wav/161_101/3.wav", "wav/161_101/3_2.wav", "wav/161_101/4.wav", "wav/161_101/4_2.wav", "wav/161_101/5.wav", "wav/161_101/5_2.wav", "wav/161_101/6.wav", "wav/161_101/6_2.wav", "wav/162_101/1.wav", "wav/162_101/1_2.wav", "wav/162_101/2.wav", "wav/162_101/2_2.wav", "wav/162_101/3.wav", "wav/162_101/3_2.wav", "wav/162_101/4.wav", "wav/162_101/4_2.wav", "wav/162_101/5.wav", "wav/162_101/5_2.wav", "wav/162_101/6.wav", "wav/162_101/6_2.wav", "wav/162_101/7.wav", "wav/162_101/7_2.wav", "wav/162_101/8.wav", "wav/162_101/8_2.wav", "wav/162_101/9.wav", "wav/162_101/9_2.wav", "wav/163_101/1.wav", "wav/163_101/2.wav", "wav/163_101/3.wav", "wav/163_101/4.wav", "wav/163_101/5.wav", "wav/163_101/6.wav", "wav/163_102/1.wav", "wav/163_102/1_2.wav", "wav/163_102/2.wav", "wav/163_102/2_2.wav", "wav/163_102/3.wav", "wav/163_102/3_2.wav", "wav/163_102/4.wav", "wav/163_102/4_2.wav", "wav/163_102/5.wav", "wav/163_102/5_2.wav", "wav/163_102/6.wav", "wav/163_102/6_2.wav", "wav/164_101/1.wav", "wav/164_101/2.wav", "wav/164_101/3.wav", "wav/164_101/4.wav", "wav/164_101/5.wav", "wav/164_101/6.wav", "wav/164_102/1.wav", "wav/164_102/1_2.wav", "wav/164_102/2.wav", "wav/164_102/2_2.wav", "wav/164_102/3.wav", "wav/164_102/3_2.wav", "wav/165_101/1.wav", "wav/165_101/1_2.wav", "wav/165_101/2.wav", "wav/165_101/2_2.wav", "wav/165_101/3.wav", "wav/165_101/3_2.wav", "wav/165_101/4.wav", "wav/165_101/4_2.wav", "wav/165_101/5.wav", "wav/165_101/5_2.wav", "wav/165_101/6.wav", "wav/165_101/6_2.wav", "wav/165_101/7.wav", "wav/165_101/7_2.wav", "wav/166_101/1.wav", "wav/166_101/1_2.wav", "wav/166_101/2.wav", "wav/166_101/2_2.wav", "wav/166_101/3.wav", "wav/166_101/3_2.wav", "wav/166_101/4.wav", "wav/166_101/4_2.wav", "wav/167_101/1.wav", "wav/167_101/1_2.wav", "wav/167_101/2.wav", "wav/167_101/2_2.wav", "wav/167_101/3.wav", "wav/167_101/3_2.wav", "wav/168_101/1.wav", "wav/168_101/1_2.wav", "wav/168_101/2.wav", "wav/168_101/2_2.wav", "wav/168_101/3.wav", "wav/168_101/3_2.wav", "wav/168_101/4.wav", "wav/168_101/4_2.wav", "wav/168_101/5.wav", "wav/168_101/5_2.wav", "wav/169_101/1.wav", "wav/169_101/1_2.wav", "wav/169_101/2.wav", "wav/169_101/2_2.wav", "wav/169_101/3.wav", "wav/169_101/3_2.wav", "wav/169_101/4.wav", "wav/169_101/4_2.wav", "wav/169_101/5.wav", "wav/169_101/5_2.wav", "wav/169_101/6.wav", "wav/169_101/6_2.wav", "wav/169_101/7.wav", "wav/169_101/7_2.wav", "wav/169_101/8.wav", "wav/169_101/8_2.wav", "wav/169_101/9.wav", "wav/169_101/9_2.wav", "wav/170_101/1.wav", "wav/170_101/2.wav", "wav/170_101/3.wav", "wav/170_101/4.wav", "wav/170_101/5.wav", "wav/170_101/6.wav", "wav/171_101/1.wav", "wav/171_101/1_2.wav", "wav/171_101/2.wav", "wav/171_101/2_2.wav", "wav/171_101/3.wav", "wav/171_101/3_2.wav", "wav/171_101/4.wav", "wav/171_101/4_2.wav", "wav/172_101/1.wav", "wav/172_101/2.wav", "wav/172_101/3.wav", "wav/172_101/4.wav", "wav/172_101/5.wav", "wav/172_101/6.wav", "wav/172_101/7.wav", "wav/172_101/8.wav", "wav/173_101/1.wav", "wav/173_101/1_2.wav", "wav/173_101/2.wav", "wav/173_101/2_2.wav", "wav/173_101/3.wav", "wav/173_101/3_2.wav", "wav/173_101/4.wav", "wav/173_101/4_2.wav", "wav/173_101/5.wav", "wav/173_101/5_2.wav", "wav/173_101/6.wav", "wav/173_101/6_2.wav", "wav/173_101/7.wav", "wav/173_101/7_2.wav", "wav/173_101/8.wav", "wav/173_101/8_2.wav", "wav/174_101/1.wav", "wav/174_101/1_2.wav", "wav/174_101/2.wav", "wav/174_101/2_2.wav", "wav/174_101/3.wav", "wav/174_101/3_2.wav", "wav/174_101/4.wav", "wav/174_101/4_2.wav", "wav/175_101/1.wav", "wav/175_101/10.wav", "wav/175_101/11.wav", "wav/175_101/2.wav", "wav/175_101/3.wav", "wav/175_101/4.wav", "wav/175_101/5.wav", "wav/175_101/6.wav", "wav/175_101/7.wav", "wav/175_101/8.wav", "wav/175_101/9.wav", "wav/175_102/1.wav", "wav/175_102/1_2.wav", "wav/175_102/2.wav", "wav/175_102/2_2.wav", "wav/175_102/3.wav", "wav/175_102/3_2.wav", "wav/175_102/4.wav", "wav/175_102/4_2.wav", "wav/175_102/5.wav", "wav/175_102/5_2.wav", "wav/175_102/6.wav", "wav/175_102/6_2.wav", "wav/176_101/1.wav", "wav/176_101/10.wav", "wav/176_101/10_2.wav", "wav/176_101/1_2.wav", "wav/176_101/2.wav", "wav/176_101/2_2.wav", "wav/176_101/3.wav", "wav/176_101/3_2.wav", "wav/176_101/4.wav", "wav/176_101/4_2.wav", "wav/176_101/5.wav", "wav/176_101/5_2.wav", "wav/176_101/6.wav", "wav/176_101/6_2.wav", "wav/176_101/7.wav", "wav/176_101/7_2.wav", "wav/176_101/8.wav", "wav/176_101/8_2.wav", "wav/176_101/9.wav", "wav/176_101/9_2.wav", "wav/176_102/1.wav", "wav/176_102/2.wav", "wav/176_102/3.wav", "wav/176_102/4.wav", "wav/176_102/5.wav", "wav/176_102/6.wav", "wav/176_102/7.wav", "wav/176_102/8.wav", "wav/176_102/9.wav", "wav/177_101/1.wav", "wav/177_101/1_2.wav", "wav/177_101/2.wav", "wav/177_101/2_2.wav", "wav/177_101/3.wav", "wav/177_101/3_2.wav", "wav/177_101/4.wav", "wav/177_101/4_2.wav", "wav/177_101/5.wav", "wav/177_101/5_2.wav", "wav/178_101/1.wav", "wav/178_101/2.wav", "wav/178_101/3.wav", "wav/178_101/4.wav", "wav/178_101/5.wav", "wav/178_101/6.wav", "wav/178_101/7.wav", "wav/178_101/8.wav", "wav/178_101/9.wav", "wav/178_102/1.wav", "wav/178_102/10.wav", "wav/178_102/10_2.wav", "wav/178_102/11.wav", "wav/178_102/11_2.wav", "wav/178_102/12.wav", "wav/178_102/12_2.wav", "wav/178_102/1_2.wav", "wav/178_102/2.wav", "wav/178_102/2_2.wav", "wav/178_102/3.wav", "wav/178_102/3_2.wav", "wav/178_102/4.wav", "wav/178_102/4_2.wav", "wav/178_102/5.wav", "wav/178_102/5_2.wav", "wav/178_102/6.wav", "wav/178_102/6_2.wav", "wav/178_102/7.wav", "wav/178_102/7_2.wav", "wav/178_102/8.wav", "wav/178_102/8_2.wav", "wav/178_102/9.wav", "wav/178_102/9_2.wav", "wav/179_101/1.wav", "wav/179_101/2.wav", "wav/179_101/3.wav", "wav/179_101/4.wav", "wav/179_101/5.wav", "wav/179_101/6.wav", "wav/179_101/7.wav", "wav/179_101/8.wav", "wav/179_102/1.wav", "wav/179_102/1_2.wav", "wav/179_102/2.wav", "wav/179_102/2_2.wav", "wav/179_102/3.wav", "wav/179_102/3_2.wav", "wav/179_102/4.wav", "wav/179_102/4_2.wav", "wav/179_102/5.wav", "wav/179_102/5_2.wav", "wav/179_102/6.wav", "wav/179_102/6_2.wav", "wav/180_101/1.wav", "wav/180_101/1_2.wav", "wav/180_101/2.wav", "wav/180_101/2_2.wav", "wav/180_101/3.wav", "wav/180_101/3_2.wav", "wav/180_101/4.wav", "wav/180_101/4_2.wav", "wav/180_101/5.wav", "wav/180_101/5_2.wav", "wav/180_101/6.wav", "wav/180_101/6_2.wav", "wav/180_101/7.wav", "wav/180_101/7_2.wav", "wav/180_101/8.wav", "wav/180_101/8_2.wav", "wav/180_101/9.wav", "wav/180_101/9_2.wav", "wav/180_102/1.wav", "wav/180_102/2.wav", "wav/180_102/3.wav", "wav/180_102/4.wav", "wav/180_102/5.wav", "wav/180_102/6.wav", "wav/180_102/7.wav", "wav/180_102/8.wav", "wav/180_102/9.wav", "wav/181_101/1.wav", "wav/181_101/1_2.wav", "wav/181_101/2.wav", "wav/181_101/2_2.wav", "wav/181_101/3.wav", "wav/181_101/3_2.wav", "wav/181_101/4.wav", "wav/181_101/4_2.wav", "wav/181_101/5.wav", "wav/181_101/5_2.wav", "wav/181_102/1.wav", "wav/181_102/1_2.wav", "wav/181_102/2.wav", "wav/181_102/2_2.wav", "wav/181_102/3.wav", "wav/181_102/3_2.wav", "wav/182_101/1.wav", "wav/182_101/1_2.wav", "wav/182_101/2.wav", "wav/182_101/2_2.wav", "wav/182_101/3.wav", "wav/182_101/3_2.wav", "wav/182_101/4.wav", "wav/182_101/4_2.wav", "wav/182_101/5.wav", "wav/182_101/5_2.wav", "wav/182_101/6.wav", "wav/182_101/6_2.wav", "wav/182_101/7.wav", "wav/182_101/7_2.wav", "wav/182_102/1.wav", "wav/182_102/1_2.wav", "wav/182_102/2.wav", "wav/182_102/2_2.wav", "wav/182_102/3.wav", "wav/182_102/3_2.wav", "wav/182_102/4.wav", "wav/182_102/4_2.wav", "wav/182_102/5.wav", "wav/182_102/5_2.wav", "wav/182_102/6.wav", "wav/182_102/6_2.wav", "wav/182_102/7.wav", "wav/182_102/7_2.wav", "wav/183_101/1.wav", "wav/183_101/2.wav", "wav/183_101/3.wav", "wav/183_101/4.wav", "wav/183_102/1.wav", "wav/183_102/1_2.wav", "wav/183_102/2.wav", "wav/183_102/2_2.wav", "wav/183_102/3.wav", "wav/183_102/3_2.wav", "wav/183_102/4.wav", "wav/183_102/4_2.wav", "wav/183_102/5.wav", "wav/183_102/5_2.wav", "wav/184_101/1.wav", "wav/184_101/10.wav", "wav/184_101/11.wav", "wav/184_101/12.wav", "wav/184_101/13.wav", "wav/184_101/14.wav", "wav/184_101/15.wav", "wav/184_101/2.wav", "wav/184_101/3.wav", "wav/184_101/4.wav", "wav/184_101/5.wav", "wav/184_101/6.wav", "wav/184_101/7.wav", "wav/184_101/8.wav", "wav/184_101/9.wav", "wav/184_102/1.wav", "wav/184_102/1_2.wav", "wav/184_102/2.wav", "wav/184_102/2_2.wav", "wav/184_102/3.wav", "wav/184_102/3_2.wav", "wav/184_102/4.wav", "wav/184_102/4_2.wav", "wav/185_101/1.wav", "wav/185_101/10.wav", "wav/185_101/2.wav", "wav/185_101/3.wav", "wav/185_101/4.wav", "wav/185_101/5.wav", "wav/185_101/6.wav", "wav/185_101/7.wav", "wav/185_101/8.wav", "wav/185_101/9.wav", "wav/185_102/1.wav", "wav/185_102/1_2.wav", "wav/185_102/2.wav", "wav/185_102/2_2.wav", "wav/185_102/3.wav", "wav/185_102/3_2.wav", "wav/185_102/4.wav", "wav/185_102/4_2.wav", "wav/185_102/5.wav", "wav/185_102/5_2.wav", "wav/186_101/1.wav", "wav/186_101/1_2.wav", "wav/186_101/2.wav", "wav/186_101/2_2.wav", "wav/186_101/3.wav", "wav/186_101/3_2.wav", "wav/186_101/4.wav", "wav/186_101/4_2.wav", "wav/186_101/5.wav", "wav/186_101/5_2.wav", "wav/186_101/6.wav", "wav/186_101/6_2.wav", "wav/186_102/1.wav", "wav/186_102/2.wav", "wav/186_102/3.wav", "wav/186_102/4.wav", "wav/186_102/5.wav", "wav/186_102/6.wav", "wav/186_102/7.wav", "wav/187_101/1.wav", "wav/187_101/2.wav", "wav/187_101/3.wav", "wav/187_101/4.wav", "wav/187_101/5.wav", "wav/187_101/6.wav", "wav/187_101/7.wav", "wav/187_102/1.wav", "wav/187_102/1_2.wav", "wav/187_102/2.wav", "wav/187_102/2_2.wav", "wav/187_102/3.wav", "wav/187_102/3_2.wav", "wav/187_102/4.wav", "wav/187_102/4_2.wav", "wav/187_102/5.wav", "wav/187_102/5_2.wav", "wav/187_102/6.wav", "wav/187_102/6_2.wav", "wav/188_101/1.wav", "wav/188_101/2.wav", "wav/188_101/3.wav", "wav/188_101/4.wav", "wav/188_101/5.wav", "wav/188_101/6.wav", "wav/188_101/7.wav", "wav/188_101/8.wav", "wav/188_102/1.wav", "wav/188_102/1_2.wav", "wav/188_102/2.wav", "wav/188_102/2_2.wav", "wav/188_102/3.wav", "wav/188_102/3_2.wav", "wav/188_102/4.wav", "wav/188_102/4_2.wav", "wav/188_102/5.wav", "wav/188_102/5_2.wav", "wav/188_102/6.wav", "wav/188_102/6_2.wav", "wav/188_102/7.wav", "wav/188_102/7_2.wav", "wav/189_101/1.wav", "wav/189_101/10.wav", "wav/189_101/11.wav", "wav/189_101/12.wav", "wav/189_101/13.wav", "wav/189_101/2.wav", "wav/189_101/3.wav", "wav/189_101/4.wav", "wav/189_101/5.wav", "wav/189_101/6.wav", "wav/189_101/7.wav", "wav/189_101/8.wav", "wav/189_101/9.wav", "wav/190_101/1.wav", "wav/190_101/10.wav", "wav/190_101/11.wav", "wav/190_101/2.wav", "wav/190_101/3.wav", "wav/190_101/4.wav", "wav/190_101/5.wav", "wav/190_101/6.wav", "wav/190_101/7.wav", "wav/190_101/8.wav", "wav/190_101/9.wav", "wav/190_102/1.wav", "wav/190_102/1_2.wav", "wav/190_102/2.wav", "wav/190_102/2_2.wav", "wav/190_102/3.wav", "wav/190_102/3_2.wav", "wav/190_102/4.wav", "wav/190_102/4_2.wav", "wav/190_102/5.wav", "wav/190_102/5_2.wav", "wav/191_101/1.wav", "wav/191_101/2.wav", "wav/191_101/3.wav", "wav/191_101/4.wav", "wav/191_101/5.wav", "wav/191_101/6.wav", "wav/191_101/7.wav", "wav/192_101/1.wav", "wav/192_101/2.wav", "wav/192_101/3.wav", "wav/192_101/4.wav", "wav/192_101/5.wav", "wav/192_101/6.wav", "wav/192_102/1.wav", "wav/192_102/1_2.wav", "wav/192_102/2.wav", "wav/192_102/2_2.wav", "wav/192_102/3.wav", "wav/192_102/3_2.wav", "wav/193_101/1.wav", "wav/193_101/2.wav", "wav/193_101/3.wav", "wav/193_101/4.wav", "wav/193_101/5.wav", "wav/193_101/6.wav", "wav/193_102/1.wav", "wav/193_102/1_2.wav", "wav/193_102/2.wav", "wav/193_102/2_2.wav", "wav/193_102/3.wav", "wav/193_102/3_2.wav", "wav/193_102/4.wav", "wav/193_102/4_2.wav", "wav/194_101/1.wav", "wav/194_101/2.wav", "wav/194_101/3.wav", "wav/194_101/4.wav", "wav/194_101/5.wav", "wav/194_101/6.wav", "wav/194_101/7.wav", "wav/194_102/1.wav", "wav/194_102/1_2.wav", "wav/194_102/2.wav", "wav/194_102/2_2.wav", "wav/194_102/3.wav", "wav/194_102/3_2.wav", "wav/195_101/1.wav", "wav/195_101/2.wav", "wav/195_101/3.wav", "wav/195_101/4.wav", "wav/195_101/5.wav", "wav/195_101/6.wav", "wav/195_101/7.wav", "wav/195_101/8.wav", "wav/195_102/1.wav", "wav/195_102/1_2.wav", "wav/195_102/2.wav", "wav/195_102/2_2.wav", "wav/195_102/3.wav", "wav/195_102/3_2.wav", "wav/195_102/4.wav", "wav/195_102/4_2.wav", "wav/196_101/1.wav", "wav/196_101/1_2.wav", "wav/196_101/2.wav", "wav/196_101/2_2.wav", "wav/196_101/3.wav", "wav/196_101/3_2.wav", "wav/196_101/4.wav", "wav/196_101/4_2.wav", "wav/196_101/5.wav", "wav/196_101/5_2.wav", "wav/196_101/6.wav", "wav/196_101/6_2.wav", "wav/197_101/1.wav", "wav/197_101/1_2.wav", "wav/197_101/2.wav", "wav/197_101/2_2.wav", "wav/197_101/3.wav", "wav/197_101/3_2.wav", "wav/197_101/4.wav", "wav/197_101/4_2.wav", "wav/197_101/5.wav", "wav/197_101/5_2.wav", "wav/197_101/6.wav", "wav/197_101/6_2.wav", "wav/198_101/1.wav", "wav/198_101/10.wav", "wav/198_101/11.wav", "wav/198_101/12.wav", "wav/198_101/13.wav", "wav/198_101/14.wav", "wav/198_101/15.wav", "wav/198_101/16.wav", "wav/198_101/17.wav", "wav/198_101/2.wav", "wav/198_101/3.wav", "wav/198_101/4.wav", "wav/198_101/5.wav", "wav/198_101/6.wav", "wav/198_101/7.wav", "wav/198_101/8.wav", "wav/198_101/9.wav", "wav/198_102/1.wav", "wav/198_102/1_2.wav", "wav/198_102/2.wav", "wav/198_102/2_2.wav", "wav/198_102/3.wav", "wav/198_102/3_2.wav", "wav/198_102/4.wav", "wav/198_102/4_2.wav", "wav/198_102/5.wav", "wav/198_102/5_2.wav", "wav/199_101/1.wav", "wav/199_101/2.wav", "wav/199_101/3.wav", "wav/199_101/4.wav", "wav/199_101/5.wav", "wav/199_101/6.wav", "wav/199_101/7.wav", "wav/199_101/8.wav", "wav/199_102/1.wav", "wav/199_102/1_2.wav", "wav/199_102/2.wav", "wav/199_102/2_2.wav", "wav/199_102/3.wav", "wav/199_102/3_2.wav", "wav/199_102/4.wav", "wav/199_102/4_2.wav", "wav/199_102/5.wav", "wav/199_102/5_2.wav", "wav/199_102/6.wav", "wav/199_102/6_2.wav", "wav/199_102/7.wav", "wav/199_102/7_2.wav", "wav/2.wav", "wav/200_101/1.wav", "wav/200_101/1_2.wav", "wav/200_101/2.wav", "wav/200_101/2_2.wav", "wav/200_101/3.wav", "wav/200_101/3_2.wav", "wav/200_101/4.wav", "wav/200_101/4_2.wav", "wav/200_101/5.wav", "wav/200_101/5_2.wav", "wav/200_101/6.wav", "wav/200_101/6_2.wav", "wav/200_101/7.wav", "wav/200_101/7_2.wav", "wav/200_101/8.wav", "wav/200_101/8_2.wav", "wav/201_101/1.wav", "wav/201_101/2.wav", "wav/201_101/3.wav", "wav/201_101/4.wav", "wav/201_101/5.wav", "wav/201_101/6.wav", "wav/201_101/7.wav", "wav/201_101/8.wav", "wav/201_101/9.wav", "wav/202_101/1.wav", "wav/202_101/2.wav", "wav/202_101/3.wav", "wav/202_101/4.wav", "wav/202_102/1.wav", "wav/202_102/2.wav", "wav/202_102/3.wav", "wav/202_102/4.wav", "wav/202_102/5.wav", "wav/203_101/1.wav", "wav/203_101/2.wav", "wav/203_101/3.wav", "wav/203_101/4.wav", "wav/203_101/5.wav", "wav/205_101/1.wav", "wav/205_101/2.wav", "wav/205_101/3.wav", "wav/205_101/4.wav", "wav/205_101/5.wav", "wav/205_101/6.wav", "wav/205_101/7.wav", "wav/206_101/1.wav", "wav/206_101/1_2.wav", "wav/206_101/2.wav", "wav/206_101/2_2.wav", "wav/206_101/3.wav", "wav/206_101/3_2.wav", "wav/206_101/4.wav", "wav/206_101/4_2.wav", "wav/206_101/5.wav", "wav/206_101/5_2.wav", "wav/206_101/6.wav", "wav/206_101/6_2.wav", "wav/206_101/7.wav", "wav/206_101/7_2.wav", "wav/206_101/8.wav", "wav/206_101/8_2.wav", "wav/206_101/9.wav", "wav/206_101/9_2.wav", "wav/207_101/1.wav", "wav/207_101/1_2.wav", "wav/207_101/2.wav", "wav/207_101/2_2.wav", "wav/207_101/3.wav", "wav/207_101/3_2.wav", "wav/207_101/4.wav", "wav/207_101/4_2.wav", "wav/207_101/5.wav", "wav/207_101/5_2.wav", "wav/207_101/6.wav", "wav/207_101/6_2.wav", "wav/208_101/1.wav", "wav/208_101/2.wav", "wav/208_101/3.wav", "wav/208_101/4.wav", "wav/208_101/5.wav", "wav/208_101/6.wav", "wav/208_101/7.wav", "wav/208_101/8.wav", "wav/3.wav", "wav/4.wav", "wav/5.wav", "wav/6.wav", "wav/7.wav", "wav/8.wav", "wav/9.wav", "wav/aastop.wav", "wav/fae1.wav", "wav/fae2.wav", "wav/fea1.wav", "wav/game3.wav", "wav/matoss.wav", "wav/mus.wav", "wav/next1.wav", "wav/next2.wav", "wav/shoov1.wav", "wav/shoov2.wav", "wav/sof.wav", "wav/stopmas.wav", "wav/stopmis.wav"],
   "Yeled": ["rasb_wav/10_1_1.wav", "rasb_wav/10_1_2.wav", "rasb_wav/10_2_2.wav", "rasb_wav/10_3_3.wav", "rasb_wav/10_4_2.wav", "rasb_wav/10_4_4.wav", "rasb_wav/11_1_1.wav", "rasb_wav/11_1_2.wav", "rasb_wav/11_2_3.wav", "rasb_wav/11_3_1.wav", "rasb_wav/11_4_1.wav", "rasb_wav/11_4_2.wav", "rasb_wav/11_4_3.wav", "rasb_wav/12_31_2.wav", "rasb_wav/13_31_4.wav", "rasb_wav/13_32_1.wav", "rasb_wav/13_33_2.wav", "rasb_wav/14_31_2.wav", "rasb_wav/14_32_3.wav", "rasb_wav/14_51_3.wav", "rasb_wav/14_52_1.wav", "rasb_wav/15_1_1.wav", "rasb_wav/15_1_3.wav", "rasb_wav/15_2_1.wav", "rasb_wav/15_2_4.wav", "rasb_wav/15_51_4.wav", "rasb_wav/15_52_1.wav", "rasb_wav/16_31_1.wav", "rasb_wav/16_32_1.wav", "rasb_wav/16_33_1.wav", "rasb_wav/16_34_3.wav", "rasb_wav/16_35_3.wav", "rasb_wav/16_51_1.wav", "rasb_wav/16_51_3.wav", "rasb_wav/17_51_2.wav", "rasb_wav/17_52_4.wav", "rasb_wav/17_53_1.wav", "rasb_wav/18_51_2.wav", "rasb_wav/18_51_4.wav", "rasb_wav/18_52_1.wav", "rasb_wav/19_51_2.wav", "rasb_wav/19_51_4.wav", "rasb_wav/19_52_4.wav", "rasb_wav/19_53_3.wav", "rasb_wav/19_54_1.wav", "rasb_wav/1_31_1.wav", "rasb_wav/1_32_1.wav", "rasb_wav/1_32_4.wav", "rasb_wav/1_33_2.wav", "rasb_wav/1_34_3.wav", "rasb_wav/1_35_3.wav", "rasb_wav/20_51_2.wav", "rasb_wav/20_52_4.wav", "rasb_wav/21_51_1.wav", "rasb_wav/21_51_2.wav", "rasb_wav/21_51_3.wav", "rasb_wav/21_52_1.wav", "rasb_wav/21_53_4.wav", "rasb_wav/21_54_2.wav", "rasb_wav/22_1_1.wav", "rasb_wav/22_1_2.wav", "rasb_wav/22_1_4.wav", "rasb_wav/22_2_1.wav", "rasb_wav/22_2_2.wav", "rasb_wav/22_2_4.wav", "rasb_wav/22_31_1.wav", "rasb_wav/22_32_1.wav", "rasb_wav/22_51_3.wav", "rasb_wav/22_52_3.wav", "rasb_wav/23_51_4.wav", "rasb_wav/23_52_2.wav", "rasb_wav/23_53_1.wav", "rasb_wav/23_54_4.wav", "rasb_wav/24_51_3.wav", "rasb_wav/24_52_1.wav", "rasb_wav/24_53_2.wav", "rasb_wav/25_51_2.wav", "rasb_wav/25_51_4.wav", "rasb_wav/25_52_1.wav", "rasb_wav/26_51_2.wav", "rasb_wav/26_52_4.wav", "rasb_wav/26_53_4.wav", "rasb_wav/28_1_1.wav", "rasb_wav/28_1_3.wav", "rasb_wav/28_2_2.wav", "rasb_wav/28_3_4.wav", "rasb_wav/28_4_2.wav", "rasb_wav/29_51_1.wav", "rasb_wav/29_51_3.wav", "rasb_wav/29_52_3.wav", "rasb_wav/2_31_1.wav", "rasb_wav/32_51_3.wav", "rasb_wav/32_52_1.wav", "rasb_wav/32_53_3.wav", "rasb_wav/33_51_1.wav", "rasb_wav/33_52_1.wav", "rasb_wav/33_53_4.wav", "rasb_wav/34_51_3.wav", "rasb_wav/34_52_2.wav", "rasb_wav/34_53_4.wav", "rasb_wav/34_54_1.wav", "rasb_wav/35_51_3.wav", "rasb_wav/35_52_4.wav", "rasb_wav/35_53_2.wav", "rasb_wav/35_54_2.wav", "rasb_wav/35_54_4.wav", "rasb_wav/36_51_1.wav", "rasb_wav/36_51_4.wav", "rasb_wav/36_52_1.wav", "rasb_wav/36_53_2.wav", "rasb_wav/36_54_2.wav", "rasb_wav/4_31_2.wav", "rasb_wav/4_32_4.wav", "rasb_wav/5_31_3.wav", "rasb_wav/5_32_1.wav", "rasb_wav/64_51_2.wav", "rasb_wav/64_52_4.wav", "rasb_wav/65_51_3.wav", "rasb_wav/65_52_2.wav", "rasb_wav/65_53_4.wav", "rasb_wav/66_51_2.wav", "rasb_wav/66_51_4.wav", "rasb_wav/66_52_4.wav", "rasb_wav/66_53_1.wav", "rasb_wav/66_53_4.wav", "rasb_wav/66_54_1.wav", "rasb_wav/67_51_2.wav", "rasb_wav/67_51_3.wav", "rasb_wav/67_52_4.wav", "rasb_wav/68_51_4.wav", "rasb_wav/68_52_2.wav", "rasb_wav/68_53_3.wav", "rasb_wav/68_54_1.wav", "rasb_wav/68_54_3.wav", "rasb_wav/69_52_3.wav", "rasb_wav/70_51_3.wav", "rasb_wav/70_52_3.wav", "rasb_wav/70_53_1.wav", "rasb_wav/70_54_1.wav", "rasb_wav/7_31_2.wav", "rasb_wav/7_32_3.wav", "rasb_wav/7_33_4.wav", "rasb_wav/8_31_4.wav", "rasb_wav/8_32_2.wav", "rasb_wav/8_33_4.wav", "wav/1.wav", "wav/10.wav", "wav/10_1/1.wav", "wav/10_1/1_2.wav", "wav/10_1/2.wav", "wav/10_1/2_2.wav", "wav/10_1/3.wav", "wav/10_1/3_2.wav", "wav/10_1/4.wav", "wav/10_1/4_2.wav", "wav/10_1/5.wav", "wav/10_1/5_2.wav", "wav/10_3/1.wav", "wav/10_3/10.wav", "wav/10_3/11.wav", "wav/10_3/12.wav", "wav/10_3/2.wav", "wav/10_3/3.wav", "wav/10_3/4.wav", "wav/10_3/5.wav", "wav/10_3/6.wav", "wav/10_3/7.wav", "wav/10_3/8.wav", "wav/10_3/9.wav", "wav/10_4/1.wav", "wav/10_4/1_2.wav", "wav/10_4/2.wav", "wav/10_4/2_2.wav", "wav/10_4/3.wav", "wav/10_4/3_2.wav", "wav/10_4/4.wav", "wav/10_4/4_2.wav", "wav/10_4/5.wav", "wav/10_4/5_2.wav", "wav/10_4/6.wav", "wav/10_4/6_2.wav", "wav/11.wav", "wav/11_1/1.wav", "wav/11_1/1_2.wav", "wav/11_1/2.wav", "wav/11_1/2_2.wav", "wav/11_1/3.wav", "wav/11_1/3_2.wav", "wav/11_1/4.wav", "wav/11_1/4_2.wav", "wav/11_1/5.wav", "wav/11_1/5_2.wav", "wav/11_1/6.wav", "wav/11_1/6_2.wav", "wav/11_2/1.wav", "wav/11_2/10.wav", "wav/11_2/11.wav", "wav/11_2/12.wav", "wav/11_2/13.wav", "wav/11_2/14.wav", "wav/11_2/15.wav", "wav/11_2/16.wav", "wav/11_2/17.wav", "wav/11_2/18.wav", "wav/11_2/19.wav", "wav/11_2/2.wav", "wav/11_2/20.wav", "wav/11_2/21.wav", "wav/11_2/22.wav", "wav/11_2/23.wav", "wav/11_2/24.wav", "wav/11_2/25.wav", "wav/11_2/26.wav", "wav/11_2/27.wav", "wav/11_2/3.wav", "wav/11_2/4.wav", "wav/11_2/5.wav", "wav/11_2/6.wav", "wav/11_2/7.wav", "wav/11_2/8.wav", "wav/11_2/9.wav", "wav/11_3/1.wav", "wav/11_3/1_2.wav", "wav/11_3/2.wav", "wav/11_3/2_2.wav", "wav/11_3/3.wav", "wav/11_3/3_2.wav", "wav/11_3/4.wav", "wav/11_3/4_2.wav", "wav/11_4/1.wav", "wav/11_4/2.wav", "wav/11_4/3.wav", "wav/11_4/4.wav", "wav/11_4/5.wav", "wav/13_31/1.wav", "wav/13_31/1_2.wav", "wav/13_31/2.wav", "wav/13_31/2_2.wav", "wav/13_31/3.wav", "wav/13_31/3_2.wav", "wav/13_31/4.wav", "wav/13_31/4_2.wav", "wav/13_32/1.wav", "wav/13_32/1_2.wav", "wav/13_32/2.wav", "wav/13_32/2_2.wav", "wav/13_32/3.wav", "wav/13_32/3_2.wav", "wav/14_32/1.wav", "wav/14_32/2.wav", "wav/14_32/3.wav", "wav/14_32/4.wav", "wav/14_32/5.wav", "wav/14_51/1.wav", "wav/14_51/2.wav", "wav/14_51/3.wav", "wav/14_51/4.wav", "wav/14_51/5.wav", "wav/14_51/6.wav", "wav/14_51/7.wav", "wav/14_52/1.wav", "wav/14_52/2.wav", "wav/14_52/3.wav", "wav/14_52/4.wav", "wav/15_1/1.wav", "wav/15_1/2.wav", "wav/15_1/3.wav", "wav/15_1/4.wav", "wav/15_1/5.wav", "wav/15_1/6.wav", "wav/15_1/7.wav", "wav/15_1/8.wav", "wav/15_1/9.wav", "wav/15_51/1.wav", "wav/15_51/1_2.wav", "wav/15_51/2.wav", "wav/15_51/2_2.wav", "wav/15_51/3.wav", "wav/15_51/3_2.wav", "wav/15_52/1.wav", "wav/15_52/1_2.wav", "wav/15_52/2.wav", "wav/15_52/2_2.wav", "wav/15_52/3.wav", "wav/15_52/3_2.wav", "wav/15_52/4.wav", "wav/15_52/4_2.wav", "wav/15_52/5.wav", "wav/15_52/5_2.wav", "wav/16_31/1.wav", "wav/16_31/1_2.wav", "wav/16_31/2.wav", "wav/16_31/2_2.wav", "wav/16_31/3.wav", "wav/16_31/3_2.wav", "wav/16_31/4.wav", "wav/16_31/4_2.wav", "wav/16_31/5.wav", "wav/16_31/5_2.wav", "wav/16_32/1.wav", "wav/16_32/1_2.wav", "wav/16_32/2.wav", "wav/16_32/2_2.wav", "wav/16_32/3.wav", "wav/16_32/3_2.wav", "wav/16_32/4.wav", "wav/16_32/4_2.wav", "wav/16_32/5.wav", "wav/16_32/5_2.wav", "wav/16_33/1.wav", "wav/16_33/1_2.wav", "wav/16_33/2.wav", "wav/16_33/2_2.wav", "wav/16_33/3.wav", "wav/16_33/3_2.wav", "wav/16_33/4.wav", "wav/16_33/4_2.wav", "wav/16_34/1.wav", "wav/16_34/10.wav", "wav/16_34/11.wav", "wav/16_34/12.wav", "wav/16_34/13.wav", "wav/16_34/14.wav", "wav/16_34/15.wav", "wav/16_34/16.wav", "wav/16_34/17.wav", "wav/16_34/18.wav", "wav/16_34/19.wav", "wav/16_34/2.wav", "wav/16_34/20.wav", "wav/16_34/21.wav", "wav/16_34/22.wav", "wav/16_34/23.wav", "wav/16_34/24.wav", "wav/16_34/3.wav", "wav/16_34/4.wav", "wav/16_34/5.wav", "wav/16_34/6.wav", "wav/16_34/7.wav", "wav/16_34/8.wav", "wav/16_34/9.wav", "wav/16_35/1.wav", "wav/16_35/10.wav", "wav/16_35/11.wav", "wav/16_35/12.wav", "wav/16_35/13.wav", "wav/16_35/14.wav", "wav/16_35/2.wav", "wav/16_35/3.wav", "wav/16_35/4.wav", "wav/16_35/5.wav", "wav/16_35/6.wav", "wav/16_35/7.wav", "wav/16_35/8.wav", "wav/16_35/9.wav", "wav/16_51/1.wav", "wav/16_51/2.wav", "wav/16_51/3.wav", "wav/16_51/4.wav", "wav/16_51/5.wav", "wav/16_51/6.wav", "wav/16_51/7.wav", "wav/16_51/8.wav", "wav/16_51/9.wav", "wav/17_52/1.wav", "wav/17_52/1_2.wav", "wav/17_52/2.wav", "wav/17_52/2_2.wav", "wav/17_52/3.wav", "wav/17_52/3_2.wav", "wav/17_52/4.wav", "wav/17_52/4_2.wav", "wav/17_52/5.wav", "wav/17_52/5_2.wav", "wav/17_53/1.wav", "wav/17_53/1_2.wav", "wav/17_53/2.wav", "wav/17_53/2_2.wav", "wav/17_53/3.wav", "wav/17_53/3_2.wav", "wav/17_53/4.wav", "wav/17_53/4_2.wav", "wav/18_51/1.wav", "wav/18_51/2.wav", "wav/18_51/3.wav", "wav/18_51/4.wav", "wav/18_51/5.wav", "wav/18_52/1.wav", "wav/18_52/2.wav", "wav/18_52/3.wav", "wav/18_52/4.wav", "wav/19_51/1.wav", "wav/19_51/1_2.wav", "wav/19_51/2.wav", "wav/19_51/2_2.wav", "wav/19_51/3.wav", "wav/19_51/3_2.wav", "wav/19_51/4.wav", "wav/19_51/4_2.wav", "wav/19_51/5.wav", "wav/19_51/5_2.wav", "wav/19_52/1.wav", "wav/19_52/1_2.wav", "wav/19_52/2.wav", "wav/19_52/2_2.wav", "wav/19_52/3.wav", "wav/19_52/3_2.wav", "wav/19_52/4.wav", "wav/19_52/4_2.wav", "wav/19_52/5.wav", "wav/19_52/5_2.wav", "wav/19_53/1.wav", "wav/19_53/10.wav", "wav/19_53/11.wav", "wav/19_53/12.wav", "wav/19_53/2.wav", "wav/19_53/3.wav", "wav/19_53/4.wav", "wav/19_53/5.wav", "wav/19_53/6.wav", "wav/19_53/7.wav", "wav/19_53/8.wav", "wav/19_53/9.wav", "wav/19_54/1.wav", "wav/19_54/1_2.wav", "wav/19_54/2.wav", "wav/19_54/2_2.wav", "wav/19_54/3.wav", "wav/19_54/3_2.wav", "wav/19_54/4.wav", "wav/19_54/4_2.wav", "wav/1_31/1.wav", "wav/1_31/1_2.wav", "wav/1_31/2.wav", "wav/1_31/2_2.wav", "wav/1_31/3.wav", "wav/1_31/3_2.wav", "wav/1_32/1.wav", "wav/1_32/1_2.wav", "wav/1_32/2.wav", "wav/1_32/2_2.wav", "wav/1_32/3.wav", "wav/1_32/3_2.wav", "wav/1_33/1.wav", "wav/1_33/1_2.wav", "wav/1_33/2.wav", "wav/1_33/2_2.wav", "wav/1_33/3.wav", "wav/1_33/3_2.wav", "wav/1_33/4.wav", "wav/1_33/4_2.wav", "wav/1_34/1.wav", "wav/1_34/10.wav", "wav/1_34/11.wav", "wav/1_34/12.wav", "wav/1_34/13.wav", "wav/1_34/14.wav", "wav/1_34/15.wav", "wav/1_34/16.wav", "wav/1_34/17.wav", "wav/1_34/18.wav", "wav/1_34/19.wav", "wav/1_34/2.wav", "wav/1_34/20.wav", "wav/1_34/21.wav", "wav/1_34/22.wav", "wav/1_34/23.wav", "wav/1_34/24.wav", "wav/1_34/25.wav", "wav/1_34/26.wav", "wav/1_34/27.wav", "wav/1_34/28.wav", "wav/1_34/29.wav", "wav/1_34/3.wav", "wav/1_34/30.wav", "wav/1_34/31.wav", "wav/1_34/32.wav", "wav/1_34/4.wav", "wav/1_34/5.wav", "wav/1_34/6.wav", "wav/1_34/7.wav", "wav/1_34/8.wav", "wav/1_34/9.wav", "wav/1_35/1.wav", "wav/1_35/10.wav", "wav/1_35/11.wav", "wav/1_35/12.wav", "wav/1_35/13.wav", "wav/1_35/14.wav", "wav/1_35/15.wav", "wav/1_35/16.wav", "wav/1_35/17.wav", "wav/1_35/18.wav", "wav/1_35/19.wav", "wav/1_35/2.wav", "wav/1_35/20.wav", "wav/1_35/21.wav", "wav/1_35/22.wav", "wav/1_35/23.wav", "wav/1_35/24.wav", "wav/1_35/25.wav", "wav/1_35/26.wav", "wav/1_35/27.wav", "wav/1_35/28.wav", "wav/1_35/29.wav", "wav/1_35/3.wav", "wav/1_35/30.wav", "wav/1_35/31.wav", "wav/1_35/32.wav", "wav/1_35/33.wav", "wav/1_35/34.wav", "wav/1_35/35.wav", "wav/1_35/36.wav", "wav/1_35/37.wav", "wav/1_35/38.wav", "wav/1_35/4.wav", "wav/1_35/5.wav", "wav/1_35/6.wav", "wav/1_35/7.wav", "wav/1_35/8.wav", "wav/1_35/9.wav", "wav/2.wav", "wav/20_52/1.wav", "wav/20_52/2.wav", "wav/20_52/3.wav", "wav/20_52/4.wav", "wav/21_51/1.wav", "wav/21_51/10.wav", "wav/21_51/11.wav", "wav/21_51/12.wav", "wav/21_51/2.wav", "wav/21_51/3.wav", "wav/21_51/4.wav", "wav/21_51/5.wav", "wav/21_51/6.wav", "wav/21_51/7.wav", "wav/21_51/8.wav", "wav/21_51/9.wav", "wav/21_52/1.wav", "wav/21_52/1_2.wav", "wav/21_52/2.wav", "wav/21_52/2_2.wav", "wav/21_52/3.wav", "wav/21_52/3_2.wav", "wav/21_52/4.wav", "wav/21_52/4_2.wav", "wav/21_53/1.wav", "wav/21_53/1_2.wav", "wav/21_53/2.wav", "wav/21_53/2_2.wav", "wav/21_53/3.wav", "wav/21_53/3_2.wav", "wav/21_53/4.wav", "wav/21_53/4_2.wav", "wav/21_54/1.wav", "wav/21_54/2.wav", "wav/21_54/3.wav", "wav/21_54/4.wav", "wav/22_1/1.wav", "wav/22_1/1_2.wav", "wav/22_1/2.wav", "wav/22_1/2_2.wav", "wav/22_1/3.wav", "wav/22_1/3_2.wav", "wav/22_1/4.wav", "wav/22_1/4_2.wav", "wav/22_1/5.wav", "wav/22_1/5_2.wav", "wav/22_1/6.wav", "wav/22_1/6_2.wav", "wav/22_2/1.wav", "wav/22_2/1_2.wav", "wav/22_2/2.wav", "wav/22_2/2_2.wav", "wav/22_2/3.wav", "wav/22_2/3_2.wav", "wav/22_2/4.wav", "wav/22_2/4_2.wav", "wav/22_2/5.wav", "wav/22_2/5_2.wav", "wav/22_3/1.wav", "wav/22_3/1_2.wav", "wav/22_3/2.wav", "wav/22_3/2_2.wav", "wav/22_3/3.wav", "wav/22_3/3_2.wav", "wav/22_3/4.wav", "wav/22_3/4_2.wav", "wav/22_3/5.wav", "wav/22_3/5_2.wav", "wav/22_3/6.wav", "wav/22_3/6_2.wav", "wav/22_51/1.wav", "wav/22_51/10.wav", "wav/22_51/11.wav", "wav/22_51/12.wav", "wav/22_51/13.wav", "wav/22_51/14.wav", "wav/22_51/15.wav", "wav/22_51/16.wav", "wav/22_51/17.wav", "wav/22_51/18.wav", "wav/22_51/19.wav", "wav/22_51/2.wav", "wav/22_51/20.wav", "wav/22_51/21.wav", "wav/22_51/22.wav", "wav/22_51/23.wav", "wav/22_51/24.wav", "wav/22_51/25.wav", "wav/22_51/26.wav", "wav/22_51/27.wav", "wav/22_51/28.wav", "wav/22_51/29.wav", "wav/22_51/3.wav", "wav/22_51/30.wav", "wav/22_51/31.wav", "wav/22_51/32.wav", "wav/22_51/33.wav", "wav/22_51/4.wav", "wav/22_51/5.wav", "wav/22_51/6.wav", "wav/22_51/7.wav", "wav/22_51/8.wav", "wav/22_51/9.wav", "wav/22_52/1.wav", "wav/22_52/10.wav", "wav/22_52/2.wav", "wav/22_52/3.wav", "wav/22_52/4.wav", "wav/22_52/5.wav", "wav/22_52/6.wav", "wav/22_52/7.wav", "wav/22_52/8.wav", "wav/22_52/9.wav", "wav/23_51/1.wav", "wav/23_51/2.wav", "wav/23_51/3.wav", "wav/23_51/4.wav", "wav/23_51/5.wav", "wav/23_53/1.wav", "wav/23_53/2.wav", "wav/23_53/3.wav", "wav/23_53/4.wav", "wav/23_54/1.wav", "wav/23_54/1_2.wav", "wav/23_54/2.wav", "wav/23_54/2_2.wav", "wav/23_54/3.wav", "wav/23_54/3_2.wav", "wav/23_54/4.wav", "wav/23_54/4_2.wav", "wav/24_51/1.wav", "wav/24_51/2.wav", "wav/24_51/3.wav", "wav/24_51/4.wav", "wav/24_51/5.wav", "wav/24_51/6.wav", "wav/24_51/7.wav", "wav/24_51/8.wav", "wav/24_52/1.wav", "wav/24_52/2.wav", "wav/24_52/3.wav", "wav/25_51/1.wav", "wav/25_51/1_2.wav", "wav/25_51/2.wav", "wav/25_51/2_2.wav", "wav/25_51/3.wav", "wav/25_51/3_2.wav", "wav/25_51/4.wav", "wav/25_51/4_2.wav", "wav/25_52/1.wav", "wav/25_52/1_2.wav", "wav/25_52/2.wav", "wav/25_52/2_2.wav", "wav/25_52/3.wav", "wav/25_52/3_2.wav", "wav/25_52/4.wav", "wav/25_52/4_2.wav", "wav/26_52/1.wav", "wav/26_52/2.wav", "wav/26_52/3.wav", "wav/26_52/4.wav", "wav/26_53/1.wav", "wav/26_53/1_2.wav", "wav/26_53/2.wav", "wav/26_53/2_2.wav", "wav/26_53/3.wav", "wav/26_53/3_2.wav", "wav/28_1/1.wav", "wav/28_1/2.wav", "wav/28_1/3.wav", "wav/28_1/4.wav", "wav/28_1/5.wav", "wav/28_1/6.wav", "wav/28_2/1.wav", "wav/28_2/2.wav", "wav/28_2/3.wav", "wav/28_2/4.wav", "wav/28_2/5.wav", "wav/28_2/6.wav", "wav/28_3/1.wav", "wav/28_3/2.wav", "wav/28_3/3.wav", "wav/28_3/4.wav", "wav/28_3/5.wav", "wav/28_3/6.wav", "wav/28_4/1.wav", "wav/28_4/2.wav", "wav/28_4/3.wav", "wav/28_4/4.wav", "wav/29_51/1.wav", "wav/29_51/1_2.wav", "wav/29_51/2.wav", "wav/29_51/2_2.wav", "wav/29_51/3.wav", "wav/29_51/3_2.wav", "wav/29_52/1.wav", "wav/29_52/2.wav", "wav/29_52/3.wav", "wav/29_52/4.wav", "wav/29_52/5.wav", "wav/29_52/6.wav", "wav/29_52/7.wav", "wav/29_52/8.wav", "wav/2_31/1.wav", "wav/2_31/1_2.wav", "wav/2_31/2.wav", "wav/2_31/2_2.wav", "wav/2_31/3.wav", "wav/2_31/3_2.wav", "wav/2_31/4.wav", "wav/2_31/4_2.wav", "wav/2_31/5.wav", "wav/2_31/5_2.wav", "wav/3.wav", "wav/30_53/1.wav", "wav/30_53/2.wav", "wav/30_53/3.wav", "wav/30_53/4.wav", "wav/30_53/5.wav", "wav/30_53/6.wav", "wav/32_51/1.wav", "wav/32_51/10.wav", "wav/32_51/11.wav", "wav/32_51/12.wav", "wav/32_51/13.wav", "wav/32_51/14.wav", "wav/32_51/15.wav", "wav/32_51/16.wav", "wav/32_51/17.wav", "wav/32_51/18.wav", "wav/32_51/19.wav", "wav/32_51/2.wav", "wav/32_51/20.wav", "wav/32_51/21.wav", "wav/32_51/22.wav", "wav/32_51/23.wav", "wav/32_51/24.wav", "wav/32_51/25.wav", "wav/32_51/26.wav", "wav/32_51/27.wav", "wav/32_51/28.wav", "wav/32_51/29.wav", "wav/32_51/3.wav", "wav/32_51/4.wav", "wav/32_51/5.wav", "wav/32_51/6.wav", "wav/32_51/7.wav", "wav/32_51/8.wav", "wav/32_51/9.wav", "wav/32_52/1.wav", "wav/32_52/1_2.wav", "wav/32_52/2.wav", "wav/32_52/2_2.wav", "wav/32_52/3.wav", "wav/32_52/3_2.wav", "wav/32_53/1.wav", "wav/32_53/10.wav", "wav/32_53/11.wav", "wav/32_53/12.wav", "wav/32_53/13.wav", "wav/32_53/14.wav", "wav/32_53/15.wav", "wav/32_53/16.wav", "wav/32_53/17.wav", "wav/32_53/18.wav", "wav/32_53/19.wav", "wav/32_53/2.wav", "wav/32_53/20.wav", "wav/32_53/21.wav", "wav/32_53/22.wav", "wav/32_53/3.wav", "wav/32_53/4.wav", "wav/32_53/5.wav", "wav/32_53/6.wav", "wav/32_53/7.wav", "wav/32_53/8.wav", "wav/32_53/9.wav", "wav/33_51/1.wav", "wav/33_51/1_2.wav", "wav/33_51/2.wav", "wav/33_51/2_2.wav", "wav/33_51/3.wav", "wav/33_51/3_2.wav", "wav/33_52/1.wav", "wav/33_52/2.wav", "wav/33_52/3.wav", "wav/33_52/4.wav", "wav/33_53/1.wav", "wav/33_53/1_2.wav", "wav/33_53/2.wav", "wav/33_53/2_2.wav", "wav/33_53/3.wav", "wav/33_53/3_2.wav", "wav/33_53/4.wav", "wav/33_53/4_2.wav", "wav/34_51/1.wav", "wav/34_51/2.wav", "wav/34_51/3.wav", "wav/34_51/4.wav", "wav/34_51/5.wav", "wav/34_51/6.wav", "wav/34_51/7.wav", "wav/34_51/8.wav", "wav/34_52/1.wav", "wav/34_52/2.wav", "wav/34_52/3.wav", "wav/34_52/4.wav", "wav/34_53/1.wav", "wav/34_53/2.wav", "wav/34_53/3.wav", "wav/34_53/4.wav", "wav/34_54/1.wav", "wav/34_54/1_2.wav", "wav/34_54/2.wav", "wav/34_54/2_2.wav", "wav/34_54/3.wav", "wav/34_54/3_2.wav", "wav/34_54/4.wav", "wav/34_54/4_2.wav", "wav/35_51/1.wav", "wav/35_51/10.wav", "wav/35_51/11.wav", "wav/35_51/12.wav", "wav/35_51/13.wav", "wav/35_51/14.wav", "wav/35_51/15.wav", "wav/35_51/16.wav", "wav/35_51/2.wav", "wav/35_51/3.wav", "wav/35_51/4.wav", "wav/35_51/5.wav", "wav/35_51/6.wav", "wav/35_51/7.wav", "wav/35_51/8.wav", "wav/35_51/9.wav", "wav/35_52/1.wav", "wav/35_52/1_2.wav", "wav/35_52/2.wav", "wav/35_52/2_2.wav", "wav/35_52/3.wav", "wav/35_52/3_2.wav", "wav/35_52/4.wav", "wav/35_52/4_2.wav", "wav/35_53/1.wav", "wav/35_53/2.wav", "wav/35_53/3.wav", "wav/35_53/4.wav", "wav/35_54/1.wav", "wav/35_54/2.wav", "wav/35_54/3.wav", "wav/35_54/4.wav", "wav/36_51/1.wav", "wav/36_51/1_2.wav", "wav/36_51/2.wav", "wav/36_51/2_2.wav", "wav/36_51/3.wav", "wav/36_51/3_2.wav", "wav/36_51/4.wav", "wav/36_51/4_2.wav", "wav/36_52/1.wav", "wav/36_52/1_2.wav", "wav/36_52/2.wav", "wav/36_52/2_2.wav", "wav/36_52/3.wav", "wav/36_52/3_2.wav", "wav/36_53/1.wav", "wav/36_53/10.wav", "wav/36_53/11.wav", "wav/36_53/12.wav", "wav/36_53/2.wav", "wav/36_53/3.wav", "wav/36_53/4.wav", "wav/36_53/5.wav", "wav/36_53/6.wav", "wav/36_53/7.wav", "wav/36_53/8.wav", "wav/36_53/9.wav", "wav/36_54/1.wav", "wav/36_54/2.wav", "wav/36_54/3.wav", "wav/36_54/4.wav", "wav/36_54/5.wav", "wav/3_31/1.wav", "wav/3_31/2.wav", "wav/3_31/3.wav", "wav/3_31/4.wav", "wav/3_31/5.wav", "wav/3_31/6.wav", "wav/3_31/7.wav", "wav/3_31/8.wav", "wav/3_31/9.wav", "wav/4.wav", "wav/4_31/1.wav", "wav/4_31/2.wav", "wav/4_31/3.wav", "wav/4_31/4.wav", "wav/4_31/5.wav", "wav/4_32/1.wav", "wav/4_32/2.wav", "wav/4_32/3.wav", "wav/4_32/4.wav", "wav/5.wav", "wav/5_31/1.wav", "wav/5_31/2.wav", "wav/5_31/3.wav", "wav/5_31/4.wav", "wav/5_31/5.wav", "wav/5_31/6.wav", "wav/5_31/7.wav", "wav/5_31/8.wav", "wav/5_32/1.wav", "wav/5_32/1_2.wav", "wav/5_32/2.wav", "wav/5_32/2_2.wav", "wav/5_32/3.wav", "wav/5_32/3_2.wav", "wav/5_32/4.wav", "wav/5_32/4_2.wav", "wav/6.wav", "wav/64_52/1.wav", "wav/64_52/2.wav", "wav/64_52/3.wav", "wav/64_52/4.wav", "wav/64_52/5.wav", "wav/65_51/1.wav", "wav/65_51/10.wav", "wav/65_51/11.wav", "wav/65_51/12.wav", "wav/65_51/2.wav", "wav/65_51/3.wav", "wav/65_51/4.wav", "wav/65_51/5.wav", "wav/65_51/6.wav", "wav/65_51/7.wav", "wav/65_51/8.wav", "wav/65_51/9.wav", "wav/65_53/1.wav", "wav/65_53/1_2.wav", "wav/65_53/2.wav", "wav/65_53/2_2.wav", "wav/65_53/3.wav", "wav/65_53/3_2.wav", "wav/66_51/1.wav", "wav/66_51/2.wav", "wav/66_51/3.wav", "wav/66_51/4.wav", "wav/66_52/1.wav", "wav/66_52/1_2.wav", "wav/66_52/2.wav", "wav/66_52/2_2.wav", "wav/66_52/3.wav", "wav/66_52/3_2.wav", "wav/66_52/4.wav", "wav/66_52/4_2.wav", "wav/66_53/1.wav", "wav/66_53/1_2.wav", "wav/66_53/2.wav", "wav/66_53/2_2.wav", "wav/66_53/3.wav", "wav/66_53/3_2.wav", "wav/66_53/4.wav", "wav/66_53/4_2.wav", "wav/66_54/1.wav", "wav/66_54/1_2.wav", "wav/66_54/2.wav", "wav/66_54/2_2.wav", "wav/66_54/3.wav", "wav/66_54/3_2.wav", "wav/67_52/1.wav", "wav/67_52/2.wav", "wav/67_52/3.wav", "wav/67_52/4.wav", "wav/68_51/1.wav", "wav/68_51/1_2.wav", "wav/68_51/2.wav", "wav/68_51/2_2.wav", "wav/68_51/3.wav", "wav/68_51/3_2.wav", "wav/68_51/4.wav", "wav/68_51/4_2.wav", "wav/68_52/1.wav", "wav/68_52/2.wav", "wav/68_52/3.wav", "wav/68_52/4.wav", "wav/68_53/1.wav", "wav/68_53/10.wav", "wav/68_53/2.wav", "wav/68_53/3.wav", "wav/68_53/4.wav", "wav/68_53/5.wav", "wav/68_53/6.wav", "wav/68_53/7.wav", "wav/68_53/8.wav", "wav/68_53/9.wav", "wav/68_54/1.wav", "wav/68_54/2.wav", "wav/68_54/3.wav", "wav/68_54/4.wav", "wav/68_54/5.wav", "wav/69_51/1.wav", "wav/69_51/1_2.wav", "wav/69_51/2.wav", "wav/69_51/2_2.wav", "wav/69_51/3.wav", "wav/69_51/3_2.wav", "wav/69_51/4.wav", "wav/69_51/4_2.wav", "wav/69_52/1.wav", "wav/69_52/10.wav", "wav/69_52/2.wav", "wav/69_52/3.wav", "wav/69_52/4.wav", "wav/69_52/5.wav", "wav/69_52/6.wav", "wav/69_52/7.wav", "wav/69_52/8.wav", "wav/69_52/9.wav", "wav/7.wav", "wav/70_51/1.wav", "wav/70_51/10.wav", "wav/70_51/11.wav", "wav/70_51/12.wav", "wav/70_51/13.wav", "wav/70_51/14.wav", "wav/70_51/15.wav", "wav/70_51/16.wav", "wav/70_51/17.wav", "wav/70_51/18.wav", "wav/70_51/2.wav", "wav/70_51/3.wav", "wav/70_51/4.wav", "wav/70_51/5.wav", "wav/70_51/6.wav", "wav/70_51/7.wav", "wav/70_51/8.wav", "wav/70_51/9.wav", "wav/70_52/1.wav", "wav/70_52/10.wav", "wav/70_52/11.wav", "wav/70_52/12.wav", "wav/70_52/13.wav", "wav/70_52/14.wav", "wav/70_52/15.wav", "wav/70_52/16.wav", "wav/70_52/17.wav", "wav/70_52/18.wav", "wav/70_52/19.wav", "wav/70_52/2.wav", "wav/70_52/20.wav", "wav/70_52/21.wav", "wav/70_52/22.wav", "wav/70_52/23.wav", "wav/70_52/24.wav", "wav/70_52/25.wav", "wav/70_52/26.wav", "wav/70_52/27.wav", "wav/70_52/28.wav", "wav/70_52/29.wav", "wav/70_52/3.wav", "wav/70_52/30.wav", "wav/70_52/31.wav", "wav/70_52/32.wav", "wav/70_52/33.wav", "wav/70_52/34.wav", "wav/70_52/35.wav", "wav/70_52/36.wav", "wav/70_52/37.wav", "wav/70_52/38.wav", "wav/70_52/4.wav", "wav/70_52/5.wav", "wav/70_52/6.wav", "wav/70_52/7.wav", "wav/70_52/8.wav", "wav/70_52/9.wav", "wav/70_53/1.wav", "wav/70_53/1_2.wav", "wav/70_53/2.wav", "wav/70_53/2_2.wav", "wav/70_53/3.wav", "wav/70_53/3_2.wav", "wav/70_54/1.wav", "wav/70_54/1_2.wav", "wav/70_54/2.wav", "wav/70_54/2_2.wav", "wav/70_54/3.wav", "wav/70_54/3_2.wav", "wav/7_32/1.wav", "wav/7_32/2.wav", "wav/7_32/3.wav", "wav/7_32/4.wav", "wav/7_32/5.wav", "wav/7_32/6.wav", "wav/7_33/1.wav", "wav/7_33/2.wav", "wav/7_33/3.wav", "wav/7_33/4.wav", "wav/7_33/5.wav", "wav/8.wav", "wav/8_33/1.wav", "wav/8_33/1_2.wav", "wav/8_33/2.wav", "wav/8_33/2_2.wav", "wav/8_33/3.wav", "wav/8_33/3_2.wav", "wav/8_33/4.wav", "wav/8_33/4_2.wav", "wav/9.wav", "wav/aastop.wav", "wav/fae1.wav", "wav/fae2.wav", "wav/game1.wav", "wav/game2.wav", "wav/game3.wav", "wav/game4.wav", "wav/game5.wav", "wav/matoss.wav", "wav/mus.wav", "wav/next1.wav", "wav/next2.wav", "wav/shoov1.wav", "wav/shoov2.wav", "wav/sof.wav", "wav/stopmas.wav", "wav/stopmis.wav", "wav/xallmost.wav", "wav/xexelent.wav", "wav/xgood.wav", "wav/xtry.wav", "wav/xvgood.wav"],
 };
+const KOLKOREB_STROKES = {
+  "1": {"intra": 10, "nompS": 16, "pts": [{"w": 0, "x": 0, "y": 1}, {"w": 3, "x": 18, "y": 20}, {"w": 3, "x": 20, "y": 18}, {"w": 3, "x": 22, "y": 15}, {"w": 3, "x": 25, "y": 11}, {"w": 3, "x": 27, "y": 6}, {"w": 3, "x": 25, "y": 11}, {"w": 3, "x": 23, "y": 20}, {"w": 3, "x": 21, "y": 26}, {"w": 3, "x": 20, "y": 30}, {"w": 3, "x": 20, "y": 33}, {"w": 3, "x": 20, "y": 35}, {"w": 3, "x": 21, "y": 38}, {"w": 3, "x": 23, "y": 39}, {"w": 3, "x": 20, "y": 39}, {"w": 3, "x": 17, "y": 39}, {"w": 3, "x": 19, "y": 37}]},
+  "2": {"intra": 10, "nompS": 20, "pts": [{"w": 0, "x": 3, "y": 11}, {"w": 3, "x": 27, "y": 14}, {"w": 3, "x": 27, "y": 18}, {"w": 3, "x": 27, "y": 22}, {"w": 3, "x": 25, "y": 24}, {"w": 3, "x": 22, "y": 29}, {"w": 3, "x": 18, "y": 32}, {"w": 3, "x": 15, "y": 34}, {"w": 3, "x": 13, "y": 38}, {"w": 3, "x": 18, "y": 38}, {"w": 3, "x": 21, "y": 38}, {"w": 3, "x": 23, "y": 37}, {"w": 3, "x": 26, "y": 38}, {"w": 3, "x": 29, "y": 38}, {"w": 3, "x": 25, "y": 36}, {"w": 0, "x": 0, "y": 0}, {"w": 3, "x": 26, "y": 14}, {"w": 3, "x": 24, "y": 10}, {"w": 3, "x": 20, "y": 9}, {"w": 3, "x": 17, "y": 11}, {"w": 3, "x": 14, "y": 13}]},
+  "3": {"intra": 10, "nompS": 23, "pts": [{"w": 0, "x": 12, "y": 2}, {"w": 3, "x": 13, "y": 9}, {"w": 3, "x": 14, "y": 10}, {"w": 3, "x": 17, "y": 11}, {"w": 3, "x": 19, "y": 12}, {"w": 3, "x": 23, "y": 13}, {"w": 3, "x": 25, "y": 13}, {"w": 3, "x": 28, "y": 12}, {"w": 3, "x": 27, "y": 13}, {"w": 3, "x": 26, "y": 15}, {"w": 3, "x": 23, "y": 18}, {"w": 3, "x": 21, "y": 20}, {"w": 3, "x": 17, "y": 22}, {"w": 3, "x": 19, "y": 21}, {"w": 3, "x": 20, "y": 21}, {"w": 3, "x": 22, "y": 24}, {"w": 3, "x": 25, "y": 26}, {"w": 3, "x": 28, "y": 30}, {"w": 3, "x": 28, "y": 33}, {"w": 3, "x": 26, "y": 38}, {"w": 3, "x": 24, "y": 38}, {"w": 3, "x": 21, "y": 39}, {"w": 3, "x": 17, "y": 38}, {"w": 3, "x": 14, "y": 35}]},
+  "4": {"intra": 10, "nompS": 28, "pts": [{"w": 0, "x": 2, "y": -2}, {"w": 3, "x": 16, "y": 8}, {"w": 3, "x": 16, "y": 11}, {"w": 3, "x": 16, "y": 15}, {"w": 3, "x": 14, "y": 18}, {"w": 3, "x": 12, "y": 22}, {"w": 3, "x": 11, "y": 24}, {"w": 3, "x": 11, "y": 25}, {"w": 3, "x": 12, "y": 25}, {"w": 3, "x": 14, "y": 24}, {"w": 3, "x": 16, "y": 24}, {"w": 3, "x": 18, "y": 24}, {"w": 3, "x": 21, "y": 25}, {"w": 3, "x": 25, "y": 26}, {"w": 3, "x": 28, "y": 24}, {"w": 0, "x": 0, "y": 0}, {"w": 3, "x": 27, "y": 9}, {"w": 3, "x": 26, "y": 13}, {"w": 3, "x": 25, "y": 17}, {"w": 3, "x": 24, "y": 22}, {"w": 3, "x": 24, "y": 25}, {"w": 3, "x": 25, "y": 29}, {"w": 3, "x": 25, "y": 32}, {"w": 3, "x": 25, "y": 35}, {"w": 3, "x": 26, "y": 37}, {"w": 3, "x": 25, "y": 38}, {"w": 3, "x": 23, "y": 38}, {"w": 3, "x": 25, "y": 37}, {"w": 3, "x": 27, "y": 38}]},
+  "5": {"intra": 10, "nompS": 28, "pts": [{"w": 0, "x": -1, "y": 5}, {"w": 3, "x": 30, "y": 11}, {"w": 3, "x": 28, "y": 12}, {"w": 3, "x": 25, "y": 13}, {"w": 3, "x": 23, "y": 13}, {"w": 3, "x": 18, "y": 12}, {"w": 3, "x": 16, "y": 11}, {"w": 3, "x": 14, "y": 11}, {"w": 3, "x": 14, "y": 13}, {"w": 3, "x": 14, "y": 16}, {"w": 3, "x": 16, "y": 18}, {"w": 3, "x": 16, "y": 21}, {"w": 3, "x": 16, "y": 24}, {"w": 3, "x": 15, "y": 27}, {"w": 3, "x": 16, "y": 25}, {"w": 3, "x": 18, "y": 23}, {"w": 3, "x": 20, "y": 22}, {"w": 3, "x": 22, "y": 22}, {"w": 3, "x": 26, "y": 23}, {"w": 3, "x": 28, "y": 25}, {"w": 3, "x": 30, "y": 28}, {"w": 3, "x": 30, "y": 31}, {"w": 3, "x": 29, "y": 34}, {"w": 3, "x": 28, "y": 36}, {"w": 3, "x": 26, "y": 37}, {"w": 3, "x": 23, "y": 38}, {"w": 3, "x": 16, "y": 37}, {"w": 3, "x": 18, "y": 38}, {"w": 3, "x": 22, "y": 38}]},
+  "6": {"intra": 10, "nompS": 22, "pts": [{"w": 0, "x": -1, "y": 3}, {"w": 3, "x": 28, "y": 12}, {"w": 3, "x": 26, "y": 10}, {"w": 3, "x": 23, "y": 9}, {"w": 3, "x": 19, "y": 10}, {"w": 3, "x": 16, "y": 12}, {"w": 3, "x": 14, "y": 16}, {"w": 3, "x": 13, "y": 21}, {"w": 3, "x": 13, "y": 25}, {"w": 3, "x": 13, "y": 30}, {"w": 3, "x": 14, "y": 34}, {"w": 3, "x": 16, "y": 36}, {"w": 3, "x": 18, "y": 37}, {"w": 3, "x": 21, "y": 38}, {"w": 3, "x": 23, "y": 38}, {"w": 3, "x": 26, "y": 36}, {"w": 3, "x": 28, "y": 32}, {"w": 3, "x": 28, "y": 28}, {"w": 3, "x": 27, "y": 25}, {"w": 3, "x": 23, "y": 24}, {"w": 3, "x": 18, "y": 24}, {"w": 3, "x": 16, "y": 26}, {"w": 3, "x": 13, "y": 28}]},
+  "7": {"intra": 10, "nompS": 26, "pts": [{"w": 0, "x": 0, "y": 0}, {"w": 3, "x": 13, "y": 10}, {"w": 3, "x": 16, "y": 11}, {"w": 3, "x": 21, "y": 12}, {"w": 3, "x": 24, "y": 12}, {"w": 3, "x": 27, "y": 11}, {"w": 3, "x": 30, "y": 10}, {"w": 3, "x": 28, "y": 12}, {"w": 3, "x": 25, "y": 17}, {"w": 3, "x": 25, "y": 20}, {"w": 3, "x": 23, "y": 25}, {"w": 3, "x": 23, "y": 29}, {"w": 3, "x": 22, "y": 33}, {"w": 3, "x": 23, "y": 37}, {"w": 3, "x": 21, "y": 37}, {"w": 0, "x": 0, "y": 0}, {"w": 0, "x": 0, "y": 0}, {"w": 0, "x": 0, "y": 0}, {"w": 2, "x": 16, "y": 26}, {"w": 2, "x": 18, "y": 25}, {"w": 2, "x": 20, "y": 26}, {"w": 2, "x": 22, "y": 25}, {"w": 2, "x": 19, "y": 24}, {"w": 2, "x": 23, "y": 26}, {"w": 2, "x": 26, "y": 27}, {"w": 2, "x": 26, "y": 26}, {"w": 2, "x": 30, "y": 28}]},
+};
 // === engine: frmRenderer.js ===
 // Faithful renderer for parsed VB6 .frm layouts.
 // - Walks the full control tree (handles nested controls inside PictureBox
@@ -1131,6 +1425,11 @@ function actionFor(ctrl, appId) {
     // (same treatment as KolKoreC/D btnexi(0/1) for the Hidy form).
     if (appId === "KolKoreB" && name === "mini")    return "kkb:mini";
     if (name === "btnIcon")   return `maslul:${idx + 1}`;
+    // Games3 hak inspect overlay (Picture22): wa[0..4] = audio/record buttons,
+    // dif[0/1] = prev/next hotspot navigation. wa[5] is a decorative warning
+    // indicator with no click handler in the original.
+    if (name === "wa")         return `wa:${idx}`;
+    if (name === "dif")        return `dif:${idx}`;
     if (name === "btnHofshi") return "hofshi";
     if (name === "btnSeret") {
         if (appId === "Yeled" && idx === 2) return "exit";
@@ -1844,6 +2143,99 @@ function applyKolKoreDRamaLayout(state) {
 // this intercept the rama stays pinned at 1. We mirror the KolKoreC/D
 // approach (sans flip animation): capture-phase listener computes the
 // toggle target and reuses setRamaUtil to swap state + repaint icons.
+// === KolKoreB Sst letter-stroke animation =================================
+// Sst.frm btnIcon_Click (line 1019) reads "<AppPath>\<cHos+1>.txt" — a list
+// of stroke points used by Timer1_Timer (line 1550) to draw the activity's
+// Hebrew letter or digit using Sst.Line at design coords
+// (Psa(i).Xs + Label2.Left, Psa(i).Ys + Label2.Top). File format:
+//   line 1: intra        (animation interval; original ignores it and uses 100)
+//   line 2: nompS        (number of segments)
+//   then nompS+1 triplets of (w, Xs, Ys) — w=0 marks a pen lift.
+// Timer1 walks the points, drawing two passes per segment: a thick "shadow"
+// stroke in cPs2, then a thin "highlight" stroke in cPs.
+//
+// In the port: load and cache the file via fetch, then drive the same walk
+// on a single <canvas> overlay positioned at Label2's design rect.
+function kkbLoadStrokes(state, idx) {
+    // Strokes are baked into the bundle as KOLKOREB_STROKES at build time
+    // — see build_bundle.py. Runtime fetch was blocked under file:// origins
+    // by CORS. The data shape matches what the old fetch path returned:
+    // { intra, nompS, pts: [{w, x, y}, ...] }.
+    const key = String(idx + 1);
+    return (typeof KOLKOREB_STROKES !== "undefined" && KOLKOREB_STROKES[key]) || null;
+}
+
+function kkbAnimateStrokes(state, idx) {
+    const stage = state.stage;
+    // Label2 in KolKoreB Sst.frm: VB.Label at L=1500 T=1650 W=840 H=840 twips
+    // → px(100, 110) 56×56. The point coords are small offsets inside that
+    // box; total drawing area ≈ 30×30 px in the original. We give a generous
+    // 80×80 canvas to absorb any overshoot.
+    let canvas = stage.querySelector(".kkb-letter-canvas");
+    if (!canvas) {
+        canvas = document.createElement("canvas");
+        canvas.className = "kkb-letter-canvas";
+        const W = 80, H = 80;
+        canvas.width = W; canvas.height = H;
+        Object.assign(canvas.style, {
+            position: "absolute",
+            left: "100px",     // Label2.Left
+            top: "110px",      // Label2.Top
+            width: W + "px", height: H + "px",
+            pointerEvents: "none",
+            zIndex: "5",
+        });
+        stage.appendChild(canvas);
+    }
+    if (state._kkbStrokeTimer) {
+        clearInterval(state._kkbStrokeTimer);
+        state._kkbStrokeTimer = null;
+    }
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const data = kkbLoadStrokes(state, idx);
+    if (!data || !data.pts || !data.pts.length) return;
+    // VB6 pen colors per rama (Sst.frm:1037-1048).
+    const rama = String(state.rama);
+    const cPs2 = rama === "1" ? "rgb(215,205,185)" : "rgb(205,205,255)";
+    const cPs  = rama === "1" ? "rgb(255,245,235)" : "rgb(235,235,255)";
+    const pts = data.pts;
+    const n = pts.length;
+    let i = 1;
+    // Timer1.Interval = 100ms; per tick the original loop runs 3 times
+    // (For i = 0 To 2). Use a ~33ms step to match — at 30Hz the user
+    // sees a continuous stroke draw.
+    state._kkbStrokeTimer = setInterval(function () {
+        if (i >= n) {
+            clearInterval(state._kkbStrokeTimer);
+            state._kkbStrokeTimer = null;
+            return;
+        }
+        const a = pts[i - 1], b = pts[i];
+        const c = pts[i + 1] || null;
+        // Pen-lift breaks (w == 0) match the original guard
+        // "If Psa(timErC).w > 0 And Psa(timErC - 1).w > 0".
+        if (a && b && a.w > 0 && b.w > 0) {
+            if (c && c.w > 0) {
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = cPs2;
+                ctx.beginPath();
+                ctx.moveTo(c.x, c.y);
+                ctx.lineTo(b.x, b.y);
+                ctx.stroke();
+            }
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = cPs;
+            ctx.beginPath();
+            ctx.moveTo(b.x, b.y);
+            ctx.lineTo(a.x, a.y);
+            ctx.stroke();
+        }
+        i++;
+    }, 33);
+}
+
 // === KolKoreB Sst pick + star preview ====================================
 // The KolKoreB Sst is a two-pane "select then launch" UI not present in
 // the other KolKore apps. Form layout:
@@ -1918,6 +2310,9 @@ function kkbPickActivity(state, idx) {
     // cHos+i*7 (per the original Lampas() reading "<rama>b<cHos>b<i>.txt"),
     // so changing cHos changes which slots the two lamps reflect.
     wireSstLamps(state);
+    // Animate the activity's letter strokes at Label2's position
+    // (Sst.frm btnIcon_Click → reads (cHos+1).txt, starts Timer1).
+    kkbAnimateStrokes(state, idx);
     klog("kkb: pick btnIcon[" + idx + "] cHos=" + idx + " rama=" + rama);
 }
 
@@ -1938,6 +2333,54 @@ function wireKolKoreBRamaToggle(state) {
             setRamaUtil(state, target);
         }, true);   // capture: fires before renderer's default rama:1 listener
     });
+    // Paint Label3's instruction caption ("בחרו בנושא מימין ולחצו על המסלול
+    // בדף השמאלי"). The renderer doesn't auto-render Label.Caption — we inject
+    // a positioned span inside the .frm-ctrl--Label3 box. Walk the layout
+    // tree to pull the caption + ForeColor straight from the .frm.
+    paintKolKoreBLabels(state);
+}
+
+function paintKolKoreBLabels(state) {
+    const layout = state.layouts && state.layouts.sst;
+    if (!layout) return;
+    function walk(c) {
+        const name = c.name;
+        const cap  = c.props && c.props.Caption;
+        if (c.type === "VB.Label" && name && cap) {
+            const sel = ".frm-ctrl--" + name;
+            const el = state.stage.querySelector(sel);
+            if (el && !el.querySelector(".kkb-caption")) {
+                // VB6 BGR → CSS RGB conversion. VB color = &H00BBGGRR.
+                const bgr = parseInt(c.props.ForeColor, 10) || 0;
+                const r = bgr & 0xff;
+                const g = (bgr >> 8) & 0xff;
+                const b = (bgr >> 16) & 0xff;
+                const span = document.createElement("span");
+                span.className = "kkb-caption";
+                const align = c.props.Alignment === 2 ? "center"
+                            : c.props.Alignment === 1 ? "right" : "left";
+                Object.assign(span.style, {
+                    position: "absolute", inset: "0",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: align === "center" ? "center" : (align === "right" ? "flex-end" : "flex-start"),
+                    pointerEvents: "none",
+                    fontFamily: "'David', 'Arial Hebrew', serif",
+                    fontSize: "12px",
+                    fontWeight: "400",
+                    color: "rgb(" + r + "," + g + "," + b + ")",
+                    direction: "rtl",
+                    textAlign: align,
+                    whiteSpace: "pre-wrap",
+                    lineHeight: "1.2",
+                });
+                span.textContent = cap;
+                el.appendChild(span);
+            }
+        }
+        (c.children || []).forEach(walk);
+    }
+    walk(layout);
 }
 
 // KolKoreA Sst.Icon_s_Click swaps the entire grid between two layouts.
@@ -3554,6 +3997,25 @@ function handleAction(appId, action /*, ctrl */) {
         kkbPickActivity(currentSession, idx);
         return;
     }
+    // Games3 hak panel (Picture22) — wa[0..5] + dif[0..1] dispatch.
+    if (action && action.indexOf("wa:") === 0) {
+        if (!currentSession) return;
+        const idx = parseInt(action.split(":")[1], 10);
+        const nom = currentSession._hakNom || 1;
+        if (idx === 0)      playGame3HakName(currentSession, nom);    // playb
+        else if (idx === 1) game3HakToggleRecord(currentSession);     // rec
+        else if (idx === 2) game3HakPlayRecording(currentSession);    // playc
+        else if (idx === 3) playGame3HakElab(currentSession, nom);    // playa
+        else if (idx === 4) closeGame3HakZoom(currentSession);        // close
+        // idx === 5 (as = warning indicator) has no click handler in the original.
+        return;
+    }
+    if (action && action.indexOf("dif:") === 0) {
+        if (!currentSession) return;
+        const idx = parseInt(action.split(":")[1], 10);
+        game3HakDif(currentSession, idx === 0 ? -1 : 1);
+        return;
+    }
     if (action && action.indexOf("kkb:start:") === 0) {
         if (!currentSession) return;
         const idx = parseInt(action.split(":")[2], 10);
@@ -4338,6 +4800,20 @@ function initGameTurn(state, stage) {
     state.targetHotspot = state.Gg_N;
 
     if (stage.gameNumber === 3) {
+        // Games3.frm has act1(1) (the hak/microphone button — entry into the
+        // record + compare panel) with Visible=0 at design time. Form_Load
+        // line ~1233 sets act1(1).Visible = True only when
+        //   g1m = 0 AND App.FileDescription <> "X".
+        // g1m is set per original gameNumber: 0 for game3, 1/2/12 for the
+        // 6/7/8 aliases (KolKoreC/D-only). App.FileDescription comes from
+        // the .vbp's VersionFileDescription — Brahot/Dvash/Hagim/Shabat ship
+        // with "X", which disables recording entirely in those apps even
+        // though the .frm has the controls. Mirror both gates.
+        const origGn = stage._origGameNumber != null ? stage._origGameNumber : stage.gameNumber;
+        const g1m = origGn === 6 ? 1 : origGn === 7 ? 2 : origGn === 8 ? 12 : 0;
+        const fileDescX = state.config && state.config.fileDescriptionX === true;
+        const recBtn = state.stage.querySelector('.frm-ctrl--act1[data-index="1"]');
+        if (recBtn) recBtn.style.display = (g1m === 0 && !fileDescX) ? "" : "none";
         // Games3 inspect mode (Form_Activate plays Ras_Wav; no auto-chain).
         playRasWav(state);
     } else if (stage.gameNumber === 5) {
@@ -5416,175 +5892,261 @@ function cycleGame3Hotspot(state) {
     onInspectClick(state, next);
 }
 
-// Games3 act1(1) HAK ("חקירה" — investigate) inspect zoom panel. Per the
-// original Games3.act1_Click Case 1: hide Picture1/Spic1/Navi, show Picture22
-// (overlay) + Picture2 with a 2x cropped patch from Picture1 at Label1(nom),
-// expose wa(0..5) playback buttons + dif(0..1) navigation arrows.
-//
-// We render a modal overlay containing:
-//   • Canvas: cropped + scaled patch of the current hotspot
-//   • dif arrows: prev/next hotspot (nom-1 / nom+1, wraps)
-//   • wa(0) play-name (Mhiza_Hadasha("wav", nom))
-//   • wa(3) play-elaboration (Mhiza_5(nom) = wav/<razNom>/<nom>_2.wav)
-//   • wa(4) close — returns to Picture1 view
-//
-// Recording (wa(1)/wa(2) — record/playback the user's own voice) is omitted;
-// it'd need MediaRecorder permission and a UX flow we haven't built.
+// Games3 act1(1) HAK ("חקירה" — investigate) inspect zoom panel. Mirrors
+// Games3.act1_Click Case 1: hide Spic1, show Picture22 (already in the
+// layout, .Visible=0 at design time with screen2.jpg as its picture). The
+// children inside Picture22 (wa[0..5], dif[0..1], Picture2) come from the
+// shared games3.json layout — we just flip Picture22.display="" and paint
+// the current hotspot's crop into the Picture2 canvas. wa/dif clicks route
+// through actionFor → "wa:N" / "dif:N" handlers below.
 function openGame3HakZoom(state) {
     const stage = state.activeStage;
     if (!stage || !stage.hotspots || !stage.hotspots.length) return;
-    if (state._hakOverlay) return;     // already open
 
     let nom = state.game3CycleIdx || state.inspectCount || 1;
     if (nom < 1) nom = 1;
     if (nom > state.maxTurn) nom = state.maxTurn;
+    state._hakNom = nom;
 
-    const overlay = document.createElement("div");
-    overlay.className = "hak-overlay";
-    Object.assign(overlay.style, {
-        position: "fixed", inset: "0",
-        background: "rgba(0,0,0,.78)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        zIndex: "1500",
-    });
-    state._hakOverlay = overlay;
+    // Show Picture22 (rendered from the layout, Visible=0 at design time).
+    const pic22 = state.stage.querySelector(".frm-ctrl--Picture22");
+    const spic1 = state.stage.querySelector(".frm-ctrl--Spic1");
+    if (!pic22) return;
+    if (spic1)  spic1.style.display  = "none";
+    pic22.style.display = "";
 
-    // Panel = original Picture22 background (screen2.jpg if it exists, else
-    // a neutral dark frame). Sized to roughly match the original 520x345 box.
-    const box = document.createElement("div");
-    Object.assign(box.style, {
-        position: "relative",
-        width: "560px",
-        maxWidth: "92vw",
-        background: "#1a1a1a",
-        border: "3px solid #8a5b13",
-        borderRadius: "10px",
-        padding: "1rem",
-        boxShadow: "0 10px 30px rgba(0,0,0,.5)",
-        display: "flex", flexDirection: "column", gap: ".75rem", alignItems: "center",
-    });
-    overlay.appendChild(box);
-
-    const title = document.createElement("div");
-    title.textContent = "חקירה";
-    Object.assign(title.style, {
-        color: "#fbcf66", fontSize: "1.4rem", fontWeight: "700",
-    });
-    box.appendChild(title);
-
-    // Cropped patch — 2x scale, like the original which paints into Picture2
-    // at the patch's native dimensions then displays at form scale.
-    const canvas = document.createElement("canvas");
-    canvas.style.background = "#000";
-    canvas.style.border = "2px solid #fbcf66";
-    box.appendChild(canvas);
-
-    function refreshPatch() {
-        const rec = stage.hotspots[nom - 1];
-        if (!rec || !state.stageImg) return;
-        const SCALE = 2;
-        canvas.width  = rec.w;
-        canvas.height = rec.h;
-        canvas.style.width  = (rec.w * SCALE) + "px";
-        canvas.style.height = (rec.h * SCALE) + "px";
-        try {
-            const ctx = canvas.getContext("2d");
-            ctx.imageSmoothingEnabled = false;
-            ctx.drawImage(state.stageImg, rec.x, rec.y, rec.w, rec.h, 0, 0, rec.w, rec.h);
-        } catch (e) {}
-        nameLabel.textContent = rec.name || "";
+    // Games3.frm:980 — wa(3) is hidden when the first stage's elaboration
+    // wav is missing: `If Not exist(\WAV\<razNom>\1_2) Then wa(3).Visible
+    // = False`. Re-evaluate the same check against our audio manifest so
+    // an empty playa-speaker button doesn't sit between the dif arrows.
+    const wa3 = pic22.querySelector('.frm-ctrl--wa[data-index="3"]');
+    if (wa3) {
+        const rel = "wav/" + stage.razNom + "/1_2.wav";
+        const has = state.audioFiles && state.audioFiles.has(rel);
+        wa3.style.display = has ? "" : "none";
     }
 
-    const nameLabel = document.createElement("div");
-    Object.assign(nameLabel.style, {
-        color: "#fff", fontSize: "1rem", direction: "rtl", textAlign: "center",
-    });
-    box.appendChild(nameLabel);
-
-    function row() {
-        const r = document.createElement("div");
-        Object.assign(r.style, {
-            display: "flex", gap: ".75rem", alignItems: "center", justifyContent: "center",
-            flexWrap: "wrap",
-        });
-        return r;
-    }
-    function btn(label, title, handler) {
-        const b = document.createElement("button");
-        b.type = "button";
-        b.title = title;
-        b.textContent = label;
-        Object.assign(b.style, {
-            minWidth: "40px", height: "40px", padding: "0 .9rem",
-            background: "rgba(0,0,0,.6)", color: "#fbcf66",
-            border: "2px solid #fbcf66", borderRadius: "999px",
-            fontFamily: "inherit", fontSize: "1rem", cursor: "pointer",
-        });
-        b.addEventListener("click", handler);
-        return b;
+    // Initial wa enabled state on hak open (matches Games3.frm act1_Click
+    // Case 1 + Form_Load defaults): wa(0/1/3/4) clickable, wa(2) disabled
+    // until the user makes a recording, wa(5) is decorative (no handler).
+    setWaEnabled(state, 0, true);
+    setWaEnabled(state, 1, true);
+    setWaEnabled(state, 2, false);
+    setWaEnabled(state, 3, true);
+    setWaEnabled(state, 4, true);
+    setWaEnabled(state, 5, false);
+    // wa(2) sprite: stays on playc1 if a recording from this hak session
+    // already exists (e.g. user closed + reopened), else playc3 (dimmed)
+    // to visually match Enabled=False.
+    const wa2_open = state.stage.querySelector('.frm-ctrl--wa[data-index="2"] img.frm-img');
+    if (wa2_open) {
+        const have = state._kkbRec && state._kkbRec.url;
+        wa2_open.src = state.config.assetsRoot + "/menu/" + (have ? "playc1.png" : "playc3.png");
+        // Sync enabled with whether there's a recording to play.
+        if (have) setWaEnabled(state, 2, true);
     }
 
-    function wavName(idx) {
-        return audioBase(state) + "/wav/" + stage.razNom + "/" + idx + ".wav";
+    // Paint Picture2 (the magnified patch) with the current hotspot crop.
+    paintGame3HakPatch(state);
+    // Per original Form_Activate: opening HAK plays the hotspot's name wav.
+    playGame3HakName(state, nom);
+}
+
+// Mirrors Games3.dif_Click + the Picture2.PaintPicture inside it: crops the
+// current hotspot rect from the stage image, paints it into the Picture2
+// PictureBox inside Picture22, and centers Picture2 inside Shape2's bounds.
+function paintGame3HakPatch(state) {
+    const stage = state.activeStage;
+    const nom = state._hakNom || 1;
+    const rec = stage && stage.hotspots && stage.hotspots[nom - 1];
+    const pic22 = state.stage.querySelector(".frm-ctrl--Picture22");
+    const pic2  = pic22 && pic22.querySelector(".frm-ctrl--Picture2");
+    if (!rec || !pic22 || !pic2 || !state.stageImg) return;
+    // Picture2 native size = the hotspot's Label1 size (Picture2.Width = Label1.Width)
+    pic2.style.width  = rec.w + "px";
+    pic2.style.height = rec.h + "px";
+    // Center inside Picture22 (Shape2 in the .frm bounds the centering region,
+    // but the practical effect is "center the patch in the available space").
+    const pic22W = pic22.offsetWidth || 540;
+    const pic22H = pic22.offsetHeight || 345;
+    pic2.style.left = Math.max(40, Math.floor((pic22W - rec.w) / 2)) + "px";
+    pic2.style.top  = Math.max(60, Math.floor((pic22H - rec.h) / 2)) + "px";
+    // Paint the crop via a child canvas inside Picture2.
+    let cv = pic2.querySelector(".hak-canvas");
+    if (!cv) {
+        cv = document.createElement("canvas");
+        cv.className = "hak-canvas";
+        Object.assign(cv.style, { position: "absolute", inset: "0", width: "100%", height: "100%" });
+        pic2.appendChild(cv);
     }
-    function wavElab(idx) {
-        return audioBase(state) + "/wav/" + stage.razNom + "/" + idx + "_2.wav";
+    cv.width = rec.w;
+    cv.height = rec.h;
+    try {
+        const ctx = cv.getContext("2d");
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(state.stageImg, rec.x, rec.y, rec.w, rec.h, 0, 0, rec.w, rec.h);
+    } catch (e) {}
+}
+
+// Plays the hotspot-NAME wav (Mhiza_Hadasha("wav", nom) → wav/<razNom>/<nom>.wav).
+function playGame3HakName(state, nom) {
+    const stage = state.activeStage;
+    if (!stage) return;
+    const url = audioBase(state) + "/wav/" + stage.razNom + "/" + nom + ".wav";
+    playAudio(state, url);
+}
+
+// Plays the hotspot ELABORATION wav (Mhiza_5(nom) → wav/<razNom>/<nom>_2.wav).
+function playGame3HakElab(state, nom) {
+    const stage = state.activeStage;
+    if (!stage) return;
+    const url = audioBase(state) + "/wav/" + stage.razNom + "/" + nom + "_2.wav";
+    playAudio(state, url);
+}
+
+// Toggle a wa control's "enabled" state. Original Games3.wa_Click /
+// dif_Click toggle wa(0/1/2/3).Enabled depending on flow:
+//   - During recording: wa(0)/(2)/(3) are disabled; wa(1) stays enabled
+//     (so the user can click stop).
+//   - After dif (prev/next hotspot): wa(2).Enabled = False (recording for
+//     the prior hotspot is no longer relevant).
+//   - After a stop: wa(0/2/3).Enabled = True again.
+// VB6's Enabled=False both blocks click events AND prevents the MouseMove
+// hover-swap from sticking (the disabled sprite is repainted after).
+// In the port we set pointer-events:none to do both at once — the renderer's
+// imagesHover mouseenter listener won't fire, so hover doesn't repaint the
+// disabled sprite back to its enabled-looking _2 hover variant.
+function setWaEnabled(state, idx, enabled) {
+    const el = state.stage.querySelector('.frm-ctrl--wa[data-index="' + idx + '"]');
+    if (!el) return;
+    el.style.pointerEvents = enabled ? "" : "none";
+    el.style.cursor        = enabled ? "pointer" : "default";
+}
+
+// wa(4) close → hide Picture22, show Spic1 (mirrors Games3.wa_Click Case 4).
+function closeGame3HakZoom(state) {
+    const pic22 = state.stage.querySelector(".frm-ctrl--Picture22");
+    const spic1 = state.stage.querySelector(".frm-ctrl--Spic1");
+    if (pic22) pic22.style.display = "none";
+    if (spic1) spic1.style.display = "";
+    stopAllAudio(state);
+    // Tear down any active MediaRecorder.
+    if (state._kkbRec && state._kkbRec.mr && state._kkbRec.mr.state === "recording") {
+        try { state._kkbRec.mr.stop(); } catch (e) {}
     }
-
-    // dif(0)/dif(1) — prev/next hotspot, wraps. Mirrors Games3.dif_Click:
-    //   nom = nom - 1 (or + 1)
-    //   If nom = nomer Then nom = 1
-    //   If nom = 0 Then nom = nomer - 1
-    function changeNom(delta) {
-        const max = state.maxTurn;
-        nom = nom + delta;
-        if (nom > max) nom = 1;
-        if (nom < 1) nom = max;
-        klog("CLICK hak dif → nom=" + nom);
-        refreshPatch();
+    if (state._kkbRec && state._kkbRec.stream) {
+        try { state._kkbRec.stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
+        state._kkbRec.stream = null;
     }
+}
 
-    const navRow = row();
-    navRow.appendChild(btn("◀", "הקודם", function () { changeNom(-1); }));
-    navRow.appendChild(btn("▶", "הבא",   function () { changeNom(1); }));
-    box.appendChild(navRow);
-
-    const playRow = row();
-    playRow.appendChild(btn("🔊 שם", "השמע שם", function () {
-        klog("CLICK hak wa(0) play-name nom=" + nom);
-        playAudio(state, wavName(nom));
-    }));
-    playRow.appendChild(btn("🔉 פירוט", "השמע הסבר", function () {
-        klog("CLICK hak wa(3) play-elaboration nom=" + nom);
-        playAudio(state, wavElab(nom));
-    }));
-    box.appendChild(playRow);
-
-    const closeBtn = btn("✕ סגור", "סגור חקירה", function () { dismiss(); });
-    closeBtn.style.marginTop = ".5rem";
-    closeBtn.style.borderColor = "#ff8a8a";
-    closeBtn.style.color = "#ff8a8a";
-    box.appendChild(closeBtn);
-
-    function dismiss() {
-        klog("CLICK hak wa(4) close");
-        stopAllAudio(state);
-        overlay.remove();
-        state._hakOverlay = null;
-        document.removeEventListener("keydown", onKey);
+// dif(0)/dif(1) handler — prev/next hotspot, wraps. Mirrors Games3.dif_Click,
+// which also resets wa(2): Enabled = False + Picture swap to playc3.bmp
+// (dimmed). The user's recorded blob is for the previous hotspot, so we
+// invalidate it before navigating away.
+function game3HakDif(state, delta) {
+    const max = state.maxTurn;
+    let nom = state._hakNom || 1;
+    nom = nom + delta;
+    if (nom > max) nom = 1;
+    if (nom < 1)   nom = max;
+    state._hakNom = nom;
+    klog("CLICK game3 dif → nom=" + nom);
+    // Clear the previous hotspot's recording. Stop any in-flight recorder
+    // first so it doesn't dump bytes into the new hotspot's slot.
+    if (state._kkbRec) {
+        if (state._kkbRec.mr && state._kkbRec.mr.state === "recording") {
+            try { state._kkbRec.mr.stop(); } catch (e) {}
+        }
+        if (state._kkbRec.url) {
+            try { URL.revokeObjectURL(state._kkbRec.url); } catch (e) {}
+            state._kkbRec.url = null;
+        }
     }
-    function onKey(e) { if (e.key === "Escape") dismiss(); }
-    document.addEventListener("keydown", onKey);
+    // wa(2): disabled-looking until a new recording exists (playc3 = dimmed).
+    // Also pin Enabled=False so the hover swap doesn't repaint it to playc2.
+    const root = state.config.assetsRoot;
+    const wa2img = state.stage.querySelector('.frm-ctrl--wa[data-index="2"] img.frm-img');
+    if (wa2img) wa2img.src = root + "/menu/playc3.png";
+    setWaEnabled(state, 2, false);
+    paintGame3HakPatch(state);
+}
 
-    overlay.addEventListener("click", function (e) {
-        if (e.target === overlay) dismiss();
-    });
+// wa(1) toggle record — opens mic via getUserMedia + MediaRecorder, swaps
+// wa(0/1/2) sprites to their "_3" disabled variants while recording (per
+// Games3.wa_Click Case 1). Stops on second click and restores idle sprites.
+function game3HakToggleRecord(state) {
+    if (!state._kkbRec) state._kkbRec = {};
+    const r = state._kkbRec;
+    const root = state.config.assetsRoot;
+    function setWaSrc(idx, file) {
+        const el = state.stage.querySelector('.frm-ctrl--wa[data-index="' + idx + '"] img.frm-img');
+        if (el) el.src = root + "/menu/" + file;
+    }
+    if (r.mr && r.mr.state === "recording") {
+        try { r.mr.stop(); } catch (e) {}
+        return;
+    }
+    function startWithStream(stream) {
+        const chunks = [];
+        const mr = new MediaRecorder(stream);
+        r.mr = mr;
+        mr.ondataavailable = function (e) { if (e.data && e.data.size > 0) chunks.push(e.data); };
+        mr.onstop = function () {
+            // KEEP the stream alive — re-using it for the next record skips
+            // the browser's permission prompt that would otherwise re-fire
+            // every time tracks get stopped. The stream is torn down only
+            // when the hak panel closes (closeGame3HakZoom).
+            const hasRecording = chunks.length > 0;
+            if (hasRecording) {
+                if (r.url) { try { URL.revokeObjectURL(r.url); } catch (e) {} }
+                r.url = URL.createObjectURL(new Blob(chunks, { type: mr.mimeType || "audio/webm" }));
+            }
+            setWaSrc(0, "playb1.png");
+            setWaSrc(1, "rec1.png");
+            setWaSrc(2, "playc1.png");
+            // Mirror Games3.wa_Click Case 1 stop branch:
+            //   wa(0/2/3).Enabled = True ; dif(0/1).Enabled = True
+            setWaEnabled(state, 0, true);
+            setWaEnabled(state, 2, hasRecording);     // only enable when we have a blob
+            setWaEnabled(state, 3, true);
+            klog("CLICK game3 wa(1) stop");
+        };
+        mr.start();
+        setWaSrc(0, "playb3.png");
+        setWaSrc(1, "rec3.png");
+        setWaSrc(2, "playc3.png");
+        // Mirror Games3.wa_Click Case 1 start branch:
+        //   wa(0/2/3).Enabled = False ; dif(0/1).Enabled = False
+        setWaEnabled(state, 0, false);
+        setWaEnabled(state, 2, false);
+        setWaEnabled(state, 3, false);
+        klog("CLICK game3 wa(1) record-start");
+    }
+    if (r.stream && r.stream.active) {
+        startWithStream(r.stream);
+        return;
+    }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        klog("game3 rec: getUserMedia not supported");
+        return;
+    }
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+        r.stream = stream;
+        startWithStream(stream);
+    }).catch(function (err) { klog("game3 rec: getUserMedia failed", err && err.message); });
+}
 
-    document.body.appendChild(overlay);
-    refreshPatch();
-    // Per original: opening HAK immediately plays Mhiza_2(1) (or fallback music).
-    // Use the elaboration audio for the current hotspot as the auto-play.
-    playAudio(state, wavName(nom));
+// wa(2) play recorded — plays the MediaRecorder blob (Games3.wa_Click Case 2
+// runs rec.Command = "Prev"; rec.Command = "play" on MMControl).
+function game3HakPlayRecording(state) {
+    if (!state._kkbRec || !state._kkbRec.url) {
+        klog("game3 wa(2): no recording yet");
+        return;
+    }
+    klog("CLICK game3 wa(2) play-recording");
+    const a = new Audio(state._kkbRec.url);
+    a.play().catch(function () {});
 }
 
 // Flash the current hotspot rect — Games3.startgame draws a grey-then-blue

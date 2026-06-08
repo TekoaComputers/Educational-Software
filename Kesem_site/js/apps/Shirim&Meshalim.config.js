@@ -29,7 +29,23 @@ export default {
         },
         game1:  { layoutFile: "data/layout/_shared/games.json",  background: "assets/Shirim&Meshalim/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Shirim&Meshalim/menu/hetz7.png" } },
         game2:  { layoutFile: "data/layout/_shared/games2.json", background: "assets/Shirim&Meshalim/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Shirim&Meshalim/menu/hetz7.png" } },
-        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/Shirim&Meshalim/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Shirim&Meshalim/menu/hetz7.png" } },
+        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/Shirim&Meshalim/menu/masah.png",  designSize: [640, 480], images: {
+            picexi: "assets/Shirim&Meshalim/menu/hetz7.png",
+            Picture22: "assets/Shirim&Meshalim/menu/screen2.png",
+            wa: [
+                "assets/Shirim&Meshalim/menu/playb1.png", "assets/Shirim&Meshalim/menu/rec1.png",
+                "assets/Shirim&Meshalim/menu/playc1.png", "assets/Shirim&Meshalim/menu/playa1.png",
+                "assets/Shirim&Meshalim/menu/close1.png", "assets/Shirim&Meshalim/menu/as1.png",
+            ],
+            dif: ["assets/Shirim&Meshalim/menu/up1a1.png", "assets/Shirim&Meshalim/menu/up1c1.png"],
+        }, imagesHover: {
+            wa: [
+                "assets/Shirim&Meshalim/menu/playb2.png", "assets/Shirim&Meshalim/menu/rec2.png",
+                "assets/Shirim&Meshalim/menu/playc2.png", "assets/Shirim&Meshalim/menu/playa2.png",
+                "assets/Shirim&Meshalim/menu/close2.png", "assets/Shirim&Meshalim/menu/as2.png",
+            ],
+            dif: ["assets/Shirim&Meshalim/menu/up1a2.png", "assets/Shirim&Meshalim/menu/up1c2.png"],
+        } },
         game4:  { layoutFile: "data/layout/_shared/games4.json", background: "assets/Shirim&Meshalim/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Shirim&Meshalim/menu/hetz7.png", btnArw: ["assets/Shirim&Meshalim/menu/hetz6.png", "assets/Shirim&Meshalim/menu/hetz5.png"] } },
         game5:  { layoutFile: "data/layout/_shared/games5.json", background: "assets/Shirim&Meshalim/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Shirim&Meshalim/menu/hetz7.png" } },
         misger: { layoutFile: "data/layout/_shared/misger.json", background: "assets/Shirim&Meshalim/menu/misger.png", designSize: [240, 200], images: { picexi: "assets/Shirim&Meshalim/menu/hetz7.png" } },

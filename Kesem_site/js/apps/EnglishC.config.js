@@ -36,7 +36,23 @@ export default {
         },
         game1:  { layoutFile: "data/layout/_shared/games.json",  background: "assets/EnglishC/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/EnglishC/menu/hetz7.png" } },
         game2:  { layoutFile: "data/layout/_shared/games2.json", background: "assets/EnglishC/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/EnglishC/menu/hetz7.png" } },
-        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/EnglishC/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/EnglishC/menu/hetz7.png" } },
+        game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/EnglishC/menu/masah.png",  designSize: [640, 480], images: {
+            picexi: "assets/EnglishC/menu/hetz7.png",
+            Picture22: "assets/EnglishC/menu/screen2.png",
+            wa: [
+                "assets/EnglishC/menu/playb1.png", "assets/EnglishC/menu/rec1.png",
+                "assets/EnglishC/menu/playc1.png", "assets/EnglishC/menu/playa1.png",
+                "assets/EnglishC/menu/close1.png", "assets/EnglishC/menu/as1.png",
+            ],
+            dif: ["assets/EnglishC/menu/up1a1.png", "assets/EnglishC/menu/up1c1.png"],
+        }, imagesHover: {
+            wa: [
+                "assets/EnglishC/menu/playb2.png", "assets/EnglishC/menu/rec2.png",
+                "assets/EnglishC/menu/playc2.png", "assets/EnglishC/menu/playa2.png",
+                "assets/EnglishC/menu/close2.png", "assets/EnglishC/menu/as2.png",
+            ],
+            dif: ["assets/EnglishC/menu/up1a2.png", "assets/EnglishC/menu/up1c2.png"],
+        } },
         game4:  { layoutFile: "data/layout/_shared/games4.json", background: "assets/EnglishC/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/EnglishC/menu/hetz7.png", btnArw: ["assets/EnglishC/menu/hetz6.png", "assets/EnglishC/menu/hetz5.png"] } },
         game5:  { layoutFile: "data/layout/_shared/games5.json", background: "assets/EnglishC/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/EnglishC/menu/hetz7.png" } },
         misger: { layoutFile: "data/layout/_shared/misger.json", background: "assets/EnglishC/menu/misger.png", designSize: [240, 200], images: { picexi: "assets/EnglishC/menu/hetz7.png" } },
