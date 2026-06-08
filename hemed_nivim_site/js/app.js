@@ -20,11 +20,16 @@
     let stage = null;
 
     function makeStage(bgPath) {
-        root.innerHTML = "";
+        // Atomic stage swap to avoid the blank-frame flash between
+        // `root.innerHTML = ""` and the new stage being painted.
+        // Build the new stage off-DOM, then replaceChild in one op so
+        // there's never a frame where root is empty.
         stage = document.createElement("div");
         stage.className = "stage";
         if (bgPath) stage.style.backgroundImage = "url('" + bgPath + "')";
-        root.appendChild(stage);
+        const oldStage = root.firstChild;
+        if (oldStage) root.replaceChild(stage, oldStage);
+        else          root.appendChild(stage);
         fitStage();
         return stage;
     }
@@ -449,6 +454,12 @@
     function showGameMenu(unit) {
         currentUnit = unit;
         HND.log("screen", "game-menu", "unit=" + unit.id, "name=" + unit.name);
+        // Warm browser cache for ALL game sprite sets in the background
+        // while the user picks a game. Per-game start() then hits the
+        // cache and renders without first-paint flash. Fire-and-forget;
+        // HND.preload is idempotent so each subsequent game-menu visit
+        // is a no-op.
+        if (HND.preloadAllGameSprites) HND.preloadAllGameSprites(appId);
         const stg = makeStage(picPath("GameMenu/back.png"));
         addNavButtons(function () {
             HND.log("click", "game-menu exit → unit-list");

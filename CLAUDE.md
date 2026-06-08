@@ -68,9 +68,12 @@ load source JS directly — no build step.
   calculation), `hakira.js` (investigation), `haklada.js` (typing),
   `hatamaplus.js` (matching+1), `match.js` (memory pairs). Per-question
   error tracking + nikod score board built in. `tools/port_hemed_nivim.py`
-  is the porting script (forms + assets). **The original `Hemed.exe` /
-  `Nivim.exe` binaries are broken** (silently exit even on a complete
-  install), but the `.frm` sources ARE intact: [Hemed/](Hemed/) ships
+  is the porting script (forms + assets). The original `Hemed.exe` /
+  `Nivim.exe` binaries run fine under Wine via `VM/launch.sh` — but only
+  with audio disabled (Form_Load's `ScrollWave.value = GetVolume(0)`
+  overflows the VB6 Integer setter when Wine's mixer returns a value the
+  Windows mixer doesn't). The launch.sh per-app `case` already handles
+  this. The `.frm` sources ARE intact: [Hemed/](Hemed/) ships
   the full set (`GameHaklada.frm`, `GameAmerican.frm`, `GameApple.frm`,
   `GameConnect.frm`, `GameHakira.frm`, `GameHatama.frm`,
   `GameHatamaPlus.frm`, `MainForm.frm`, …). Nivim only ships

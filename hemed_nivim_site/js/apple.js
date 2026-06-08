@@ -33,7 +33,7 @@ HND.startApple = function (root, app, unit, onComplete) {
         root.innerHTML = '<div class="error">אין נתוני משחק תפוחים ביחידה זו.</div>';
         return;
     }
-    (function preloadAppleSprites() {
+    const preloadDone = (function preloadAppleSprites() {
         const names = ["back", "loah", "middle", "foliage", "bigapple"];
         for (let i = 0; i <= 7; i++) names.push("applered" + i);
         for (let i = 0; i <= 7; i++) names.push("appleyellow" + i);
@@ -45,8 +45,17 @@ HND.startApple = function (root, app, unit, onComplete) {
         for (let i = 1; i <= 8; i++) names.push("goat_yes" + i);
         for (let i = 1; i <= 9; i++) names.push("goat_no" + i);
         for (let i = 1; i <= 8; i++) names.push("goat_win" + i);
-        HND.preloadFrames(app.id, "GameApple", names);
+        // goatani0_* (pick-walk) + goatani2_* (eat-walk) sprites.
+        for (let i = 0; i <= 10; i++) names.push("goatani0_" + i);
+        for (let i = 0; i <= 7; i++) names.push("goatani2_" + i);
+        return HND.preloadFrames(app.id, "GameApple", names);
     })();
+    // Hide the STAGE (not just gameRoot) until ALL sprites + the bg.png
+    // are decoded, then fade in. Gating on root (= gameRoot) leaves the
+    // .stage element's background-image flashing because it's the parent
+    // — fade the parent to cover everything including the bg.png.
+    const stageEl = root.parentElement;          // .stage div from makeStage
+    HND.fadeInOnReady(stageEl || root, preloadDone);
 
     // Per-unit calibration (orig CurrentCalibration). Apple's slot is 7
     // (cal-block 4). Hemed+Nivim have several units with CombineQA="8"
@@ -54,11 +63,17 @@ HND.startApple = function (root, app, unit, onComplete) {
     const cal = HND.gameCalibrationFromSlot(unit, app.id, 4);
     const askCol  = cal.askCol;
     const ansCol  = cal.ansCol;
-    // Apple honors WhatToAskSound for audio (orig CurrentSoundPlay:454),
-    // independent of the text WhatToAsk side. Same in the CombineQA
-    // chain — see GameApple.frm:637-639.
-    const askSide = cal.askSoundSide;
-    const ansSide = cal.ansSoundSide;
+    // Per orig GameApple.frm — audio playback ALWAYS uses the TEXT sides
+    // (WhatToAsk / WhatToAnswer), NOT the audio-override fields. The
+    // *Sound variants are only used at orig:697 to decide whether to
+    // SHOW the sound button (`If Not WhatToAskSound = qDisabled Then …`).
+    // The CombineQA chain at orig:637-661 + :951-967 calls
+    //   SetWaveName CurrentCalibration.WhatToAsk
+    //   SetWaveName CurrentCalibration.WhatToAnswer
+    // exclusively. An earlier port revision wrongly bound these to the
+    // sound-override sides — fixed back to the text sides.
+    const askSide = cal.askSide;
+    const ansSide = cal.ansSide;
 
     // Layout — Middle=50 default. With SideToAsk=qRight, askCol on left,
     // ansCol on right (in our Hebrew layout we flip: ans=cols[1] on the
@@ -185,6 +200,64 @@ HND.startApple = function (root, app, unit, onComplete) {
     // help wave (game4.wav) is loaded. Don't start "enter" at DOM-create;
     // chain it from the initial showHelpOverlay onDone callback below.
     const goat         = HND._el("div", { class: "ctrl apple-goat" });
+    // Build a stack of all goat-frame <img> tags inside the goat element.
+    // Each frame lives PERMANENTLY in the DOM so the browser keeps every
+    // texture warm in GPU cache. Frame switching = just toggle which img
+    // has opacity:1 — no CSS background-image swap, no fetch/decode/upload
+    // delay between frames, no transparent gap showing the back.png.
+    // poseSpecs: { poseName: [filePrefix, frameCount, fileSuffix?] }
+    const POSES = {
+        stand:  ["goat_stand", 1],
+        sad:    ["goat_sad",   1],
+        enter:  ["goat_enter", 9],
+        yes:    ["goat_yes",   8],
+        no:     ["goat_no",    9],
+        eat:    ["goat_eat",   7],
+        pick:   ["goat_pick",  5],
+        win:    ["goat_win",   8],
+        // pick-walk + eat-walk are positioned by JS, sprite cycled too
+        "pick-walk": ["goatani0_", 11, true],  // 0-indexed (goatani0_0..10)
+        "eat-walk":  ["goatani2_", 8,  true],  // 0-indexed (goatani2_0..7)
+    };
+    const goatFrames = {};   // poseName → array of <img> elements
+    for (const pose in POSES) {
+        const spec = POSES[pose];
+        const prefix = spec[0], count = spec[1], zeroIdx = spec[2];
+        const arr = [];
+        for (let i = 0; i < count; i++) {
+            const n = zeroIdx ? i : (i + 1);
+            const img = document.createElement("img");
+            img.className = "apple-goat-frame";
+            img.dataset.pose  = pose;
+            img.dataset.frame = String(n);
+            img.src = "assets/" + app.id + "/pictures/GameApple/" + prefix + n + ".png";
+            img.draggable = false;
+            arr.push(img);
+            goat.appendChild(img);
+        }
+        goatFrames[pose] = arr;
+    }
+    // Show frame N of `pose` (others hidden). 0-based.
+    function showGoatFrame(pose, idx) {
+        // Hide ALL frames across ALL poses first, then show the target.
+        // (Was: only hid siblings in the same pose, so switching poses
+        // left the previous pose's last-shown frame visible — produced
+        // multiple overlapping goat sprites on screen.)
+        for (const p in goatFrames) {
+            const arr = goatFrames[p];
+            for (let i = 0; i < arr.length; i++) arr[i].style.opacity = "0";
+        }
+        const arr = goatFrames[pose];
+        if (arr && arr[idx]) arr[idx].style.opacity = "1";
+    }
+    // Clear all goat frames (all opacity 0).
+    function hideAllGoatFrames() {
+        for (const pose in goatFrames) {
+            const arr = goatFrames[pose];
+            for (let i = 0; i < arr.length; i++) arr[i].style.opacity = "0";
+        }
+    }
+    hideAllGoatFrames();
     const fallLayer    = HND._el("div", { class: "ctrl apple-fall-layer" });
     // Picture-mode UI — only created when the unit's calibration uses
     // qPicture. loah is the chalkboard background; qPicBox holds the
@@ -365,8 +438,18 @@ HND.startApple = function (root, app, unit, onComplete) {
         "pick-walk": 2590, "eat-walk": 2800, win: 560,    // win = INITIAL only
         sad: 0, stand: 0, "": 0,
     };
+    // JS-driven goat frame cycler — replaces CSS keyframes that flashed
+    // back.png between background-image swaps. All frame <img>s already
+    // live in the DOM (built above); cycling = just toggling opacity.
     let goatChainTimer = null;
+    let goatFrameTimer = null;
+    function _stopGoatTimers() {
+        if (goatChainTimer) { clearTimeout(goatChainTimer); goatChainTimer = null; }
+        if (goatFrameTimer) { clearInterval(goatFrameTimer); goatFrameTimer = null; }
+    }
     function _applyGoatClass(stateName) {
+        // Keep "visible" + class hooks for non-sprite styling (eat-walk
+        // background-size override, transform animations for walk-translate).
         ["enter", "stand", "sad", "yes", "no", "eat", "pick",
          "pick-walk", "eat-walk", "win", "win-loop"]
             .forEach(function (s) { goat.classList.remove(s); });
@@ -374,33 +457,89 @@ HND.startApple = function (root, app, unit, onComplete) {
         if (stateName) goat.classList.add(stateName);
         goat.classList.add("visible");
     }
-    // setGoat(state, [onDone]) — sets a state class and, after the per-state
-    // duration, calls onDone (defaults to switching to "stand"). Replaces
-    // any in-flight chain so a later setGoat call cleanly takes over.
-    function setGoat(stateName, onDone) {
-        if (goatChainTimer) { clearTimeout(goatChainTimer); goatChainTimer = null; }
-        _applyGoatClass(stateName);
-        // sad is a static sprite, no timer needed.
-        if (stateName === "sad") return;
-        // "win" has TWO phases per orig (.frm:976-980): play frames 1..8
-        // ONCE (initial cycle, 560 ms), then reset to frame 4 and loop
-        // 4..8 forever (`If TimerGoatFileName = "win" Then TimerGoatCount =
-        // 4`). We achieve this with two separate CSS classes (.win runs
-        // once, .win-loop runs the 4..8 cycle infinite).
-        if (stateName === "win") {
-            goatChainTimer = setTimeout(function () {
-                goatChainTimer = null;
-                _applyGoatClass("win-loop");
-                if (onDone) onDone();
-            }, GOAT_DUR.win);
+    // Cycle through frames of a pose at 70 ms/frame (orig TimerGoatJpg).
+    // opts:
+    //   loopFrom    — index to restart at on overflow (for "win" loop)
+    //   loopForMs   — keep cycling (wrap-around) for this many ms total,
+    //                 then stop + onDone. Used by walks where the position
+    //                 transform animation is longer than one frame cycle
+    //                 — orig TimerGoatBmp loops the sprite cycle for the
+    //                 full walk duration (37 ticks × 70 ms for pick-walk).
+    //   onDone      — called when finished (overflow OR loopForMs expires).
+    function _cycleFrames(pose, opts) {
+        opts = opts || {};
+        const arr = goatFrames[pose];
+        if (!arr || !arr.length) return;
+        let i = 0;
+        showGoatFrame(pose, 0);
+        if (arr.length === 1) {
+            if (opts.onDone) opts.onDone();
             return;
         }
-        const dur = GOAT_DUR[stateName] != null ? GOAT_DUR[stateName] : 700;
-        goatChainTimer = setTimeout(function () {
-            goatChainTimer = null;
-            if (onDone) onDone();
-            else { _applyGoatClass("stand"); }
-        }, dur);
+        // Walk-style: wrap frames continuously for a fixed duration.
+        if (opts.loopForMs) {
+            goatFrameTimer = setInterval(function () {
+                i = (i + 1) % arr.length;
+                showGoatFrame(pose, i);
+            }, 70);
+            goatChainTimer = setTimeout(function () {
+                if (goatFrameTimer) { clearInterval(goatFrameTimer); goatFrameTimer = null; }
+                goatChainTimer = null;
+                if (opts.onDone) opts.onDone();
+            }, opts.loopForMs);
+            return;
+        }
+        // One-shot: play 0..N-1, then onDone (or loopFrom for win).
+        goatFrameTimer = setInterval(function () {
+            i++;
+            if (i >= arr.length) {
+                if (opts.loopFrom != null) {
+                    i = opts.loopFrom;
+                    showGoatFrame(pose, i);
+                } else {
+                    clearInterval(goatFrameTimer);
+                    goatFrameTimer = null;
+                    if (opts.onDone) opts.onDone();
+                }
+                return;
+            }
+            showGoatFrame(pose, i);
+        }, 70);
+    }
+    // setGoat(state, [onDone]) — drives a JS frame-cycle for the state.
+    function setGoat(stateName, onDone) {
+        _stopGoatTimers();
+        _applyGoatClass(stateName);
+        // Static-frame poses — no cycle.
+        if (stateName === "stand") { showGoatFrame("stand", 0); return; }
+        if (stateName === "sad")   { showGoatFrame("sad",   0); return; }
+        // "win" two-phase (orig:976-980): cycle frames 0..7 once, then loop
+        // from frame 3 (= TimerGoatCount=4 in 1-indexed orig) forever.
+        if (stateName === "win") {
+            _cycleFrames("win", { loopFrom: 3 });
+            // No onDone — win is terminal.
+            return;
+        }
+        // Walks — sprite frames LOOP for the full walk duration (matches
+        // orig TimerGoatBmp where TimerGoatBmpCount wraps via
+        // `If TimerGoatBmpCount > FrameN Then TimerGoatBmpCount = 1`
+        // until GoatX < -200). Without looping, the goat would freeze on
+        // its last sprite for ~70% of the position animation.
+        if (stateName === "pick-walk" || stateName === "eat-walk") {
+            _cycleFrames(stateName, {
+                loopForMs: GOAT_DUR[stateName],
+                onDone: onDone,
+            });
+            return;
+        }
+        // Other states (enter, yes, no, eat, pick): play through frames
+        // once, then onDone or fall back to stand.
+        _cycleFrames(stateName, {
+            onDone: function () {
+                if (onDone) onDone();
+                else { _applyGoatClass("stand"); showGoatFrame("stand", 0); }
+            },
+        });
     }
     // "pick" in orig is TWO phases: goat_pick frames at home position
     // (.frm:660-690 — TimerGoatJpg cycles goat_pick1..5), THEN the
@@ -409,7 +548,11 @@ HND.startApple = function (root, app, unit, onComplete) {
     function pickThenWalk(onDone) {
         setGoat("pick", function () {
             setGoat("pick-walk", function () {
-                _applyGoatClass("stand");
+                // Snap goat back to stand pose at home. setGoat() handles
+                // both the class swap AND showing the stand frame —
+                // _applyGoatClass alone leaves the last pick-walk sprite
+                // visible (only the CSS class changed, not the frame).
+                setGoat("stand");
                 if (onDone) onDone();
             });
         });
@@ -612,10 +755,9 @@ HND.startApple = function (root, app, unit, onComplete) {
                 // Orig sequence (.frm:632-694): yes-frames → on overflow,
                 // play CombineQA chain → on chain done, pick-frames → on
                 // overflow, goatani0 walk → on walk done, InitQuestion.
-                const audioCal = Object.assign({}, cal, {
-                    askSide: cal.askSoundSide,
-                    ansSide: cal.ansSoundSide,
-                });
+                // CombineQA uses TEXT sides per orig:951-967 (NOT the
+                // *Sound override fields). cal.askSide/ansSide already
+                // hold these — no override needed.
                 setGoat("yes", function () {
                     // Orig flow (.frm:957-958 + TimerGoatJpg overflow):
                     // After yes-frames overflow, BOTH chains run in parallel:
@@ -641,7 +783,7 @@ HND.startApple = function (root, app, unit, onComplete) {
                         }
                     }
                     // Arm A: audio chain (CombineQA + good[1-3].wav praise).
-                    HND.playCombineFromCal(app.id, unit.id, idx, audioCal,
+                    HND.playCombineFromCal(app.id, unit.id, idx, cal,
                                            arm, { praiseMax: 3 });
                     // Arm B: visual chain (pick-frames → walk → basket place).
                     fadeOutFallenApples();
@@ -694,7 +836,8 @@ HND.startApple = function (root, app, unit, onComplete) {
                             HND.log("apple stage", "0 → 1 (eat-walk end)");
                             state.stage = 1;
                         }
-                        _applyGoatClass("stand");
+                        // Snap to stand pose at home (same fix as pick-walk).
+                        setGoat("stand");
                         state.current++;
                         if (state.current >= QCOUNT) {
                             // Same orig sequence as the correct path: after
@@ -975,7 +1118,12 @@ HND.startApple = function (root, app, unit, onComplete) {
             e.stopPropagation();
             HND.restartGame(app.id, unit.id, "apple");
         });
-        root.appendChild(replayBtn);
+        // Append to the STAGE (sibling of exit/help icons) so positioning
+        // shares the same containing block as those nav buttons — keeps the
+        // CmdRePlay sprite aligned with CmdExit per orig (75/15=5 px to the
+        // right of CmdExit's right edge). Appending inside gameRoot put it
+        // in a different positioning context.
+        (root.parentElement || root).appendChild(replayBtn);
     }
     if (root.parentElement) {
         const helpBtn = root.parentElement.querySelector(".help-icon");

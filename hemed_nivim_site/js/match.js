@@ -106,6 +106,7 @@ HND.startMatch = function (root, app, unit, onComplete) {
         for (let i = 0; i <= 6; i++) names.push("flower2_" + i);
         return HND.preloadFrames(app.id, "GameHatama", names);
     })();
+    HND.fadeInOnReady(root, matchPreload);
 
     // Middle (% of paper width where the left/right split sits) is part of
     // each unit's header — TheUnitFile(14) per GamesMoudle.bas:223. Defaults
@@ -231,15 +232,69 @@ HND.startMatch = function (root, app, unit, onComplete) {
         line.classList.remove("not-answered", "in-focus", "answered", "wrong-flash");
         line.classList.add(stateName);
     }
+    // Goat frame-stack — replaces CSS bg-image keyframes which flashed
+    // between sprite swaps. All look (goatlook0..8), cheer (goatgood_1_0..8),
+    // and win (goatwin0..24) frames mounted as stacked <img>s; only the
+    // current one has opacity:1.
+    const GOAT_BASE = "assets/" + app.id + "/pictures/GameHatama/";
+    const goatFrameUrls = [];
+    const goatFrameMap = { look: [], cheer: [], win: [] };
+    for (let i = 0; i <= 8; i++) {
+        goatFrameMap.look.push(goatFrameUrls.length);
+        goatFrameUrls.push(GOAT_BASE + "goatlook" + i + ".png");
+    }
+    for (let i = 0; i <= 8; i++) {
+        goatFrameMap.cheer.push(goatFrameUrls.length);
+        goatFrameUrls.push(GOAT_BASE + "goatgood_1_" + i + ".png");
+    }
+    // Win cycles even-indexed sprites (orig hatGoatWin keyframes used 0,2,
+    // 4,...,24); we mount only those to keep DOM size sane.
+    for (let i = 0; i <= 24; i += 2) {
+        goatFrameMap.win.push(goatFrameUrls.length);
+        goatFrameUrls.push(GOAT_BASE + "goatwin" + i + ".png");
+    }
+    const goatStack = HND.createFrameStack(goat, goatFrameUrls,
+                                           { className: "hat-goat-frame" });
+    let goatCycleTimer = null;
+    function stopGoatCycle() {
+        if (goatCycleTimer) { clearInterval(goatCycleTimer); goatCycleTimer = null; }
+    }
+    // pose:
+    //   ""        — default look (frame 0)
+    //   "f0..f8"  — look-at-row variant (static frame N)
+    //   "cheer"   — play cheer frames 0..8 once @ 80ms
+    //   "win"     — loop win frames 0..12 @ ~150ms
     function setGoatPose(pose) {
-        // pose: "" (default look) | "f0..f8" (look-at-row) | "cheer" | "win"
-        // Don't remove the base "ctrl" / "hat-goat" classes — only the
-        // dynamic state classes.
-        const KEEP = { ctrl: 1, "hat-goat": 1 };
-        Array.from(goat.classList).forEach(function (c) {
-            if (!KEEP[c]) goat.classList.remove(c);
-        });
-        if (pose) goat.classList.add(pose);
+        stopGoatCycle();
+        if (!pose || pose === "") { goatStack.show(goatFrameMap.look[0]); return; }
+        if (/^f([0-8])$/.test(pose)) {
+            const n = parseInt(pose.slice(1), 10);
+            goatStack.show(goatFrameMap.look[n]);
+            return;
+        }
+        if (pose === "cheer") {
+            let i = 0;
+            goatStack.show(goatFrameMap.cheer[0]);
+            goatCycleTimer = setInterval(function () {
+                i++;
+                if (i >= goatFrameMap.cheer.length) {
+                    stopGoatCycle();
+                    goatStack.show(goatFrameMap.look[0]);
+                    return;
+                }
+                goatStack.show(goatFrameMap.cheer[i]);
+            }, 80);
+            return;
+        }
+        if (pose === "win") {
+            let i = 0;
+            goatStack.show(goatFrameMap.win[0]);
+            goatCycleTimer = setInterval(function () {
+                i = (i + 1) % goatFrameMap.win.length;
+                goatStack.show(goatFrameMap.win[i]);
+            }, 150);
+            return;
+        }
     }
     function setGoatLookRow(i) {
         setGoatPose(i >= 0 ? "f" + i : "");

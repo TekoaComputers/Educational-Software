@@ -44,7 +44,7 @@ HND.startHaklada = function (root, app, unit, onComplete) {
         root.innerHTML = '<div class="error">אין נתוני הקלטה ביחידה זו.</div>';
         return;
     }
-    (function preloadHakladaSprites() {
+    const hakladaPreload = (function preloadHakladaSprites() {
         const names = ["backt", "backtp", "backtt", "backttp", "sound_on", "sound_off",
                        "q_mark"];
         for (let i = 0; i <= 7; i++) names.push("q_mark" + i);
@@ -56,8 +56,9 @@ HND.startHaklada = function (root, app, unit, onComplete) {
             names.push("flower1_" + i); names.push("flower2_" + i); names.push("flower3_" + i);
         }
         for (let i = 0; i <= 3; i++) names.push("flower4_" + i);
-        HND.preloadFrames(app.id, "GameHaklada", names);
+        return HND.preloadFrames(app.id, "GameHaklada", names);
     })();
+    HND.fadeInOnReady(root, hakladaPreload);
 
     // Detect dictation mode from the game-menu slot the user picked.
     // Slot 5 (הקלטה רגילה) = practice → cfg block 2, Slot 6 (הכתבה) =

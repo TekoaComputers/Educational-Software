@@ -588,52 +588,14 @@ body {
     pointer-events: none;
 }
 /* Goat at GoatPic L=10725 T=1620 → (715,108), 85×173 native. */
+/* Hatama goat container — holds stacked <img> frames built by match.js
+   (goatlook0..8, goatgood_1_0..8, goatwin0..24). JS toggles opacity to
+   switch poses; no CSS bg-image swap = no transparent flash. */
 .hat-goat {
     left: 715px; top: 108px; width: 85px; height: 173px;
-    background-image: url("../assets/Hemed/pictures/GameHatama/goatlook.png");
-    background-size: 100% 100%; background-repeat: no-repeat;
     background-color: transparent;
     z-index: 5;
     pointer-events: none;
-}
-.hat-goat.f0 { background-image: url("../assets/Hemed/pictures/GameHatama/goatlook0.png"); }
-.hat-goat.f1 { background-image: url("../assets/Hemed/pictures/GameHatama/goatlook1.png"); }
-.hat-goat.f2 { background-image: url("../assets/Hemed/pictures/GameHatama/goatlook2.png"); }
-.hat-goat.f3 { background-image: url("../assets/Hemed/pictures/GameHatama/goatlook3.png"); }
-.hat-goat.f4 { background-image: url("../assets/Hemed/pictures/GameHatama/goatlook4.png"); }
-.hat-goat.f5 { background-image: url("../assets/Hemed/pictures/GameHatama/goatlook5.png"); }
-.hat-goat.f6 { background-image: url("../assets/Hemed/pictures/GameHatama/goatlook6.png"); }
-.hat-goat.f7 { background-image: url("../assets/Hemed/pictures/GameHatama/goatlook7.png"); }
-.hat-goat.f8 { background-image: url("../assets/Hemed/pictures/GameHatama/goatlook8.png"); }
-.hat-goat.cheer { animation: hatGoatCheer 0.72s steps(1); }
-@keyframes hatGoatCheer {
-    0%   { background-image: url("../assets/Hemed/pictures/GameHatama/goatgood_1_0.png"); }
-    11%  { background-image: url("../assets/Hemed/pictures/GameHatama/goatgood_1_1.png"); }
-    22%  { background-image: url("../assets/Hemed/pictures/GameHatama/goatgood_1_2.png"); }
-    33%  { background-image: url("../assets/Hemed/pictures/GameHatama/goatgood_1_3.png"); }
-    44%  { background-image: url("../assets/Hemed/pictures/GameHatama/goatgood_1_4.png"); }
-    55%  { background-image: url("../assets/Hemed/pictures/GameHatama/goatgood_1_5.png"); }
-    66%  { background-image: url("../assets/Hemed/pictures/GameHatama/goatgood_1_6.png"); }
-    77%  { background-image: url("../assets/Hemed/pictures/GameHatama/goatgood_1_7.png"); }
-    88%  { background-image: url("../assets/Hemed/pictures/GameHatama/goatgood_1_8.png"); }
-    100% { background-image: url("../assets/Hemed/pictures/GameHatama/goatlook.png"); }
-}
-.hat-goat.win { animation: hatGoatWin 2s steps(1) infinite; }
-@keyframes hatGoatWin {
-    0%   { background-image: url("../assets/Hemed/pictures/GameHatama/goatwin0.png"); }
-    4%   { background-image: url("../assets/Hemed/pictures/GameHatama/goatwin2.png"); }
-    8%   { background-image: url("../assets/Hemed/pictures/GameHatama/goatwin4.png"); }
-    12%  { background-image: url("../assets/Hemed/pictures/GameHatama/goatwin6.png"); }
-    16%  { background-image: url("../assets/Hemed/pictures/GameHatama/goatwin8.png"); }
-    20%  { background-image: url("../assets/Hemed/pictures/GameHatama/goatwin10.png"); }
-    25%  { background-image: url("../assets/Hemed/pictures/GameHatama/goatwin12.png"); }
-    30%  { background-image: url("../assets/Hemed/pictures/GameHatama/goatwin14.png"); }
-    35%  { background-image: url("../assets/Hemed/pictures/GameHatama/goatwin16.png"); }
-    42%  { background-image: url("../assets/Hemed/pictures/GameHatama/goatwin18.png"); }
-    50%  { background-image: url("../assets/Hemed/pictures/GameHatama/goatwin20.png"); }
-    62%  { background-image: url("../assets/Hemed/pictures/GameHatama/goatwin22.png"); }
-    75%  { background-image: url("../assets/Hemed/pictures/GameHatama/goatwin24.png"); }
-    100% { background-image: url("../assets/Hemed/pictures/GameHatama/goatwin0.png"); }
 }
 
 /* Flowers on the left stem — Y = 485 - 390/QCount*i; X from FloweX.txt. */
@@ -1321,181 +1283,61 @@ body {
    Both end animations with `forwards`; the next setGoat("stand") removes
    the class and the goat snaps back to its left:629 anchor (= orig
    teleport). Each pose cycles 11 goatani frames over the walk. */
-/* Pick-walk: orig TimerGoatBmp Case 0 moves GoatX -=25/tick after a 4-tick
-   warmup. 829 px distance + warmup ≈ 37 ticks × 70 ms = 2.59 s. */
-.apple-goat.pick-walk { animation: appleGoatWalkLeft 2.59s steps(1) forwards; }
-/* Eat-walk: Case 2 moves -18 px/tick until GoatX<220, then -25/tick.
-   Slower than pick-walk → ~2.80 s. Sprite is NATIVE 170×90 (half the
-   goat box); override background-size to native + bottom-anchor so the
-   smaller sprite sits at GoatY+88 per orig:907 without 2× stretching. */
-.apple-goat.eat-walk  {
-    animation: appleGoatEatWalk 2.80s steps(1) forwards;
-    background-size: 170px 90px;
-    background-position: bottom left;
-}
+/* Walks: position-only transform animations. The sprite frame cycling
+   is JS-driven via the stacked-<img> approach (no CSS bg-image swap).
+   - Pick-walk (Case 0): 829 px / 25 px-per-tick × 70 ms ≈ 2.59 s.
+   - Eat-walk  (Case 2): slower (-18 then -25 px/tick) ≈ 2.80 s. */
+.apple-goat.pick-walk { animation: appleGoatWalkLeft 2.59s linear forwards; }
+.apple-goat.eat-walk  { animation: appleGoatEatWalk  2.80s linear forwards; }
 @keyframes appleGoatWalkLeft {
-    0%   { background-image: url("../assets/Hemed/pictures/GameApple/goatani0_0.png");  transform: translateX(0); }
-    9%   { background-image: url("../assets/Hemed/pictures/GameApple/goatani0_1.png");  transform: translateX(-70px); }
-    18%  { background-image: url("../assets/Hemed/pictures/GameApple/goatani0_2.png");  transform: translateX(-140px); }
-    27%  { background-image: url("../assets/Hemed/pictures/GameApple/goatani0_3.png");  transform: translateX(-220px); }
-    36%  { background-image: url("../assets/Hemed/pictures/GameApple/goatani0_4.png");  transform: translateX(-310px); }
-    45%  { background-image: url("../assets/Hemed/pictures/GameApple/goatani0_5.png");  transform: translateX(-400px); }
-    54%  { background-image: url("../assets/Hemed/pictures/GameApple/goatani0_6.png");  transform: translateX(-490px); }
-    63%  { background-image: url("../assets/Hemed/pictures/GameApple/goatani0_7.png");  transform: translateX(-580px); }
-    72%  { background-image: url("../assets/Hemed/pictures/GameApple/goatani0_8.png");  transform: translateX(-670px); }
-    81%  { background-image: url("../assets/Hemed/pictures/GameApple/goatani0_9.png");  transform: translateX(-720px); }
-    90%  { background-image: url("../assets/Hemed/pictures/GameApple/goatani0_10.png"); transform: translateX(-780px); }
-    100% { background-image: url("../assets/Hemed/pictures/GameApple/goatani0_10.png"); transform: translateX(-820px); }
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-820px); }
 }
-/* Eat-walk frames (GoatAni2_0..7). Native sprite is 170×90; the .eat-walk
-   class sets background-size + bottom-anchor so the sprite sits at
-   GoatY+88 inside the 170×178 box (orig:907 PaintPicture at Y+88). The
-   transform here is pure translateX — Y offset is handled via the bottom
-   background anchor, NOT another transform. After GoatX<220 the orig
-   switches to GoatPic(3) at native Y (not implemented yet — late phase). */
 @keyframes appleGoatEatWalk {
-    0%   { background-image: url("../assets/Hemed/pictures/GameApple/goatani2_0.png"); transform: translateX(0); }
-    12%  { background-image: url("../assets/Hemed/pictures/GameApple/goatani2_1.png"); transform: translateX(-90px); }
-    25%  { background-image: url("../assets/Hemed/pictures/GameApple/goatani2_2.png"); transform: translateX(-180px); }
-    37%  { background-image: url("../assets/Hemed/pictures/GameApple/goatani2_3.png"); transform: translateX(-290px); }
-    50%  { background-image: url("../assets/Hemed/pictures/GameApple/goatani2_4.png"); transform: translateX(-400px); }
-    62%  { background-image: url("../assets/Hemed/pictures/GameApple/goatani2_5.png"); transform: translateX(-520px); }
-    75%  { background-image: url("../assets/Hemed/pictures/GameApple/goatani2_6.png"); transform: translateX(-640px); }
-    87%  { background-image: url("../assets/Hemed/pictures/GameApple/goatani2_7.png"); transform: translateX(-740px); }
-    100% { background-image: url("../assets/Hemed/pictures/GameApple/goatani2_7.png"); transform: translateX(-840px); }
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-840px); }
+}
+/* Eat-walk frame imgs are NATIVE 170×90 (half the goat box height).
+   Anchor them at the BOTTOM of the container so the goat appears at
+   GoatY+88 per orig:907 (carrying off the bad-apple basket). The :is()
+   selector narrows to children of the eat-walk-classed goat. */
+.apple-goat.eat-walk .apple-goat-frame[data-pose="eat-walk"] {
+    top: 88px;
+    height: 90px;
 }
 
-/* Goat at GoatX=629, GoatY=335 — 170×178 native.
-   Hidden by default (opacity:0) per orig: Form_Load doesn't paint the
-   goat; only when Form_Paint enables TimerGoatJpg + TimerGoatBmpAni
-   does the goat appear via the "Enter" frame cycle (after help wave).
-   The .visible class is added by JS on first setGoat() call. */
+/* Goat container at GoatX=629, GoatY=335 — 170×178 native. Holds a
+   STACK of all frame <img> children (built in apple.js). JS toggles
+   which frame has opacity:1; the rest stay loaded in DOM (and in GPU
+   cache) at opacity:0. No CSS background-image swap = no transparent
+   gap between frames showing back.png through.
+   Hidden until first setGoat() per orig Form_Load behavior. */
 .apple-goat {
     left: 629px; top: 335px; width: 170px; height: 178px;
-    background-image: url("../assets/Hemed/pictures/GameApple/goat_stand1.png");
-    background-size: 100% 100%; background-repeat: no-repeat;
-    background-color: transparent;
     z-index: 4;
     pointer-events: none;
     opacity: 0;
 }
 .apple-goat.visible { opacity: 1; }
-/* All per-state animations tick at 70 ms/frame (orig TimerGoatJpg.Interval).
-   Durations = frameCount × 70 ms: enter:9×70=630, yes:8×70=560, no:9×70=630,
-   eat:7×70=490, pick:5×70=350. */
-.apple-goat.enter { animation: appleGoatEnter 0.63s steps(1); }
-/* Idle stand — original cycles goatani1_0 / goatani0_0 etc. We use a
-   subtle vertical-shift breathing motion on the same stand sprite. */
-.apple-goat.stand {
-    background-image: url("../assets/Hemed/pictures/GameApple/goat_stand1.png");
-    animation: appleGoatBreath 3s ease-in-out infinite;
+/* Each stacked frame img — absolute, full-size, hidden by default.
+   The current frame's opacity is set to 1 via JS. No transition (we
+   want instant frame switches, not crossfade). */
+.apple-goat-frame {
+    position: absolute;
+    left: 0; top: 0;
+    width: 170px; height: 178px;
+    opacity: 0;
+    pointer-events: none;
+    user-select: none;
 }
-@keyframes appleGoatBreath {
-    0%, 100% { transform: translateY(0); }
-    50%      { transform: translateY(-1.5px); }
-}
-/* Terminal poses — explicitly clear any residual transform from a prior
-   walk's `forwards` keyframe so the goat returns to its home anchor. */
-.apple-goat.sad   {
-    background-image: url("../assets/Hemed/pictures/GameApple/goat_sad1.png");
-    transform: none !important;
-    animation: none;
-}
-.apple-goat.yes   { animation: appleGoatYes 0.56s steps(1); }
-.apple-goat.no    { animation: appleGoatNo  0.63s steps(1); }
-.apple-goat.eat   { animation: appleGoatEat 0.49s steps(1); }
-.apple-goat.pick  { animation: appleGoatPick 0.35s steps(1); }
-/* Win INITIAL — orig: TimerGoatCount starts at 1, cycles goat_win1..8
-   once at 70 ms/frame (8 × 70 = 560 ms). Plays ONCE. */
-.apple-goat.win   {
-    animation: appleGoatWin 0.56s steps(1) forwards;
-    transform: none;
-}
-/* Win LOOP — orig: after the initial cycle overflows, TimerGoatCount
-   resets to 4 and loops 4..8 forever (5 × 70 = 350 ms). JS swaps from
-   .win to .win-loop after 560 ms via setGoat onDone chain. */
-.apple-goat.win-loop {
-    animation: appleGoatWinLoop 0.35s steps(1) infinite;
-    transform: none;
-}
+/* Sad/win are JS-driven now; classes kept as state hooks for other CSS. */
+.apple-goat.sad   { transform: none !important; animation: none; }
+.apple-goat.win   { transform: none; }
+.apple-goat.win-loop { transform: none; }
 
-@keyframes appleGoatEnter {
-    0%   { background-image: url("../assets/Hemed/pictures/GameApple/goat_enter1.png"); }
-    11%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_enter2.png"); }
-    22%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_enter3.png"); }
-    33%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_enter4.png"); }
-    44%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_enter5.png"); }
-    55%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_enter6.png"); }
-    66%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_enter7.png"); }
-    77%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_enter8.png"); }
-    88%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_enter9.png"); }
-    100% { background-image: url("../assets/Hemed/pictures/GameApple/goat_stand1.png"); }
-}
-@keyframes appleGoatYes {
-    0%   { background-image: url("../assets/Hemed/pictures/GameApple/goat_yes1.png"); }
-    12%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_yes2.png"); }
-    25%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_yes3.png"); }
-    37%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_yes4.png"); }
-    50%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_yes5.png"); }
-    62%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_yes6.png"); }
-    75%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_yes7.png"); }
-    87%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_yes8.png"); }
-    100% { background-image: url("../assets/Hemed/pictures/GameApple/goat_stand1.png"); }
-}
-@keyframes appleGoatNo {
-    0%   { background-image: url("../assets/Hemed/pictures/GameApple/goat_no1.png"); }
-    11%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_no2.png"); }
-    22%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_no3.png"); }
-    33%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_no4.png"); }
-    44%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_no5.png"); }
-    55%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_no6.png"); }
-    66%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_no7.png"); }
-    77%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_no8.png"); }
-    88%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_no9.png"); }
-    100% { background-image: url("../assets/Hemed/pictures/GameApple/goat_stand1.png"); }
-}
-@keyframes appleGoatEat {
-    0%   { background-image: url("../assets/Hemed/pictures/GameApple/goat_eat1.png"); }
-    14%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_eat2.png"); }
-    28%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_eat3.png"); }
-    42%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_eat4.png"); }
-    57%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_eat5.png"); }
-    71%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_eat6.png"); }
-    85%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_eat7.png"); }
-    100% { background-image: url("../assets/Hemed/pictures/GameApple/goat_stand1.png"); }
-}
-@keyframes appleGoatPick {
-    0%   { background-image: url("../assets/Hemed/pictures/GameApple/goat_pick1.png"); }
-    20%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_pick2.png"); }
-    40%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_pick3.png"); }
-    60%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_pick4.png"); }
-    80%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_pick5.png"); }
-    100% { background-image: url("../assets/Hemed/pictures/GameApple/goat_stand1.png"); }
-}
-@keyframes appleGoatWin {
-    0%   { background-image: url("../assets/Hemed/pictures/GameApple/goat_win1.png"); }
-    /* 8 frames over 560 ms, steps(1) — each frame held 70 ms.
-       Boundaries at every 12.5%: 0/12.5/25/37.5/50/62.5/75/87.5/100. */
-    12.5%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_win2.png"); }
-    25%    { background-image: url("../assets/Hemed/pictures/GameApple/goat_win3.png"); }
-    37.5%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_win4.png"); }
-    50%    { background-image: url("../assets/Hemed/pictures/GameApple/goat_win5.png"); }
-    62.5%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_win6.png"); }
-    75%    { background-image: url("../assets/Hemed/pictures/GameApple/goat_win7.png"); }
-    87.5%  { background-image: url("../assets/Hemed/pictures/GameApple/goat_win8.png"); }
-    100%   { background-image: url("../assets/Hemed/pictures/GameApple/goat_win8.png"); }
-}
-/* Win-loop frames 4..8 — orig keeps looping these forever after the
-   initial cycle (TimerGoatCount reset to 4, cycles 4..5..6..7..8..reset). */
-@keyframes appleGoatWinLoop {
-    0%     { background-image: url("../assets/Hemed/pictures/GameApple/goat_win4.png"); }
-    20%    { background-image: url("../assets/Hemed/pictures/GameApple/goat_win5.png"); }
-    40%    { background-image: url("../assets/Hemed/pictures/GameApple/goat_win6.png"); }
-    60%    { background-image: url("../assets/Hemed/pictures/GameApple/goat_win7.png"); }
-    80%    { background-image: url("../assets/Hemed/pictures/GameApple/goat_win8.png"); }
-    100%   { background-image: url("../assets/Hemed/pictures/GameApple/goat_win8.png"); }
-}
-
+/* Per-pose sprite-cycle keyframes deleted — the goat is now JS-driven
+   via stacked <img> opacity toggles (see apple.js _cycleFrames). No
+   CSS background-image swaps = no transparent gap between frames. */
 /* WinGame's BigApple.jpg at (192, 0) — celebration sprite. */
 .apple-big {
     left: 192px; top: 0; width: 410px; height: 384px;

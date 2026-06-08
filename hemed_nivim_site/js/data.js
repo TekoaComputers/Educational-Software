@@ -256,20 +256,64 @@ HND._el = function (tag, opts, kids) {
 // first paint, causing the first keyframe of a CSS animation to render
 // as a blank tile.
 HND._preloaded = {};        // url → { img, promise }
+// Hidden sprite cache — for EACH preloaded URL we keep both:
+//   1) an <img> tag mounted in the DOM (guarantees bitmap stays decoded)
+//   2) a div with `background-image: url(...)` (guarantees the browser has
+//      the texture in the CSS-bg path, which is a separate cache from <img>)
+// The container sits at top:0 with opacity:0 + zero size — IN the viewport
+// (not at top:-9999px which can skip rasterization). The browser fully
+// paints both elements during preload, so per-element first-paint hits
+// the CSS-bg cache instantly without a fetch-decode round trip.
+HND._spriteCache = null;
+function _getSpriteCache() {
+    if (HND._spriteCache) return HND._spriteCache;
+    const c = document.createElement("div");
+    c.id = "hnd-sprite-cache";
+    // Inside viewport so the browser actually rasterizes children. Zero
+    // size + opacity:0 + pointer-events:none keeps it invisible/inert.
+    // Cover the viewport with opacity:0 so children at native sprite size
+    // are within the rasterization area but invisible. overflow:hidden
+    // would cause browsers to skip painting clipped children (and we
+    // need each child to be fully painted to warm GPU textures).
+    c.style.cssText = "position:fixed; left:0; top:0; right:0; bottom:0;" +
+                      "opacity:0; pointer-events:none; z-index:-1;";
+    document.body.appendChild(c);
+    HND._spriteCache = c;
+    return c;
+}
 HND.preload = function (urls) {
     if (!Array.isArray(urls)) urls = [urls];
+    const cache = _getSpriteCache();
     const promises = urls.map(function (url) {
         if (HND._preloaded[url]) return HND._preloaded[url].promise;
+        // <img> tag IN the DOM — forces browser to load + retain bitmap.
         const img = new Image();
+        img.style.cssText = "position:absolute; left:0; top:0; width:1px; height:1px;";
         const p = new Promise(function (resolve) {
             img.onload  = function () {
-                // decode() forces the GPU upload to complete before resolve.
+                // Mount a bg-image div AT NATIVE SIZE so the GPU pre-
+                // rasterizes the texture at the dimensions the real CSS
+                // bg-image will use. A 1×1 cache div makes the GPU store
+                // a 1×1 texture; when a 170×178 element later requests
+                // the same URL, the browser re-rasterizes at the new size
+                // (texture-upload delay) → visible blank frame between
+                // sprite swaps. Native-size cache → instant paint.
+                const w = img.naturalWidth  || 1;
+                const h = img.naturalHeight || 1;
+                const bg = document.createElement("div");
+                bg.style.cssText = "position:absolute; left:0; top:0; " +
+                    "width:"  + w + "px; height:" + h + "px;" +
+                    "background-image:url('" + url + "');" +
+                    "background-size:" + w + "px " + h + "px;";
+                cache.appendChild(bg);
+                // decode() forces the bitmap decode to complete.
                 if (img.decode) img.decode().then(resolve, resolve);
                 else resolve();
             };
             img.onerror = function () { resolve(); };   // never reject — flicker > crash
         });
         img.src = url;
+        cache.appendChild(img);
         HND._preloaded[url] = { img: img, promise: p };
         return p;
     });
@@ -285,6 +329,145 @@ HND.preloadFrames = function (appId, dir, names) {
     const root = "assets/" + appId + "/pictures/" + dir + "/";
     const list = names.map(function (n) { return root + n + ".png"; });
     return HND.preload(list);
+};
+
+// Boot-time / menu-time preload — warms the browser cache for ALL game
+// sprite sets so per-game entry doesn't pay the fetch+decode cost. Call
+// from the game-menu screen (user typically spends ≥1 s picking a game,
+// giving the network + GPU enough time to finish in the background).
+// Idempotent: HND.preload caches each URL so re-calls are cheap.
+HND.preloadAllGameSprites = function (appId) {
+    const out = [];
+    // Apple — GameApple/
+    const appleNames = ["back", "loah", "middle", "foliage", "bigapple"];
+    for (let i = 0; i <= 7; i++) appleNames.push("applered" + i);
+    for (let i = 0; i <= 7; i++) appleNames.push("appleyellow" + i);
+    for (let i = 0; i <= 6; i++) appleNames.push("q_mark" + i);
+    appleNames.push("goat_stand1", "goat_sad1");
+    for (let i = 1; i <= 9; i++) appleNames.push("goat_enter" + i);
+    for (let i = 1; i <= 5; i++) appleNames.push("goat_pick" + i);
+    for (let i = 1; i <= 7; i++) appleNames.push("goat_eat" + i);
+    for (let i = 1; i <= 8; i++) appleNames.push("goat_yes" + i);
+    for (let i = 1; i <= 9; i++) appleNames.push("goat_no" + i);
+    for (let i = 1; i <= 8; i++) appleNames.push("goat_win" + i);
+    for (let i = 0; i <= 10; i++) appleNames.push("goatani0_" + i);
+    for (let i = 0; i <= 7; i++) appleNames.push("goatani2_" + i);
+    out.push(HND.preloadFrames(appId, "GameApple", appleNames));
+    // Haklada — GameHaklada/ (also used by american for shared goat/flower)
+    const hakNames = ["backt", "backtp", "backtt", "backttp", "sound_on", "sound_off", "q_mark"];
+    for (let i = 0; i <= 7; i++) hakNames.push("q_mark" + i);
+    if (HND.GOAT_FRAMES) {
+        for (let s = 0; s < HND.GOAT_FRAMES.length; s++)
+            for (let f = 0; f < HND.GOAT_FRAMES[s]; f++)
+                hakNames.push("goat" + s + "_" + f);
+    }
+    for (let i = 0; i <= 9; i++) {
+        hakNames.push("flower1_" + i); hakNames.push("flower2_" + i); hakNames.push("flower3_" + i);
+    }
+    for (let i = 0; i <= 3; i++) hakNames.push("flower4_" + i);
+    out.push(HND.preloadFrames(appId, "GameHaklada", hakNames));
+    // American — GameAmerican/
+    const amNames = ["back", "frame", "framefocus", "text", "textfocus", "sound", "sound_on", "hetzright0_1"];
+    for (let i = 1; i <= 5; i++) amNames.push("hetzright1_" + i);
+    for (let i = 1; i <= 8; i++) amNames.push("hetzright2_" + i);
+    out.push(HND.preloadFrames(appId, "GameAmerican", amNames));
+    // Match (Hatama) — GameHatama/
+    const mNames = ["back", "linesleft", "linesright", "linesfull", "goatlook"];
+    for (let i = 0; i <= 9; i++) mNames.push("goatlook" + i);
+    for (let i = 0; i <= 6; i++) mNames.push("goatenter" + i);
+    for (let i = 0; i <= 8; i++) mNames.push("goatgood_1_" + i);
+    for (let i = 0; i <= 24; i++) mNames.push("goatwin" + i);
+    for (let i = 0; i <= 9; i++) mNames.push("flower0_" + i);
+    for (let i = 0; i <= 9; i++) mNames.push("flower1_" + i);
+    for (let i = 0; i <= 6; i++) mNames.push("flower2_" + i);
+    out.push(HND.preloadFrames(appId, "GameHatama", mNames));
+    // Connect — GameConnect/
+    out.push(HND.preloadFrames(appId, "GameConnect", [
+        "box", "box2", "ball", "not",
+        "star_0", "star_1", "star_2", "star_3",
+        "smallstar_0", "smallstar_1", "smallstar_2", "smallstar_3",
+    ]));
+    // Hakira — GameHakira/ (sprite list per hakira.js preload)
+    out.push(HND.preloadFrames(appId, "GameHakira", [
+        "back", "picback", "line", "line2",
+        "scroll0", "scroll1", "scroll2", "scroll3", "scroll4", "scroll5",
+        "next_off", "next_on", "next_down",
+        "reset_off", "reset_on", "reset_down",
+    ]));
+    return Promise.all(out);
+};
+
+// Build a stacked-<img> frame container inside `parent`. Each URL becomes
+// an <img> child at absolute (0,0) covering the parent, opacity 0 by
+// default. Returns a `show(idx)` function that toggles which child is
+// visible (others stay loaded → GPU keeps all textures warm → frame
+// switching is instant, no fetch/decode/upload gap, no transparent
+// flash showing the parent's background through).
+//
+// Use this in place of CSS `@keyframes { N% { background-image: url(...) } }`
+// sprite cycles, which always flash between frames because the browser
+// invalidates the bg-image cache on every URL change.
+//
+//   const frames = HND.createFrameStack(parent, ["a.png","b.png","c.png"]);
+//   frames.show(0);       // show first frame
+//   frames.show(2);       // jump to third
+//   frames.show(-1);      // hide all
+//   frames.count;         // number of frames
+//
+// opts:
+//   className   — class for each <img> (default "hnd-frame")
+//   frameStyle  — extra CSS appended to each <img>.style.cssText
+HND.createFrameStack = function (parent, urls, opts) {
+    opts = opts || {};
+    const imgs = [];
+    const baseStyle = "position:absolute;left:0;top:0;width:100%;height:100%;" +
+                      "opacity:0;pointer-events:none;user-select:none;";
+    urls.forEach(function (url) {
+        const img = document.createElement("img");
+        img.src = url;
+        img.className = opts.className || "hnd-frame";
+        img.draggable = false;
+        img.style.cssText = baseStyle + (opts.frameStyle || "");
+        imgs.push(img);
+        parent.appendChild(img);
+    });
+    let current = -1;
+    return {
+        count: imgs.length,
+        imgs: imgs,
+        show: function (n) {
+            if (n === current) return;
+            if (current >= 0 && imgs[current]) imgs[current].style.opacity = "0";
+            if (n >= 0 && n < imgs.length) imgs[n].style.opacity = "1";
+            current = n;
+        },
+    };
+};
+
+// Hide a game's root during its initial paint, then fade it in once all
+// the preloaded sprites/backgrounds are decoded. Eliminates the first-
+// frame flash where background-image fetches haven't completed before the
+// browser commits the first frame.
+//   root            — game's root element (the .game-stage child)
+//   readyPromise    — Promise resolved when preload complete
+//   delayMs         — extra delay AFTER preload (default 30ms — one extra
+//                     animation frame so layout settles before the fade)
+//   transitionMs    — fade-in duration (default 180ms)
+// Safe to call multiple times; only the first call attaches the transition.
+HND.fadeInOnReady = function (root, readyPromise, delayMs, transitionMs) {
+    if (!root || root._hndFadeInBound) {
+        // Just chain on the promise — root already gated.
+        return readyPromise || Promise.resolve();
+    }
+    root._hndFadeInBound = true;
+    const fadeMs = transitionMs != null ? transitionMs : 180;
+    const wait   = delayMs != null ? delayMs : 30;
+    root.style.opacity = "0";
+    root.style.transition = "opacity " + fadeMs + "ms ease-out";
+    const p = (readyPromise && readyPromise.then) ? readyPromise : Promise.resolve();
+    return p.then(function () {
+        setTimeout(function () { root.style.opacity = "1"; }, wait);
+    });
 };
 
 HND._shuffle = function (arr) {

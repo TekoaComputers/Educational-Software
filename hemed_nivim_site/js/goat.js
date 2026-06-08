@@ -61,6 +61,23 @@ HND.createGoat = function (opts) {
 
     const goat = HND._el("div", { class: "ctrl " + (opts.className || "hak-goat") });
     opts.root.appendChild(goat);
+    // Build stacked <img> frames for every (status, frame) combination.
+    // Keeping every sprite mounted as a real DOM element guarantees the
+    // browser holds each texture in GPU cache → frame switching is just
+    // an opacity toggle, no fetch/decode/upload, no transparent flash
+    // showing the parent's background through. Replaces the old
+    // `goat.style.backgroundImage = ...` swap which suffered the same
+    // fundamental flash as CSS @keyframes bg-image swaps.
+    // Layout: rows by status; cols by frame. Flat URL list + offset map.
+    const frameOffsets = [];   // status → start index in URL list
+    const frameUrls = [];
+    for (let s = 0; s < HND.GOAT_FRAMES.length; s++) {
+        frameOffsets.push(frameUrls.length);
+        for (let f = 0; f < HND.GOAT_FRAMES[s]; f++) {
+            frameUrls.push(SPRITE_BASE + "goat" + s + "_" + f + ".png");
+        }
+    }
+    const goatStack = HND.createFrameStack(goat, frameUrls, { className: "hnd-goat-frame" });
 
     const state = {
         status: 0,
@@ -85,13 +102,12 @@ HND.createGoat = function (opts) {
         goat.style.left = state.x + "px";
         goat.style.top  = state.y + "px";
         goat.style.transform = state.flip ? "scaleX(-1)" : "";
-        // Dedupe — re-assigning the same URL each tick causes brief
-        // sub-frame flashes on some browsers.
-        const src = SPRITE_BASE + "goat" + state.status + "_" + state.frame + ".png";
-        if (goat._lastSrc !== src) {
-            goat.style.backgroundImage = "url('" + src + "')";
-            goat._lastSrc = src;
-        }
+        // Show the current (status, frame) via the frame-stack — flat-
+        // index lookup, then opacity toggle inside the stack (no bg-image
+        // swap, no flash).
+        const idx = frameOffsets[state.status] + Math.min(
+            state.frame, HND.GOAT_FRAMES[state.status] - 1);
+        goatStack.show(idx);
     }
 
     function targetX(qIdx) {

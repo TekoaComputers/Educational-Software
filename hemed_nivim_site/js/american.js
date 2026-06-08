@@ -36,12 +36,12 @@ HND.startAmerican = function (root, app, unit, onComplete) {
         root.innerHTML = '<div class="error">צריך לפחות 4 פריטים למשחק אמריקאי.</div>';
         return;
     }
-    (function preloadAmericanSprites() {
+    const americanPreload = (function preloadAmericanSprites() {
         const names = ["back", "frame", "framefocus", "text", "textfocus", "sound", "sound_on"];
         for (let i = 1; i <= 5; i++) names.push("hetzright1_" + i);
         for (let i = 1; i <= 8; i++) names.push("hetzright2_" + i);
         names.push("hetzright0_1");
-        HND.preloadFrames(app.id, "GameAmerican", names);
+        const p1 = HND.preloadFrames(app.id, "GameAmerican", names);
         // Shared flower + goat sprites from GameHaklada. Orig
         // GameAmerican.frm:348-358 loads GoatPic(0..6) from
         // PicPath\gamehaklada\goat<i>_* — same assets as Haklada.
@@ -53,8 +53,10 @@ HND.startAmerican = function (root, app, unit, onComplete) {
         for (let s = 0; s < HND.GOAT_FRAMES.length; s++)
             for (let f = 0; f < HND.GOAT_FRAMES[s]; f++)
                 sharedNames.push("goat" + s + "_" + f);
-        HND.preloadFrames(app.id, "GameHaklada", sharedNames);
+        const p2 = HND.preloadFrames(app.id, "GameHaklada", sharedNames);
+        return Promise.all([p1, p2]);
     })();
+    HND.fadeInOnReady(root, americanPreload);
 
     // Original American has 3 modes mapped to GameMenu slots 2/3/4:
     //   slot 2 → "לפי קול"    (by sound — Q-side wave-only, no Q text)
