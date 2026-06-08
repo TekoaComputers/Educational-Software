@@ -6,6 +6,23 @@
     <title>Kesem</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="../main_site_assets/feedback.js"></script>
+    <!-- Deep-link no-flash: if the URL already names an app (#/Brahot, etc.)
+         hide the selector + heading before first paint so the user sees the
+         deep-linked app directly. Without this, the static <h1>+nav.app-grid
+         below paints for ~50-200ms before kesem.bundle.js runs showApp() and
+         hides them. The bundle's showSelector() removes this attribute when
+         the user navigates back to the selector. -->
+    <script>
+        if (location.hash && /^#\//.test(location.hash)) {
+            document.documentElement.dataset.kesemDeeplink = "1";
+        }
+    </script>
+    <style>
+        html[data-kesem-deeplink] main h1,
+        html[data-kesem-deeplink] .app-grid { display: none; }
+        html[data-kesem-deeplink] body { background: #000; overflow: hidden; }
+        html[data-kesem-deeplink] main { max-width: none; padding: 0; height: 100vh; }
+    </style>
 </head>
 <body>
     <main>

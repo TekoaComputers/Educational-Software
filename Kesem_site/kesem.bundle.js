@@ -1620,6 +1620,9 @@ function showSelector() {
     if (heading)  heading.hidden  = false;
     if (root) root.innerHTML = "";
     document.body.classList.remove("app-mode");
+    // Clear the no-flash deep-link attribute set by the inline script in
+    // index.html so the selector + heading CSS-hide is released.
+    delete document.documentElement.dataset.kesemDeeplink;
     if (currentSession && currentSession._audio) {
         try { currentSession._audio.pause(); } catch (e) {}
     }
