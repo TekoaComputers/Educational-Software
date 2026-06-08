@@ -238,11 +238,64 @@ def main():
                 rama_slots.append(entry)
             if rama_slots:
                 result["ramas"][rama] = {"slots": rama_slots}
+        # Full MASLUL directory listing — emit every .MAS file with its
+        # parsed header + stages (with .RAS hotspots resolved). Mirrors the
+        # original VB6 Sst.frm ListSubDirs(MASLUL/) used to populate the
+        # song picker (Ivrit's Picture2 List1), and also surfaces .MAS
+        # files that no CHBOX*.INI references (e.g. Ivrit ships 44 .MAS
+        # files but CHBOX1/2 list broken single-digit filenames and
+        # CHBOX3/4 only cover ~12 of them — sections 20-27 etc. exist on
+        # disk but never made it into our paths data before).
+        all_maslul = []
+        all_stage_count = 0
+        all_hot = 0
+        if maslul and maslul.is_dir():
+            mas_files = []
+            for p in sorted(maslul.iterdir()):
+                if p.is_file() and p.suffix.lower() == ".mas":
+                    mas_files.append(p)
+            # Sort by numeric prefix (00.MAS < 10.MAS < ...) — that's how
+            # the original ListSubDirs displays them (Dir() returns files
+            # in filesystem order, but the original further uses the BliMas
+            # stripped name which is numeric).
+            def _key(p):
+                stem = p.stem
+                try:    return (0, int(stem), stem)
+                except: return (1, 0, stem.lower())
+            mas_files.sort(key=_key)
+            for p in mas_files:
+                mas = parse_mas(p)
+                if not mas:
+                    continue
+                entry = {
+                    "masFile": p.name,
+                    "name": mas["header"].get("pathName") or p.stem,
+                    "header": mas["header"],
+                    "stages": mas["stages"],
+                }
+                for st in entry["stages"]:
+                    all_stage_count += 1
+                    if not rasb or not st.get("razNom"):
+                        continue
+                    for ext in (".RAS", ".ras"):
+                        cand = rasb / f"{st['razNom']}{ext}"
+                        if cand.exists():
+                            recs = parse_ras(cand)
+                            if recs:
+                                st["hotspots"] = recs
+                                all_hot += len(recs)
+                            break
+                all_maslul.append(entry)
+        if all_maslul:
+            result["maslul"] = all_maslul
+
         out = out_dir / f"{app}.json"
         out.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
         total = sum(len(r["slots"]) for r in result["ramas"].values())
         print(f"  {app}: {len(result['ramas'])} rama(s), {total} slot(s), "
-              f"{stage_count} stages, {total_hot} hotspots -> {out.name}")
+              f"{stage_count} stages, {total_hot} hotspots, "
+              f"maslul={len(all_maslul)} files / {all_stage_count} stages / {all_hot} hotspots "
+              f"-> {out.name}")
 
 
 if __name__ == "__main__":

@@ -65,6 +65,11 @@ function actionFor(ctrl, appId) {
     if (name === "activ")      return `activ:${idx}`;
     if (name === "bac")        return "ivrit:back";
     if (name === "cmdexit")    return "exit";
+    // Ivrit Sst.frm Credit_Click: loads CreditPic.Picture = credit.jpg,
+    // CreditPic.Visible = True (full-screen credit banner). CreditPic_Click
+    // hides it again. Both are Ivrit-only — no other app has these controls.
+    if (appId === "Ivrit" && name === "Credit")    return "credit:show";
+    if (appId === "Ivrit" && name === "CreditPic") return "credit:hide";
     // Heshbon Sst.hyju_Click → Ezia. hyju is a small "power off" Label
     // tucked at the top-right of the form. Its tooltip is "כיבוי" (shutdown).
     if (name === "hyju")       return "exit";

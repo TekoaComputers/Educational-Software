@@ -898,37 +898,37 @@ function paintIvritActivityIcons(state) {
     });
 }
 
-// Build the List1 song picker from paths data. The original scans
-// MASLUL/<*.MAS> via ListSubDirs and pairs each filename with the song's
-// title (5th line of the .MAS). Our parse_paths already extracted those
-// triples into paths.json — flatten across ramas and dedupe by masFile.
+// Build the List1 song picker. Original Ivrit Sst.frm ListSubDirs scans
+// the MASLUL/ directory directly (Dir() call at .frm:1869) and adds every
+// .MAS filename as a List1 row, then for each row reads the .MAS's 5th
+// line (the song title) via GetShm. Our parse_paths emits the same set
+// in paths.maslul (full directory enumeration with parsed header +
+// stages + hotspots). Use that.
+//
+// Earlier the port dedupe-flattened paths.ramas instead — that source
+// is CHBOX*.INI-derived, missing every .MAS not referenced by any CHBOX
+// (Ivrit's CHBOX1/2 also have broken single-digit filenames that don't
+// exist on disk). The user saw "only ~22 sections, 20-27 entirely
+// missing." Switching to paths.maslul restores the original behaviour.
 function populateIvritSongList(state) {
     const stage = state.stage;
     const list = stage.querySelector(".frm-ctrl--List1");
     if (!list) return;
 
     const paths = state.paths;
-    const seen = {};
-    const items = [];
-    if (paths && paths.ramas) {
-        Object.keys(paths.ramas).forEach(function (ramaKey) {
-            const slots = paths.ramas[ramaKey].slots || [];
-            slots.forEach(function (s) {
-                const mas = (s.masFile || "").toLowerCase();
-                if (!mas || seen[mas]) return;
-                seen[mas] = true;
-                items.push({
-                    rama: ramaKey,
-                    idx: s.idx,
-                    masFile: s.masFile,
-                    name: s.name || (s.header && s.header.pathName) || mas,
-                    pic: (s.stages && s.stages.length) ? s.stages[0].pic : null,
-                });
-            });
-        });
-    }
+    const items = ((paths && paths.maslul) || []).map(function (s) {
+        return {
+            masFile: s.masFile,
+            name: s.name || (s.header && s.header.pathName) || s.masFile,
+            pic: (s.stages && s.stages.length) ? s.stages[0].pic : null,
+            // Carry the full parsed slot so startIvritSelectedSong can route
+            // through it without re-touching CHBOX (matches the original
+            // PutGFile ni=1 path which opens MASLUL\<lal> directly).
+            slot: s,
+        };
+    });
     items.sort(function (a, b) {
-        // Sort by numeric prefix of masFile (e.g. "00.mas" < "10.mas").
+        // Sort by numeric prefix of masFile (e.g. "00.MAS" < "10.MAS").
         const ai = parseInt(a.masFile, 10);
         const bi = parseInt(b.masFile, 10);
         if (!isNaN(ai) && !isNaN(bi)) return ai - bi;
@@ -963,6 +963,12 @@ function populateIvritSongList(state) {
             selectIvritSong(state, i);
             startIvritSelectedSong(state);
         });
+        // Right-click (List1_MouseDown Button=2 in the original) clears
+        // the preview and re-shows the column headers.
+        li.addEventListener("contextmenu", function (e) {
+            e.preventDefault();
+            unselectIvritSong(state);
+        });
         ul.appendChild(li);
     });
     list.appendChild(ul);
@@ -981,13 +987,19 @@ function selectIvritSong(state, i) {
     list.querySelectorAll("li").forEach(function (li) {
         li.style.background = (parseInt(li.dataset.idx, 10) === i) ? "#fff4a3" : "";
     });
-    // Update the preview image (pri) with the first-stage thumbnail —
-    // port of Sst.priview(d(idx)) which opens the maslul's .MAS and pulls
-    // out the first stage's pic to populate Pics_F2.
+    // Mirror Sst.frm List1_Click exactly:
+    //   pri.Visible = True
+    //   lblPirut.Visible = False
+    //   pri.Picture = LoadPicture(Pics_F2)   ' first-stage preview
+    // Earlier the port ALSO wrote item.name into lblPirut on top of the
+    // .frm's hardcoded "גזירה / פעילות / תמונה" headers (issue #24:
+    // "black font overlayed on where the actual text is supposed to be").
     const item = (state.ivritSongs || [])[i];
     const stage = state.stage;
     const pri = stage.querySelector(".frm-ctrl--pri");
+    const pirut = stage.querySelector(".frm-ctrl--lblPirut");
     if (pri && item && item.pic) {
+        pri.style.display = "";
         let img = pri.querySelector("img.frm-img");
         if (!img) {
             img = document.createElement("img");
@@ -996,31 +1008,32 @@ function selectIvritSong(state, i) {
         }
         img.src = state.config.assetsRoot + "/bmp/" + item.pic.toLowerCase().replace(/\.bmp$/, ".png");
     }
-    // Update lblPirut caption with mas + title (the original sets it on
-    // List1_Click → Mhshv_Pirut). Useful as a status line beneath the list.
+    if (pirut) pirut.style.display = "none";
+}
+
+// Mirror Sst.frm List1_MouseDown Button=2 (right-click): clear the
+// preview and re-show the column headers. Wired from the list <li>
+// contextmenu so the user can re-expose the headers without leaving
+// the picker.
+function unselectIvritSong(state) {
+    const stage = state.stage;
+    const pri   = stage.querySelector(".frm-ctrl--pri");
     const pirut = stage.querySelector(".frm-ctrl--lblPirut");
-    if (pirut && item) {
-        let cap = pirut.querySelector(".ivrit-pirut");
-        if (!cap) {
-            cap = document.createElement("span");
-            cap.className = "ivrit-pirut";
-            Object.assign(cap.style, {
-                position: "absolute", inset: "0",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                color: "#222", font: "bold 13px Arial, sans-serif",
-                pointerEvents: "none", direction: "rtl",
-            });
-            pirut.appendChild(cap);
-        }
-        cap.textContent = item.name;
-    }
+    if (pri)   pri.style.display   = "none";
+    if (pirut) pirut.style.display = "";
 }
 
 function startIvritSelectedSong(state) {
     const item = (state.ivritSongs || [])[state.ivritSelected];
     if (!item) { klog("ivrit: no song selected"); return; }
-    state.rama = item.rama;
-    startPath(state, item.idx);
+    // Original Sst.list1_DblClick: ni = 1; lal = d(idx); PutGFile 1;
+    // BeginGame; StartGames 40. PutGFile with ni=1 opens MASLUL\<lal>
+    // DIRECTLY — does not use CHBOX. Port: route through the existing
+    // startPath but with the maslul slot stamped onto state as an
+    // override so currentRamaSlots returns it.
+    state._activeSlotOverride = item.slot;
+    state.rama = state.config.activityRamaPin || state.rama;
+    startPath(state, 0);
 }
 
 // Shirim / Shirim&Meshalim: initial Sst view shows BookIndex (chapter
@@ -1745,6 +1758,7 @@ function handleAction(appId, action /*, ctrl */) {
                     currentSession.currentStageIdx = 0;
                     currentSession.activeStage = null;
                     currentSession.pathScore = null;
+                    currentSession._activeSlotOverride = null;
                     setScreen(currentSession, "sst");
                 };
                 if (showScore && slot) showNikod(currentSession, slot, goSst);
@@ -1940,6 +1954,24 @@ function handleAction(appId, action /*, ctrl */) {
         // the user back to the song picker.
         if (!currentSession) return;
         showIvritView(currentSession, "picker");
+        return;
+    }
+    if (action === "credit:show") {
+        // Sst.Credit_Click (Ivrit only): CreditPic.Picture = credit.jpg +
+        // CreditPic.Visible = True. CreditPic has AutoSize=-1 so it grows
+        // to credit.png's natural 640x480 — i.e. a full-screen banner.
+        if (!currentSession) return;
+        const cp = currentSession.stage.querySelector(".frm-ctrl--CreditPic");
+        if (cp) { cp.style.display = ""; cp.style.zIndex = "500"; }
+        klog("ivrit: show credit");
+        return;
+    }
+    if (action === "credit:hide") {
+        // Sst.CreditPic_Click: CreditPic.Visible = False.
+        if (!currentSession) return;
+        const cp = currentSession.stage.querySelector(".frm-ctrl--CreditPic");
+        if (cp) cp.style.display = "none";
+        klog("ivrit: hide credit");
         return;
     }
     if (action && action.indexOf("book:") === 0) {
@@ -2537,6 +2569,10 @@ function confirmExit(onYes) {
 function currentRamaSlots(state) {
     const paths = state.paths;
     if (!paths) return null;
+    // _activeSlotOverride: a one-off slot stamped by the Ivrit picker so
+    // the song chosen from List1 plays directly from its parsed maslul
+    // data instead of routing through CHBOX (mirrors PutGFile ni=1).
+    if (state._activeSlotOverride) return [state._activeSlotOverride];
     // Some apps' LoadCh ignores rama and pins to a specific .INI (Dvash uses
     // ChBox4.ini for all rama). Honor the `activityRamaPin` config override.
     const r = String(state.config.activityRamaPin || state.rama);
@@ -4214,6 +4250,7 @@ function advanceStage(state) {
                 state.currentStageIdx = 0;
                 state.activeStage = null;
                 state.pathScore = null;
+                state._activeSlotOverride = null;
                 setScreen(state, "sst");
             });
         });
@@ -4721,6 +4758,7 @@ function handleKey(e) {
                     currentSession.currentPath = null;
                     currentSession.currentStageIdx = 0;
                     currentSession.activeStage = null;
+                    currentSession._activeSlotOverride = null;
                     setScreen(currentSession, "sst");
                 },
                 null

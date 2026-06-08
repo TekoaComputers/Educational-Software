@@ -28,6 +28,11 @@ export default {
                 Picture2: "assets/Ivrit/menu/sta1.png",
                 mahak:    "assets/Ivrit/menu/mhak.png",
                 bac:      "assets/Ivrit/menu/ba.png",
+                // Credit banner — Credit_Click in the original sets
+                // CreditPic.Picture = LoadPicture(\menu\jpg\credit.jpg) and
+                // CreditPic.Visible = True. CreditPic has AutoSize=-1 so it
+                // resizes to credit.png's natural 640x480 (full-screen).
+                CreditPic: "assets/Ivrit/menu/credit.png",
                 activ: [
                     "assets/Ivrit/menu/ok1.png",
                     "assets/Ivrit/menu/las1.png",
