@@ -397,7 +397,16 @@
                 else renderHotspots();
                 return;
             }
-            playAnim(stage, entry.anim, {
+            // Decorative hotspots (clock, window, bell, surprise, "kid
+            // playing the game" / frog) have no route — the click just plays
+            // a small localized effect (eff/fok*.mp4 etc.) and returns. Without
+            // a clipRect those videos fill the whole hub at object-fit:cover,
+            // painting over everything else and changing the apparent
+            // resolution (issue #28: clicking the frog "swaps out furniture
+            // on the bottom right" and "changes the resolution"). Route-bearing
+            // hotspots (instruments / pazel / quiz / songs) play their
+            // full-screen transition anim as before.
+            const opts = {
                 sound: entry.sound || "",
                 onEnd: () => {
                     if (effectiveRoute) {
@@ -407,7 +416,16 @@
                         renderHotspots();
                     }
                 },
-            });
+            };
+            if (!effectiveRoute) {
+                opts.clipRect = {
+                    x: h.x * SCALE,
+                    y: h.y * SCALE,
+                    w: h.w * SCALE,
+                    h: h.h * SCALE,
+                };
+            }
+            playAnim(stage, entry.anim, opts);
         }
 
         const ret = consumePendingReturn("m0");
