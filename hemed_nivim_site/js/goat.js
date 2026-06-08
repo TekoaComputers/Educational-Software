@@ -47,6 +47,17 @@ HND.createGoat = function (opts) {
     const flowerY = opts.flowerY;
     const QCOUNT  = opts.QCOUNT;
     const yOffset = opts.yOffset != null ? opts.yOffset : -55;
+    // Optional callback to snap a bloom for ANY prior flower to its final
+    // frame (orig TimerGoat:758-764 + :780 + :790-797 finalize earlier
+    // rows when the goat crosses a row break). If omitted, finalization
+    // is a no-op (current haklada behavior pre-this-change).
+    const bloomFinalizer = opts.bloomFinalizer || function () {};
+    // Orig TimerGoat:712-714 `LineXChange = FlowerSpace + 5 = 70` when the
+    // current target is on the middle row (Current 11..22, 0-indexed 10..21).
+    // Allow callers to opt in/out / override. Default ON, range matches orig.
+    const xShift     = opts.lineXChange != null ? opts.lineXChange : 70;
+    const midRowMin  = opts.midRowMin != null ? opts.midRowMin : 10;
+    const midRowMax  = opts.midRowMax != null ? opts.midRowMax : 21;
 
     const goat = HND._el("div", { class: "ctrl " + (opts.className || "hak-goat") });
     opts.root.appendChild(goat);
@@ -83,7 +94,11 @@ HND.createGoat = function (opts) {
         }
     }
 
-    function targetX(qIdx) { return flowerX(Math.min(qIdx, QCOUNT - 1)); }
+    function targetX(qIdx) {
+        const i = Math.min(qIdx, QCOUNT - 1);
+        const shift = (i >= midRowMin && i <= midRowMax) ? xShift : 0;
+        return flowerX(i) - shift;
+    }
     function targetY(qIdx) { return flowerY(Math.min(qIdx, QCOUNT - 1)) + yOffset; }
 
     function tick() {
@@ -121,6 +136,28 @@ HND.createGoat = function (opts) {
         if (status === 6 && state.frame > 14 && state.frame < 17) {
             state.y += 5;
             state.x += state.winShiftDir;
+        }
+        // ===== Status 6 final-flower commit (orig TimerGoat:751-758) =====
+        // At frame 16 the last-touched flower (targetIdx-1) is snapped to
+        // its final frame so the win-hop doesn't leave it mid-bloom.
+        if (status === 6 && state.frame === 16) {
+            bloomFinalizer(state.targetIdx - 1);
+        }
+        // ===== Row-cross flower finalization (orig TimerGoat:780-797) =====
+        // On the row-cross frames, the prior row's flowers are snapped to
+        // their final frame so the goat doesn't leave them mid-bloom while
+        // walking the new row.
+        if ((status === 1 || status === 2 || status === 5) && state.rowChange) {
+            //  frame 9 → finalize the just-vacated flower(targetIdx-1)
+            if (state.frame === 9) {
+                bloomFinalizer(state.targetIdx - 1);
+            }
+            //  frame FrameN → sweep-finalize the WHOLE prior row
+            if (state.frame === frames) {
+                for (let i = state.targetIdx - 12; i <= state.targetIdx - 2; i++) {
+                    if (i >= 0) bloomFinalizer(i);
+                }
+            }
         }
 
         // ===== Frame overflow / state transition =====

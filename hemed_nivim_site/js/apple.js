@@ -103,6 +103,8 @@ HND.startApple = function (root, app, unit, onComplete) {
         // 0 errors — draw basket sprite N=0".
         stage: 0,             // 0 = red + basket0_N; 1 = yellow + basket1_N
         baskets: [],          // [qIdx] → null | errors-that-question
+        basketStages: [],     // [qIdx] → null | stage AT TIME OF PLACEMENT
+                              // (so a later stage flip doesn't recolor history)
         // Per-question banned-key set. Original GameApple.frm:593:
         //   If BannedChars(KeyCode) = True Then Exit Sub
         //   Else BannedChars(KeyCode) = True
@@ -111,7 +113,10 @@ HND.startApple = function (root, app, unit, onComplete) {
         // no goat reaction. Reset on InitQuestion (.frm:461 ReDim).
         bannedKeys: new Set(),
     };
-    for (let i = 0; i < QCOUNT; i++) state.baskets.push(null);
+    for (let i = 0; i < QCOUNT; i++) {
+        state.baskets.push(null);
+        state.basketStages.push(null);
+    }
     HND.log("apple start", app.id + "/" + unit.id, "items=" + items.length, "QCOUNT=" + QCOUNT);
 
     // Layers
@@ -132,12 +137,35 @@ HND.startApple = function (root, app, unit, onComplete) {
         const m = parseInt(h[14], 10);
         return isNaN(m) ? 50 : m;
     })();
-    const aCornerX  = Math.round(25 + (7.5 * unitMiddle) / 2 - 5);
-    const qCornerX  = Math.round(25 + 7.5 * unitMiddle + 5 + (750 - 7.5 * unitMiddle) / 2);
-    const dividerX  = Math.round(unitMiddle * 7.5 + 25);
+    // Orig PlayGame:340-355 — A_Corner/Q_Corner X assignment:
+    //   DEFAULT (WhatToAnswer != qRight OR WhatToAsk != qLeft):
+    //     A_Corner.X = RIGHT formula = 25 + 7.5*M + 5 + (750-7.5*M)/2
+    //     Q_Corner.X = LEFT  formula = 25 + (7.5*M)/2 - 5
+    //   FLIPPED (WhatToAnswer=qRight AND WhatToAsk=qLeft):
+    //     Middle ← 100 - Middle, then A on LEFT, Q on RIGHT.
+    //   THEN if SideToAsk=qLeft: mirror via 800 - X.
+    // cal.askSide / cal.ansSide are "right"/"left" strings per data.js
+    // SIDE_NAME. We expose SideToAsk via cal.sideToAskLeft when needed
+    // (currently the port doesn't expose it, so defaults to qRight).
+    let effMiddle = unitMiddle;
+    let aCornerX, qCornerX;
+    const flipped = (cal.ansSide === "right" && cal.askSide === "left");
+    if (flipped) {
+        effMiddle = 100 - unitMiddle;
+        aCornerX = Math.round(25 + (7.5 * effMiddle) / 2 - 5);
+        qCornerX = Math.round(25 + 7.5 * effMiddle + 5 + (750 - 7.5 * effMiddle) / 2);
+    } else {
+        aCornerX = Math.round(25 + 7.5 * effMiddle + 5 + (750 - 7.5 * effMiddle) / 2);
+        qCornerX = Math.round(25 + (7.5 * effMiddle) / 2 - 5);
+    }
+    const dividerX = Math.round(effMiddle * 7.5 + 25);
     HND.log("apple geom", "middle=" + unitMiddle, "aX=" + aCornerX,
             "qX=" + qCornerX, "divX=" + dividerX);
 
+    // Picture-mode (orig PlayGame:369-372 + :545-549). When EITHER side
+    // is qPicture, the bottom-left "loah" chalkboard is painted and a
+    // per-Q picture is revealed top-down (TimerShowPic).
+    const picMode = (cal.whatToAsk === 3 || cal.whatToAnswer === 3);
     const treeLayer    = HND._el("div", { class: "ctrl apple-tree-layer" });
     // Foliage overlay at the .frm-derived position (195, 75, native 378×245).
     // Original PaintApple blits Foliage.Mask with src_x = ApplePos.X-195 and
@@ -148,10 +176,22 @@ HND.startApple = function (root, app, unit, onComplete) {
     const qText        = HND._el("div", { class: "ctrl apple-q" });
     const aText        = HND._el("div", { class: "ctrl apple-a" });
     const divider      = HND._el("div", { class: "ctrl apple-divider" });
+    // Sound icon (orig CmdSound) — visibility gated on calibration.
+    // Per .frm:697-702: only loaded/shown when WhatToAskSound != qDisabled,
+    // which corresponds to cal.askSoundSide != null in the port helper.
     const sound        = HND._el("button", { class: "ctrl apple-sound", title: "השמע" });
-    const goat         = HND._el("div", { class: "ctrl apple-goat enter" });
-    setTimeout(function () { goat.classList.remove("enter"); }, 700);
+    if (!cal.askSoundSide) sound.style.display = "none";
+    // Orig Form_Paint:693-694 — TimerGoatFileName="Enter" fires AFTER the
+    // help wave (game4.wav) is loaded. Don't start "enter" at DOM-create;
+    // chain it from the initial showHelpOverlay onDone callback below.
+    const goat         = HND._el("div", { class: "ctrl apple-goat" });
     const fallLayer    = HND._el("div", { class: "ctrl apple-fall-layer" });
+    // Picture-mode UI — only created when the unit's calibration uses
+    // qPicture. loah is the chalkboard background; qPicBox holds the
+    // per-Q image with a top-down clip-path reveal (CSS) driven by
+    // setting `--pic-reveal` per question.
+    const loah    = picMode ? HND._el("div", { class: "ctrl apple-loah" })    : null;
+    const qPicBox = picMode ? HND._el("div", { class: "ctrl apple-qpic" })    : null;
     // Expose the unit's Middle-derived X positions to CSS via custom props on
     // the game root, so all per-text rules can anchor with one source of truth.
     root.style.setProperty("--apple-a-x",   aCornerX  + "px");
@@ -167,6 +207,8 @@ HND.startApple = function (root, app, unit, onComplete) {
     root.appendChild(sound);
     root.appendChild(goat);
     root.appendChild(fallLayer);
+    if (loah)    root.appendChild(loah);
+    if (qPicBox) root.appendChild(qPicBox);
 
     // Static tree apples — per the original InitQuestion (line 486-491),
     // 8 apples are painted at fixed ApplePos coords at the start of each
@@ -191,12 +233,15 @@ HND.startApple = function (root, app, unit, onComplete) {
     // where N = number of apples in this basket (0..8).
     const basketLayer = HND._el("div", { class: "ctrl apple-basket-layer" });
     root.appendChild(basketLayer);
-    // BasketStatus per the original GameApple.frm: ONE value per question
-    // (state.baskets[i] = wrong-apple count for question i), and at end of
-    // each Q the basket is drawn at BasketPos(i) with sprite index =
-    // Abs(BasketStatus(i)). The Stage*2-1 trick in the .frm just makes
-    // BasketStatus negative in Stage 0 / positive in Stage 1 so ScoreTimer
-    // can animate it back to 0; we don't need the sign, just the count.
+    // BasketStatus per the original GameApple.frm:
+    //   state.baskets[i]      → wrong-apple count for question i, or null
+    //   state.basketStages[i] → 0 or 1 = stage AT THE TIME basket was placed
+    // Orig PlayGame:998 increments `BasketStatus(i) += 1 * (Stage*2 - 1)`
+    // once per wrong apple, encoding stage in the SIGN. The point is that
+    // each basket's color is locked at creation: orig uses BitBlt to paint
+    // each basket once at BasketPos and never re-paints prior baskets on
+    // stage transitions. We mirror that with a parallel stages array so
+    // later stage flips don't recolor history.
     function renderBaskets() {
         basketLayer.innerHTML = "";
         state.baskets.forEach(function (errors, qi) {
@@ -204,56 +249,82 @@ HND.startApple = function (root, app, unit, onComplete) {
             if (qi >= BASKET_POS.length) return;
             const p = BASKET_POS[qi];
             const b = HND._el("div", { class: "ctrl apple-basket" });
-            // Original GameApple.frm:996-1000 — the basket-fill loop:
-            //   For i = 0 To 7
-            //       If AppleFrame(i) = 0 Then        ' still ON THE TREE
-            //           AppleFrame(i) = 100
-            //           BasketStatus(Current-1) += 1 * (Stage*2-1)
-            //       End If
-            //   Next i
-            // So BasketStatus counts apples that DID NOT fall (= "good"
-            // apples placed into the basket). Sprite N = good apples =
-            // 8 - errorCount. Errors=0 → N=8 (full basket); errors=8 →
-            // N=0 (empty basket = total failure).
-            const n = Math.max(0, Math.min(8, 8 - errors));
+            const basketStage = state.basketStages[qi] != null
+                              ? state.basketStages[qi] : state.stage;
+            // Sprite N = current GOOD apples in basket. Default: 8 - errors
+            // (initial state). During score-drain, state.basketsLiveGood[qi]
+            // overrides and decrements toward 0 — basket VISIBLY EMPTIES per
+            // orig ScoreTimer (.frm:765-774).
+            const baseGood = 8 - errors;
+            const liveOverride = state.basketsLiveGood
+                              && state.basketsLiveGood[qi] != null
+                              ?  state.basketsLiveGood[qi] : null;
+            const good = liveOverride != null ? liveOverride : baseGood;
+            const n = Math.max(0, Math.min(8, good));
             b.style.cssText =
                 "left:" + p[0] + "px; top:" + (p[1] - 20) + "px;" +
                 "background-image: url('assets/" + app.id +
-                "/pictures/GameApple/basket" + state.stage + "_" + n + ".png');";
+                "/pictures/GameApple/basket" + basketStage + "_" + n + ".png');";
             basketLayer.appendChild(b);
         });
     }
     function addBasketFor(qIdx, errorCount) {
-        // Original GameApple.frm:998 — BasketStatus(Current-1) = ... + 1
-        // is called once per wrong apple. We compress that to a single
-        // assignment with the final error count for this question.
-        state.baskets[qIdx] = errorCount;
-        // Stage 0 → 1 transition fires when the goat "eats" (line 897:
-        // TimerGoatBmp Case 2 endpoint, after ErrorCount = 8 hits). The
-        // original runs a goat-eat animation BEFORE flipping Stage = 1;
-        // we cue the "eat" pose for a beat, then swap stage on the next
-        // renderTreeApples (inside initQuestion).
-        if (errorCount >= 8 && state.stage === 0) {
-            HND.log("apple stage", "0 → 1 (goat ate)");
-            setGoat("eat");
-            // Delay the stage flip so the eat pose plays out; next
-            // initQuestion will repaint with .yellow apples.
-            setTimeout(function () { state.stage = 1; }, 700);
-        }
-        renderBaskets();
+        // Stage capture only — visual render is deferred via placeBasketWhenGoatArrives.
+        // Per orig .frm:861-866 the basket is BitBlt'd by TimerGoatBmp Case 0
+        // ONLY when GoatX is between -40 and 0 (~80% through the walk-out),
+        // i.e. when the goat physically arrives at the basket pile area.
+        // The basket's color is locked at this capture time (orig encodes
+        // it in BasketStatus sign via Stage*2-1); we use a parallel
+        // basketStages array so the basket keeps its red/yellow regardless
+        // of a later stage flip.
+        state.baskets[qIdx]      = errorCount;
+        state.basketStages[qIdx] = state.stage;
+        // NOTE: do NOT call renderBaskets() here — that would draw the
+        // basket immediately while the goat is still at home. The caller
+        // schedules placeBasketWhenGoatArrives() inside the pick-walk chain.
+    }
+    // Place the basket "when the goat arrives" — schedules a render at
+    // ~80% of the pick-walk (matching orig's GoatX<-40 trigger point,
+    // 1.6s × 0.8 ≈ 1280ms). Pass `0` delay for the eat path which has no
+    // home-to-basket walk (basket already placed during the failed Q).
+    function placeBasketWhenGoatArrives(delay) {
+        setTimeout(renderBaskets, delay != null ? delay : 1280);
     }
 
     // Header
     let userName = "";
     try { userName = localStorage.getItem("hnd." + app.id + ".user") || ""; } catch (e) {}
-    header.textContent = unit.name + (userName ? "  ·  " + userName : "");
+    // Orig Form_Paint:709-710 — TempStr = UnitName + AllTips(116) +
+    // UserName + AllTips(112). AllTips(116) = "שם היחידה:" (unit name
+    // label), AllTips(112) = "שם התלמיד:" (student name label). In
+    // Hebrew RTL display this reads naturally as:
+    //   "שם התלמיד: <user>  שם היחידה: <unit>"
+    function renderHeader() {
+        // Orig Form_Paint:709-710 — exact byte concatenation, no extra
+        // spaces:  UnitName + AllTips(116) + UserName + AllTips(112).
+        //   AllTips(116) = "שם היחידה:"  (unit-name label, follows value)
+        //   AllTips(112) = "שם התלמיד:"  (student-name label)
+        // In RTL display this reads naturally as:
+        //   "שם התלמיד: <user>  שם היחידה: <unit>"
+        const sepUnit = HND.tip(app.id, 116) || " · ";
+        const sepUser = HND.tip(app.id, 112) || "";
+        header.textContent = unit.name + sepUnit
+                           + (userName ? userName + sepUser : "");
+    }
+    renderHeader();
+    if (HND.loadTips) HND.loadTips(app.id).then(renderHeader);
 
     sound.addEventListener("click", function () {
         if (!state.gameEnabled) return;
         const idx = idOrder[state.current];
-        if (idx != null) HND.playWave(HND.unitWavePath(app.id, unit.id, idx, askSide));
+        // Orig CmdSound_Click:279 uses WhatToAsk (text side), not WhatToAskSound.
+        // cal.askSide = TEXT side; cal.askSoundSide = audio-override side.
+        if (idx != null) HND.playWave(HND.unitWavePath(app.id, unit.id, idx, cal.askSide));
     });
 
+    // Match VB6 RealChar — accepts Hebrew letters + ASCII letters + digits
+    // (GamesMoudle.bas:534 — CharID > 47 And CharID < 58 includes 0-9).
+    // Punctuation / control chars are filtered upstream by e.key.length===1.
     function isLetter(c) { return /[֐-׿A-Za-z0-9]/.test(c); }
 
     // Israeli Hebrew keyboard layout — physical key → Hebrew char (and
@@ -278,21 +349,70 @@ HND.startApple = function (root, app, unit, onComplete) {
         return false;
     }
 
-    function setGoat(stateName) {
-        ["enter", "stand", "sad", "yes", "no", "eat", "pick", "win"].forEach(function (s) {
-            goat.classList.remove(s);
-        });
+    // Orig goat state durations — all timers tick at 70 ms (TimerGoatJpg
+    // and TimerGoatBmp .frm:40,46). Frame counts from disk (see preload
+    // list). Duration = frameCount × 70 ms.
+    //   enter: 9 × 70 = 630   |   yes: 8 × 70 = 560
+    //   no:    9 × 70 = 630   |   eat: 7 × 70 = 490
+    //   pick:  5 × 70 = 350   |   win INITIAL: 8 × 70 = 560 (then loop class)
+    // Walk durations — orig TimerGoatBmp Case 0 (pick) moves GoatX -= 25
+    // each tick after a 4-tick warmup; distance 629 → off-screen (<-200)
+    // ≈ 829 px → ~33 movement ticks + 4 warmup = ~37 ticks × 70 ms ≈ 2590.
+    // Eat-walk Case 2 moves -18 px before GoatX<220 and -25 after, giving
+    // a slightly longer ~2800 ms total.
+    const GOAT_DUR = {
+        enter: 630, yes: 560, no: 630, eat: 490, pick: 350,
+        "pick-walk": 2590, "eat-walk": 2800, win: 560,    // win = INITIAL only
+        sad: 0, stand: 0, "": 0,
+    };
+    let goatChainTimer = null;
+    function _applyGoatClass(stateName) {
+        ["enter", "stand", "sad", "yes", "no", "eat", "pick",
+         "pick-walk", "eat-walk", "win", "win-loop"]
+            .forEach(function (s) { goat.classList.remove(s); });
         void goat.offsetWidth;
-        goat.classList.add(stateName);
-        // "pick" runs the 1.6s walk-to-basket-and-back animation; everything
-        // else is a brief reaction pose. "win" loops forever.
-        if (stateName !== "win") {
-            const dur = stateName === "pick" ? 1600 : 700;
-            setTimeout(function () {
-                goat.classList.remove(stateName);
-                goat.classList.add("stand");
-            }, dur);
+        if (stateName) goat.classList.add(stateName);
+        goat.classList.add("visible");
+    }
+    // setGoat(state, [onDone]) — sets a state class and, after the per-state
+    // duration, calls onDone (defaults to switching to "stand"). Replaces
+    // any in-flight chain so a later setGoat call cleanly takes over.
+    function setGoat(stateName, onDone) {
+        if (goatChainTimer) { clearTimeout(goatChainTimer); goatChainTimer = null; }
+        _applyGoatClass(stateName);
+        // sad is a static sprite, no timer needed.
+        if (stateName === "sad") return;
+        // "win" has TWO phases per orig (.frm:976-980): play frames 1..8
+        // ONCE (initial cycle, 560 ms), then reset to frame 4 and loop
+        // 4..8 forever (`If TimerGoatFileName = "win" Then TimerGoatCount =
+        // 4`). We achieve this with two separate CSS classes (.win runs
+        // once, .win-loop runs the 4..8 cycle infinite).
+        if (stateName === "win") {
+            goatChainTimer = setTimeout(function () {
+                goatChainTimer = null;
+                _applyGoatClass("win-loop");
+                if (onDone) onDone();
+            }, GOAT_DUR.win);
+            return;
         }
+        const dur = GOAT_DUR[stateName] != null ? GOAT_DUR[stateName] : 700;
+        goatChainTimer = setTimeout(function () {
+            goatChainTimer = null;
+            if (onDone) onDone();
+            else { _applyGoatClass("stand"); }
+        }, dur);
+    }
+    // "pick" in orig is TWO phases: goat_pick frames at home position
+    // (.frm:660-690 — TimerGoatJpg cycles goat_pick1..5), THEN the
+    // goatani0 walk-to-basket (.frm:846-870 — TimerGoatBmp Case 0).
+    // Chain them via setGoat callbacks so they don't race.
+    function pickThenWalk(onDone) {
+        setGoat("pick", function () {
+            setGoat("pick-walk", function () {
+                _applyGoatClass("stand");
+                if (onDone) onDone();
+            });
+        });
     }
 
     function initQuestion() {
@@ -312,10 +432,20 @@ HND.startApple = function (root, app, unit, onComplete) {
         state.answer = ansText;
         state.selected = [];
         state.filled = [];
+        let realCharCount = 0;
         for (let i = 0; i < ansText.length; i++) {
             const sel = isLetter(ansText[i]);
             state.selected.push(sel);
             state.filled.push(!sel);
+            if (sel) realCharCount++;
+        }
+        // Edge case: answer has no real letters (all punctuation / spaces).
+        // Orig would render the Q but never accept any keypress as
+        // completing — game stuck. Skip to next Q instead.
+        if (realCharCount === 0) {
+            HND.log("apple skip no-letters", "q=" + (state.current + 1));
+            state.current++;
+            return initQuestion();
         }
         state.errorCount = 0;
         state.bannedKeys.clear();
@@ -331,6 +461,41 @@ HND.startApple = function (root, app, unit, onComplete) {
         // (.frm line 488) which makes PaintApple draw them back on the tree.
         renderTreeApples();
         clearFallenApples();
+        // Picture-mode: orig TimerShowPic:1015-1018 has TWO branches:
+        //   Small  (W<150 AND H<120): native size, CENTERED at
+        //     (27+(130-W)/2, 299+(130-H)/2), top-down 9-slice reveal.
+        //   Large: StretchBlt to 150×120 at (17, 302), INSTANT (no reveal).
+        // We load the image to measure naturalWidth/Height, then apply.
+        if (qPicBox) {
+            const dataRoot = (HND.APPS && HND.APPS[app.id] && HND.APPS[app.id].dataRoot)
+                           || ("data/" + app.id);
+            const url = dataRoot + "/unit_" + unit.id + "/pic/" + idx + ".png";
+            qPicBox.classList.remove("revealing", "instant");
+            qPicBox.style.backgroundImage = "url('" + url + "')";
+            const probe = new Image();
+            probe.onload = function () {
+                const w = probe.naturalWidth, h = probe.naturalHeight;
+                if (w < 150 && h < 120) {
+                    // Small — native size, centered in the 130×... slot.
+                    qPicBox.style.width  = w + "px";
+                    qPicBox.style.height = h + "px";
+                    qPicBox.style.left   = (27 + (130 - w) / 2) + "px";
+                    qPicBox.style.top    = (299 + (130 - h) / 2) + "px";
+                    qPicBox.style.backgroundSize = w + "px " + h + "px";
+                    void qPicBox.offsetWidth;
+                    qPicBox.classList.add("revealing");
+                } else {
+                    // Large — stretch-fit to 150×120 at (17, 302), instant.
+                    qPicBox.style.width  = "150px";
+                    qPicBox.style.height = "120px";
+                    qPicBox.style.left   = "17px";
+                    qPicBox.style.top    = "302px";
+                    qPicBox.style.backgroundSize = "150px 120px";
+                    qPicBox.classList.add("instant");
+                }
+            };
+            probe.src = url;
+        }
         // Play the question wave on every Q including the first. The user
         // reached this screen by clicking a game-sign, so audio is unlocked.
         HND.playWave(HND.unitWavePath(app.id, unit.id, idx, askSide));
@@ -390,15 +555,17 @@ HND.startApple = function (root, app, unit, onComplete) {
     function onKey(e) {
         if (!state.gameEnabled || state.completed) return;
         if (e.key.length !== 1) return;
-        // Unlock autoplay on first user interaction.
-        if (!state.userInteracted) {
-            state.userInteracted = true;
-            const idx = idOrder[state.current];
-            HND.playWave(HND.unitWavePath(app.id, unit.id, idx, askSide));
-        }
-        // Original .frm:593 — ignore repeats of the same physical key
-        // within the same question (correct or wrong; either way, the
-        // second press does nothing).
+        // initQuestion already played the Q wave on game start. Marker only.
+        state.userInteracted = true;
+        // Orig Form_KeyUp:581-593 ordering:
+        //   1. KeyChar1/2 = GetCharFromKey(KeyCode); test RealChar
+        //   2. If isRealChar = False Then Exit Sub  (line 590 — NO ban!)
+        //   3. If BannedChars(KeyCode) Then Exit Sub Else add ban
+        // The ban only applies to letter/digit keys. Modifiers and symbols
+        // are filtered out BEFORE the ban check, so they can be pressed
+        // any number of times without "using up" a ban slot.
+        const isReal = isLetter(e.key) || !!HEB_LAYOUT[e.code];
+        if (!isReal) return;
         const keyId = e.code || ("ch:" + e.key);
         if (state.bannedKeys.has(keyId)) {
             HND.log("apple key banned", "code=" + e.code + " key=" + e.key);
@@ -418,15 +585,16 @@ HND.startApple = function (root, app, unit, onComplete) {
         if (justFilled.size > 0) {
             HND.log("apple OK", "key=" + e.key, "matched=" + justFilled.size);
             renderAnswer(justFilled);
-            setGoat("yes");
             // Check if all selected chars are filled.
             const goNext = state.selected.every(function (s, i) {
                 return !s || state.filled[i];
             });
-            const goNext_2 = state.selected.every(function (s, i) {
-                return !s || state.filled[i];
-            });
-            const _unused = goNext_2;
+            // Orig Form_KeyUp:638 — `PlayWave SmallGood.wav` on EVERY
+            // correct keypress (even mid-word). Only the final keypress of
+            // the word also triggers the CombineQA + good[N] chain below.
+            if (!goNext) {
+                HND.playWave("assets/" + app.id + "/sounds/smallgood.wav");
+            }
             if (goNext) {
                 state.gameEnabled = false;
                 // Categorize error count.
@@ -437,35 +605,66 @@ HND.startApple = function (root, app, unit, onComplete) {
                         "q=" + (state.current + 1), "errors=" + state.errorCount,
                         "cat=" + cat);
                 const idx = idOrder[state.current];
-                state.totalScore += (100 / QCOUNT);
+                // Orig: NO score awarded on Q completion. Score accrues
+                // ONLY during ScoreTimer drain (AddScore per tick + 8×bonus
+                // per emptied basket). Removing this prevents double-count.
                 addBasketFor(state.current, state.errorCount);
-                setGoat("pick");
-                // Fade fallen apples during the goat's pick-up walk so they
-                // visually go INTO the basket — original goat physically
-                // picks each one up off the ground (frames 100..113).
-                fadeOutFallenApples();
-                // CombineQA dispatch (orig .frm:950-973) — sequences ask/
-                // answer waves per cal mode "0"/"7"/"8"/"9". Audio sides
-                // are WhatToAskSound / WhatToAnswerSound (independent of
-                // the text Q/A side) per GameApple.frm:637-639.
-                const advance = function () {
-                    state.current++;
-                    if (state.current >= QCOUNT) winGame();
-                    else initQuestion();
-                };
+                // Orig sequence (.frm:632-694): yes-frames → on overflow,
+                // play CombineQA chain → on chain done, pick-frames → on
+                // overflow, goatani0 walk → on walk done, InitQuestion.
                 const audioCal = Object.assign({}, cal, {
                     askSide: cal.askSoundSide,
                     ansSide: cal.ansSoundSide,
                 });
-                HND.playCombineFromCal(app.id, unit.id, idx, audioCal, advance);
+                setGoat("yes", function () {
+                    // Orig flow (.frm:957-958 + TimerGoatJpg overflow):
+                    // After yes-frames overflow, BOTH chains run in parallel:
+                    //   (a) Audio: CombineQA wave → SoundStatus=13 →
+                    //       good[N].wav → SoundStatus=-10 → InitQuestion.
+                    //   (b) Goat: pick-frames (350 ms) → TimerGoatBmpAni=0 →
+                    //       walk-to-basket (~2.59 s).
+                    // Case -10 only fires InitQuestion if TimerGoatBmpAni<0,
+                    // so the actual advance waits for whichever finishes
+                    // LATER. We use a 2-arm counter: both arms must complete
+                    // before advancing.
+                    let armsRemaining = 2;
+                    function arm() {
+                        if (--armsRemaining === 0) {
+                            state.current++;
+                            if (state.current >= QCOUNT) {
+                                // Orig:937 — WinGame triggered by Enter
+                                // overflow after the walk-back.
+                                setGoat("enter", function () { winGame(); });
+                            } else {
+                                initQuestion();
+                            }
+                        }
+                    }
+                    // Arm A: audio chain (CombineQA + good[1-3].wav praise).
+                    HND.playCombineFromCal(app.id, unit.id, idx, audioCal,
+                                           arm, { praiseMax: 3 });
+                    // Arm B: visual chain (pick-frames → walk → basket place).
+                    fadeOutFallenApples();
+                    placeBasketWhenGoatArrives(2420);
+                    pickThenWalk(arm);
+                });
+            } else {
+                // Partial fill — just the brief yes pose; auto-returns to stand.
+                setGoat("yes");
             }
-        } else if (isLetter(e.key) || HEB_LAYOUT[e.code]) {
+        } else {
+            // Wrong key. (The isReal gate at the top of onKey already
+            // ensured this is a letter/digit/Hebrew-mapped key.)
             state.errorCount++;
             const wrongChar = displayCharForKey(e);
             HND.log("apple WRONG",
                     "key=" + e.key, "code=" + e.code,
                     "shown=" + wrongChar, "errors=" + state.errorCount);
             spawnFallingApple(wrongChar);
+            // Orig Form_KeyUp:671-675 — ra2.wav on the 8th-error (eat path),
+            // ra.wav on 1-7 (no path). Played BEFORE AppleFall.Enabled=True.
+            const wrongWave = state.errorCount >= 8 ? "ra2.wav" : "ra.wav";
+            HND.playWave("assets/" + app.id + "/sounds/" + wrongWave);
             // Original .frm:643-651 — at ErrorCount = 8 the goat goes into
             // the "eat" cycle and GameEnabled is set False. TimerGoatBmp
             // Case 2 (the eat-completion) then auto-advances to the next
@@ -473,19 +672,40 @@ HND.startApple = function (root, app, unit, onComplete) {
             // have fallen.
             if (state.errorCount >= 8) {
                 state.gameEnabled = false;
-                setGoat("eat");
                 HND.log("apple Q FAIL", "q=" + (state.current + 1),
                         "errorCount=8 → auto-advance");
                 state.errorsByQ.push(2);             // category 2 = many errors
                 addBasketFor(state.current, state.errorCount);
-                // Score: original AddScore uses 100/(QCount+1)/16 per tic,
-                // for (8 - errors) tics. With errors=8, AddScore = 0 here.
-                // Let the goat-eat animation play out (~1.6s), then move on.
-                setTimeout(function () {
-                    state.current++;
-                    if (state.current >= QCOUNT) winGame();
-                    else initQuestion();
-                }, 1800);
+                // Orig sequence (.frm:847-902): eat frames at home → frame
+                // overflow → TimerGoatBmpAni=2 walk-out → walk OFF SCREEN
+                // → reset to (629,335) → STAGE = 1 → InitQuestion. Stage
+                // flip is the LAST step before the next-Q init, not at the
+                // start of eat. The basket already placed retains stage 0
+                // (captured at addBasketFor); the next basket will be stage 1.
+                setGoat("eat", function () {
+                    // Orig:907 — eat-walk uses GoatPic(2) sprites at GoatY+88
+                    // (lower on screen, carrying off the bad-apple basket).
+                    // Orig eat-walk Case 2: moves -18 px/tick until GoatX<220,
+                    // then -25/tick. Slower than pick-walk → ~2800 ms total.
+                    // Basket placement at ~80% = ~2240 ms after walk start.
+                    placeBasketWhenGoatArrives(2240);
+                    setGoat("eat-walk", function () {
+                        if (state.stage === 0) {
+                            HND.log("apple stage", "0 → 1 (eat-walk end)");
+                            state.stage = 1;
+                        }
+                        _applyGoatClass("stand");
+                        state.current++;
+                        if (state.current >= QCOUNT) {
+                            // Same orig sequence as the correct path: after
+                            // walk-out, Enter cycle walks goat back home,
+                            // THEN WinGame paints BigApple.
+                            setGoat("enter", function () { winGame(); });
+                        } else {
+                            initQuestion();
+                        }
+                    });
+                });
             } else {
                 setGoat("no");
             }
@@ -535,93 +755,248 @@ HND.startApple = function (root, app, unit, onComplete) {
     function clearFallenApples() {
         fallLayer.innerHTML = "";
     }
-    // Pick phase: when the goat walks across (state "pick"), the fallen
-    // apples on the ground get scooped up one by one in the original
-    // (TimerGoatBmp 100..113 phase, .frm:204-228). We approximate by
-    // fading each .apple-fall + its .apple-char-label as the goat sweeps.
+    // Pick phase: when the goat walks across (.pick-walk), the fallen
+    // apples on the ground get scooped up one by one (orig TimerGoatBmp
+    // phase 100..113, .frm:204-228 — goat erases each apple as GoatX
+    // passes its X position). We sync each apple's fade to the goat's
+    // X-arrival time: walk is 1.6s from x=629 to x=-820, so goat reaches
+    // any apple at x_apple when goat-x crosses it.
+    //   goatX(t) = 629 - (1450 * t/1600)   (1450px span over 1600ms)
+    //   time-to-reach(x_apple) = (629 - x_apple) * 1600 / 1450
+    // Each apple-fall sprite uses the slot's APPLE_POS.X as the trigger X.
     function fadeOutFallenApples() {
         const items = fallLayer.children;
-        const STEP = 1400 / Math.max(1, items.length);   // walk lasts ~1.6s
+        const WALK_DUR = 1600, WALK_SPAN = 1450;
         for (let i = 0; i < items.length; i++) {
-            (function (el, delay) {
+            const el = items[i];
+            const left = parseInt(el.style.left, 10) || 100;
+            // Goat sprite is 170 px wide; treat its CENTER (left+85) as the
+            // pickup line. Subtract 85 so the apple disappears as the goat
+            // OVERLAPS it, not when its leading edge reaches the apple's X.
+            const apple_x = left + 12;          // apple sprite is ~24 wide
+            const goatLeadX = apple_x + 85;
+            const t = Math.max(0, Math.min(WALK_DUR,
+                (629 - goatLeadX) * WALK_DUR / WALK_SPAN));
+            (function (node, delay) {
                 setTimeout(function () {
-                    el.style.transition = "opacity 0.25s";
-                    el.style.opacity = "0";
+                    node.style.transition = "opacity 0.18s";
+                    node.style.opacity = "0";
                 }, delay);
-            })(items[i], 100 + i * STEP);
+            })(el, t);
         }
     }
 
     function winGame() {
         if (state.completed) return;
         state.completed = true;
-        const score = Math.min(100, Math.round(state.totalScore));
-        HND.log("apple FINISH", "score=" + score);
-        HND.saveProgress(app.id, unit.id, "apple", score, state.errorsByQ);
-        setGoat("win");
-        if (score > 60) {
-            HND.playWave("assets/" + app.id + "/sounds/win.wav");
+        HND.log("apple FINISH", "drain begins");
+        // Orig WinGame:1022-1030 hides CmdExit/CmdHelp/CmdSound and paints
+        // BigApple at (192, 0). saveProgress moved to drain end so the
+        // recorded score reflects the ACTUAL drain-accumulated value
+        // (AddScore × ticks + 8×bonus per empty basket) per orig formula,
+        // not a flat 100/QCOUNT per Q completed.
+        sound.style.display = "none";
+        if (root.parentElement) {
+            const helpBtn = root.parentElement.querySelector(".help-icon");
+            const exitBtn = root.parentElement.querySelector(".exit-icon");
+            if (helpBtn) helpBtn.style.display = "none";
+            if (exitBtn) exitBtn.style.display = "none";
         }
+        // Fully remove replayBtn from DOM (was display:none before, which
+        // left a dead button in place + leaked event listener).
+        if (replayBtn && replayBtn.parentNode) {
+            replayBtn.parentNode.removeChild(replayBtn);
+            replayBtn = null;
+        }
+        // Clear any fallen apples still on the ground from the last Q —
+        // orig WinGame paints over the whole stage with BigApple.
+        clearFallenApples();
+        // Orig Form_Paint:786-810 — goat-pose is decided MID-DRAIN as
+        // TotalScore accumulates: > 60 triggers "win" + Win.WAV; otherwise
+        // "sad" at end of drain. We pre-set "sad" here and the drain loop
+        // upgrades to "win" if the score crosses 60.
+        setGoat("sad");
         const bigApple = HND._el("div", { class: "ctrl apple-big" });
         root.appendChild(bigApple);
         const stage = root.parentElement;
 
-        // Drain animation — original ScoreTimer_Timer (GameApple.frm:757-805):
+        // Drain animation — original ScoreTimer_Timer (GameApple.frm:757-840):
         //   AddScore = 100 / (QCount+1) / 16
-        //   For each non-zero BasketStatus, every tick:
-        //     - drop one apple from basket (decrement count)
-        //     - TotalScore += AddScore
-        //     - When the basket empties, TotalScore += AddScore * 8 (bonus)
-        //   Tick interval ≈ 80 ms. tic.wav plays each tick.
-        // We schedule one tick per (basket × apple) and update the basket
-        // sprite + score number live.
-        const drainPlan = [];     // each entry: {qIdx, remaining}
+        //   Each tick: pick FIRST non-empty basket, DROP ONE GOOD APPLE
+        //   (basket sprite goes from N → N-1, i.e. basket VISIBLY EMPTIES),
+        //   TotalScore += AddScore. When the basket empties, TotalScore +=
+        //   AddScore * 8 (bonus). After all baskets empty: switch to score-
+        //   tier wave + DrawString praise, then end. tic.wav plays per tick
+        //   ONLY if Win.WAV isn't already playing (orig:791,797). Win.WAV
+        //   starts MID-DRAIN as soon as TotalScore > 60.
+        // Port: state.baskets[i] = errorCount; goodApples = 8 - errors.
+        // Drain decrements goodApples toward 0 (matches orig direction).
+        const live = HND._el("div", { class: "ctrl apple-score-live" });
+        root.appendChild(live);
+        function renderLiveScore(s) {
+            live.textContent = String(Math.floor(s));
+            const px = 40 + Math.floor(s) / 2;       // orig:792 font size formula
+            live.style.fontSize = px + "px";
+        }
+        renderLiveScore(0);
+        const drainPlan = [];
         state.baskets.forEach(function (errors, qi) {
-            if (errors > 0) drainPlan.push({ qIdx: qi, remaining: errors });
+            if (errors == null) return;
+            const good = 8 - errors;                  // GOOD apples to drain out
+            if (good > 0) drainPlan.push({ qIdx: qi, remaining: good });
         });
-        let drainScore = 0;
+        const ADD_SCORE = 100 / (QCOUNT + 1) / 16;
+        let totalScore = 0;
+        let winFired = false;
+        // Orig ScoreTimer:791,797 gates tic.wav on `WaveMe.Mode != mciModePlay`
+        // — never plays a new tic while the previous is still in flight.
+        // Mirror: track a "currently playing" flag via tic.wav's onended.
+        let ticBusy = false;
         const TICK = 80;
-        function drainTick() {
-            const job = drainPlan[0];
-            if (!job) {                                  // drained everything
+        function finishAndShowScore() {
+            // Score-tier wave + DrawString praise (orig:817-840). Buckets:
+            // 0/60/70/80/90 selected by TotalScore range. AllTips entries
+            // 124..128 are the praise strings:
+            //   124 = "נסה שנית" (try again)  — for 0..59
+            //   125 = "כמעט טוב" (almost good) — for 60..69
+            //   126 = "טוב" (good)            — for 70..79
+            //   127 = "טוב מאוד" (very good)   — for 80..89
+            //   128 = "מצוין" (excellent)     — for 90..100
+            const finalScore = Math.min(100, Math.round(totalScore));
+            let bucket = "0", tipIdx = 124;
+            if      (finalScore >= 90) { bucket = "90"; tipIdx = 128; }
+            else if (finalScore >= 80) { bucket = "80"; tipIdx = 127; }
+            else if (finalScore >= 70) { bucket = "70"; tipIdx = 126; }
+            else if (finalScore >= 60) { bucket = "60"; tipIdx = 125; }
+            // Praise text — orig:828-830 DrawString triple-shadow at (390, 254).
+            const praise = HND.tip(app.id, tipIdx) || "";
+            if (praise) {
+                const praiseEl = HND._el("div", { class: "ctrl apple-praise", text: praise });
+                root.appendChild(praiseEl);
+            }
+            // Chain: play score wave; when it ends, run the 1.7 s finale
+            // (orig WaveMe_Done case -999, .frm:1086-1093):
+            //   For i = 0 To 30: Sleep 70 - i ... TimerGoatJpg_Timer
+            // sum(70-i for i=0..30) = 31×70 - 31×30/2·avg ≈ 1705 ms. The
+            // goat-bounce/sad loop keeps cycling during this window. After
+            // it, AddScore is recorded and the form is Unloaded.
+            // Persist score AFTER drain so the saved value reflects the
+            // actual drain math (AddScore × ticks + bonuses) per orig
+            // SoundStatus=-999 → `AddScore CurrentUnit.unitId, ...` flow.
+            HND.log("apple FINISH", "score=" + finalScore);
+            HND.saveProgress(app.id, unit.id, "apple", finalScore, state.errorsByQ);
+            HND.playWave("assets/" + app.id + "/sounds/score_" + bucket + ".wav", function () {
                 setTimeout(function () {
                     HND.showScoreForm(
-                        stage, app.id, unit.name, userName, score, state.errorsByQ,
-                        function onExit() {
-                            location.hash = "#/" + app.id + "/unit/" + unit.id + "/games";
-                        },
-                        function onReplay() {
-                            location.hash = "#/" + app.id + "/unit/" + unit.id + "/apple";
-                        }
+                        stage, app.id, unit.name, userName, finalScore, state.errorsByQ,
+                        function onExit()   { location.hash = "#/" + app.id + "/unit/" + unit.id + "/games"; },
+                        function onReplay() { HND.restartGame(app.id, unit.id, "apple"); }
                     );
-                }, 400);
-                return;
-            }
+                }, 1705);
+            });
+        }
+        function drainTick() {
+            const job = drainPlan[0];
+            if (!job) { finishAndShowScore(); return; }
+            // Decrement THIS basket's good apples (orig: BasketStatus toward 0).
             job.remaining--;
-            state.baskets[job.qIdx] = job.remaining;
+            state.basketsLiveGood = state.basketsLiveGood || {};
+            state.basketsLiveGood[job.qIdx] = job.remaining;
             renderBaskets();
-            HND.playWave("assets/" + app.id + "/sounds/tic.wav");
-            if (job.remaining === 0) drainPlan.shift();
-            drainScore += score / Math.max(1, state.errorsByQ.length * 3);
+            totalScore += ADD_SCORE;
+            // Basket empty? +bonus (orig:769 `AddScore * 8`).
+            if (job.remaining === 0) {
+                totalScore += ADD_SCORE * 8;
+                drainPlan.shift();
+            }
+            renderLiveScore(totalScore);
+            // Orig:785-797 — once score crosses 60, swap goat to "win" and
+            // play Win.WAV ONCE (mid-drain). tic.wav stops thereafter.
+            if (!winFired && totalScore > 60) {
+                winFired = true;
+                setGoat("win");
+                HND.playWave("assets/" + app.id + "/sounds/win.wav");
+            } else if (!winFired && !ticBusy) {
+                // Orig:791,797 — tic.wav only if WaveMe.Mode != mciModePlay.
+                // Skip if previous tic still playing; clear flag on onended.
+                ticBusy = true;
+                HND.playWave("assets/" + app.id + "/sounds/tic.wav",
+                             function () { ticBusy = false; });
+            }
             setTimeout(drainTick, TICK);
         }
         if (drainPlan.length) {
             setTimeout(drainTick, 400);                  // brief pause before drain
         } else {
-            // Perfect game (no baskets): skip drain, go straight to score.
-            setTimeout(function () {
-                HND.showScoreForm(
-                    stage, app.id, unit.name, userName, score, state.errorsByQ,
-                    function onExit() {
-                        location.hash = "#/" + app.id + "/unit/" + unit.id + "/games";
-                    },
-                    function onReplay() {
-                        location.hash = "#/" + app.id + "/unit/" + unit.id + "/apple";
-                    }
-                );
-            }, 1400);
+            // Perfect game (no baskets to drain): credit full 100, play
+            // Win.WAV, then chain into finishAndShowScore on its end so
+            // the score wave doesn't overlap Win.WAV.
+            totalScore = 100; renderLiveScore(100); setGoat("win");
+            winFired = true;
+            HND.playWave("assets/" + app.id + "/sounds/win.wav", finishAndShowScore);
         }
-        if (onComplete) onComplete(score);
+        if (onComplete) onComplete(0);
+    }
+
+    // Instructions overlay + game4.wav (orig CmdHelp_Click:248-266 +
+    // WaveMe_Done SoundStatus=1 case at .frm:1054). Accepts optional onDone
+    // callback so the caller can serialize the next-action (e.g. initial
+    // initQuestion) AFTER the help wave finishes — orig Form_Paint:715
+    // sets SoundStatus=1 so WaveMe_Done can fire InitQuestion on wave end.
+    let helpEl = null;
+    function showHelpOverlay(onDone) {
+        const text = (cal.instructionsFliped && window.HND_QASwitched)
+                   ? cal.instructionsFliped : cal.instructions;
+        if (!helpEl) {
+            helpEl = HND._el("div", { class: "ctrl apple-tip" });
+            root.appendChild(helpEl);
+        }
+        if (text && text !== "0") {
+            helpEl.textContent = text;
+            helpEl.style.display = "block";
+        }
+        // Orig CmdHelp_Click:252-256 — overlay shown until SoundStatus=25
+        // fires from WaveMe_Done (i.e. until game4.wav finishes). Tie our
+        // overlay-hide to the wave's onended callback, not a fixed timer.
+        HND.playWave("assets/" + app.id + "/sounds/game4.wav", function () {
+            if (helpEl) helpEl.style.display = "none";
+            if (onDone) onDone();
+        });
+    }
+
+    // CmdRePlay two-step exit (orig CmdExit_Click:237-246).
+    let replayBtn = null;
+    function showReplayButton() {
+        if (replayBtn) return;
+        replayBtn = HND._el("button", {
+            class: "ctrl apple-replay", title: "התחל מחדש",
+        });
+        replayBtn.addEventListener("click", function (e) {
+            e.stopPropagation();
+            HND.restartGame(app.id, unit.id, "apple");
+        });
+        root.appendChild(replayBtn);
+    }
+    if (root.parentElement) {
+        const helpBtn = root.parentElement.querySelector(".help-icon");
+        if (helpBtn) {
+            const c = helpBtn.cloneNode(true);
+            helpBtn.parentNode.replaceChild(c, helpBtn);
+            c.addEventListener("click", function (e) {
+                e.stopPropagation();
+                showHelpOverlay();
+            });
+        }
+        const exitBtn = root.parentElement.querySelector(".exit-icon");
+        if (exitBtn) {
+            const c = exitBtn.cloneNode(true);
+            exitBtn.parentNode.replaceChild(c, exitBtn);
+            c.addEventListener("click", function (e) {
+                e.stopPropagation();
+                if (!replayBtn) showReplayButton();
+                else location.hash = "#/" + app.id + "/unit/" + unit.id + "/games";
+            });
+        }
     }
 
     function keyHandler(e) {
@@ -629,16 +1004,81 @@ HND.startApple = function (root, app, unit, onComplete) {
             document.removeEventListener("keydown", keyHandler);
             return;
         }
-        // F1 = CmdHelp_Click — replays the game1.wav instructions per
-        // GameApple.frm:248-266. Sound file may be shared across games.
-        if (e.key === "F1") {
-            e.preventDefault();
-            HND.playWave("assets/" + app.id + "/sounds/game1.wav");
-            return;
-        }
+        if (e.key === "F1") { e.preventDefault(); showHelpOverlay(); return; }
+        // Orig Form_KeyUp:569-576 only handles Esc + F1 — no F12 cheat.
         onKey(e);
     }
+
+    // DEV helper — run `appleSkipToEnd()` (or with `(errors)` per Q) from
+    // the browser console to fast-forward to the end-game flow without
+    // playing through all 9 questions. Useful for testing the WinGame /
+    // ScoreTimer / praise / score-form sequence.
+    //   appleSkipToEnd()      — credits remaining Qs as perfect (score=100)
+    //   appleSkipToEnd(2)     — credits with 2 errors each (mid-score)
+    //   appleSkipToEnd(8)     — credits with max errors (sad/fail end)
+    function skipToEndFn(errorsPerQ) {
+        if (state.completed) { HND.log("apple DEV", "already completed"); return; }
+        const errs = Math.max(0, Math.min(8, errorsPerQ != null ? errorsPerQ : 0));
+        HND.log("apple DEV", "skip to end, errors/Q=" + errs);
+        state.gameEnabled = false;
+        while (state.current < QCOUNT) {
+            const cat = errs === 0 ? 0 : errs <= 4 ? 1 : 2;
+            state.errorsByQ.push(cat);
+            addBasketFor(state.current, errs);
+            state.current++;
+        }
+        renderBaskets();
+        setGoat("enter", function () { winGame(); });
+    }
+    window.appleSkipToEnd = skipToEndFn;
     document.addEventListener("keydown", keyHandler);
 
-    initQuestion();
+    // Teardown on game leave: remove key handler, cancel pending timers,
+    // unregister the appleSkipToEnd console handle so a stale one from a
+    // prior game can't operate on this game's state. Watches the SPA root
+    // for child removal (the router clears the stage on navigation).
+    const pendingTimers = new Set();
+    const origSetTimeout = window.setTimeout;
+    function trackedTimeout(fn, ms) {
+        const id = origSetTimeout(function () {
+            pendingTimers.delete(id);
+            fn();
+        }, ms);
+        pendingTimers.add(id);
+        return id;
+    }
+    // Cancel all in-flight timers + handlers; safe to call multiple times.
+    let tornDown = false;
+    function teardown() {
+        if (tornDown) return;
+        tornDown = true;
+        pendingTimers.forEach(function (id) { clearTimeout(id); });
+        pendingTimers.clear();
+        if (goatChainTimer) { clearTimeout(goatChainTimer); goatChainTimer = null; }
+        document.removeEventListener("keydown", keyHandler);
+        // Only clear the global handle if it's still ours (a newer game
+        // may have already overwritten it).
+        if (window.appleSkipToEnd === skipToEndFn) window.appleSkipToEnd = null;
+    }
+    let teardownObs = null;
+    if (root.parentElement && root.parentElement.parentElement) {
+        teardownObs = new MutationObserver(function () {
+            if (!root.isConnected) {
+                teardown();
+                if (teardownObs) teardownObs.disconnect();
+            }
+        });
+        teardownObs.observe(root.parentElement.parentElement,
+                            { childList: true, subtree: true });
+    }
+
+    // Orig Form_Paint:693-716 — first paint loads GoatPic, calls
+    // CmdHelp_Click (help wave), sets SoundStatus=1 + TimerGoatFileName=
+    // "Enter". WaveMe_Done then gates first InitQuestion on the help-wave's
+    // end. We chain the same: show help, then fire goat-enter animation,
+    // then InitQuestion once enter completes — no overlapping audio,
+    // no goat appearing before its time.
+    showHelpOverlay(function () {
+        setGoat("enter", function () { initQuestion(); });
+    });
 };

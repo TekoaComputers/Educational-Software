@@ -87,6 +87,17 @@ HND.playCombineQA = function (appId, unitId, origIdx, mode, askSide, ansSide) {
 // GameHakira.frm:494/525 "If Exist(...) = False Then PlayWave next/GoNext").
 HND._audio = null;
 HND._missingWaves = HND._missingWaves || Object.create(null);
+// Re-enter the SAME game route — fix for CmdRePlay buttons that appeared
+// dead because `location.hash = currentHash` is a no-op and doesn't fire
+// `hashchange`. Bounce through `/games` first, then back via rAF so the
+// router re-mounts the game cleanly.
+HND.restartGame = function (appId, unitId, game) {
+    const gameRoute  = "#/" + appId + "/unit/" + unitId + "/" + game;
+    const menuRoute  = "#/" + appId + "/unit/" + unitId + "/games";
+    location.hash = menuRoute;
+    requestAnimationFrame(function () { location.hash = gameRoute; });
+};
+
 HND.playWave = function (url, onEnded) {
     if (HND._missingWaves[url]) {
         if (onEnded) onEnded();
@@ -677,6 +688,40 @@ HND.playRecording = function (key) {
 // of the 8/9 games. We pre-parse it on the Python side into calib.js so the
 // browser can load it without fetch (file:// origin).
 HND._calibLoaded = {};
+// Tips.txt entries — used for header separators ("AllTips(112)" =
+// "שם התלמיד:", "AllTips(116)" = "שם היחידה:", praise tier strings
+// AllTips(122..125), etc.). Loaded once per app and cached.
+// Uses the SCRIPT-TAG pattern (not fetch) because the site is shipped
+// for file:// — fetch() is blocked by CORS for cross-origin file
+// requests but <script src> loads cleanly. Porter emits tips.js with
+// `window.HND_TIPS["<app>"] = [...]`.
+HND._tipsLoaded = HND._tipsLoaded || {};
+HND.loadTips = function (appId) {
+    if (HND._tipsLoaded[appId]) return Promise.resolve(HND._tipsLoaded[appId]);
+    return new Promise(function (resolve) {
+        const s = document.createElement("script");
+        s.src = HND.APPS[appId].dataRoot + "/tips.js";
+        s.onload = function () {
+            const arr = (window.HND_TIPS || {})[appId] || [];
+            HND._tipsLoaded[appId] = arr;
+            HND.log("tips ok", appId, "n=" + arr.length);
+            resolve(arr);
+        };
+        s.onerror = function () {
+            HND.log("tips load fail", appId, s.src);
+            HND._tipsLoaded[appId] = [];
+            resolve([]);
+        };
+        document.head.appendChild(s);
+    });
+};
+// Synchronous getter — returns "" if tips not loaded yet (caller should
+// have awaited loadTips). Safe to call from any game render path.
+HND.tip = function (appId, n) {
+    const arr = HND._tipsLoaded[appId];
+    return (arr && arr[n]) || "";
+};
+
 HND.loadCalibSchema = function (appId) {
     if (HND._calibLoaded[appId]) {
         return Promise.resolve(HND._calibLoaded[appId]);
@@ -857,22 +902,33 @@ HND.gameCalibrationFromSlot = function (unit, appId, fallbackGameIdx) {
 
 // Wrap HND.playCombineQA with auto-resolution of askSide/ansSide from
 // the calibration — most callers were threading these manually.
-HND.playCombineFromCal = function (appId, unitId, origIdx, cal, then) {
+// `opts.praiseMax` (default 3 for word-completion games; pass 2 for the
+// Hatama family per orig WaveMe_Done :983 `Rnd*2+1`; pass 0 to skip,
+// e.g. Connect which pre-plays good4.wav as the praise itself).
+HND.playCombineFromCal = function (appId, unitId, origIdx, cal, then, opts) {
+    opts = opts || {};
+    const praiseMax = opts.praiseMax == null ? 3 : opts.praiseMax;
     const p = function (side) { return HND.unitWavePath(appId, unitId, origIdx, side); };
     // Skip null sides (qDisabled) — call the next link in the chain.
     const playOrSkip = function (side, next) {
         if (!side) { if (next) next(); return; }
         HND.playWave(p(side), next || null);
     };
+    // Praise step: orig WaveMe_Done state machine plays `good<1..N>.wav`
+    // AFTER the CombineQA chain and BEFORE Q-advance. Skip when praiseMax=0.
+    const afterCombine = (praiseMax > 0) ? function () {
+        const n = 1 + Math.floor(Math.random() * praiseMax);
+        HND.playWave("assets/" + appId + "/sounds/good" + n + ".wav", then || null);
+    } : then;
     const chain = function (a, b) {
-        playOrSkip(a, function () { playOrSkip(b, then); });
+        playOrSkip(a, function () { playOrSkip(b, afterCombine); });
     };
     switch (String(cal.combineQA)) {
         case "7": chain(cal.askSide, cal.ansSide); break;
         case "8": chain("right", "left"); break;
         case "9": chain("left",  "right"); break;
         case "0":
-        default:  playOrSkip(cal.ansSide, then); break;
+        default:  playOrSkip(cal.ansSide, afterCombine); break;
     }
 };
 

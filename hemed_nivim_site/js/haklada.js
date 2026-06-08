@@ -238,6 +238,14 @@ HND.startHaklada = function (root, app, unit, onComplete) {
     root.appendChild(knas);
     root.appendChild(sound);
 
+    // Per-slot bloom controllers — kept so goat.js can finalize ANY prior
+    // flower on row-crosses (orig TimerGoat:780/790-797 sweep-finalization).
+    const blooms = new Array(QCOUNT);
+    function finalizeBloomAt(idx) {
+        const b = blooms[idx];
+        if (b && b.finish) b.finish();
+    }
+
     // Goat — shared with American game via js/goat.js. Original GoatX=900
     // (off-screen right), GoatY=55 (top of meadow above flower row 110).
     const goatCtl = HND.createGoat({
@@ -246,10 +254,12 @@ HND.startHaklada = function (root, app, unit, onComplete) {
         flowerX: flowerX, flowerY: flowerY, QCOUNT: QCOUNT,
         className: "hak-goat",
         // yOffset default = -55 → goat top sits 55px above flower row.
+        bloomFinalizer: finalizeBloomAt,
     });
     const goat = goatCtl.element;
     const goatState = goatCtl.state;
     function setGoatStatus(s, targetIdx, bloomTarget) {
+        if (bloomTarget && targetIdx != null) blooms[targetIdx] = bloomTarget;
         return goatCtl.setStatus(s, targetIdx, bloomTarget);
     }
     function paintGoat() { /* no-op — helper paints internally */ }
@@ -576,6 +586,7 @@ HND.startHaklada = function (root, app, unit, onComplete) {
     // called from the goat tick to stay synchronized with the walk; if
     // never stepped (F12 cheat / immediate-call sites), finish() snaps
     // to the final frame.
+    const FLOWER_BASE = "assets/" + app.id + "/pictures/GameHaklada/";
     function growFlower(slotIdx, cat) {
         const seed = flowerLayer.querySelector('[data-slot="' + slotIdx + '"]');
         if (!seed) return { step: function () {}, finish: function () {} };
@@ -587,7 +598,7 @@ HND.startHaklada = function (root, app, unit, onComplete) {
         const finalIdx  = Math.min(target, lastFrame);
         function setFrame(frameIdx) {
             seed.style.backgroundImage =
-                "url('" + SPRITE_BASE + "flower" + kindNum + "_" + frameIdx + ".png')";
+                "url('" + FLOWER_BASE + "flower" + kindNum + "_" + frameIdx + ".png')";
             seed.style.opacity = "1";
         }
         // Initial frame so the seed pose is replaced immediately.
@@ -692,7 +703,7 @@ HND.startHaklada = function (root, app, unit, onComplete) {
                     location.hash = "#/" + app.id + "/unit/" + unit.id + "/games";
                 },
                 function onReplay() {
-                    location.hash = "#/" + app.id + "/unit/" + unit.id + "/haklada";
+                    HND.restartGame(app.id, unit.id, "haklada");
                 }
             );
         };

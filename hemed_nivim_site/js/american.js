@@ -98,6 +98,13 @@ HND.startAmerican = function (root, app, unit, onComplete) {
     const FLOWER_SPACE = 65;
     // Orig PlayGame: QCount = min(items, QLimit, 33).
     const QCOUNT = Math.min(cal.qLimit > 0 ? cal.qLimit : items.length, 33);
+    // Orig PlayGame:298-301 — `If QCount < 4 Then Unload Me / Exit Sub`.
+    // 4 options per question requires at least 4 items in the pool.
+    if (QCOUNT < 4) {
+        root.innerHTML = '<div class="error">צריך לפחות 4 פריטים למשחק אמריקאי.</div>';
+        if (onComplete) onComplete(0);
+        return;
+    }
     const rawIdxs = items.map(function (_, i) { return i; });
     const idOrder = (cal.ifRandom ? HND._shuffle(rawIdxs) : rawIdxs).slice(0, QCOUNT);
     // FlowerKind dedup (orig PlayGame:513-517).
@@ -170,6 +177,14 @@ HND.startAmerican = function (root, app, unit, onComplete) {
     else                     qFrame.classList.add("am-q-text-mode");
 
     // Goat — shared TimerGoat-style controller (js/goat.js). Orig
+    // Per-slot bloom controllers (orig FlowerStatus array) — so goat.js
+    // can finalize ANY prior flower on row-crosses (TimerGoat:780-797).
+    const blooms = new Array(QCOUNT);
+    function finalizeBloomAt(idx) {
+        const b = blooms[idx];
+        if (b && b.finish) b.finish();
+    }
+
     // GameAmerican.frm Form_Load:376-378 sets GoatX=900, GoatY=407
     // (= flowerY(0)-55 since the bottom row sits at 462). The walking
     // mechanics + flower-bloom sync are identical to Haklada — only
@@ -179,6 +194,7 @@ HND.startAmerican = function (root, app, unit, onComplete) {
         appId: app.id,
         flowerX: flowerX, flowerY: flowerY, QCOUNT: QCOUNT,
         className: "am-goat",
+        bloomFinalizer: finalizeBloomAt,
     });
 
     // Header — UnitName · UserName (RGB(20,40,200) per Form_Paint).
@@ -430,14 +446,14 @@ HND.startAmerican = function (root, app, unit, onComplete) {
                         state.currErrors <= 2 ? 1 : 2;
             state.errorsByQ.push(cat);
             const bloom = growFlower(state.current, cat);
+            const targetIdx = Math.min(state.current + 1, QCOUNT - 1);
+            blooms[targetIdx] = bloom;
             const goatStatus = cat === 0 ? 1 : cat === 1 ? 2 : 5;
             // Orig sequencing (TimerGoat case 55 fires AFTER answer
             // wave finishes — defer goat walk + good[N] until then).
             const goodN = 1 + Math.floor(Math.random() * 3);
             const onAudioDone = function () {
-                goatCtl.setStatus(goatStatus,
-                                  Math.min(state.current + 1, QCOUNT - 1),
-                                  bloom);
+                goatCtl.setStatus(goatStatus, targetIdx, bloom);
                 HND.playWave(
                     "assets/" + app.id + "/sounds/good" + goodN + ".wav",
                     function () {
@@ -453,7 +469,10 @@ HND.startAmerican = function (root, app, unit, onComplete) {
                 askSide: cal.askSoundSide,
                 ansSide: cal.ansSoundSide,
             });
-            HND.playCombineFromCal(app.id, unit.id, idx, audioCal, onAudioDone);
+            // praiseMax=0 — American interleaves goat-walk and good[N] inside
+            // onAudioDone (goat walks BEFORE praise per orig case-55 chain).
+            HND.playCombineFromCal(app.id, unit.id, idx, audioCal, onAudioDone,
+                                   { praiseMax: 0 });
         } else {
             HND.log("american WRONG",
                     "q=" + (state.current + 1), "pickedIdx=" + picked, "errors=" + (state.currErrors + 1));
@@ -478,15 +497,22 @@ HND.startAmerican = function (root, app, unit, onComplete) {
                 }, 800);
             }
             // After 3 errors, briefly highlight the correct option.
+            // Orig CheckAnswer:683-693 — saves OldHetzhPos before reveal;
+            // on `CurrErrors = 3` (the exact threshold tick) restores it so
+            // arrow-key nav resumes from the user's last guess. For >3 the
+            // orig leaves focus on the correct slot.
             if (state.currErrors > 2) {
                 const correctSlot = state.hotSpotsId.indexOf(idx);
                 if (correctSlot >= 0) {
+                    const oldPos = state.hetzhPos;
+                    const restorePos = state.currErrors === 3;
                     setFocus(correctSlot);
                     const correctOpt = optionNodes[correctSlot];
                     if (correctOpt) {
                         correctOpt.classList.add("reveal");
                         setTimeout(function () {
                             correctOpt && correctOpt.classList.remove("reveal");
+                            if (restorePos) setFocus(oldPos);
                         }, 600);
                     }
                 }
@@ -551,7 +577,7 @@ HND.startAmerican = function (root, app, unit, onComplete) {
                     location.hash = "#/" + app.id + "/unit/" + unit.id + "/games";
                 },
                 function onReplay() {
-                    location.hash = "#/" + app.id + "/unit/" + unit.id + "/american";
+                    HND.restartGame(app.id, unit.id, "american");
                 }
             );
         };
@@ -613,7 +639,7 @@ HND.startAmerican = function (root, app, unit, onComplete) {
             e.stopPropagation();
             // Orig CmdRePlay_Click:440-443 → Unload Me + PlayGame again.
             // Re-route to same URL; app.js will rebuild the screen.
-            location.hash = "#/" + app.id + "/unit/" + unit.id + "/american";
+            HND.restartGame(app.id, unit.id, "american");
         });
         root.appendChild(replayBtn);
     }

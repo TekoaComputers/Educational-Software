@@ -783,7 +783,7 @@ HND.startConnect = function (root, app, unit, onComplete) {
         });
         replayBtn.addEventListener("click", function (e) {
             e.stopPropagation();
-            location.hash = "#/" + app.id + "/unit/" + unit.id + "/connect";
+            HND.restartGame(app.id, unit.id, "connect");
         });
         root.appendChild(replayBtn);
     }
@@ -819,14 +819,21 @@ HND.startConnect = function (root, app, unit, onComplete) {
         }
     }
 
-    // F1 / F12 cheat keys (orig Form_KeyUp:251-263). F12 forces win.
+    // F1 / F12 / Esc keys (orig Form_KeyUp:251-263). Esc fires CmdExit
+    // (two-step replay-then-exit pattern).
     function keyHandler(e) {
         if (game.completed) {
             document.removeEventListener("keydown", keyHandler);
             return;
         }
-        if (e.key === "F1") { e.preventDefault(); showHelpOverlay(); return; }
+        if (e.key === "F1")  { e.preventDefault(); showHelpOverlay(); return; }
         if (e.key === "F12") { e.preventDefault(); finish(); return; }
+        if (e.key === "Escape") {
+            e.preventDefault();
+            if (!replayBtn) showReplayButton();
+            else location.hash = "#/" + app.id + "/unit/" + unit.id + "/games";
+            return;
+        }
     }
     document.addEventListener("keydown", keyHandler);
 

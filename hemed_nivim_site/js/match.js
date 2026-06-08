@@ -110,10 +110,16 @@ HND.startMatch = function (root, app, unit, onComplete) {
     // Middle (% of paper width where the left/right split sits) is part of
     // each unit's header — TheUnitFile(14) per GamesMoudle.bas:223. Defaults
     // to 50% if missing or non-numeric.
-    const unitMiddle = (function () {
+    // Orig PlayGame:184-186: when WhatToAnswer=qRight AND WhatToAsk=qLeft
+    // (teacher-flipped Q/A sides) the unit's Middle is mirrored to keep the
+    // proportions consistent with the swapped sides.
+    let unitMiddle = (function () {
         const m = parseInt((unit.data && unit.data.header && unit.data.header[14]) || "50", 10);
         return isNaN(m) ? 50 : m;
     })();
+    if (cal.askSide === "left" && cal.ansSide === "right") {
+        unitMiddle = 100 - unitMiddle;
+    }
     // Corner.Right in row-local pixels (RePaintLine uses Middle/100 × FullLinePic.Width).
     // Per-row CSS uses --split-x; the four layer offsets (split-13, split-20,
     // split+27, etc.) are computed in CSS calc() from this single var.
@@ -257,6 +263,9 @@ HND.startMatch = function (root, app, unit, onComplete) {
         // marks the FIRST unanswered as the cursor for keyboard nav, not
         // the asked Q itself. We just play the audio for the asked Q.
         HND.log("match ask", "qId=" + state.qId, "origIdx=" + idOrder[state.qId]);
+        // Orig NextQuestion:919 — `If 0 = ErrorForHint Then PaintHint`
+        // (hint shown immediately on every Q when calibration is 0).
+        if (cal.errorForHint === 0) showHint();
         // Play the WhatToAsk-side wave for this Q (orig CmdSound_Click).
         HND.playWave(HND.unitWavePath(app.id, unit.id, idOrder[state.qId], askSide));
         state.gameEnabled = true;
@@ -311,7 +320,10 @@ HND.startMatch = function (root, app, unit, onComplete) {
                     if (state.qAnswered >= QCount) finishGame();
                     else                            nextQuestion();
                 };
-                HND.playCombineFromCal(app.id, unit.id, idOrder[rowIdx], cal, onDone);
+                // praiseMax=2 — orig WaveMe_Done case 2 :980-986 plays
+                // good[1-2].wav (Hatama uses Rnd*2+1, not Rnd*3+1).
+                HND.playCombineFromCal(app.id, unit.id, idOrder[rowIdx], cal,
+                                       onDone, { praiseMax: 2 });
             }, 200);
         } else {
             // Wrong — Penalty += 20/QCount, capped at 60.
@@ -324,8 +336,11 @@ HND.startMatch = function (root, app, unit, onComplete) {
                 line.classList.add("wrong-flash");
                 setTimeout(function () { line.classList.remove("wrong-flash"); }, 600);
             }
-            // After 3 errors, show hint (the answer text).
-            if (state.errorCount >= 2) showHint();
+            // Orig CheckAnswer:638 — show hint at ErrorForHint threshold
+            // (per-unit calibration). 0 means "always show on next-Q" and
+            // is handled in nextQuestion(); >0 means "after N errors".
+            const hintTrigger = cal.errorForHint != null ? cal.errorForHint : 2;
+            if (hintTrigger > 0 && state.errorCount >= hintTrigger) showHint();
             // ErrorCount = 3 → TimerError fires: flash the Q row 8 times
             // (original TimerError_Timer toggles RGB ±15/10/10) and ResetPos
             // (we don't drag boxes, so just lock briefly and re-enable).
@@ -346,10 +361,15 @@ HND.startMatch = function (root, app, unit, onComplete) {
     }
 
     function showHint() {
-        // Orig PaintHint reads from WhatToHint (calibration field 9).
-        // Fall back to answer column if no hint side configured.
+        // Orig PaintHint:856-887 — resolves the hint side via WhatToHint
+        // (calibration field 9): qDisabled → skip, qPicture → TextForPicture
+        // column, otherwise → StringHint column. data.js:836 already
+        // resolves qPicture by routing sideCol(3) through textForPic, so
+        // cal.hintCol is the correct column in every non-disabled case.
+        if (cal.whatToHint === 0 /* qDisabled */) return;
         const it = items[idOrder[state.qId]];
-        const text = (cal.hintCol && it[cal.hintCol]) || it[ansCol] || "";
+        const text = (cal.hintCol && it[cal.hintCol]) || "";
+        if (!text) return;
         hintBox.textContent = "רמז: " + text;
     }
 
@@ -373,7 +393,7 @@ HND.startMatch = function (root, app, unit, onComplete) {
                 },
                 function onReplay() {
                     // Re-enter the match game.
-                    location.hash = "#/" + app.id + "/unit/" + unit.id + "/match";
+                    HND.restartGame(app.id, unit.id, "match");
                 }
             );
         }, 900);
@@ -383,9 +403,87 @@ HND.startMatch = function (root, app, unit, onComplete) {
     // Initial render: paint all rows in notAnswered state.
     for (let i = 0; i < QCount; i++) setLineState(i, "not-answered");
     showPenalty();
+
+    // Help overlay (orig CmdHelp_Click — plays game1.wav + briefly shows
+    // instructions text). Per cal.instructions / instructionsFliped.
+    let helpEl = null;
+    function showHelpOverlay() {
+        const text = (cal.instructionsFliped && window.HND_QASwitched)
+                   ? cal.instructionsFliped : cal.instructions;
+        if (!helpEl) {
+            helpEl = HND._el("div", { class: "ctrl hat-tip" });
+            root.appendChild(helpEl);
+        }
+        if (text && text !== "0") {
+            helpEl.textContent = text;
+            helpEl.style.display = "block";
+            setTimeout(function () { if (helpEl) helpEl.style.display = "none"; }, 5000);
+        }
+        HND.playWave("assets/" + app.id + "/sounds/game1.wav");
+    }
+
+    // CmdRePlay two-step exit (orig CmdExit_Click pattern).
+    let replayBtn = null;
+    function showReplayButton() {
+        if (replayBtn) return;
+        replayBtn = HND._el("button", {
+            class: "ctrl hat-replay", title: "התחל מחדש",
+        });
+        replayBtn.addEventListener("click", function (e) {
+            e.stopPropagation();
+            HND.restartGame(app.id, unit.id, "match");
+        });
+        root.appendChild(replayBtn);
+    }
+    if (root.parentElement) {
+        const helpBtn = root.parentElement.querySelector(".help-icon");
+        if (helpBtn) {
+            const c = helpBtn.cloneNode(true);
+            helpBtn.parentNode.replaceChild(c, helpBtn);
+            c.addEventListener("click", function (e) {
+                e.stopPropagation();
+                showHelpOverlay();
+            });
+        }
+        const exitBtn = root.parentElement.querySelector(".exit-icon");
+        if (exitBtn) {
+            const c = exitBtn.cloneNode(true);
+            exitBtn.parentNode.replaceChild(c, exitBtn);
+            c.addEventListener("click", function (e) {
+                e.stopPropagation();
+                if (!replayBtn) showReplayButton();
+                else location.hash = "#/" + app.id + "/unit/" + unit.id + "/games";
+            });
+        }
+    }
+
+    function keyHandler(e) {
+        if (state.completed) {
+            document.removeEventListener("keydown", keyHandler);
+            return;
+        }
+        if (e.key === "F1")  { e.preventDefault(); showHelpOverlay(); return; }
+        if (e.key === "F12") {
+            e.preventDefault();
+            // Cheat: instant-win remaining rows.
+            for (let i = 0; i < QCount; i++) {
+                if (state.idStatus[i] === "notAnswered") {
+                    state.idStatus[i] = "answered";
+                    setLineState(i, "answered");
+                    state.qAnswered++;
+                    growFlower(state.qAnswered - 1, 0);
+                }
+            }
+            finishGame();
+            return;
+        }
+    }
+    document.addEventListener("keydown", keyHandler);
+
     // Original PlayGame ends with Me.Show 1 and lets WaveMe_Done (after the
     // help-audio plays) trigger the first NextQuestion. The user reaches
     // this game via a click on the GameMenu sign, so audio is already
     // unlocked by the time we get here — call nextQuestion directly.
+    showHelpOverlay();
     nextQuestion();
 };

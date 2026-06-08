@@ -326,14 +326,26 @@ def port_app(app_id: str, src_root: Path):
         print(f"  sounds → {dst_snd}")
         copy_sounds(snd_src, dst_snd)
 
-    # Config / Tips
+    # Config / Tips. Emit BOTH .json (canonical) and .js (script-tag form,
+    # `window.HND_TIPS["<app>"] = [...]`) so the runtime can load tips
+    # under file:// — fetch() blocks cross-origin file requests but
+    # script tags load fine. Mirrors the calib.js pattern in data.js.
     for name in ("Config.txt", "Tips.txt"):
         f = src_root / "Data" / name
         if f.exists():
-            (dst_dat / (name.lower().replace(".txt", ".json"))).write_text(
-                json.dumps(parse_cfg_txt(f), ensure_ascii=False, indent=2),
+            arr = parse_cfg_txt(f)
+            stem = name.lower().replace(".txt", "")
+            (dst_dat / (stem + ".json")).write_text(
+                json.dumps(arr, ensure_ascii=False, indent=2),
                 encoding="utf-8",
             )
+            if name == "Tips.txt":
+                (dst_dat / "tips.js").write_text(
+                    "window.HND_TIPS = window.HND_TIPS || {};\n"
+                    + f'window.HND_TIPS[{json.dumps(app_id)}] = '
+                    + json.dumps(arr, ensure_ascii=False, indent=2) + ";\n",
+                    encoding="utf-8",
+                )
 
     # Units
     units_src = src_root / "Units"
@@ -373,6 +385,45 @@ def port_app(app_id: str, src_root: Path):
         items = (unit.get("data") or {}).get("items") or []
         for i, item in enumerate(items):
             item["_waves"] = sorted(set(waves.get(i, [])))
+
+        # Per-unit picture assets — orig games read GamePath\pic\<idx>.bmp
+        # when WhatToAsk/WhatToAnswer = qPicture (American/Apple/Connect/
+        # Hakira/Haklada). Source dirs are Windows-style `Pic/` (capital P);
+        # Linux is case-sensitive so we scan for any case variant.
+        # Hemed unit 0 ("עצמים ביקום") DOES ship Pic/0..7.bmp and uses
+        # qPicture in 5 game-blocks — keep this loop wired even if other
+        # units have empty Pic/.
+        u_dst_pic = dst_dat / f"unit_{unit['id']}" / "pic"
+        src_pic = None
+        if u_src.is_dir():
+            for child in u_src.iterdir():
+                if child.is_dir() and child.name.lower() == "pic":
+                    src_pic = child
+                    break
+        pics: set[int] = set()
+        if src_pic and src_pic.is_dir():
+            u_dst_pic.mkdir(parents=True, exist_ok=True)
+            for f in src_pic.iterdir():
+                ext = f.suffix.lower()
+                if ext not in (".bmp", ".jpg", ".jpeg", ".png"):
+                    continue
+                stem = f.stem.lower()
+                out = u_dst_pic / (stem + ".png" if ext == ".bmp" else stem + ext)
+                if ext == ".bmp":
+                    # Use the same numpy alpha-keying as force_rgba_from_bmp
+                    # (black → alpha=0) so picture-mode boxes blend.
+                    import numpy as np
+                    from PIL import Image
+                    rgb = np.array(Image.open(f).convert("RGB"))
+                    black = (rgb[:,:,0]==0) & (rgb[:,:,1]==0) & (rgb[:,:,2]==0)
+                    alpha = np.where(black, 0, 255).astype(np.uint8)
+                    Image.fromarray(np.dstack([rgb, alpha]), "RGBA").save(out)
+                else:
+                    shutil.copy(f, out)
+                if stem.isdigit():
+                    pics.add(int(stem))
+        for i, item in enumerate(items):
+            item["_hasPic"] = i in pics
 
     # Drop empty/placeholder units. The original ships unit 11 in both apps
     # as a developer-test stub ("זסבזסב", category=" ", LineCount=0,
