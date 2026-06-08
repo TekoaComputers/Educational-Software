@@ -234,6 +234,12 @@ function showApp(appId) {
         if (state.currentScreen !== "sst") return;
         if (state.config.id === "EnglishC") applyEnglishCRamaLayout(state);
         if (state.config.id === "KolKoreA") applyKolKoreARamaLayout(state);
+        if (state.config.id === "KolKoreB") {
+            // refreshRamaImages wiped the temC selected sprite back to tem;
+            // also the star previews need to reload (rama-specific maslul
+            // pictures). kkbPickActivity does both.
+            kkbPickActivity(state, state.kkb_cHos != null ? state.kkb_cHos : 0);
+        }
         if (state.config.id === "KolKoreD") applyKolKoreDRamaLayout(state);
     };
     onScreenChange(currentSession, currentSession.currentScreen);
@@ -278,7 +284,14 @@ function onScreenChange(state, screenId) {
         if (state.config.flipBook) wireFlipBookAnimation(state);
         if (state.config.id === "EnglishC") applyEnglishCRamaLayout(state);
         if (state.config.id === "KolKoreA") applyKolKoreARamaLayout(state);
-        if (state.config.id === "KolKoreB") wireKolKoreBRamaToggle(state);
+        if (state.config.id === "KolKoreB") {
+            wireKolKoreBRamaToggle(state);
+            // Apply the initial KolKoreB selection (sticky across screen
+            // re-entry) so star(0)/star(1) preview the cHos'th maslul and
+            // the selected btnIcon shows its temC sprite. Defaults to 0
+            // on first entry.
+            kkbPickActivity(state, state.kkb_cHos != null ? state.kkb_cHos : 0);
+        }
         if (state.config.id === "KolKoreD") applyKolKoreDRamaLayout(state);
     }
 }
@@ -357,6 +370,90 @@ function applyKolKoreDRamaLayout(state) {
 // this intercept the rama stays pinned at 1. We mirror the KolKoreC/D
 // approach (sans flip animation): capture-phase listener computes the
 // toggle target and reuses setRamaUtil to swap state + repaint icons.
+// === KolKoreB Sst pick + star preview ====================================
+// The KolKoreB Sst is a two-pane "select then launch" UI not present in
+// the other KolKore apps. Form layout:
+//   - Right pane: 7 btnIcon[0..6] in a 4+3 grid (the activity thumbnails).
+//   - Left pane:  2 star[0..1] preview boxes, vertically stacked.
+//
+// Sst.frm:990 btnIcon_Click(Index):
+//   btnIcon(cHos).Picture = tem_<rama><cHos+1>.bmp     (restore previous)
+//   cHos = Index
+//   btnIcon(cHos).Picture = temC_<rama><cHos+1>.bmp    (mark new selection)
+//   For both star(0)=slot[cHos] and star(1)=slot[cHos+7], PutGFilei +
+//   StartGames9 to get Pics_F, then star(s).Picture = LoadPicture(Pics_F).
+//   Lampas() refreshes the score lamp visuals.
+//
+// Sst.frm:1518 star_Click(Index):
+//   n_masl = (Index === 0) ? cHos : cHos+7
+//   PutGFile + BeginGame + StartGames n_masl
+//
+// State tracked on currentSession: state.kkb_cHos (0..6, sticky across
+// rama swaps + screen re-entry).
+function kkbPickActivity(state, idx) {
+    if (idx < 0 || idx > 6) return;
+    const stage = state.stage;
+    const oldHos = (state.kkb_cHos != null) ? state.kkb_cHos : 0;
+    state.kkb_cHos = idx;
+    const rama = String(state.rama);
+    const root = state.config.assetsRoot;
+    // Restore the previous selection to its idle sprite, then swap the new
+    // one to its temC selected sprite. Use the renderer's frm-img element
+    // so refreshRamaImages can still find/swap it on a future rama change.
+    function setIconImage(btnIdx, kind) {
+        const btn = stage.querySelector('.frm-ctrl--btnIcon[data-index="' + btnIdx + '"]');
+        if (!btn) return;
+        // Original .bmp names are tem_<rama><idx+1>.bmp / temC_<rama><idx+1>.bmp;
+        // the asset converter lowercased everything to .png, so we ask for
+        // temc_<rama><idx+1>.png even though the original .frm spells the
+        // selected variant with an uppercase "C".
+        const file = "tem" + (kind === "selected" ? "c" : "") + "_" + rama + (btnIdx + 1) + ".png";
+        let img = btn.querySelector("img.frm-img");
+        if (!img) {
+            img = document.createElement("img");
+            img.className = "frm-img";
+            btn.appendChild(img);
+        }
+        img.src = root + "/menu/" + file;
+    }
+    if (oldHos !== idx) setIconImage(oldHos, "idle");
+    setIconImage(idx, "selected");
+    // Refresh both star previews with the corresponding maslul's first-
+    // stage picture. slot[idx] = star[0], slot[idx+7] = star[1].
+    const slots = currentRamaSlots(state) || [];
+    [0, 1].forEach(function (s) {
+        const slot = slots[idx + s * 7];
+        const pic  = slot && slot.stages && slot.stages.length ? slot.stages[0].pic : null;
+        const starEl = stage.querySelector('.frm-ctrl--star[data-index="' + s + '"]');
+        if (!starEl) return;
+        let img = starEl.querySelector("img.frm-img");
+        if (!img) {
+            img = document.createElement("img");
+            img.className = "frm-img";
+            Object.assign(img.style, {
+                position: "absolute", inset: "0",
+                width: "100%", height: "100%",
+                objectFit: "fill", pointerEvents: "none",
+            });
+            starEl.appendChild(img);
+        }
+        if (pic) img.src = root + "/bmp/" + pic.toLowerCase().replace(/\.bmp$/, ".png");
+        else     img.removeAttribute("src");
+    });
+    // Refresh the two lamp images — KolKoreB's lamp completion is keyed by
+    // cHos+i*7 (per the original Lampas() reading "<rama>b<cHos>b<i>.txt"),
+    // so changing cHos changes which slots the two lamps reflect.
+    wireSstLamps(state);
+    klog("kkb: pick btnIcon[" + idx + "] cHos=" + idx + " rama=" + rama);
+}
+
+function kkbStartActivity(state, starIdx) {
+    const cHos = (state.kkb_cHos != null) ? state.kkb_cHos : 0;
+    const slotIdx = cHos + (starIdx === 1 ? 7 : 0);
+    klog("kkb: start star[" + starIdx + "] → slot " + slotIdx);
+    startPath(state, slotIdx);
+}
+
 function wireKolKoreBRamaToggle(state) {
     // Called from onScreenChange("sst") on a freshly-rebuilt stage DOM, so
     // every entry needs to (re-)attach the listener to the new element.
@@ -1329,10 +1426,21 @@ function wireSstLamps(state) {
     const root = state.config.assetsRoot;
 
     const lamps = state.stage.querySelectorAll(".frm-ctrl--btnLamp");
+    // KolKoreB Lampas iterates btnLamp(0..1) and reads completion file
+    // "<rama>b<cHos>b<i>.txt" — i.e. the lamp lights up per the currently-
+    // selected btnIcon (cHos). Lamp 0 reflects slot cHos, Lamp 1 reflects
+    // slot cHos+7. Re-key per current cHos for KolKoreB; other apps use
+    // the straight lamp idx == slot idx mapping.
+    const kkbCHos = (appId === "KolKoreB" && state.kkb_cHos != null) ? state.kkb_cHos : 0;
+    function lampSlotIdx(lampIdx) {
+        if (appId === "KolKoreB") return kkbCHos + (lampIdx === 1 ? 7 : 0);
+        return lampIdx;
+    }
     lamps.forEach(function (el) {
         const idx = parseInt(el.dataset.index, 10);
         if (isNaN(idx)) return;
-        const isDone = !!completed[String(idx)];
+        const slotIdx = lampSlotIdx(idx);
+        const isDone = !!completed[String(slotIdx)];
         const existing = el.querySelector("img");
         if (existing) existing.remove();
         // Wipe any prior printed score overlay from a previous rama swap.
@@ -1356,7 +1464,7 @@ function wireSstLamps(state) {
                 //   v = Int(((bx*5 + cx + dX) * 20) / ax)
                 // where ax = total Q's across this activity's stages, and
                 // bx/cx/dX = green/yellow/red answer counts.
-                const entry = ramaScores[String(idx)];
+                const entry = ramaScores[String(slotIdx)];
                 if (entry && entry.stages && entry.stages.length) {
                     let ax = 0, bx = 0, cx = 0, dX = 0;
                     entry.stages.forEach(function (s) {
@@ -1439,6 +1547,7 @@ function stopAllAudio(state) {
     // the flag so flows that abandon a chain mid-flight (picexi → no, hak
     // overlay dismiss, nikod close, screen change) don't leave clicks pinned.
     state.inputLocked = false;
+    state._audioPlaying = false;
 }
 
 // Mirrors Games*.frm Timer1_Timer / Timer2_Timer: while MMControl2.Mode = 526
@@ -1448,6 +1557,13 @@ function stopAllAudio(state) {
 function audioBusy(state) {
     if (!state) return false;
     if (state.inputLocked) return true;
+    // _audioPlaying is set synchronously by playAudio at call time and
+    // cleared in onended/catch/stopAllAudio. Closes the micro-window
+    // between pause()→src=→play() where the HTMLAudioElement.paused
+    // briefly reports true before the new buffer starts (issue #22:
+    // fast clicks slipping through a chain that the original VB6
+    // MMControl2.Mode = 526 would have caught).
+    if (state._audioPlaying) return true;
     const a = state._audio;
     return !!(a && a.src && !a.paused && !a.ended);
 }
@@ -1954,6 +2070,44 @@ function handleAction(appId, action /*, ctrl */) {
         // the user back to the song picker.
         if (!currentSession) return;
         showIvritView(currentSession, "picker");
+        return;
+    }
+    // KolKoreB Sst — two-step pick + start (mirrors Sst.frm:990 btnIcon_Click
+    // → PREVIEW only, and Sst.frm:1518 star_Click → actually start the path).
+    if (action && action.indexOf("kkb:pick:") === 0) {
+        if (!currentSession) return;
+        const idx = parseInt(action.split(":")[2], 10);
+        kkbPickActivity(currentSession, idx);
+        return;
+    }
+    if (action && action.indexOf("kkb:start:") === 0) {
+        if (!currentSession) return;
+        const idx = parseInt(action.split(":")[2], 10);
+        kkbStartActivity(currentSession, idx);
+        return;
+    }
+    if (action && action.indexOf("kkb:score:") === 0) {
+        // KolKoreB Sst.btnLamp_Click(i): n_masl = (i === 0) ? cHos : cHos+7;
+        // getscorefile reads the score for THAT slot, then niko shows the
+        // score board. The lamp's own index isn't the activity index —
+        // it's the star-pane index.
+        if (!currentSession) return;
+        const lampIdx = parseInt(action.split(":")[2], 10);
+        const cHos = (currentSession.kkb_cHos != null) ? currentSession.kkb_cHos : 0;
+        const slotIdx = cHos + (lampIdx === 1 ? 7 : 0);
+        const completed = loadCompletedMap("KolKoreB")[String(currentSession.rama)] || {};
+        if (!completed[String(slotIdx)]) {
+            klog("kkb: score ignored — slot " + slotIdx + " (cHos=" + cHos + " star=" + lampIdx + ") not completed");
+            return;
+        }
+        klog("kkb: score star=" + lampIdx + " → slot " + slotIdx);
+        showSavedScores(currentSession, slotIdx);
+        return;
+    }
+    if (action === "kkb:mini") {
+        // mini_Click → Sst.Visible=False/Hsst.Show — a Hidy minimize stub.
+        // Web port has no minimize; faithful no-op.
+        klog("kkb: mini (minimize stub — no-op on web)");
         return;
     }
     if (action === "credit:show") {
@@ -3555,6 +3709,7 @@ function playAudio(state, url, onEnded) {
             const rel = url.slice(root.length);
             if (!state.audioFiles.has(rel)) {
                 klog("audio skip (missing):", rel);
+                state._audioPlaying = false;
                 if (onEnded) onEnded();
                 return;
             }
@@ -3565,16 +3720,30 @@ function playAudio(state, url, onEnded) {
         state._audio = new Audio();
         state._audio.preload = "auto";
     }
+    // Set the busy flag NOW — synchronously, before pause()/src=/play() —
+    // so audioBusy() returns true through the whole transition. Without this
+    // there's a micro-window where HTMLAudioElement.paused is briefly true
+    // (after pause() but before play() actually starts the new buffer) and
+    // a fast click slips through, interrupting the audio (issue #22:
+    // "in linux you are allowed to click… in windows you have to wait").
+    state._audioPlaying = true;
     try {
         state._audio.pause();
         state._audio.src = url;
         state._audio.currentTime = 0;
         // Clear any previous one-shot ended handler before attaching.
         state._audio.onended = null;
-        if (onEnded) state._audio.onended = function () { onEnded(); };
+        state._audio.onended = function () {
+            state._audioPlaying = false;
+            if (onEnded) onEnded();
+        };
         const p = state._audio.play();
-        if (p && p.catch) p.catch(function () { if (onEnded) onEnded(); });
+        if (p && p.catch) p.catch(function () {
+            state._audioPlaying = false;
+            if (onEnded) onEnded();
+        });
     } catch (err) {
+        state._audioPlaying = false;
         if (onEnded) onEnded();
     }
 }
@@ -4458,6 +4627,7 @@ function showNikod(state, slot, onClose) {
         "Shirim&Meshalim": { left: 150, top:  40 },
         "EnglishC":        { left: 152, top:  35 },
         "KolKoreA":        { left: 155, top:  57 },
+        "KolKoreB":        { left: 155, top:  57 },   // nikod.frm adv L=2325 T=855
         "KolKoreC":        { left: 150, top:  39 },
         "KolKoreD":        { left: 150, top:  39 },
     };

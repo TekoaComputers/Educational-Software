@@ -31,6 +31,11 @@ export default {
                     "assets/KolKoreB/menu/tem_{rama}7.png",
                 ],
                 mahak: "assets/KolKoreB/menu/mhak.png",
+                // Sst.frm line 1326: btnexi(0).Picture = LoadPicture(xsst.bmp).
+                // AutoSize=-1 grows the box to the image's natural dims.
+                // Previously unbound — the exit button rendered as an invisible
+                // hotspot (issue #23: "missing exit button").
+                btnexi: "assets/KolKoreB/menu/xsst.png",
             },
         },
         game1:  { layoutFile: "data/layout/_shared/games.json",  background: "assets/KolKoreB/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/KolKoreB/menu/hetz7.png" } },

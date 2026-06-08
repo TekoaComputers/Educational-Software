@@ -31,7 +31,25 @@ function actionFor(ctrl, appId) {
     // btnIcon = start the activity (Sst.btnIcon_Click → PutGFile + StartGames).
     // btnLamp = show the score board for a previously-played activity
     //   (Sst.btnLamp_Click → PutGFile + getscorefile + niko). Separate actions.
+    // KolKoreB Sst.btnLamp_Click: getscorefile(i) where i = 0 or 1 — looks
+    // up the score for slot cHos+i*7 (not for the lamp's own index). Route
+    // through a KolKoreB-specific action so handleAction can resolve the
+    // real slot via state.kkb_cHos.
+    if (appId === "KolKoreB" && name === "btnLamp") return `kkb:score:${idx}`;
     if (name === "btnLamp")   return `score:${idx + 1}`;
+    // KolKoreB's Sst.btnIcon_Click does NOT start the game — it's a PREVIEW
+    // step: paints the current selection (temC sprite), restores the
+    // previous (tem sprite), and loads the first-stage picture into both
+    // star(0) (slot cHos) and star(1) (slot cHos+7). The actual play
+    // trigger is star_Click, which calls PutGFile + StartGames. Mirror
+    // that two-step UI here (1:1 with KolKoreB/Sst.frm:990-1010).
+    if (appId === "KolKoreB" && name === "btnIcon") return `kkb:pick:${idx}`;
+    if (appId === "KolKoreB" && name === "star")    return `kkb:start:${idx}`;
+    // KolKoreB mini button (top-right, position 590,0) — Sst.frm mini_Click
+    // sets Sst.Visible = False / Hsst.Visible = True. Hsst is the Hidy
+    // minimize stub; on the web port we have no minimize, so log + no-op
+    // (same treatment as KolKoreC/D btnexi(0/1) for the Hidy form).
+    if (appId === "KolKoreB" && name === "mini")    return "kkb:mini";
     if (name === "btnIcon")   return `maslul:${idx + 1}`;
     if (name === "btnHofshi") return "hofshi";
     if (name === "btnSeret") {
@@ -84,10 +102,15 @@ function actionFor(ctrl, appId) {
     // Heshbon Sst.avi_Click: plays \avi\_<rama><idx+1>.avi. One label per
     // path tile (5 of them); idx maps to btnIcon idx.
     if (name === "avi")        return `avi:${idx}`;
-    // KolKoreC/D Sst.btnexi_Click:
-    //   Index 2 → Ezia (exit app); Index 0 → Hidy form (minimize — no-op
-    //   on the web port since the launcher is the same window).
+    // btnexi behavior is per-app:
+    //   KolKoreB Sst.btnexi_Click: Ezia (exit) unconditionally — only
+    //     btnexi(0) exists in the .frm and it's the small "X" at top-right
+    //     (xsst.bmp). Earlier the port misrouted this through the KolKoreC/D
+    //     Hidy stub and the button silently did nothing (issue #23).
+    //   KolKoreC/D Sst.btnexi_Click: If Index = 2 Then Ezia — only btnexi(2)
+    //     exits; btnexi(0/1) flip to the Hidy minimize form (no-op on web).
     if (name === "btnexi") {
+        if (appId === "KolKoreB") return "exit";
         if (idx === 2) return "exit";
         return `btnexi:${idx}`;
     }
