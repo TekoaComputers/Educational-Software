@@ -4160,7 +4160,18 @@ function buildMisgerModal(opts) {
     if (currentSession) {
         const sound = mode === "exit" ? "aastop.wav" : "stopmas.wav";
         const url = currentSession.config.assetsRoot + "/wav/" + sound;
-        try { new Audio(url).play().catch(function () {}); } catch (e) {}
+        // Retain the Audio element on currentSession so it isn't GC'd
+        // before play() actually starts (issue #31: Firefox dropped the
+        // sound silently because the fire-and-forget `new Audio()` had
+        // no live reference). Reusing one element also matches the
+        // original's MMControl1 "Close + Open + play" sequence — a
+        // re-open mid-play cancels the prior sound on the same channel.
+        try {
+            if (!currentSession._misgerAudio) currentSession._misgerAudio = new Audio();
+            currentSession._misgerAudio.src = url;
+            currentSession._misgerAudio.currentTime = 0;
+            currentSession._misgerAudio.play().catch(function () {});
+        } catch (e) {}
     }
 
     const root = currentSession ? currentSession.config.assetsRoot : "";
