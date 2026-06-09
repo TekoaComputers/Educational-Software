@@ -1156,7 +1156,12 @@ HND._applyUnitOverrides = function (appId, units) {
     if (!ov || !Object.keys(ov).length) return units;
     const baseIds = {};
     units.forEach(function (u) { baseIds[u.id] = true; });
-    const merged = units.map(function (u) {
+    // Filter out tombstoned bundled units (orig DelUnit allows deleting any
+    // unit; we keep the JSON intact and just hide via override flag).
+    let merged = units.filter(function (u) {
+        const o = ov[u.id];
+        return !(o && o.deleted);
+    }).map(function (u) {
         const o = ov[u.id];
         if (!o) return u;
         const out = Object.assign({}, u);

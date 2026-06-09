@@ -18,6 +18,12 @@
     let allUnits = null;
     let currentUnit = null;
     let stage = null;
+    // Module-level state for UnitList screen — persists across re-renders
+    // (rename / new / delete) so the selection bar doesn't vanish.
+    // Mirrors orig SelectedId persistence in SetFocusOnSelected:487-508.
+    let unitListSelectedId = null;
+    let unitListEditMode = false;
+    let unitListKeyHandler = null;     // cleanup target for screen swap
 
     function makeStage(bgPath) {
         // Atomic stage swap to avoid the blank-frame flash between
@@ -225,12 +231,58 @@
     // UserRama), show subject header rows in navy 24pt, then unit names
     // numbered ".N" in green 20pt. ScoreList sits to the left in sync,
     // blank for headers, "Str(score)" for units.
+    // GAP 17 — Help modal for unit-list screen.
+    // Orig CmdHelp_Click:322-329 renders one of two help files via
+    // ShowForm.ShowDaf:
+    //   AllowEdit=False → AppPath\data\help\UnitList\UnitList.txt
+    //   AllowEdit=True  → AppPath\data\help\ListEdit\ListEdit.txt
+    // We don't ship those raw .txt files; substitute concise Hebrew
+    // helpers that mirror the orig topics.
+    function showUnitListHelp(editMode) {
+        const lines = editMode ? [
+            "מצב עריכת רשימה (F5):",
+            "• יחידה חדשה — צור יחידה ריקה לערוך",
+            "• ערוך יחידה — פתח את היחידה הנבחרת לעריכה",
+            "• שנה שם — שנה את שם היחידה הנבחרת",
+            "• מחק יחידה — הסר את היחידה מהרשימה",
+            "",
+            "ESC — חזרה לרשימה הרגילה (יציאה ממצב עריכה).",
+        ] : [
+            "רשימת היחידות:",
+            "• בחר יחידה ולחץ \"התחל\" או הקלק פעמיים.",
+            "• הציון של כל יחידה מופיע בעמודה השמאלית.",
+            "• היחידות ממוינות לפי נושאים בסדר אלפבית.",
+            "",
+            "F1 — עזרה זו     |     F5 — מצב עריכת רשימה",
+        ];
+        alert(lines.join("\n"));
+    }
+
     function showUnitList(editMode) {
+        // Inherit persisted edit mode if no explicit override.
+        if (editMode == null) editMode = unitListEditMode;
+        unitListEditMode = !!editMode;
         HND.log("screen", "unit-list", "app=" + appId,
                 "units=" + allUnits.length,
                 "edit=" + (!!editMode));
         const stg = makeStage(picPath("UnitList/back.png"));
-        addNavButtons(null, null, "units");
+        // Help-icon click should open the formatted help modal (GAP 17),
+        // not the generic alert() fallback used by HELP_TEXTS["units"].
+        addNavButtons(null, function () { showUnitListHelp(unitListEditMode); }, "units");
+
+        // === GAP 2 — User-name banner ===
+        // Orig Form_Paint:408-412 draws Allusers(CurrentUser).UserName at
+        // (400, 5), centered, in RGB(100,100,250) over RGB(50,50,150) for
+        // a two-pass shadow effect. Painted on every Form_Paint while
+        // firstPaint=True; we add it once on screen entry.
+        let userName = "";
+        try { userName = localStorage.getItem("hnd." + appId + ".user") || ""; } catch (e) {}
+        if (userName) {
+            const banner = document.createElement("div");
+            banner.className = "ctrl unit-list-user";
+            banner.textContent = userName;
+            stg.appendChild(banner);
+        }
 
         const list = document.createElement("div");
         list.className = "ctrl unit-scroll";
@@ -249,7 +301,7 @@
             return !ramaFilter || !u.ramaLabel || u.ramaLabel === ramaFilter;
         });
 
-        // Group by category (subject), preserving first-seen order.
+        // Group by category (subject).
         const groups = [];
         const groupIdx = {};
         filtered.forEach(function (u) {
@@ -257,74 +309,160 @@
             if (!(key in groupIdx)) { groupIdx[key] = groups.length; groups.push({ name: key, units: [] }); }
             groups[groupIdx[key]].units.push(u);
         });
+        // === GAP 7 — Alpha-sort subject groups (orig GamesMoudle.bas:330-336
+        // bubble-sorts AllSubjects via AlphabetValue). Hebrew locale for
+        // proper aleph-ת ordering; empty-name group sinks to the end.
+        groups.sort(function (a, b) {
+            if (!a.name && b.name) return 1;
+            if (a.name && !b.name) return -1;
+            return a.name.localeCompare(b.name, "he");
+        });
 
         HND.log("unit-list filter", "rama=" + ramaFilter, "kept=" + filtered.length + "/" + allUnits.length,
                 "groups=" + groups.length);
 
+        // === GAP 8 — Sequential numbering across all displayed units
+        // (orig ReLoadForm:450,462 — CountLinesIn increments globally,
+        // NOT per-group). ===
+        let lineCount = 0;
+        // Track rendered rows so auto-select / restore can find them.
+        const renderedRows = [];
+
         groups.forEach(function (g) {
-            if (g.name) {
-                const hdr = document.createElement("div");
-                hdr.className = "row header";
-                hdr.textContent = g.name + "   ";
-                list.appendChild(hdr);
-                const blank = document.createElement("div");
-                blank.className = "cell header";
-                blank.textContent = "";
-                scores.appendChild(blank);
-            }
-            g.units.forEach(function (u, i) {
+            const hdr = document.createElement("div");
+            hdr.className = "row header";
+            // === GAP 6 — Empty group: fall back to AllTips(62) = "שיעורים
+            // נוספים". Orig ReLoadForm:453-454 replaces ClearText subject
+            // with this label so untagged units get a sensible header. ===
+            hdr.textContent = (g.name && g.name.trim())
+                ? (g.name + "   ")
+                : (HND.tip(appId, 62) || "שיעורים נוספים");
+            list.appendChild(hdr);
+            const blank = document.createElement("div");
+            blank.className = "cell header";
+            blank.textContent = "";
+            scores.appendChild(blank);
+            g.units.forEach(function (u) {
+                lineCount++;
                 const row = document.createElement("div");
                 row.className = "row unit";
                 row.dataset.id = String(u.id);
-                // RTL container: put the Hebrew name on the visual right
-                // and the ".N" index on the visual left explicitly via
-                // flex children, so the number always sits where the
-                // original parchment list puts it (right of the name
-                // visually = left of the row in logical/CSS order).
                 const nameSpan = document.createElement("span");
                 nameSpan.className = "row-name";
                 nameSpan.textContent = u.name;
                 const idxSpan = document.createElement("span");
                 idxSpan.className = "row-idx";
-                idxSpan.textContent = (i + 1) + ".";
+                idxSpan.textContent = lineCount + ".";
                 row.appendChild(idxSpan);
                 row.appendChild(nameSpan);
+                const cell = document.createElement("div");
+                cell.className = "cell unit";
+                cell.textContent = bestScoreFor(u);
                 row.addEventListener("click", function () {
-                    Array.from(list.children).forEach(function (c) { c.classList.remove("sel"); });
-                    Array.from(scores.children).forEach(function (c) { c.classList.remove("sel"); });
-                    row.classList.add("sel");
-                    if (cell) cell.classList.add("sel");
-                    currentUnit = u;
-                    HND.log("click", "unit-list pick", "unit=" + u.id, "name=" + u.name,
-                            "items=" + ((u.data && u.data.items) ? u.data.items.length : 0));
+                    selectUnit(u, row, cell);
                 });
                 row.addEventListener("dblclick", function () {
                     HND.log("click", "unit-list dblclick → game-menu", "unit=" + u.id);
                     location.hash = "#/" + appId + "/unit/" + u.id + "/games";
                 });
                 list.appendChild(row);
-
-                const cell = document.createElement("div");
-                cell.className = "cell unit";
-                cell.textContent = bestScoreFor(u);
                 scores.appendChild(cell);
+                renderedRows.push({ unit: u, row: row, cell: cell });
             });
         });
+        // === GAP 5 — Trailing blank padding row so the LAST unit is
+        // visually selectable above the bottom of the scrollbar
+        // (orig ReLoadForm:479 `If AddBlank Then UnitList.AddItem ""`). ===
+        const pad = document.createElement("div");
+        pad.className = "row unit-list-pad";
+        pad.textContent = "";
+        list.appendChild(pad);
+        const padCell = document.createElement("div");
+        padCell.className = "cell unit-list-pad";
+        scores.appendChild(padCell);
+
+        // Selection helper — used by row click + auto-select + restore.
+        function selectUnit(u, row, cell) {
+            Array.from(list.children).forEach(function (c) { c.classList.remove("sel"); });
+            Array.from(scores.children).forEach(function (c) { c.classList.remove("sel"); });
+            row.classList.add("sel");
+            if (cell) cell.classList.add("sel");
+            currentUnit = u;
+            unitListSelectedId = u.id;
+            HND.log("click", "unit-list pick", "unit=" + u.id, "name=" + u.name,
+                    "items=" + ((u.data && u.data.items) ? u.data.items.length : 0));
+        }
+
+        // === GAP 12/13 — Restore previous selection or auto-select first ===
+        // Orig SetFocusOnSelected:487-508 first tries the persisted SelectedId,
+        // then falls back to the first selectable row so CmdGameMenu always
+        // has a target on first entry.
+        const restore = unitListSelectedId != null
+            ? renderedRows.find(function (r) { return r.unit.id === unitListSelectedId; })
+            : null;
+        const initial = restore || renderedRows[0];
+        if (initial) selectUnit(initial.unit, initial.row, initial.cell);
 
         // CmdGameMenu — entry to game menu for the currently-selected unit.
         const goBtn = document.createElement("button");
         goBtn.className = "ctrl game-menu-btn";
         goBtn.title = "מעבר לאזור המשחקים";
         goBtn.addEventListener("click", function () {
-            if (!currentUnit) {
-                const firstUnit = list.querySelector(".row.unit");
-                if (firstUnit) firstUnit.click();
+            if (!currentUnit && renderedRows[0]) {
+                selectUnit(renderedRows[0].unit, renderedRows[0].row, renderedRows[0].cell);
             }
             HND.log("click", "unit-list go-to-games",
                     "unit=" + (currentUnit ? currentUnit.id : "(none)"));
             if (currentUnit) location.hash = "#/" + appId + "/unit/" + currentUnit.id + "/games";
         });
         stg.appendChild(goBtn);
+
+        // === GAP 14 — Keyboard handlers (orig Form_KeyUp:339-366):
+        //   Esc → CmdExit_Click (back to MainForm)
+        //   F1  → CmdHelp_Click
+        //   F5  → AllowEdit = True (toggle in-place; GAP 15/22)
+        // Remove on screen swap. Bound to document (window-level KeyUp). ===
+        if (unitListKeyHandler) {
+            document.removeEventListener("keyup", unitListKeyHandler);
+            unitListKeyHandler = null;
+        }
+        unitListKeyHandler = function (e) {
+            if (e.key === "Escape") {
+                location.hash = "#/" + appId;
+                return;
+            }
+            if (e.key === "F1") {
+                e.preventDefault();
+                showUnitListHelp(unitListEditMode);
+                return;
+            }
+            if (e.key === "F5") {
+                e.preventDefault();
+                unitListEditMode = !unitListEditMode;
+                HND.log("unit-list", "F5 toggle edit", unitListEditMode);
+                // Re-render in-place (orig just shows CmdEdit(0..3) without
+                // reload, but our edit buttons are conditionally appended so
+                // re-render is the simplest equivalent).
+                showUnitList(unitListEditMode);
+                return;
+            }
+        };
+        document.addEventListener("keyup", unitListKeyHandler);
+
+        // Watch root for removal → detach key handler.
+        const ctrlRoot = stg.parentElement;
+        if (ctrlRoot) {
+            const obs = new MutationObserver(function () {
+                if (!stg.isConnected) {
+                    if (unitListKeyHandler) {
+                        document.removeEventListener("keyup", unitListKeyHandler);
+                        unitListKeyHandler = null;
+                    }
+                    obs.disconnect();
+                }
+            });
+            obs.observe(ctrlRoot, { childList: true, subtree: true });
+        }
 
         // ===== Teacher edit-mode controls (AllowEdit=True in original) =====
         // 4 CmdEdit buttons on the left, all painted with smallscroll.png and
@@ -368,17 +506,25 @@
                             showUnitList(true);                      // re-render
                         });
                     } else if (idx === 3) {                          // delete
+                        // GAP 19 — orig DelUnit:180 allows deleting ANY
+                        // unit (Msg(AllTips(61), MsgYesNo)). Port now
+                        // tombstones bundled units via overrides[id].deleted
+                        // (handled in HND._applyUnitOverrides) and removes
+                        // brand-new units outright.
                         if (!currentUnit) { alert("בחר יחידה תחילה."); return; }
-                        if (!confirm("למחוק את היחידה \"" + currentUnit.name + "\"?")) return;
+                        const confirmMsg = HND.tip(appId, 61) || "האם למחוק את היחידה?";
+                        if (!confirm(confirmMsg + "\n\"" + currentUnit.name + "\"")) return;
                         if (currentUnit._isNew) {
                             HND.deleteNewUnit(appId, currentUnit.id);
                         } else {
-                            alert("יחידות JSON אינן ניתנות למחיקה לצמיתות; ניתן להחזיר עריכה במקום.");
-                            return;
+                            const ov = HND.loadUnitOverrides(appId);
+                            ov[currentUnit.id] = Object.assign({}, ov[currentUnit.id] || {}, { deleted: true });
+                            HND.saveUnitOverrides(appId, ov);
                         }
                         HND.loadUnits(appId).then(function (u) {
                             allUnits = u;
                             currentUnit = null;
+                            unitListSelectedId = null;
                             showUnitList(true);
                         });
                     }

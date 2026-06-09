@@ -117,6 +117,30 @@ body {
 }
 .sub-btn:hover { border-color: rgba(255, 215, 100, 0.7); background: rgba(255, 220, 120, 0.1); }
 
+/* User-name banner — orig UnitListForm.frm Form_Paint:411-412 prints
+   UserName at (400, 5) in RGB(100,100,250) over RGB(50,50,150) as a
+   two-pass shadow. We use text-shadow to stack the colors. */
+.unit-list-user {
+    left: 0; right: 0; top: 5px;
+    text-align: center;
+    font: 700 22pt "David CLM", "Heebo", "Segoe UI", Arial, sans-serif;
+    color: rgb(100, 100, 250);
+    text-shadow: 0 1px 0 rgb(50, 50, 150);
+    pointer-events: none;
+    direction: rtl;
+    z-index: 9;
+}
+
+/* Trailing padding "blank row" so the last unit isn't hidden under the
+   bottom edge of the scrollbar — orig ReLoadForm:479 adds an empty
+   item if AddBlank=True. */
+.unit-scroll .row.unit-list-pad,
+.score-col   .cell.unit-list-pad {
+    height: 24px;
+    cursor: default;
+    pointer-events: none;
+}
+
 /* --- Unit list (parchment scroll) -----------------------------------
    Original: ListPlus UnitList renders subject headers in RGB(0,20,90) at
    24pt, unit rows in RGB(50,100,0) at 20pt. ScoreList sits to the left
@@ -2193,7 +2217,13 @@ body {
     border: none; padding: 0; cursor: pointer;
     z-index: 60;
 }
-.unit-edit-btn:hover  { filter: brightness(1.10); }
+/* GAP 16 — orig CmdEdit_MouseOn:287-290 slides the button left by 3 px
+   on hover (CmdEdit(i).Left = .Left - 3). */
+.unit-edit-btn:hover  {
+    filter: brightness(1.10);
+    transform: translateX(-3px);
+    transition: transform 0.1s ease-out;
+}
 .unit-edit-btn:active { filter: brightness(0.92); }
 .unit-edit-cap {
     position: absolute;
