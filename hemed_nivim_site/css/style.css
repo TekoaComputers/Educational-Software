@@ -146,74 +146,124 @@ body {
    24pt, unit rows in RGB(50,100,0) at 20pt. ScoreList sits to the left
    and stays scroll-locked with UnitList. */
 .unit-scroll {
-    /* UnitList L=3600 T=1920 W=5295 H=6900 → 240, 128, 353, 460 */
-    left: 240px; top: 128px; width: 353px; height: 460px;
-    overflow-y: auto;
-    padding: 4px 8px;
+    /* UnitList L=3600 T=1920 W=5295 H=6900 → 240, 128, 353, 460.
+       Orig ListPlus.ctl UserControl_Resize:381-388 — MyMargins=5 on
+       all sides, ScrollPlus.Width=25, so the inner content area is:
+         container.Width  = 353 - 25 - 15 = 313
+         container.Height = 460 - 10      = 450
+         container.Top    = 5; container.Left = 5
+       Translates to padding: top/left/bottom = 5 px, right reserves
+       5 (margin) + 25 (bar) + 5 (margin) = 35 px. */
+    left: 240px; top: 128px; width: 353px; height: 456px;
+    overflow-y: scroll;
+    padding: 5px 35px 5px 5px;
     direction: rtl;
-    scrollbar-width: thin;
-    scrollbar-color: rgb(184, 136, 64) transparent;
+    /* Hide native scrollbar across all browsers — we render our own. */
+    scrollbar-width: none;
+    /* Soft 4 px fade at top + bottom edges of the visible list area —
+       rows scroll in/out gently instead of getting clipped at a hard
+       line. Same mask applied to .score-col so both columns fade
+       together. */
+    -webkit-mask-image: linear-gradient(
+        to bottom,
+        transparent 0,
+        #000 4px,
+        #000 calc(100% - 4px),
+        transparent 100%);
+            mask-image: linear-gradient(
+        to bottom,
+        transparent 0,
+        #000 4px,
+        #000 calc(100% - 4px),
+        transparent 100%);
 }
-/* ListPlus skinned scrollbar — original draws mot.bmp as the track,
-   listup/listdown as arrows, listm as the thumb. WebKit can be skinned
-   directly; Firefox falls back to the thin/parchment-colored bar above. */
-.unit-scroll::-webkit-scrollbar {
-    width: 16px;
+.unit-scroll::-webkit-scrollbar { display: none; }
+/* Custom scrollbar — pixel-perfect match to orig ListPlus + ScrollPlus.
+   Geometry from ListPlus.ctl UserControl_Resize:381-389:
+     MyMargins = 5
+     ScrollPlus.Width  = 25
+     ScrollPlus.Top    = MyMargins                            = 5
+     ScrollPlus.Height = container.Height = UserControl.ScaleHeight - 10
+                                          = 460 - 10           = 450
+     ScrollPlus.Left   = container.Width + MyMargins * 2
+                       = (353 - 25 - 15) + 10                  = 323
+   Absolute screen position = unit-scroll(240,128) + (323, 5) = (563, 133).
+   mot.png is the BAR background (its 20 px transparent top aligns with
+   the up button position) — NOT just the inner track. The track div is
+   transparent overlay; buttons + thumb sit on top. */
+.unit-scroll-bar {
+    left: 563px; top: 133px; width: 25px; height: 446px;
+    z-index: 5;
+    user-select: none;
 }
-.unit-scroll::-webkit-scrollbar-track {
+.unit-scroll-up,
+.unit-scroll-down {
+    position: absolute; left: 0; width: 25px; height: 20px;
+    border: none; padding: 0;
+    background-color: transparent;
+    background-size: 25px 20px; background-repeat: no-repeat;
+    cursor: pointer;
+    z-index: 2;
+}
+.unit-scroll-up   { top: 0;     background-image: url("../assets/Hemed/pictures/UnitList/listup.png"); }
+.unit-scroll-down { top: 426px; background-image: url("../assets/Hemed/pictures/UnitList/listdown.png"); }
+/* Track — mot.png as background, sized to fit BETWEEN buttons only
+   (y=20..426). mot.png is native 25×440 with a 20 px transparent top;
+   we shift the asset up by 20 px so the transparent header sits ABOVE
+   the visible track area, leaving the opaque cream pattern (asset y=
+   20..440 = 420 px) to fill the 406 px track with minimal stretch. */
+.unit-scroll-track {
+    position: absolute; left: 0; top: 20px; width: 25px; height: 406px;
+    z-index: 1;
+    cursor: pointer;
     background-image: url("../assets/Hemed/pictures/UnitList/mot.png");
-    background-size: 100% auto;
-    background-repeat: repeat-y;
+    background-size: 25px 440px;
+    background-repeat: no-repeat;
+    background-position: 0 -20px;
 }
-.unit-scroll::-webkit-scrollbar-thumb {
+.unit-scroll-thumb {
+    position: absolute; left: 0; width: 25px;
+    /* Height set inline by JS to 20 px (= orig CmdHW = CmdMove minimum).
+       listm.png native is 25×40; stretched to fit by orig CmdPlus's
+       PaintPicture, so we match with background-size 100%/100%. */
     background-image: url("../assets/Hemed/pictures/UnitList/listm.png");
     background-size: 100% 100%;
     background-repeat: no-repeat;
-    border-radius: 3px;
+    cursor: grab;
 }
-.unit-scroll::-webkit-scrollbar-button:single-button:vertical:decrement {
-    background-image: url("../assets/Hemed/pictures/UnitList/listup.png");
-    background-size: 100% 100%;
-    background-repeat: no-repeat;
-    height: 16px;
-    display: block;
-}
-.unit-scroll::-webkit-scrollbar-button:single-button:vertical:increment {
-    background-image: url("../assets/Hemed/pictures/UnitList/listdown.png");
-    background-size: 100% 100%;
-    background-repeat: no-repeat;
-    height: 16px;
-    display: block;
-}
+.unit-scroll-thumb:active { cursor: grabbing; }
 /* Both columns share the same per-row heights so the scores line up
-   exactly with their unit row. Header = subject divider (taller),
-   unit = playable row (shorter). Both lists step in lockstep. */
+   exactly with their unit row. Tightened to match orig screenshot
+   density (14 rows fit visibly in the 450 px tall content area).
+   Per orig ReLoadForm:455,464 the fonts are 24pt header / 20pt unit,
+   but rows themselves are tight (no extra padding) — ListPlus
+   auto-fits row height = font + small inline margin. */
 .unit-scroll .row,
 .score-col   .cell {
     box-sizing: border-box;
-    padding: 2px 6px;
+    padding: 1px 6px;
     cursor: default;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    line-height: 1.1;
+    line-height: 1.0;
 }
 .unit-scroll .row.header,
 .score-col   .cell.header {
-    height: 38px;        /* same for both columns → no drift */
-    padding-top: 10px;
-    padding-bottom: 4px;
-    font-size: 1.4rem;
+    height: 30px;
+    padding-top: 6px;
+    padding-bottom: 2px;
+    font-size: 1.25rem;
     font-weight: 700;
 }
 .unit-scroll .row.header { color: rgb(0, 20, 90); text-align: right; }
 .score-col   .cell.header { color: rgb(0, 20, 90); text-align: center; }
 .unit-scroll .row.unit,
 .score-col   .cell.unit {
-    height: 26px;        /* matched height ensures score lines up */
-    padding-top: 3px;
-    padding-bottom: 3px;
-    font-size: 1.15rem;
+    height: 22px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    font-size: 1.05rem;
 }
 .unit-scroll .row.unit  {
     color: rgb(50, 100, 0); cursor: pointer;
@@ -224,16 +274,47 @@ body {
 .unit-scroll .row.unit .row-idx  { flex: 0 0 auto; font-size: 0.85rem; opacity: 0.7; direction: ltr; }
 .score-col   .cell.unit { color: rgb(50, 100, 0); font-weight: 700; text-align: center; }
 .unit-scroll .row.unit:hover  { background: rgba(184, 136, 64, 0.15); }
-.unit-scroll .row.unit.sel    { background: rgba(184, 136, 64, 0.35); color: rgb(35, 70, 0); }
-.score-col   .cell.unit.sel   { color: rgb(35, 70, 0); }
+/* Selected row — orig ListPlus.ctl:570-572:
+     If SelectPic = 0 Then Set SelectPic = DefaultSelectListPicture
+     container.PaintPicture SelectPic, 0, ...
+   `DefaultSelectListPicture` is a built-in StdPicture default — the
+   classic Windows system selection bitmap (a soft sky-blue gradient).
+   It's NEVER explicitly assigned in any of the .ctl/.bas/.frm source,
+   so every selected row gets that default. Mirror it with a light
+   blue translucent overlay + thin top/bottom edges. */
+.unit-scroll .row.unit.sel,
+.score-col   .cell.unit.sel  {
+    background: linear-gradient(
+        to bottom,
+        rgba(170, 200, 235, 0.55),
+        rgba(140, 180, 220, 0.55));
+    box-shadow: inset 0  1px 0 rgba(70, 110, 170, 0.65),
+                inset 0 -1px 0 rgba(70, 110, 170, 0.65);
+    color: rgb(20, 30, 80);
+    font-weight: 700;
+}
 
 /* Score column (ScoreList L=2760 T=1920 W=855 H=6900 → 184,128, 57,460) */
 .score-col {
-    left: 184px; top: 128px; width: 57px; height: 460px;
+    left: 184px; top: 128px; width: 57px; height: 456px;
     overflow-y: hidden;            /* driven by .unit-scroll */
-    padding: 4px 4px;
+    padding: 5px 5px;
     direction: rtl;
     scrollbar-width: none;
+    /* Same top/bottom fade as .unit-scroll so the score numbers
+       and unit names disappear/appear together at the edges. */
+    -webkit-mask-image: linear-gradient(
+        to bottom,
+        transparent 0,
+        #000 4px,
+        #000 calc(100% - 4px),
+        transparent 100%);
+            mask-image: linear-gradient(
+        to bottom,
+        transparent 0,
+        #000 4px,
+        #000 calc(100% - 4px),
+        transparent 100%);
 }
 .score-col::-webkit-scrollbar { display: none; }
 
@@ -281,7 +362,8 @@ body {
 }
 /* setBack_Timer slides the hovered sign Left -= 4/tick until Left < xStart-10. */
 .game-sign { transition: transform 0.2s ease-out; }
-.game-sign:hover  { filter: brightness(1.1); transform: translateX(-10px); }
+.game-sign:hover,
+.game-sign.kb-sel { filter: brightness(1.1); transform: translateX(-10px); }
 .game-sign.k0 { background-image: url("../assets/Hemed/pictures/GameMenu/kora0.png"); }
 .game-sign.k1 { background-image: url("../assets/Hemed/pictures/GameMenu/kora1.png"); }
 .game-sign.k2 { background-image: url("../assets/Hemed/pictures/GameMenu/kora2.png"); }

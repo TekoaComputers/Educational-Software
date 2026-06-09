@@ -24,6 +24,34 @@
     let unitListSelectedId = null;
     let unitListEditMode = false;
     let unitListKeyHandler = null;     // cleanup target for screen swap
+    let mainKeyHandler = null;
+    let gameMenuKeyHandler = null;
+
+    // Bind a screen-level keyboard handler + auto-cleanup on screen
+    // swap (when `stg` is removed from the DOM via makeStage's
+    // replaceChild). `slot` is one of "main"/"gameMenu"/"unitList" so we
+    // can detach only the screen we own.
+    function bindScreenKey(stg, slot, handler) {
+        // Detach any prior handler in this slot.
+        const prev = ({ main: mainKeyHandler,
+                        gameMenu: gameMenuKeyHandler })[slot];
+        if (prev) document.removeEventListener("keyup", prev);
+        document.addEventListener("keyup", handler);
+        if (slot === "main")     mainKeyHandler     = handler;
+        if (slot === "gameMenu") gameMenuKeyHandler = handler;
+        // Auto-detach when the stage element is removed.
+        const ctrlRoot = stg.parentElement;
+        if (!ctrlRoot) return;
+        const obs = new MutationObserver(function () {
+            if (!stg.isConnected) {
+                document.removeEventListener("keyup", handler);
+                if (slot === "main"     && mainKeyHandler     === handler) mainKeyHandler = null;
+                if (slot === "gameMenu" && gameMenuKeyHandler === handler) gameMenuKeyHandler = null;
+                obs.disconnect();
+            }
+        });
+        obs.observe(ctrlRoot, { childList: true, subtree: true });
+    }
 
     function makeStage(bgPath) {
         // Atomic stage swap to avoid the blank-frame flash between
@@ -224,6 +252,27 @@
             location.hash = "#/" + appId + "/units?edit";
         });
         stg.appendChild(editLes);
+
+        // Keyboard bindings — orig MainForm.frm Form_KeyDown:
+        //   Esc   → CmdExit_Click   (back to catalog)
+        //   F1    → CmdHelp_Click
+        //   F5    → AllowEdit = True (toggles teacher mode)
+        //   Enter → CmdShowUnits_Click (advance to unit list)
+        bindScreenKey(stg, "main", function (e) {
+            if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "SELECT")) {
+                // Don't hijack keys while typing the username / picking rama.
+                if (e.key !== "Escape" && e.key !== "F1") return;
+            }
+            if (e.key === "Escape") { window.location.href = "../index.html"; return; }
+            if (e.key === "F1")    { e.preventDefault(); alert(HELP_TEXTS.main || ""); return; }
+            if (e.key === "F5")    { e.preventDefault(); location.hash = "#/" + appId + "/units?edit"; return; }
+            if (e.key === "Enter") {
+                e.preventDefault();
+                try { localStorage.setItem("hnd." + appId + ".rama", rama.value || ""); } catch (e2) {}
+                location.hash = "#/" + appId + "/units";
+                return;
+            }
+        });
     }
 
     // ============== Screen: Unit list (parchment scroll) ==============
@@ -290,9 +339,85 @@
         const scores = document.createElement("div");
         scores.className = "ctrl score-col";
         stg.appendChild(scores);
+        // Custom scrollbar matching orig ListPlus skinned scrollbar
+        // (mot.png track, listup/listdown buttons, listm thumb). Native
+        // webkit scrollbar styling doesn't span all browsers and can't
+        // hit the exact bitmap-rendered look. Built as 4 positioned divs
+        // beside unit-scroll; JS syncs both columns' scroll position.
+        const bar = document.createElement("div");
+        bar.className = "ctrl unit-scroll-bar";
+        const barUp    = document.createElement("button"); barUp.className    = "unit-scroll-up";
+        const barTrack = document.createElement("div");    barTrack.className = "unit-scroll-track";
+        const barThumb = document.createElement("div");    barThumb.className = "unit-scroll-thumb";
+        const barDown  = document.createElement("button"); barDown.className  = "unit-scroll-down";
+        bar.appendChild(barUp);
+        bar.appendChild(barTrack);
+        barTrack.appendChild(barThumb);
+        bar.appendChild(barDown);
+        stg.appendChild(bar);
+
+        // Orig ScrollPlus.ctl:
+        //   - CmdHW = 20 (default button + minimum thumb size)
+        //   - CmdMoveStrech:423 — `CmdMove.Height = (SRoom - 40) /
+        //     (SMax - SMin + 1)`, clamped to `>= CmdHW (20)`. For our
+        //     long lists SMax >> 20, so the formula yields ≤ 20 → thumb
+        //     locks to CmdHW = 20. The listm.png asset (native 25×40)
+        //     gets stretched/clipped to this 20 px CmdMove.Height by
+        //     CmdPlus's BMP renderer.
+        const THUMB_H = 20;
+        function refreshBar() {
+            const max = Math.max(0, list.scrollHeight - list.clientHeight);
+            const trackH = barTrack.clientHeight;
+            barThumb.style.height = THUMB_H + "px";
+            if (max === 0) { barThumb.style.top = "0"; return; }
+            const ratio = list.scrollTop / max;
+            barThumb.style.top = Math.round((trackH - THUMB_H) * ratio) + "px";
+        }
         // Keep scroll positions in sync (UnitList.Scroll drives both lists).
-        list.addEventListener("scroll", function () { scores.scrollTop = list.scrollTop; });
-        scores.addEventListener("scroll", function () { list.scrollTop  = scores.scrollTop; });
+        list.addEventListener("scroll", function () {
+            scores.scrollTop = list.scrollTop;
+            refreshBar();
+        });
+        // Wheel anywhere over the bar scrolls the list.
+        bar.addEventListener("wheel", function (e) {
+            list.scrollTop += e.deltaY;
+            e.preventDefault();
+        }, { passive: false });
+        barUp.addEventListener("click",   function () { list.scrollTop -= 40; });
+        barDown.addEventListener("click", function () { list.scrollTop += 40; });
+        // ABSOLUTE-Y drag — mirror orig ScrollPlus.ctl GetVal:
+        //   PixVal = mouseY - Cmd(0).Height            (track-relative Y)
+        //   value  = PixVal * SMax / (SRoom - 40)      (proportional)
+        // Mousedown ANYWHERE on track or thumb jumps scrollTop to that
+        // position; mousemove while button is held tracks the cursor's
+        // absolute Y, NOT a relative delta from initial mousedown point.
+        function setFromMouseY(clientY) {
+            // Use the TRACK rect (so click on track or thumb both align
+            // to the same coordinate system: 0 at track-top, trackH at
+            // track-bottom).
+            const trackRect = barTrack.getBoundingClientRect();
+            // Center the thumb on the cursor (cursor Y → thumb CENTER).
+            const yInTrack = (clientY - trackRect.top) - THUMB_H / 2;
+            const range    = Math.max(1, trackRect.height - THUMB_H);
+            const max      = list.scrollHeight - list.clientHeight;
+            const clamped  = Math.max(0, Math.min(range, yInTrack));
+            list.scrollTop = (clamped / range) * max;
+        }
+        function beginDrag(e) {
+            e.preventDefault();
+            setFromMouseY(e.clientY);
+            function onMove(ev) { setFromMouseY(ev.clientY); }
+            function onUp() {
+                document.removeEventListener("mousemove", onMove);
+                document.removeEventListener("mouseup", onUp);
+            }
+            document.addEventListener("mousemove", onMove);
+            document.addEventListener("mouseup", onUp);
+        }
+        barTrack.addEventListener("mousedown", beginDrag);
+        barThumb.addEventListener("mousedown", beginDrag);
+        // Initial paint after rows are added.
+        requestAnimationFrame(refreshBar);
 
         // Filter by saved rama (from main screen).
         let ramaFilter = "";
@@ -426,6 +551,41 @@
             document.removeEventListener("keyup", unitListKeyHandler);
             unitListKeyHandler = null;
         }
+        // Keyboard nav helpers — find currently selected row index, then
+        // move by delta + reselect + scroll into view.
+        function currentRowIdx() {
+            if (!currentUnit) return -1;
+            for (let i = 0; i < renderedRows.length; i++) {
+                if (renderedRows[i].unit.id === currentUnit.id) return i;
+            }
+            return -1;
+        }
+        // Orig ListPlus.ctl:165 — scrolls only if the new selection is
+        // outside the visible area, and does so INSTANTLY (sets
+        // ScrollPlus.value directly). No smooth animation, no scroll
+        // when already in view. Smooth animation here would race the
+        // custom-scrollbar sync + queue up under rapid key holds.
+        function scrollRowIntoView(rowEl) {
+            const cRect = list.getBoundingClientRect();
+            const rRect = rowEl.getBoundingClientRect();
+            const padTop    = 5;     // matches .unit-scroll padding-top
+            const padBottom = 5;
+            if (rRect.top < cRect.top + padTop) {
+                list.scrollTop -= (cRect.top + padTop) - rRect.top;
+            } else if (rRect.bottom > cRect.bottom - padBottom) {
+                list.scrollTop += rRect.bottom - (cRect.bottom - padBottom);
+            }
+        }
+        function moveSelection(delta) {
+            const cur = currentRowIdx();
+            const next = cur < 0
+                ? 0
+                : Math.max(0, Math.min(renderedRows.length - 1, cur + delta));
+            const r = renderedRows[next];
+            if (!r) return;
+            selectUnit(r.unit, r.row, r.cell);
+            scrollRowIntoView(r.row);
+        }
         unitListKeyHandler = function (e) {
             if (e.key === "Escape") {
                 location.hash = "#/" + appId;
@@ -440,10 +600,44 @@
                 e.preventDefault();
                 unitListEditMode = !unitListEditMode;
                 HND.log("unit-list", "F5 toggle edit", unitListEditMode);
-                // Re-render in-place (orig just shows CmdEdit(0..3) without
-                // reload, but our edit buttons are conditionally appended so
-                // re-render is the simplest equivalent).
                 showUnitList(unitListEditMode);
+                return;
+            }
+            // Arrow up/down — move selection by 1 row.
+            if (e.key === "ArrowDown") {
+                e.preventDefault(); moveSelection(1); return;
+            }
+            if (e.key === "ArrowUp") {
+                e.preventDefault(); moveSelection(-1); return;
+            }
+            // Home / End — jump to first / last unit.
+            if (e.key === "Home") {
+                e.preventDefault();
+                if (renderedRows[0]) {
+                    selectUnit(renderedRows[0].unit, renderedRows[0].row, renderedRows[0].cell);
+                    scrollRowIntoView(renderedRows[0].row);
+                }
+                return;
+            }
+            if (e.key === "End") {
+                e.preventDefault();
+                const last = renderedRows[renderedRows.length - 1];
+                if (last) {
+                    selectUnit(last.unit, last.row, last.cell);
+                    scrollRowIntoView(last.row);
+                }
+                return;
+            }
+            // PgUp / PgDn — ~one screenful of rows.
+            if (e.key === "PageDown") { e.preventDefault(); moveSelection(10); return; }
+            if (e.key === "PageUp")   { e.preventDefault(); moveSelection(-10); return; }
+            // Enter — open game-menu for the selected unit (same as
+            // CmdGameMenu click or double-click).
+            if (e.key === "Enter") {
+                e.preventDefault();
+                if (currentUnit) {
+                    location.hash = "#/" + appId + "/unit/" + currentUnit.id + "/games";
+                }
                 return;
             }
         };
@@ -721,6 +915,56 @@
                 location.hash = "#/" + appId + "/unit/" + unit.id + "/" + slot.game;
             });
             stg.appendChild(sign);
+        });
+
+        // Keyboard nav — orig GameMenu.frm Form_KeyDown/KeyUp:
+        //   F1     → CmdHelp_Click
+        //   Esc    → CmdExit_Click  (back to UnitList)
+        //   Down   → selectedGame++ wrap, skip hidden, CmdPlus1_MouseOn
+        //   Up     → selectedGame-- wrap, skip hidden, CmdPlus1_MouseOn
+        //   Enter  → CmdPlus1_Click selectedGame  (open the game)
+        let kbSelected = visibleSlots.length ? visibleSlots[0] : -1;
+        function highlightSign(slotIdx) {
+            // Clear prior keyboard-highlight class on all signs; add to target.
+            Array.from(stg.querySelectorAll(".game-sign.kb-sel"))
+                 .forEach(function (s) { s.classList.remove("kb-sel"); });
+            const target = stg.querySelector(".game-sign.k" + slotIdx);
+            if (!target) return;
+            target.classList.add("kb-sel");
+            // Mirror CmdPlus1_MouseOn — load the preview window + move goat.
+            preview.style.backgroundImage =
+                "url('" + picPath("GameMenu/window" + slotIdx + ".png") + "')";
+            preview.classList.add("visible");
+            moveGoatTo(slotTops[slotIdx]);
+        }
+        function moveKb(delta) {
+            if (!visibleSlots.length) return;
+            const cur = visibleSlots.indexOf(kbSelected);
+            const next = cur < 0
+                ? 0
+                : (cur + delta + visibleSlots.length) % visibleSlots.length;
+            kbSelected = visibleSlots[next];
+            highlightSign(kbSelected);
+        }
+        if (kbSelected >= 0) highlightSign(kbSelected);
+        bindScreenKey(stg, "gameMenu", function (e) {
+            if (e.key === "Escape") {
+                location.hash = "#/" + appId + "/units";
+                return;
+            }
+            if (e.key === "F1") {
+                e.preventDefault();
+                alert(HELP_TEXTS["game-menu"] || "");
+                return;
+            }
+            if (e.key === "ArrowDown") { e.preventDefault(); moveKb(1);  return; }
+            if (e.key === "ArrowUp")   { e.preventDefault(); moveKb(-1); return; }
+            if (e.key === "Enter") {
+                e.preventDefault();
+                const sign = stg.querySelector(".game-sign.k" + kbSelected);
+                if (sign) sign.click();
+                return;
+            }
         });
     }
 
