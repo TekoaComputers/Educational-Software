@@ -131,6 +131,20 @@
     // user click would cause the wrong-clicked anim to also navigate.
     let activeAnimStop = null;
 
+    // Called by app.js route() / makeStage() on every screen transition.
+    // Without this, detaching the previous screen's <video> element (via
+    // root.innerHTML="") leaves its companion audio + the video's own
+    // audio track playing — the closure in playAnim holds a live ref, so
+    // the browser keeps decoding (issue #29: "audio + video overlap"
+    // when navigating from song-line preview to songPlay).
+    MKH.stopActiveAnim = function () {
+        if (activeAnimStop) {
+            const s = activeAnimStop;
+            activeAnimStop = null;
+            try { s(); } catch (e) {}
+        }
+    };
+
     function playAnim(stage, url, opts) {
         opts = opts || {};
         if (!url) { if (opts.onEnd) opts.onEnd(); return null; }

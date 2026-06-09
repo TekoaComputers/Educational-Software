@@ -25,6 +25,10 @@
     // -------- Stage management --------
 
     function makeStage(bgClass) {
+        // Stop any in-flight playAnim before tearing down the previous
+        // screen — a detached <video> element keeps decoding audio
+        // unless its closure stops it (issue #29).
+        if (MKH.stopActiveAnim) MKH.stopActiveAnim();
         root.innerHTML = "";
         stage = document.createElement("div");
         stage.className = "stage" + (bgClass ? " " + bgClass : "");
