@@ -1,0 +1,609 @@
+{
+  "type": "VB.Form",
+  "name": "Form1",
+  "props": {
+    "BackColor": 12632256,
+    "BorderStyle": 0,
+    "ClientHeight": 6915,
+    "ClientLeft": 405,
+    "ClientTop": 435,
+    "ClientWidth": 8340,
+    "ForeColor": 2147483656,
+    "Height": 7320,
+    "Icon": "GAMES1.frx",
+    "Left": 345,
+    "ScaleHeight": 6915,
+    "ScaleWidth": 8340,
+    "Top": 90,
+    "Width": 8460
+  },
+  "children": [
+    {
+      "type": "VB.Timer",
+      "name": "Timer3",
+      "props": {
+        "Left": 960,
+        "Top": 0
+      },
+      "children": []
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Halon",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 4,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 750,
+        "Index": 2,
+        "Left": 3720,
+        "Picture": "GAMES1.frx",
+        "ScaleHeight": 750,
+        "ScaleWidth": 810,
+        "Top": 6360,
+        "Width": 810
+      },
+      "children": [],
+      "px": {
+        "x": 248.0,
+        "y": 424.0,
+        "w": 54.0,
+        "h": 50.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Halon",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 4,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 750,
+        "Index": 1,
+        "Left": 4680,
+        "Picture": "GAMES1.frx",
+        "ScaleHeight": 750,
+        "ScaleWidth": 810,
+        "Top": 6360,
+        "Width": 810
+      },
+      "children": [],
+      "px": {
+        "x": 312.0,
+        "y": 424.0,
+        "w": 54.0,
+        "h": 50.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Halon",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 4,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 750,
+        "Index": 0,
+        "Left": 5640,
+        "Picture": "GAMES1.frx",
+        "ScaleHeight": 750,
+        "ScaleWidth": 810,
+        "Top": 6360,
+        "Width": 810
+      },
+      "children": [],
+      "px": {
+        "x": 376.0,
+        "y": 424.0,
+        "w": 54.0,
+        "h": 50.0
+      }
+    },
+    {
+      "type": "VB.CommandButton",
+      "name": "btnVopros",
+      "props": {
+        "BackColor": 2147483653,
+        "Height": 855,
+        "Left": 2040,
+        "MouseIcon": "GAMES1.frx",
+        "Top": 5400,
+        "Visible": 0,
+        "Width": 5655
+      },
+      "children": [],
+      "px": {
+        "x": 136.0,
+        "y": 360.0,
+        "w": 377.0,
+        "h": 57.0
+      }
+    },
+    {
+      "type": "Threed.SSPanel",
+      "name": "Panel3D1",
+      "props": {
+        "Height": 495,
+        "Left": 720,
+        "Top": 0,
+        "Width": 8175
+      },
+      "children": [],
+      "px": {
+        "x": 48.0,
+        "y": 0.0,
+        "w": 545.0,
+        "h": 33.0
+      }
+    },
+    {
+      "type": "VB.Timer",
+      "name": "Timer2",
+      "props": {
+        "Left": 1920,
+        "Top": 0
+      },
+      "children": []
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "PicBur",
+      "props": {
+        "BackColor": 8388608,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 1455,
+        "Left": 8520,
+        "MouseIcon": "GAMES1.frx",
+        "ScaleHeight": 1455,
+        "ScaleWidth": 1095,
+        "Top": 5760,
+        "Width": 1095
+      },
+      "children": [],
+      "px": {
+        "x": 568.0,
+        "y": 384.0,
+        "w": 73.0,
+        "h": 97.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "PicFea",
+      "props": {
+        "BackColor": 2147483653,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 1335,
+        "Left": 0,
+        "MouseIcon": "GAMES1.frx",
+        "ScaleHeight": 1335,
+        "ScaleWidth": 1095,
+        "Top": 5760,
+        "Width": 1095
+      },
+      "children": [],
+      "px": {
+        "x": 0.0,
+        "y": 384.0,
+        "w": 73.0,
+        "h": 89.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Picture1",
+      "props": {
+        "BackColor": 2147483653,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 4995,
+        "Left": 360,
+        "ScaleHeight": 333,
+        "ScaleMode": 3,
+        "ScaleWidth": 283,
+        "Top": 600,
+        "Width": 4245
+      },
+      "children": [
+        {
+          "type": "VB.Shape",
+          "name": "Shape2",
+          "props": {
+            "Height": 585,
+            "Left": 240,
+            "Top": 1560,
+            "Visible": 0,
+            "Width": 435
+          },
+          "children": [],
+          "px": {
+            "x": 16.0,
+            "y": 104.0,
+            "w": 29.0,
+            "h": 39.0
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "Pic_Zone",
+          "props": {
+            "BackColor": 2147483653,
+            "ForeColor": 2147483656,
+            "Height": 465,
+            "Index": 1,
+            "Left": 1320,
+            "MouseIcon": "GAMES1.frx",
+            "Top": 960,
+            "Width": 435
+          },
+          "children": [],
+          "px": {
+            "x": 88.0,
+            "y": 64.0,
+            "w": 29.0,
+            "h": 31.0
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "click",
+          "props": {
+            "AutoSize": -1,
+            "BackColor": 65535,
+            "BorderStyle": 1,
+            "Caption": "Click",
+            "ForeColor": 2147483656,
+            "Height": 540,
+            "Left": 1710,
+            "Top": 4440,
+            "Visible": 0,
+            "Width": 1035
+          },
+          "children": [],
+          "px": {
+            "x": 114.0,
+            "y": 296.0,
+            "w": 69.0,
+            "h": 36.0
+          }
+        }
+      ],
+      "px": {
+        "x": 24.0,
+        "y": 40.0,
+        "w": 283.0,
+        "h": 333.0
+      }
+    },
+    {
+      "type": "VB.Timer",
+      "name": "Timer1",
+      "props": {
+        "Left": 1320,
+        "Top": 0
+      },
+      "children": []
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "btnSlog",
+      "props": {
+        "BackColor": 8388608,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 735,
+        "Left": 6120,
+        "MouseIcon": "GAMES1.frx",
+        "Picture": "GAMES1.frx",
+        "ScaleHeight": 735,
+        "ScaleWidth": 1215,
+        "Top": 6120,
+        "Visible": 0,
+        "Width": 1215
+      },
+      "children": [],
+      "px": {
+        "x": 408.0,
+        "y": 408.0,
+        "w": 81.0,
+        "h": 49.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "btnSlovo",
+      "props": {
+        "BackColor": 8388608,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 735,
+        "Left": 4320,
+        "MouseIcon": "GAMES1.frx",
+        "Picture": "GAMES1.frx",
+        "ScaleHeight": 735,
+        "ScaleWidth": 1215,
+        "Top": 6120,
+        "Visible": 0,
+        "Width": 1215
+      },
+      "children": [],
+      "px": {
+        "x": 288.0,
+        "y": 408.0,
+        "w": 81.0,
+        "h": 49.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "PicCursor1",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "ForeColor": 2147483656,
+        "Height": 510,
+        "Left": 2370,
+        "ScaleHeight": 480,
+        "ScaleWidth": 480,
+        "Top": 2910,
+        "Visible": 0,
+        "Width": 510
+      },
+      "children": [],
+      "px": {
+        "x": 158.0,
+        "y": 194.0,
+        "w": 34.0,
+        "h": 34.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "PicCursorMask1",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "ForeColor": 2147483656,
+        "Height": 510,
+        "Left": 2970,
+        "ScaleHeight": 480,
+        "ScaleWidth": 480,
+        "Top": 2910,
+        "Visible": 0,
+        "Width": 510
+      },
+      "children": [],
+      "px": {
+        "x": 198.0,
+        "y": 194.0,
+        "w": 34.0,
+        "h": 34.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "PicCursor2",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "ForeColor": 2147483656,
+        "Height": 510,
+        "Left": 2370,
+        "ScaleHeight": 480,
+        "ScaleWidth": 480,
+        "Top": 3510,
+        "Visible": 0,
+        "Width": 510
+      },
+      "children": [],
+      "px": {
+        "x": 158.0,
+        "y": 234.0,
+        "w": 34.0,
+        "h": 34.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "PicCursorMask2",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "ForeColor": 2147483656,
+        "Height": 510,
+        "Left": 2970,
+        "ScaleHeight": 480,
+        "ScaleWidth": 480,
+        "Top": 3510,
+        "Visible": 0,
+        "Width": 510
+      },
+      "children": [],
+      "px": {
+        "x": 198.0,
+        "y": 234.0,
+        "w": 34.0,
+        "h": 34.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Picture2",
+      "props": {
+        "BackColor": 2147483653,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 4995,
+        "Left": 5040,
+        "ScaleHeight": 333,
+        "ScaleMode": 3,
+        "ScaleWidth": 281,
+        "Top": 600,
+        "Width": 4215
+      },
+      "children": [
+        {
+          "type": "VB.Shape",
+          "name": "Shape1",
+          "props": {
+            "Height": 465,
+            "Left": 270,
+            "Top": 810,
+            "Visible": 0,
+            "Width": 495
+          },
+          "children": [],
+          "px": {
+            "x": 18.0,
+            "y": 54.0,
+            "w": 33.0,
+            "h": 31.0
+          }
+        },
+        {
+          "type": "VB.Label",
+          "name": "Slovo",
+          "props": {
+            "AutoSize": -1,
+            "BackColor": 2147483653,
+            "ForeColor": 2147483656,
+            "Height": 195,
+            "Index": 1,
+            "Left": 120,
+            "MouseIcon": "GAMES1.frx",
+            "Top": 150,
+            "Width": 15
+          },
+          "children": [],
+          "px": {
+            "x": 8.0,
+            "y": 10.0,
+            "w": 1.0,
+            "h": 13.0
+          }
+        }
+      ],
+      "px": {
+        "x": 336.0,
+        "y": 40.0,
+        "w": 281.0,
+        "h": 333.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "btnStroka",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 8388608,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 600,
+        "Left": 2520,
+        "MouseIcon": "GAMES1.frx",
+        "Picture": "GAMES1.frx",
+        "ScaleHeight": 600,
+        "ScaleWidth": 1020,
+        "Top": 6120,
+        "Visible": 0,
+        "Width": 1020
+      },
+      "children": [],
+      "px": {
+        "x": 168.0,
+        "y": 408.0,
+        "w": 68.0,
+        "h": 40.0
+      }
+    },
+    {
+      "type": "Threed.SSCommand",
+      "name": "btnExit",
+      "props": {
+        "Height": 615,
+        "Left": 0,
+        "Top": 0,
+        "Width": 735
+      },
+      "children": [],
+      "px": {
+        "x": 0.0,
+        "y": 0.0,
+        "w": 49.0,
+        "h": 41.0
+      }
+    },
+    {
+      "type": "Threed.SSCommand",
+      "name": "btnReturn",
+      "props": {
+        "Height": 615,
+        "Left": 8880,
+        "Top": 0,
+        "Width": 855
+      },
+      "children": [],
+      "px": {
+        "x": 592.0,
+        "y": 0.0,
+        "w": 57.0,
+        "h": 41.0
+      }
+    },
+    {
+      "type": "Threed.SSCommand",
+      "name": "btnShma",
+      "props": {
+        "Height": 735,
+        "Index": 1,
+        "Left": 7800,
+        "Top": 5880,
+        "Visible": 0,
+        "Width": 735
+      },
+      "children": [],
+      "px": {
+        "x": 520.0,
+        "y": 392.0,
+        "w": 49.0,
+        "h": 49.0
+      }
+    },
+    {
+      "type": "Threed.SSCommand",
+      "name": "btnShma",
+      "props": {
+        "Height": 735,
+        "Index": 0,
+        "Left": 1200,
+        "Top": 5880,
+        "Visible": 0,
+        "Width": 735
+      },
+      "children": [],
+      "px": {
+        "x": 80.0,
+        "y": 392.0,
+        "w": 49.0,
+        "h": 49.0
+      }
+    }
+  ],
+  "design": {
+    "width": 556,
+    "height": 461,
+    "client_w_twips": 8340,
+    "client_h_twips": 6915
+  },
+  "px": {
+    "x": 23.0,
+    "y": 6.0,
+    "w": 564.0,
+    "h": 488.0
+  }
+}

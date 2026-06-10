@@ -1,0 +1,492 @@
+{
+  "type": "VB.Form",
+  "name": "sofer",
+  "props": {
+    "BackColor": 8388608,
+    "ClientHeight": 5640,
+    "ClientLeft": 72,
+    "ClientTop": 2640,
+    "ClientWidth": 5640,
+    "ForeColor": 12632256,
+    "ScaleHeight": 5640,
+    "ScaleWidth": 5640
+  },
+  "children": [
+    {
+      "type": "VB.CommandButton",
+      "name": "btnReset",
+      "props": {
+        "BackColor": 16761024,
+        "Caption": "איפוס",
+        "Height": 735,
+        "Left": 240,
+        "Top": 5400,
+        "Width": 1575
+      },
+      "children": [],
+      "px": {
+        "x": 16.0,
+        "y": 360.0,
+        "w": 105.0,
+        "h": 49.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "modiin",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 4210688,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 2295,
+        "Left": 8040,
+        "MouseIcon": "SOFER.frx",
+        "ScaleHeight": 2292,
+        "ScaleWidth": 1416,
+        "Top": 4680,
+        "Width": 1410
+      },
+      "children": [],
+      "px": {
+        "x": 536.0,
+        "y": 312.0,
+        "w": 94.0,
+        "h": 153.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Picture1",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 8421376,
+        "ForeColor": 2147483656,
+        "Height": 405,
+        "Index": 3,
+        "Left": 1200,
+        "ScaleHeight": 384,
+        "ScaleWidth": 1836,
+        "Top": 1080,
+        "Visible": 0,
+        "Width": 1860
+      },
+      "children": [],
+      "px": {
+        "x": 80.0,
+        "y": 72.0,
+        "w": 124.0,
+        "h": 27.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Picture1",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 8421376,
+        "ForeColor": 2147483656,
+        "Height": 405,
+        "Index": 2,
+        "Left": 3000,
+        "ScaleHeight": 384,
+        "ScaleWidth": 1836,
+        "Top": 1080,
+        "Visible": 0,
+        "Width": 1860
+      },
+      "children": [],
+      "px": {
+        "x": 200.0,
+        "y": 72.0,
+        "w": 124.0,
+        "h": 27.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Picture1",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 8421376,
+        "ForeColor": 2147483656,
+        "Height": 405,
+        "Index": 1,
+        "Left": 4800,
+        "ScaleHeight": 384,
+        "ScaleWidth": 1836,
+        "Top": 1080,
+        "Visible": 0,
+        "Width": 1860
+      },
+      "children": [],
+      "px": {
+        "x": 320.0,
+        "y": 72.0,
+        "w": 124.0,
+        "h": 27.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Picture1",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 8421376,
+        "ForeColor": 2147483656,
+        "Height": 405,
+        "Index": 0,
+        "Left": 6600,
+        "ScaleHeight": 384,
+        "ScaleWidth": 1836,
+        "Top": 1080,
+        "Visible": 0,
+        "Width": 1860
+      },
+      "children": [],
+      "px": {
+        "x": 440.0,
+        "y": 72.0,
+        "w": 124.0,
+        "h": 27.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "picKolba",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 8388608,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 2400,
+        "Index": 3,
+        "Left": 1200,
+        "ScaleHeight": 2400,
+        "ScaleWidth": 1860,
+        "Top": 1080,
+        "Visible": 0,
+        "Width": 1860
+      },
+      "children": [],
+      "px": {
+        "x": 80.0,
+        "y": 72.0,
+        "w": 124.0,
+        "h": 160.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "picKolba",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 8388608,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 2400,
+        "Index": 2,
+        "Left": 3000,
+        "ScaleHeight": 2400,
+        "ScaleWidth": 1860,
+        "Top": 1080,
+        "Visible": 0,
+        "Width": 1860
+      },
+      "children": [],
+      "px": {
+        "x": 200.0,
+        "y": 72.0,
+        "w": 124.0,
+        "h": 160.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "picKolba",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 8388608,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 2400,
+        "Index": 1,
+        "Left": 4800,
+        "ScaleHeight": 2400,
+        "ScaleWidth": 1860,
+        "Top": 1080,
+        "Visible": 0,
+        "Width": 1860
+      },
+      "children": [],
+      "px": {
+        "x": 320.0,
+        "y": 72.0,
+        "w": 124.0,
+        "h": 160.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "picKolba",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 8388608,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 2400,
+        "Index": 0,
+        "Left": 6600,
+        "ScaleHeight": 2400,
+        "ScaleWidth": 1860,
+        "Top": 1080,
+        "Visible": 0,
+        "Width": 1860
+      },
+      "children": [],
+      "px": {
+        "x": 440.0,
+        "y": 72.0,
+        "w": 124.0,
+        "h": 160.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Halon",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 4,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 600,
+        "Index": 4,
+        "Left": 2760,
+        "Picture": "SOFER.frx",
+        "ScaleHeight": 600,
+        "ScaleWidth": 648,
+        "Top": 3720,
+        "Width": 648
+      },
+      "children": [],
+      "px": {
+        "x": 184.0,
+        "y": 248.0,
+        "w": 43.2,
+        "h": 40.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Halon",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 4,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 600,
+        "Index": 3,
+        "Left": 3720,
+        "Picture": "SOFER.frx",
+        "ScaleHeight": 600,
+        "ScaleWidth": 648,
+        "Top": 3720,
+        "Width": 648
+      },
+      "children": [],
+      "px": {
+        "x": 248.0,
+        "y": 248.0,
+        "w": 43.2,
+        "h": 40.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Halon",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 4,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 600,
+        "Index": 2,
+        "Left": 4680,
+        "Picture": "SOFER.frx",
+        "ScaleHeight": 600,
+        "ScaleWidth": 648,
+        "Top": 3720,
+        "Width": 648
+      },
+      "children": [],
+      "px": {
+        "x": 312.0,
+        "y": 248.0,
+        "w": 43.2,
+        "h": 40.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Halon",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 4,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 600,
+        "Index": 1,
+        "Left": 5640,
+        "Picture": "SOFER.frx",
+        "ScaleHeight": 600,
+        "ScaleWidth": 648,
+        "Top": 3720,
+        "Width": 648
+      },
+      "children": [],
+      "px": {
+        "x": 376.0,
+        "y": 248.0,
+        "w": 43.2,
+        "h": 40.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Halon",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 4,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 600,
+        "Index": 0,
+        "Left": 6600,
+        "Picture": "SOFER.frx",
+        "ScaleHeight": 600,
+        "ScaleWidth": 648,
+        "Top": 3720,
+        "Width": 648
+      },
+      "children": [],
+      "px": {
+        "x": 440.0,
+        "y": 248.0,
+        "w": 43.2,
+        "h": 40.0
+      }
+    },
+    {
+      "type": "VB.Timer",
+      "name": "Timer1",
+      "props": {
+        "Left": 840,
+        "Top": 0
+      },
+      "children": []
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "btnExit",
+      "props": {
+        "AutoSize": -1,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 615,
+        "Left": 0,
+        "ScaleHeight": 612,
+        "ScaleWidth": 732,
+        "Top": 0,
+        "Width": 735
+      },
+      "children": [],
+      "px": {
+        "x": 0.0,
+        "y": 0.0,
+        "w": 49.0,
+        "h": 41.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "btnReturn",
+      "props": {
+        "AutoSize": -1,
+        "BorderStyle": 0,
+        "Height": 615,
+        "Left": 8880,
+        "ScaleHeight": 612,
+        "ScaleWidth": 852,
+        "Top": 0,
+        "Width": 855
+      },
+      "children": [],
+      "px": {
+        "x": 592.0,
+        "y": 0.0,
+        "w": 57.0,
+        "h": 41.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Panel3D1",
+      "props": {
+        "BackColor": 14386308,
+        "Height": 375,
+        "Left": 720,
+        "Top": 0,
+        "Width": 8175
+      },
+      "children": [],
+      "px": {
+        "x": 48.0,
+        "y": 0.0,
+        "w": 545.0,
+        "h": 25.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lblTozaot",
+      "props": {
+        "BackColor": 2147483653,
+        "ForeColor": 16761087,
+        "Height": 375,
+        "Left": 2160,
+        "Top": 5640,
+        "Width": 4695
+      },
+      "children": [],
+      "px": {
+        "x": 144.0,
+        "y": 376.0,
+        "w": 313.0,
+        "h": 25.0
+      }
+    },
+    {
+      "type": "VB.Shape",
+      "name": "Shape1",
+      "props": {
+        "Height": 2295,
+        "Left": 0,
+        "Top": 4560,
+        "Width": 9615
+      },
+      "children": [],
+      "px": {
+        "x": 0.0,
+        "y": 304.0,
+        "w": 641.0,
+        "h": 153.0
+      }
+    }
+  ],
+  "design": {
+    "width": 376,
+    "height": 376,
+    "client_w_twips": 5640,
+    "client_h_twips": 5640
+  }
+}

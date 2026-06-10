@@ -1,0 +1,125 @@
+{
+  "type": "VB.Form",
+  "name": "AKDAMA",
+  "props": {
+    "BackColor": 2147483653,
+    "ClientHeight": 5556,
+    "ClientLeft": 252,
+    "ClientTop": 2592,
+    "ClientWidth": 9948,
+    "ForeColor": 2147483656,
+    "ScaleHeight": 5556,
+    "ScaleWidth": 9948
+  },
+  "children": [
+    {
+      "type": "VB.PictureBox",
+      "name": "Picture1",
+      "props": {
+        "BackColor": 8421376,
+        "ForeColor": 2147483656,
+        "Height": 735,
+        "Index": 3,
+        "Left": 1200,
+        "ScaleHeight": 708,
+        "ScaleWidth": 1788,
+        "Top": 2640,
+        "Visible": 0,
+        "Width": 1815
+      },
+      "children": [],
+      "px": {
+        "x": 80.0,
+        "y": 175.8,
+        "w": 121.0,
+        "h": 48.9
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Picture1",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 8421376,
+        "ForeColor": 2147483656,
+        "Height": 735,
+        "Index": 2,
+        "Left": 3000,
+        "ScaleHeight": 708,
+        "ScaleWidth": 1788,
+        "Top": 2640,
+        "Visible": 0,
+        "Width": 1815
+      },
+      "children": [],
+      "px": {
+        "x": 199.9,
+        "y": 175.8,
+        "w": 121.0,
+        "h": 48.9
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Picture1",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 8421376,
+        "ForeColor": 2147483656,
+        "Height": 735,
+        "Index": 1,
+        "Left": 4800,
+        "ScaleHeight": 708,
+        "ScaleWidth": 1788,
+        "Top": 2640,
+        "Visible": 0,
+        "Width": 1815
+      },
+      "children": [],
+      "px": {
+        "x": 319.9,
+        "y": 175.8,
+        "w": 121.0,
+        "h": 48.9
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Picture1",
+      "props": {
+        "BackColor": 8421376,
+        "ForeColor": 2147483656,
+        "Height": 765,
+        "Index": 0,
+        "Left": 6600,
+        "ScaleHeight": 744,
+        "ScaleWidth": 1836,
+        "Top": 2640,
+        "Visible": 0,
+        "Width": 1860
+      },
+      "children": [],
+      "px": {
+        "x": 439.9,
+        "y": 175.8,
+        "w": 124.0,
+        "h": 50.9
+      }
+    },
+    {
+      "type": "VB.Timer",
+      "name": "Timer1",
+      "props": {
+        "Left": 0,
+        "Top": 0
+      },
+      "children": []
+    }
+  ],
+  "design": {
+    "width": 663,
+    "height": 370,
+    "client_w_twips": 9948,
+    "client_h_twips": 5556
+  }
+}

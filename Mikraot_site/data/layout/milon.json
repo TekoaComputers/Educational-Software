@@ -1,0 +1,190 @@
+{
+  "type": "VB.Form",
+  "name": "milon",
+  "props": {
+    "BackColor": 8421376,
+    "ClientHeight": 5655,
+    "ClientLeft": 1590,
+    "ClientTop": 405,
+    "ClientWidth": 4755,
+    "ForeColor": 2147483656,
+    "Height": 6060,
+    "Left": 1530,
+    "ScaleHeight": 5655,
+    "ScaleWidth": 4755,
+    "Top": 60,
+    "Width": 4875
+  },
+  "children": [
+    {
+      "type": "VB.Frame",
+      "name": "Frame1",
+      "props": {
+        "BackColor": 2147483653,
+        "ForeColor": 2147483656,
+        "Height": 4815,
+        "Left": 120,
+        "Top": 720,
+        "Width": 4455
+      },
+      "children": [
+        {
+          "type": "Threed.SSCommand",
+          "name": "btn6",
+          "props": {
+            "Height": 735,
+            "Left": 1200,
+            "Top": 240,
+            "Width": 2055
+          },
+          "children": [],
+          "px": {
+            "x": 80.0,
+            "y": 16.0,
+            "w": 137.0,
+            "h": 49.0
+          }
+        },
+        {
+          "type": "Threed.SSCommand",
+          "name": "btn5",
+          "props": {
+            "Height": 735,
+            "Left": 2280,
+            "Top": 1440,
+            "Width": 2055
+          },
+          "children": [],
+          "px": {
+            "x": 152.0,
+            "y": 96.0,
+            "w": 137.0,
+            "h": 49.0
+          }
+        },
+        {
+          "type": "Threed.SSCommand",
+          "name": "btn4",
+          "props": {
+            "Height": 735,
+            "Left": 2280,
+            "Top": 2640,
+            "Width": 2055
+          },
+          "children": [],
+          "px": {
+            "x": 152.0,
+            "y": 176.0,
+            "w": 137.0,
+            "h": 49.0
+          }
+        },
+        {
+          "type": "Threed.SSCommand",
+          "name": "btn3",
+          "props": {
+            "Height": 735,
+            "Left": 120,
+            "Top": 2640,
+            "Width": 2055
+          },
+          "children": [],
+          "px": {
+            "x": 8.0,
+            "y": 176.0,
+            "w": 137.0,
+            "h": 49.0
+          }
+        },
+        {
+          "type": "Threed.SSCommand",
+          "name": "btn2",
+          "props": {
+            "Height": 735,
+            "Left": 120,
+            "Top": 3840,
+            "Width": 2055
+          },
+          "children": [],
+          "px": {
+            "x": 8.0,
+            "y": 256.0,
+            "w": 137.0,
+            "h": 49.0
+          }
+        },
+        {
+          "type": "Threed.SSCommand",
+          "name": "btn1",
+          "props": {
+            "Height": 735,
+            "Index": 1,
+            "Left": 120,
+            "Top": 1440,
+            "Width": 2055
+          },
+          "children": [],
+          "px": {
+            "x": 8.0,
+            "y": 96.0,
+            "w": 137.0,
+            "h": 49.0
+          }
+        },
+        {
+          "type": "Threed.SSCommand",
+          "name": "btn1",
+          "props": {
+            "Height": 735,
+            "Index": 0,
+            "Left": 2280,
+            "Top": 3840,
+            "Width": 2055
+          },
+          "children": [],
+          "px": {
+            "x": 152.0,
+            "y": 256.0,
+            "w": 137.0,
+            "h": 49.0
+          }
+        }
+      ],
+      "px": {
+        "x": 8.0,
+        "y": 48.0,
+        "w": 297.0,
+        "h": 321.0
+      }
+    },
+    {
+      "type": "Threed.SSCommand",
+      "name": "btnReturn",
+      "props": {
+        "Height": 615,
+        "Left": 1920,
+        "Top": 120,
+        "Width": 855
+      },
+      "children": [],
+      "px": {
+        "x": 128.0,
+        "y": 8.0,
+        "w": 57.0,
+        "h": 41.0
+      }
+    }
+  ],
+  "design": {
+    "width": 317,
+    "height": 377,
+    "client_w_twips": 4755,
+    "client_h_twips": 5655
+  },
+  "px": {
+    "x": 102.0,
+    "y": 4.0,
+    "w": 325.0,
+    "h": 404.0
+  }
+}

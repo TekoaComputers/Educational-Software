@@ -1,0 +1,1006 @@
+{
+  "type": "VB.Form",
+  "name": "gam_3",
+  "props": {
+    "BackColor": 8388608,
+    "BorderStyle": 3,
+    "ClientHeight": 6924,
+    "ClientLeft": -732,
+    "ClientTop": 612,
+    "ClientWidth": 10500,
+    "ForeColor": 2147483656,
+    "ScaleHeight": 577,
+    "ScaleMode": 3,
+    "ScaleWidth": 875
+  },
+  "children": [
+    {
+      "type": "VB.CommandButton",
+      "name": "btnReturn",
+      "props": {
+        "Height": 615,
+        "Left": 8640,
+        "Top": 0,
+        "Width": 855
+      },
+      "children": [],
+      "px": {
+        "x": 720.0,
+        "y": 0.0,
+        "w": 71.2,
+        "h": 51.2
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "btnExit",
+      "props": {
+        "AutoSize": -1,
+        "BorderStyle": 0,
+        "Height": 615,
+        "Left": 0,
+        "ScaleHeight": 612,
+        "ScaleWidth": 732,
+        "Top": 0,
+        "Width": 735
+      },
+      "children": [],
+      "px": {
+        "x": 0.0,
+        "y": 0.0,
+        "w": 61.2,
+        "h": 51.2
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "PicBur",
+      "props": {
+        "BackColor": 8388608,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 1455,
+        "Left": 8520,
+        "MouseIcon": "GM3A.frx",
+        "ScaleHeight": 1452,
+        "ScaleWidth": 1092,
+        "Top": 5760,
+        "Width": 1095
+      },
+      "children": [],
+      "px": {
+        "x": 710.0,
+        "y": 480.0,
+        "w": 91.2,
+        "h": 121.2
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "PicFea",
+      "props": {
+        "BackColor": 2147483653,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 1335,
+        "Left": 0,
+        "MouseIcon": "GM3A.frx",
+        "ScaleHeight": 1332,
+        "ScaleWidth": 1092,
+        "Top": 5880,
+        "Width": 1095
+      },
+      "children": [],
+      "px": {
+        "x": 0.0,
+        "y": 490.0,
+        "w": 91.2,
+        "h": 111.2
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Halon",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 4,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 396,
+        "Index": 4,
+        "Left": 2880,
+        "Picture": "GM3A.frx",
+        "ScaleHeight": 396,
+        "ScaleWidth": 576,
+        "Top": 6000,
+        "Width": 576
+      },
+      "children": [],
+      "px": {
+        "x": 240.0,
+        "y": 500.0,
+        "w": 48.0,
+        "h": 33.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Halon",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 4,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 396,
+        "Index": 3,
+        "Left": 3840,
+        "Picture": "GM3A.frx",
+        "ScaleHeight": 396,
+        "ScaleWidth": 576,
+        "Top": 6000,
+        "Width": 576
+      },
+      "children": [],
+      "px": {
+        "x": 320.0,
+        "y": 500.0,
+        "w": 48.0,
+        "h": 33.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Halon",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 4,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 396,
+        "Index": 2,
+        "Left": 4800,
+        "Picture": "GM3A.frx",
+        "ScaleHeight": 396,
+        "ScaleWidth": 576,
+        "Top": 6000,
+        "Width": 576
+      },
+      "children": [],
+      "px": {
+        "x": 400.0,
+        "y": 500.0,
+        "w": 48.0,
+        "h": 33.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Halon",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 4,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 396,
+        "Index": 1,
+        "Left": 5760,
+        "Picture": "GM3A.frx",
+        "ScaleHeight": 396,
+        "ScaleWidth": 576,
+        "Top": 6000,
+        "Width": 576
+      },
+      "children": [],
+      "px": {
+        "x": 480.0,
+        "y": 500.0,
+        "w": 48.0,
+        "h": 33.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Halon",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 4,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 396,
+        "Index": 0,
+        "Left": 6720,
+        "Picture": "GM3A.frx",
+        "ScaleHeight": 396,
+        "ScaleWidth": 576,
+        "Top": 6000,
+        "Width": 576
+      },
+      "children": [],
+      "px": {
+        "x": 560.0,
+        "y": 500.0,
+        "w": 48.0,
+        "h": 33.0
+      }
+    },
+    {
+      "type": "VB.Timer",
+      "name": "Timer1",
+      "props": {
+        "Left": 0,
+        "Top": 480
+      },
+      "children": []
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Frame3D1",
+      "props": {
+        "Height": 3735,
+        "Left": 4800,
+        "ScaleHeight": 3684,
+        "ScaleWidth": 3684,
+        "Top": 840,
+        "Width": 3735
+      },
+      "children": [
+        {
+          "type": "VB.CommandButton",
+          "name": "btnABC",
+          "props": {
+            "BackColor": 2147483653,
+            "Caption": "ב",
+            "Height": 495,
+            "Index": 1,
+            "Left": 2520,
+            "Top": 240,
+            "Width": 495
+          },
+          "children": [],
+          "px": {
+            "x": 210.0,
+            "y": 20.0,
+            "w": 41.2,
+            "h": 41.2
+          }
+        },
+        {
+          "type": "VB.CommandButton",
+          "name": "btnABC",
+          "props": {
+            "BackColor": 2147483653,
+            "Caption": "א",
+            "Height": 495,
+            "Index": 0,
+            "Left": 3120,
+            "Top": 240,
+            "Width": 495
+          },
+          "children": [],
+          "px": {
+            "x": 260.0,
+            "y": 20.0,
+            "w": 41.2,
+            "h": 41.2
+          }
+        },
+        {
+          "type": "VB.CommandButton",
+          "name": "btnABC",
+          "props": {
+            "BackColor": 2147483653,
+            "Caption": "ג",
+            "Height": 495,
+            "Index": 2,
+            "Left": 1920,
+            "Top": 240,
+            "Width": 495
+          },
+          "children": [],
+          "px": {
+            "x": 160.0,
+            "y": 20.0,
+            "w": 41.2,
+            "h": 41.2
+          }
+        },
+        {
+          "type": "VB.CommandButton",
+          "name": "btnABC",
+          "props": {
+            "BackColor": 2147483653,
+            "Caption": "ד",
+            "Height": 495,
+            "Index": 3,
+            "Left": 1320,
+            "Top": 240,
+            "Width": 495
+          },
+          "children": [],
+          "px": {
+            "x": 110.0,
+            "y": 20.0,
+            "w": 41.2,
+            "h": 41.2
+          }
+        },
+        {
+          "type": "VB.CommandButton",
+          "name": "btnABC",
+          "props": {
+            "BackColor": 2147483653,
+            "Caption": "ה",
+            "Height": 495,
+            "Index": 4,
+            "Left": 720,
+            "Top": 240,
+            "Width": 495
+          },
+          "children": [],
+          "px": {
+            "x": 60.0,
+            "y": 20.0,
+            "w": 41.2,
+            "h": 41.2
+          }
+        },
+        {
+          "type": "VB.CommandButton",
+          "name": "btnABC",
+          "props": {
+            "BackColor": 33023,
+            "Caption": "ו",
+            "Height": 495,
+            "Index": 5,
+            "Left": 120,
+            "Top": 240,
+            "Width": 495
+          },
+          "children": [],
+          "px": {
+            "x": 10.0,
+            "y": 20.0,
+            "w": 41.2,
+            "h": 41.2
+          }
+        },
+        {
+          "type": "VB.CommandButton",
+          "name": "btnABC",
+          "props": {
+            "BackColor": 2147483653,
+            "Caption": "ז",
+            "Height": 495,
+            "Index": 6,
+            "Left": 3120,
+            "Top": 960,
+            "Width": 495
+          },
+          "children": [],
+          "px": {
+            "x": 260.0,
+            "y": 80.0,
+            "w": 41.2,
+            "h": 41.2
+          }
+        },
+        {
+          "type": "VB.CommandButton",
+          "name": "btnABC",
+          "props": {
+            "BackColor": 2147483653,
+            "Caption": "ח",
+            "Height": 495,
+            "Index": 7,
+            "Left": 2520,
+            "Top": 960,
+            "Width": 495
+          },
+          "children": [],
+          "px": {
+            "x": 210.0,
+            "y": 80.0,
+            "w": 41.2,
+            "h": 41.2
+          }
+        },
+        {
+          "type": "VB.CommandButton",
+          "name": "btnABC",
+          "props": {
+            "BackColor": 2147483653,
+            "Caption": "ט",
+            "Height": 495,
+            "Index": 8,
+            "Left": 1920,
+            "Top": 960,
+            "Width": 495
+          },
+          "children": [],
+          "px": {
+            "x": 160.0,
+            "y": 80.0,
+            "w": 41.2,
+            "h": 41.2
+          }
+        },
+        {
+          "type": "VB.CommandButton",
+          "name": "btnABC",
+          "props": {
+            "BackColor": 2147483653,
+            "Caption": "י",
+            "Height": 495,
+            "Index": 9,
+            "Left": 1320,
+            "Top": 960,
+            "Width": 495
+          },
+          "children": [],
+          "px": {
+            "x": 110.0,
+            "y": 80.0,
+            "w": 41.2,
+            "h": 41.2
+          }
+        },
+        {
+          "type": "VB.CommandButton",
+          "name": "btnABC",
+          "props": {
+            "BackColor": 2147483653,
+            "Caption": "כ",
+            "Height": 495,
+            "Index": 11,
+            "Left": 720,
+            "Top": 960,
+            "Width": 495
+          },
+          "children": [],
+          "px": {
+            "x": 60.0,
+            "y": 80.0,
+            "w": 41.2,
+            "h": 41.2
+          }
+        },
+        {
+          "type": "VB.CommandButton",
+          "name": "btnABC",
+          "props": {
+            "BackColor": 2147483653,
+            "Caption": "ל",
+            "Height": 495,
+            "Index": 12,
+            "Left": 3120,
+            "Top": 1680,
+            "Width": 495
+          },
+          "children": [],
+          "px": {
+            "x": 260.0,
+            "y": 140.0,
+            "w": 41.2,
+            "h": 41.2
+          }
+        },
+        {
+          "type": "VB.CommandButton",
+          "name": "btnABC",
+          "props": {
+            "BackColor": 2147483653,
+            "Caption": "מ",
+            "Height": 495,
+            "Index": 14,
+            "Left": 2520,
+            "Top": 1680,
+            "Width": 495
+          },
+          "children": [],
+          "px": {
+            "x": 210.0,
+            "y": 140.0,
+            "w": 41.2,
+            "h": 41.2
+          }
+        },
+        {
+          "type": "VB.CommandButton",
+          "name": "btnABC",
+          "props": {
+            "BackColor": 2147483653,
+            "Caption": "נ",
+            "Height": 495,
+            "Index": 16,
+            "Left": 1320,
+            "Top": 1680,
+            "Width": 495
+          },
+          "children": [],
+          "px": {
+            "x": 110.0,
+            "y": 140.0,
+            "w": 41.2,
+            "h": 41.2
+          }
+        },
+        {
+          "type": "VB.CommandButton",
+          "name": "btnABC",
+          "props": {
+            "BackColor": 2147483653,
+            "Caption": "ס",
+            "Height": 495,
+            "Index": 17,
+            "Left": 120,
+            "Top": 1680,
+            "Width": 495
+          },
+          "children": [],
+          "px": {
+            "x": 10.0,
+            "y": 140.0,
+            "w": 41.2,
+            "h": 41.2
+          }
+        },
+        {
+          "type": "VB.CommandButton",
+          "name": "btnABC",
+          "props": {
+            "BackColor": 2147483653,
+            "Caption": "ע",
+            "Height": 495,
+            "Index": 18,
+            "Left": 3120,
+            "Top": 2400,
+            "Width": 495
+          },
+          "children": [],
+          "px": {
+            "x": 260.0,
+            "y": 200.0,
+            "w": 41.2,
+            "h": 41.2
+          }
+        },
+        {
+          "type": "VB.CommandButton",
+          "name": "btnABC",
+          "props": {
+            "BackColor": 2147483653,
+            "Caption": "פ",
+            "Height": 495,
+            "Index": 20,
+            "Left": 2520,
+            "Top": 2400,
+            "Width": 495
+          },
+          "children": [],
+          "px": {
+            "x": 210.0,
+            "y": 200.0,
+            "w": 41.2,
+            "h": 41.2
+          }
+        },
+        {
+          "type": "VB.CommandButton",
+          "name": "btnABC",
+          "props": {
+            "BackColor": 2147483653,
+            "Caption": "צ",
+            "Height": 495,
+            "Index": 22,
+            "Left": 1320,
+            "Top": 2400,
+            "Width": 495
+          },
+          "children": [],
+          "px": {
+            "x": 110.0,
+            "y": 200.0,
+            "w": 41.2,
+            "h": 41.2
+          }
+        },
+        {
+          "type": "VB.CommandButton",
+          "name": "btnABC",
+          "props": {
+            "BackColor": 2147483653,
+            "Caption": "ק",
+            "Height": 495,
+            "Index": 23,
+            "Left": 120,
+            "Top": 2400,
+            "Width": 495
+          },
+          "children": [],
+          "px": {
+            "x": 10.0,
+            "y": 200.0,
+            "w": 41.2,
+            "h": 41.2
+          }
+        },
+        {
+          "type": "VB.CommandButton",
+          "name": "btnABC",
+          "props": {
+            "BackColor": 2147483653,
+            "Caption": "ר",
+            "Height": 495,
+            "Index": 24,
+            "Left": 3120,
+            "Top": 3120,
+            "Width": 495
+          },
+          "children": [],
+          "px": {
+            "x": 260.0,
+            "y": 260.0,
+            "w": 41.2,
+            "h": 41.2
+          }
+        },
+        {
+          "type": "VB.CommandButton",
+          "name": "btnABC",
+          "props": {
+            "BackColor": 2147483653,
+            "Caption": "ש",
+            "Height": 495,
+            "Index": 25,
+            "Left": 2520,
+            "Top": 3120,
+            "Width": 495
+          },
+          "children": [],
+          "px": {
+            "x": 210.0,
+            "y": 260.0,
+            "w": 41.2,
+            "h": 41.2
+          }
+        },
+        {
+          "type": "VB.CommandButton",
+          "name": "btnABC",
+          "props": {
+            "BackColor": 2147483653,
+            "Caption": "ת",
+            "Height": 495,
+            "Index": 26,
+            "Left": 1920,
+            "Top": 3120,
+            "Width": 495
+          },
+          "children": [],
+          "px": {
+            "x": 160.0,
+            "y": 260.0,
+            "w": 41.2,
+            "h": 41.2
+          }
+        },
+        {
+          "type": "VB.CommandButton",
+          "name": "btnABC",
+          "props": {
+            "BackColor": 2147483653,
+            "Caption": "ך",
+            "Height": 495,
+            "Index": 10,
+            "Left": 120,
+            "Top": 960,
+            "Width": 495
+          },
+          "children": [],
+          "px": {
+            "x": 10.0,
+            "y": 80.0,
+            "w": 41.2,
+            "h": 41.2
+          }
+        },
+        {
+          "type": "VB.CommandButton",
+          "name": "btnABC",
+          "props": {
+            "BackColor": 2147483653,
+            "Caption": "ם",
+            "Height": 495,
+            "Index": 13,
+            "Left": 1920,
+            "Top": 1680,
+            "Width": 495
+          },
+          "children": [],
+          "px": {
+            "x": 160.0,
+            "y": 140.0,
+            "w": 41.2,
+            "h": 41.2
+          }
+        },
+        {
+          "type": "VB.CommandButton",
+          "name": "btnABC",
+          "props": {
+            "BackColor": 2147483653,
+            "Caption": "ן",
+            "Height": 495,
+            "Index": 15,
+            "Left": 720,
+            "Top": 1680,
+            "Width": 495
+          },
+          "children": [],
+          "px": {
+            "x": 60.0,
+            "y": 140.0,
+            "w": 41.2,
+            "h": 41.2
+          }
+        },
+        {
+          "type": "VB.CommandButton",
+          "name": "btnABC",
+          "props": {
+            "BackColor": 2147483653,
+            "Caption": "ף",
+            "Height": 495,
+            "Index": 19,
+            "Left": 1920,
+            "Top": 2400,
+            "Width": 495
+          },
+          "children": [],
+          "px": {
+            "x": 160.0,
+            "y": 200.0,
+            "w": 41.2,
+            "h": 41.2
+          }
+        },
+        {
+          "type": "VB.CommandButton",
+          "name": "btnABC",
+          "props": {
+            "BackColor": 2147483653,
+            "Caption": "ץ",
+            "Height": 495,
+            "Index": 21,
+            "Left": 720,
+            "Top": 2400,
+            "Width": 495
+          },
+          "children": [],
+          "px": {
+            "x": 60.0,
+            "y": 200.0,
+            "w": 41.2,
+            "h": 41.2
+          }
+        }
+      ],
+      "px": {
+        "x": 400.0,
+        "y": 70.0,
+        "w": 311.2,
+        "h": 311.2
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "btnTmuna",
+      "props": {
+        "Height": 2655,
+        "Left": 1560,
+        "ScaleHeight": 2604,
+        "ScaleWidth": 2124,
+        "Top": 1080,
+        "Width": 2175
+      },
+      "children": [],
+      "px": {
+        "x": 130.0,
+        "y": 90.0,
+        "w": 181.2,
+        "h": 221.2
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Panel3D2",
+      "props": {
+        "BackColor": 16761024,
+        "Height": 375,
+        "Index": 0,
+        "Left": 840,
+        "Top": 0,
+        "Width": 7695
+      },
+      "children": [],
+      "px": {
+        "x": 70.0,
+        "y": 0.0,
+        "w": 641.2,
+        "h": 31.2
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Panel3D2",
+      "props": {
+        "ForeColor": 16777215,
+        "Height": 375,
+        "Index": 1,
+        "Left": 720,
+        "Top": 360,
+        "Width": 8055
+      },
+      "children": [],
+      "px": {
+        "x": 60.0,
+        "y": 30.0,
+        "w": 671.2,
+        "h": 31.2
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lblL",
+      "props": {
+        "BackColor": 2147483653,
+        "BorderStyle": 1,
+        "ForeColor": 2147483656,
+        "Height": 495,
+        "Index": 6,
+        "Left": 960,
+        "Top": 4200,
+        "Width": 495
+      },
+      "children": [],
+      "px": {
+        "x": 80.0,
+        "y": 350.0,
+        "w": 41.2,
+        "h": 41.2
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lblL",
+      "props": {
+        "BackColor": 2147483653,
+        "BorderStyle": 1,
+        "ForeColor": 2147483656,
+        "Height": 495,
+        "Index": 5,
+        "Left": 1440,
+        "Top": 4200,
+        "Width": 495
+      },
+      "children": [],
+      "px": {
+        "x": 120.0,
+        "y": 350.0,
+        "w": 41.2,
+        "h": 41.2
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lblL",
+      "props": {
+        "BackColor": 2147483653,
+        "BorderStyle": 1,
+        "ForeColor": 2147483656,
+        "Height": 495,
+        "Index": 4,
+        "Left": 1920,
+        "Top": 4200,
+        "Width": 495
+      },
+      "children": [],
+      "px": {
+        "x": 160.0,
+        "y": 350.0,
+        "w": 41.2,
+        "h": 41.2
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lblL",
+      "props": {
+        "BackColor": 2147483653,
+        "BorderStyle": 1,
+        "ForeColor": 2147483656,
+        "Height": 495,
+        "Index": 3,
+        "Left": 2400,
+        "Top": 4200,
+        "Width": 495
+      },
+      "children": [],
+      "px": {
+        "x": 200.0,
+        "y": 350.0,
+        "w": 41.2,
+        "h": 41.2
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lblL",
+      "props": {
+        "BackColor": 2147483653,
+        "BorderStyle": 1,
+        "ForeColor": 2147483656,
+        "Height": 495,
+        "Index": 2,
+        "Left": 2880,
+        "Top": 4200,
+        "Width": 495
+      },
+      "children": [],
+      "px": {
+        "x": 240.0,
+        "y": 350.0,
+        "w": 41.2,
+        "h": 41.2
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lblL",
+      "props": {
+        "BackColor": 2147483653,
+        "BorderStyle": 1,
+        "ForeColor": 2147483656,
+        "Height": 495,
+        "Index": 1,
+        "Left": 3360,
+        "Top": 4200,
+        "Width": 495
+      },
+      "children": [],
+      "px": {
+        "x": 280.0,
+        "y": 350.0,
+        "w": 41.2,
+        "h": 41.2
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lblL",
+      "props": {
+        "BackColor": 2147483653,
+        "BorderStyle": 1,
+        "ForeColor": 2147483656,
+        "Height": 495,
+        "Index": 0,
+        "Left": 3840,
+        "Top": 4200,
+        "Width": 495
+      },
+      "children": [],
+      "px": {
+        "x": 320.0,
+        "y": 350.0,
+        "w": 41.2,
+        "h": 41.2
+      }
+    }
+  ],
+  "design": {
+    "width": 875,
+    "height": 577,
+    "client_w_twips": 10500,
+    "client_h_twips": 6924
+  }
+}

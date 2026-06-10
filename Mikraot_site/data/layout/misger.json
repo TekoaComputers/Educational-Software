@@ -1,0 +1,82 @@
+{
+  "type": "VB.Form",
+  "name": "misger",
+  "props": {
+    "BackColor": 2147483653,
+    "ClientHeight": 2964,
+    "ClientLeft": 2796,
+    "ClientTop": 2508,
+    "ClientWidth": 3276,
+    "ForeColor": 2147483656,
+    "ScaleHeight": 2964,
+    "ScaleWidth": 3276
+  },
+  "children": [
+    {
+      "type": "VB.CommandButton",
+      "name": "btnComm",
+      "props": {
+        "BackColor": 16771305,
+        "Caption": "כן",
+        "Height": 735,
+        "Index": 0,
+        "Left": 360,
+        "Top": 1920,
+        "Width": 1095
+      },
+      "children": [],
+      "px": {
+        "x": 24.0,
+        "y": 128.3,
+        "w": 72.9,
+        "h": 49.1
+      }
+    },
+    {
+      "type": "VB.CommandButton",
+      "name": "btnComm",
+      "props": {
+        "BackColor": 16771305,
+        "Caption": "לא",
+        "Height": 735,
+        "Index": 1,
+        "Left": 1680,
+        "Top": 1920,
+        "Width": 1095
+      },
+      "children": [],
+      "px": {
+        "x": 111.8,
+        "y": 128.3,
+        "w": 72.9,
+        "h": 49.1
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Label1",
+      "props": {
+        "BackColor": 2147483653,
+        "Caption": "למחוק את התוצאות",
+        "ForeColor": 192,
+        "Height": 495,
+        "Left": 0,
+        "Top": 600,
+        "Width": 3255
+      },
+      "children": [],
+      "px": {
+        "x": 0.0,
+        "y": 40.1,
+        "w": 216.6,
+        "h": 33.1
+      }
+    }
+  ],
+  "design": {
+    "width": 218,
+    "height": 198,
+    "client_w_twips": 3276,
+    "client_h_twips": 2964
+  }
+}

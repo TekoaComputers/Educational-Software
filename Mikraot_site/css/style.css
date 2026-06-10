@@ -1,0 +1,54 @@
+html, body {
+    margin: 0;
+    padding: 0;
+    background: #000;
+    overflow: hidden;
+    height: 100%;
+    width: 100%;
+    font-family: "David", "Times New Roman", serif;
+}
+#app {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.stage {
+    position: relative;
+    /* Mikraot was authored at 640×480; START.FRM's twips/15 design extent
+       (662×521) overshoots that slightly but the BG image dugma5.bmp is
+       640×480, so we use that as the canvas and let overshoot clip. */
+    width: 640px;
+    height: 480px;
+    transform-origin: center center;
+    background-color: #c0c0c0;
+    background-repeat: no-repeat;
+    background-position: top left;
+    overflow: hidden;
+}
+.ctrl {
+    position: absolute;
+    background-repeat: no-repeat;
+    background-position: top left;
+    background-size: contain;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    background-color: transparent;
+}
+.ctrl.no-click {
+    cursor: default;
+    pointer-events: none;
+}
+.lbl {
+    position: absolute;
+    color: #fff;
+    background: transparent;
+    pointer-events: none;
+    font-weight: bold;
+    white-space: nowrap;
+    text-align: center;
+    direction: rtl;
+}

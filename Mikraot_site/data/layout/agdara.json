@@ -1,0 +1,764 @@
+{
+  "type": "VB.Form",
+  "name": "Agdara",
+  "props": {
+    "BackColor": 2147483653,
+    "ClientHeight": 6456,
+    "ClientLeft": 420,
+    "ClientTop": 216,
+    "ClientWidth": 9216,
+    "ForeColor": 2147483656,
+    "ScaleHeight": 6456,
+    "ScaleWidth": 9216
+  },
+  "children": [
+    {
+      "type": "VB.PictureBox",
+      "name": "btnExit",
+      "props": {
+        "AutoSize": -1,
+        "BorderStyle": 0,
+        "Height": 615,
+        "Left": 0,
+        "ScaleHeight": 612,
+        "ScaleWidth": 732,
+        "Top": 0,
+        "Width": 735
+      },
+      "children": [],
+      "px": {
+        "x": 0.0,
+        "y": 0.0,
+        "w": 49.0,
+        "h": 41.0
+      }
+    },
+    {
+      "type": "VB.CommandButton",
+      "name": "btnReturn",
+      "props": {
+        "Height": 615,
+        "Left": 7800,
+        "Top": 0,
+        "Width": 855
+      },
+      "children": [],
+      "px": {
+        "x": 519.7,
+        "y": 0.0,
+        "w": 57.0,
+        "h": 41.0
+      }
+    },
+    {
+      "type": "VB.CommandButton",
+      "name": "btnShihzor",
+      "props": {
+        "BackColor": 2147483653,
+        "Caption": "שיחזור",
+        "Height": 495,
+        "Left": 4320,
+        "Top": 4320,
+        "Width": 1215
+      },
+      "children": [],
+      "px": {
+        "x": 287.8,
+        "y": 287.7,
+        "w": 80.9,
+        "h": 33.0
+      }
+    },
+    {
+      "type": "VB.CheckBox",
+      "name": "Check1",
+      "props": {
+        "BackColor": 2147483653,
+        "ForeColor": 2147483656,
+        "Height": 510,
+        "Index": 11,
+        "Left": 3480,
+        "Top": 4200,
+        "Width": 255
+      },
+      "children": [],
+      "px": {
+        "x": 231.8,
+        "y": 279.7,
+        "w": 17.0,
+        "h": 34.0
+      }
+    },
+    {
+      "type": "VB.CheckBox",
+      "name": "Check1",
+      "props": {
+        "BackColor": 2147483653,
+        "ForeColor": 2147483656,
+        "Height": 510,
+        "Index": 10,
+        "Left": 3480,
+        "Top": 3720,
+        "Width": 255
+      },
+      "children": [],
+      "px": {
+        "x": 231.8,
+        "y": 247.8,
+        "w": 17.0,
+        "h": 34.0
+      }
+    },
+    {
+      "type": "VB.CheckBox",
+      "name": "Check1",
+      "props": {
+        "BackColor": 2147483653,
+        "ForeColor": 2147483656,
+        "Height": 510,
+        "Index": 9,
+        "Left": 3480,
+        "Top": 3240,
+        "Width": 255
+      },
+      "children": [],
+      "px": {
+        "x": 231.8,
+        "y": 215.8,
+        "w": 17.0,
+        "h": 34.0
+      }
+    },
+    {
+      "type": "VB.CheckBox",
+      "name": "Check1",
+      "props": {
+        "BackColor": 2147483653,
+        "ForeColor": 2147483656,
+        "Height": 510,
+        "Index": 8,
+        "Left": 3480,
+        "Top": 2760,
+        "Width": 255
+      },
+      "children": [],
+      "px": {
+        "x": 231.8,
+        "y": 183.8,
+        "w": 17.0,
+        "h": 34.0
+      }
+    },
+    {
+      "type": "VB.CheckBox",
+      "name": "Check1",
+      "props": {
+        "BackColor": 2147483653,
+        "ForeColor": 2147483656,
+        "Height": 510,
+        "Index": 7,
+        "Left": 3480,
+        "Top": 2280,
+        "Width": 255
+      },
+      "children": [],
+      "px": {
+        "x": 231.8,
+        "y": 151.9,
+        "w": 17.0,
+        "h": 34.0
+      }
+    },
+    {
+      "type": "VB.CheckBox",
+      "name": "Check1",
+      "props": {
+        "BackColor": 2147483653,
+        "ForeColor": 2147483656,
+        "Height": 510,
+        "Index": 6,
+        "Left": 3480,
+        "Top": 1800,
+        "Width": 255
+      },
+      "children": [],
+      "px": {
+        "x": 231.8,
+        "y": 119.9,
+        "w": 17.0,
+        "h": 34.0
+      }
+    },
+    {
+      "type": "VB.CheckBox",
+      "name": "Check1",
+      "props": {
+        "BackColor": 2147483653,
+        "ForeColor": 2147483656,
+        "Height": 510,
+        "Index": 5,
+        "Left": 3480,
+        "Top": 1200,
+        "Width": 255
+      },
+      "children": [],
+      "px": {
+        "x": 231.8,
+        "y": 79.9,
+        "w": 17.0,
+        "h": 34.0
+      }
+    },
+    {
+      "type": "VB.CheckBox",
+      "name": "Check1",
+      "props": {
+        "BackColor": 2147483653,
+        "ForeColor": 2147483656,
+        "Height": 510,
+        "Index": 4,
+        "Left": 8040,
+        "Top": 3960,
+        "Width": 255
+      },
+      "children": [],
+      "px": {
+        "x": 535.7,
+        "y": 263.8,
+        "w": 17.0,
+        "h": 34.0
+      }
+    },
+    {
+      "type": "VB.CheckBox",
+      "name": "Check1",
+      "props": {
+        "BackColor": 2147483653,
+        "ForeColor": 2147483656,
+        "Height": 510,
+        "Index": 3,
+        "Left": 8040,
+        "Top": 3480,
+        "Width": 255
+      },
+      "children": [],
+      "px": {
+        "x": 535.7,
+        "y": 231.8,
+        "w": 17.0,
+        "h": 34.0
+      }
+    },
+    {
+      "type": "VB.CheckBox",
+      "name": "Check1",
+      "props": {
+        "BackColor": 2147483653,
+        "ForeColor": 2147483656,
+        "Height": 510,
+        "Index": 2,
+        "Left": 8040,
+        "Top": 2280,
+        "Width": 255
+      },
+      "children": [],
+      "px": {
+        "x": 535.7,
+        "y": 151.9,
+        "w": 17.0,
+        "h": 34.0
+      }
+    },
+    {
+      "type": "VB.CheckBox",
+      "name": "Check1",
+      "props": {
+        "BackColor": 2147483653,
+        "ForeColor": 2147483656,
+        "Height": 510,
+        "Index": 1,
+        "Left": 8040,
+        "Top": 1800,
+        "Width": 255
+      },
+      "children": [],
+      "px": {
+        "x": 535.7,
+        "y": 119.9,
+        "w": 17.0,
+        "h": 34.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Picture1",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "ForeColor": 2147483656,
+        "Height": 324,
+        "Index": 11,
+        "Left": 1560,
+        "Picture": "AGDARA.frx",
+        "ScaleHeight": 300,
+        "ScaleWidth": 1464,
+        "Top": 4200,
+        "Width": 1488
+      },
+      "children": [],
+      "px": {
+        "x": 103.9,
+        "y": 279.7,
+        "w": 99.1,
+        "h": 21.6
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Picture1",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "ForeColor": 2147483656,
+        "Height": 312,
+        "Index": 10,
+        "Left": 1560,
+        "Picture": "AGDARA.frx",
+        "ScaleHeight": 288,
+        "ScaleWidth": 1464,
+        "Top": 3720,
+        "Width": 1488
+      },
+      "children": [],
+      "px": {
+        "x": 103.9,
+        "y": 247.8,
+        "w": 99.1,
+        "h": 20.8
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Picture1",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "ForeColor": 2147483656,
+        "Height": 324,
+        "Index": 9,
+        "Left": 1560,
+        "Picture": "AGDARA.frx",
+        "ScaleHeight": 300,
+        "ScaleWidth": 1464,
+        "Top": 3240,
+        "Width": 1488
+      },
+      "children": [],
+      "px": {
+        "x": 103.9,
+        "y": 215.8,
+        "w": 99.1,
+        "h": 21.6
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Picture1",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "ForeColor": 2147483656,
+        "Height": 324,
+        "Index": 8,
+        "Left": 1560,
+        "Picture": "AGDARA.frx",
+        "ScaleHeight": 300,
+        "ScaleWidth": 1464,
+        "Top": 2760,
+        "Width": 1488
+      },
+      "children": [],
+      "px": {
+        "x": 103.9,
+        "y": 183.8,
+        "w": 99.1,
+        "h": 21.6
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Picture1",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "ForeColor": 2147483656,
+        "Height": 324,
+        "Index": 7,
+        "Left": 1560,
+        "Picture": "AGDARA.frx",
+        "ScaleHeight": 300,
+        "ScaleWidth": 1464,
+        "Top": 2280,
+        "Width": 1488
+      },
+      "children": [],
+      "px": {
+        "x": 103.9,
+        "y": 151.9,
+        "w": 99.1,
+        "h": 21.6
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Picture1",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "ForeColor": 2147483656,
+        "Height": 324,
+        "Index": 6,
+        "Left": 1560,
+        "Picture": "AGDARA.frx",
+        "ScaleHeight": 300,
+        "ScaleWidth": 1464,
+        "Top": 1800,
+        "Width": 1488
+      },
+      "children": [],
+      "px": {
+        "x": 103.9,
+        "y": 119.9,
+        "w": 99.1,
+        "h": 21.6
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Picture1",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "ForeColor": 2147483656,
+        "Height": 324,
+        "Index": 5,
+        "Left": 1560,
+        "Picture": "AGDARA.frx",
+        "ScaleHeight": 300,
+        "ScaleWidth": 1464,
+        "Top": 1320,
+        "Width": 1488
+      },
+      "children": [],
+      "px": {
+        "x": 103.9,
+        "y": 87.9,
+        "w": 99.1,
+        "h": 21.6
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Picture1",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "ForeColor": 2147483656,
+        "Height": 324,
+        "Index": 4,
+        "Left": 6120,
+        "Picture": "AGDARA.frx",
+        "ScaleHeight": 300,
+        "ScaleWidth": 1464,
+        "Top": 4080,
+        "Width": 1488
+      },
+      "children": [],
+      "px": {
+        "x": 407.7,
+        "y": 271.7,
+        "w": 99.1,
+        "h": 21.6
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Picture1",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "ForeColor": 2147483656,
+        "Height": 324,
+        "Index": 3,
+        "Left": 6120,
+        "Picture": "AGDARA.frx",
+        "ScaleHeight": 300,
+        "ScaleWidth": 1464,
+        "Top": 3600,
+        "Width": 1488
+      },
+      "children": [],
+      "px": {
+        "x": 407.7,
+        "y": 239.8,
+        "w": 99.1,
+        "h": 21.6
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Picture1",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "ForeColor": 2147483656,
+        "Height": 324,
+        "Index": 2,
+        "Left": 6120,
+        "Picture": "AGDARA.frx",
+        "ScaleHeight": 300,
+        "ScaleWidth": 1464,
+        "Top": 2280,
+        "Width": 1488
+      },
+      "children": [],
+      "px": {
+        "x": 407.7,
+        "y": 151.9,
+        "w": 99.1,
+        "h": 21.6
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Picture1",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "ForeColor": 2147483656,
+        "Height": 324,
+        "Index": 1,
+        "Left": 6120,
+        "Picture": "AGDARA.frx",
+        "ScaleHeight": 300,
+        "ScaleWidth": 1464,
+        "Top": 1800,
+        "Width": 1488
+      },
+      "children": [],
+      "px": {
+        "x": 407.7,
+        "y": 119.9,
+        "w": 99.1,
+        "h": 21.6
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Picture1",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "ForeColor": 2147483656,
+        "Height": 324,
+        "Index": 0,
+        "Left": 6120,
+        "Picture": "AGDARA.frx",
+        "ScaleHeight": 300,
+        "ScaleWidth": 1464,
+        "Top": 1320,
+        "Width": 1488
+      },
+      "children": [],
+      "px": {
+        "x": 407.7,
+        "y": 87.9,
+        "w": 99.1,
+        "h": 21.6
+      }
+    },
+    {
+      "type": "VB.CheckBox",
+      "name": "Check1",
+      "props": {
+        "BackColor": 2147483653,
+        "ForeColor": 2147483656,
+        "Height": 510,
+        "Index": 0,
+        "Left": 8040,
+        "Top": 1320,
+        "Width": 255
+      },
+      "children": [],
+      "px": {
+        "x": 535.7,
+        "y": 87.9,
+        "w": 17.0,
+        "h": 34.0
+      }
+    },
+    {
+      "type": "VB.Frame",
+      "name": "Frame3",
+      "props": {
+        "BackColor": 2147483653,
+        "Caption": "עיון  ",
+        "ForeColor": 2147483656,
+        "Height": 1935,
+        "Left": 6000,
+        "Top": 960,
+        "Width": 2415
+      },
+      "children": [],
+      "px": {
+        "x": 399.7,
+        "y": 63.9,
+        "w": 160.9,
+        "h": 128.9
+      }
+    },
+    {
+      "type": "VB.Frame",
+      "name": "Frame5",
+      "props": {
+        "BackColor": 2147483653,
+        "Caption": "מילון ",
+        "ForeColor": 2147483656,
+        "Height": 3855,
+        "Left": 1440,
+        "Top": 960,
+        "Width": 2415
+      },
+      "children": [],
+      "px": {
+        "x": 95.9,
+        "y": 63.9,
+        "w": 160.9,
+        "h": 256.8
+      }
+    },
+    {
+      "type": "VB.Frame",
+      "name": "Frame4",
+      "props": {
+        "BackColor": 2147483653,
+        "Caption": "שאלות ",
+        "ForeColor": 2147483656,
+        "Height": 1575,
+        "Left": 6000,
+        "Top": 3240,
+        "Width": 2415
+      },
+      "children": [],
+      "px": {
+        "x": 399.7,
+        "y": 215.8,
+        "w": 160.9,
+        "h": 104.9
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Panel3D1",
+      "props": {
+        "BackColor": 14737632,
+        "Height": 375,
+        "Left": 1320,
+        "Top": 0,
+        "Width": 6255
+      },
+      "children": [],
+      "px": {
+        "x": 87.9,
+        "y": 0.0,
+        "w": 416.7,
+        "h": 25.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Label3",
+      "props": {
+        "BackColor": 2147483653,
+        "Caption": "אם ברצונך להוסיף פעילות יש להסיר תחילה פעילות קיימת",
+        "ForeColor": 2147483656,
+        "Height": 495,
+        "Left": 1800,
+        "Top": 5880,
+        "Width": 6135
+      },
+      "children": [],
+      "px": {
+        "x": 119.9,
+        "y": 391.6,
+        "w": 408.7,
+        "h": 33.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Label2",
+      "props": {
+        "BackColor": 2147483653,
+        "Caption": "מסלול מוגבל ל-4 פעילויות",
+        "ForeColor": 2147483656,
+        "Height": 375,
+        "Left": 2400,
+        "Top": 5640,
+        "Width": 4815
+      },
+      "children": [],
+      "px": {
+        "x": 159.9,
+        "y": 375.7,
+        "w": 320.8,
+        "h": 25.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Label1",
+      "props": {
+        "BackColor": 2147483653,
+        "Caption": "הערה",
+        "ForeColor": 2147483656,
+        "Height": 495,
+        "Left": 4440,
+        "Top": 5280,
+        "Width": 2535
+      },
+      "children": [],
+      "px": {
+        "x": 295.8,
+        "y": 351.7,
+        "w": 168.9,
+        "h": 33.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lblKotarot",
+      "props": {
+        "BackColor": 2147483653,
+        "ForeColor": 2147483656,
+        "Height": 375,
+        "Left": 2760,
+        "Top": 480,
+        "Width": 3735
+      },
+      "children": [],
+      "px": {
+        "x": 183.9,
+        "y": 32.0,
+        "w": 248.8,
+        "h": 25.0
+      }
+    }
+  ],
+  "design": {
+    "width": 614,
+    "height": 430,
+    "client_w_twips": 9216,
+    "client_h_twips": 6456
+  }
+}

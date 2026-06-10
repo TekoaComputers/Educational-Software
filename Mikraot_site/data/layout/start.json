@@ -1,0 +1,293 @@
+{
+  "type": "VB.Form",
+  "name": "start",
+  "props": {
+    "BackColor": 2147483653,
+    "BorderStyle": 0,
+    "ClientHeight": 7812,
+    "ClientLeft": -1056,
+    "ClientTop": 1596,
+    "ClientWidth": 9924,
+    "ForeColor": 2147483656,
+    "Icon": "START.frx",
+    "ScaleHeight": 7812,
+    "ScaleWidth": 9924
+  },
+  "children": [
+    {
+      "type": "VB.CommandButton",
+      "name": "btnLikro",
+      "props": {
+        "Height": 1215,
+        "Left": 6840,
+        "Top": 5880,
+        "Width": 1455
+      },
+      "children": [],
+      "px": {
+        "x": 456.3,
+        "y": 392.2,
+        "w": 97.1,
+        "h": 81.0
+      }
+    },
+    {
+      "type": "VB.CommandButton",
+      "name": "btnVoprTx",
+      "props": {
+        "Height": 1215,
+        "Left": 5040,
+        "Top": 5880,
+        "Width": 1455
+      },
+      "children": [],
+      "px": {
+        "x": 336.2,
+        "y": 392.2,
+        "w": 97.1,
+        "h": 81.0
+      }
+    },
+    {
+      "type": "VB.CommandButton",
+      "name": "btnVoprTm",
+      "props": {
+        "Height": 1215,
+        "Left": 3240,
+        "Top": 5880,
+        "Width": 1455
+      },
+      "children": [],
+      "px": {
+        "x": 216.1,
+        "y": 392.2,
+        "w": 97.1,
+        "h": 81.0
+      }
+    },
+    {
+      "type": "VB.CommandButton",
+      "name": "btnReturn",
+      "props": {
+        "Height": 615,
+        "Left": 8640,
+        "Top": 0,
+        "Width": 855
+      },
+      "children": [],
+      "px": {
+        "x": 576.3,
+        "y": 0.0,
+        "w": 57.0,
+        "h": 41.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "btnExit",
+      "props": {
+        "AutoSize": -1,
+        "BorderStyle": 0,
+        "Height": 615,
+        "Left": 0,
+        "ScaleHeight": 612,
+        "ScaleWidth": 732,
+        "Top": 0,
+        "Width": 735
+      },
+      "children": [],
+      "px": {
+        "x": 0.0,
+        "y": 0.0,
+        "w": 49.0,
+        "h": 41.0
+      }
+    },
+    {
+      "type": "VB.CommandButton",
+      "name": "btnMln",
+      "props": {
+        "Height": 1215,
+        "Left": 1440,
+        "Top": 5880,
+        "Width": 1455
+      },
+      "children": [],
+      "px": {
+        "x": 96.1,
+        "y": 392.2,
+        "w": 97.1,
+        "h": 81.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "PicBur",
+      "props": {
+        "BackColor": 8388608,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 1335,
+        "Left": 8520,
+        "MouseIcon": "START.frx",
+        "ScaleHeight": 1332,
+        "ScaleWidth": 1092,
+        "Top": 5880,
+        "Width": 1095
+      },
+      "children": [],
+      "px": {
+        "x": 568.3,
+        "y": 392.2,
+        "w": 73.0,
+        "h": 89.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "PicFea",
+      "props": {
+        "BackColor": 2147483653,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 1455,
+        "Left": 0,
+        "MouseIcon": "START.frx",
+        "ScaleHeight": 1452,
+        "ScaleWidth": 1212,
+        "Top": 5760,
+        "Width": 1215
+      },
+      "children": [],
+      "px": {
+        "x": 0.0,
+        "y": 384.1,
+        "w": 81.0,
+        "h": 97.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Picture2",
+      "props": {
+        "BackColor": 2147483653,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 4995,
+        "Left": 4920,
+        "ScaleHeight": 416,
+        "ScaleMode": 3,
+        "ScaleWidth": 364,
+        "Top": 600,
+        "Width": 4365
+      },
+      "children": [
+        {
+          "type": "VB.Label",
+          "name": "Slovo",
+          "props": {
+            "AutoSize": -1,
+            "BackColor": 2147483653,
+            "ForeColor": 2147483656,
+            "Height": 195,
+            "Index": 1,
+            "Left": 0,
+            "Top": 0,
+            "Width": 15
+          },
+          "children": [],
+          "px": {
+            "x": 0.0,
+            "y": 0.0,
+            "w": 1.0,
+            "h": 13.0
+          }
+        }
+      ],
+      "px": {
+        "x": 328.2,
+        "y": 40.0,
+        "w": 291.2,
+        "h": 333.1
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Picture1",
+      "props": {
+        "BackColor": 2147483653,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 4995,
+        "Left": 480,
+        "ScaleHeight": 416,
+        "ScaleMode": 3,
+        "ScaleWidth": 354,
+        "Top": 600,
+        "Width": 4245
+      },
+      "children": [
+        {
+          "type": "VB.Timer",
+          "name": "Timer1",
+          "props": {
+            "Left": 360,
+            "Top": 120
+          },
+          "children": []
+        },
+        {
+          "type": "VB.Label",
+          "name": "Pic_Zone",
+          "props": {
+            "BackColor": 2147483653,
+            "ForeColor": 2147483656,
+            "Height": 495,
+            "Index": 1,
+            "Left": 240,
+            "Top": 600,
+            "Width": 435
+          },
+          "children": [],
+          "px": {
+            "x": 16.0,
+            "y": 40.0,
+            "w": 29.0,
+            "h": 33.0
+          }
+        }
+      ],
+      "px": {
+        "x": 32.0,
+        "y": 40.0,
+        "w": 283.2,
+        "h": 333.1
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Panel3D1",
+      "props": {
+        "BackColor": 16744576,
+        "ForeColor": 16777215,
+        "Height": 375,
+        "Left": 840,
+        "Top": 0,
+        "Width": 7695
+      },
+      "children": [],
+      "px": {
+        "x": 56.0,
+        "y": 0.0,
+        "w": 513.3,
+        "h": 25.0
+      }
+    }
+  ],
+  "design": {
+    "width": 662,
+    "height": 521,
+    "client_w_twips": 9924,
+    "client_h_twips": 7812
+  }
+}
