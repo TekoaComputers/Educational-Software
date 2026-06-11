@@ -119,6 +119,74 @@ function actionFor(ctrl, appId) {
         if (idx === 2) return "exit";
         return `btnexi:${idx}`;
     }
+    // Kesem editor — control names that only exist on its Main / Chgames /
+    // Gzira / Maslul / Expo forms. Gate on appId so the generic names
+    // (`menu`, `del`, `choice`) don't accidentally fire on other apps.
+    if (appId === "Kesem") {
+        // Main.frm menu(0..4) — index-coded mode buttons:
+        //   0 = ChGames (play/test current page with chosen game-type)
+        //   1 = Gzira (hotspot rect editor)
+        //   2 = Gr_Edit (paint — out of scope on web; logs and no-ops)
+        //   3 = Print  4 = New picture
+        if (name === "menu")    return `kesem:menu:${idx}`;
+        // Main.frm del(0..3) — picture-row actions on the album list:
+        //   0 = ?  1 = rename  2 = accept  3 = delete  (Main.frm del_Click)
+        if (name === "del")     return `kesem:del:${idx}`;
+        if (name === "choice")  return "kesem:choice";
+        if (name === "ImpOle")  return "kesem:import";
+        if (name === "endof")   return "kesem:back";
+        if (name === "exit")    return "exit";
+        if (name === "lbHelp")  return "kesem:help";
+        if (name === "Up_DN")   return `kesem:nav:${idx}`;
+        // Main.frm Picture1 (inside Spic1) is the large picture-preview
+        // area — clicking it opens ChGames in the original (per Main.frm
+        // Picture1_Change handler chain).
+        // Chgames.frm controls — game-type picker. ChG(0..4) per the
+        // .frm Form_Load Tag values & ChG_Click select Game_Number 3,1,2,4,5.
+        // butt_list(2)=OK commits; Ed_But(0..2) edit/rename/delete cutout.
+        if (name === "ChG")       return `kesem:chg:${idx}`;
+        if (name === "Ed_But")    return `kesem:edb:${idx}`;
+        if (name === "butt_list") return `kesem:blist:${idx}`;
+        // Note: Chgames.Label1_Click → Butt_list_Click 3 (back to menu)
+        // is wired manually in wireKesemChgames so it doesn't promote
+        // EVERY Label1 across editor screens (Maslul/Gzira also have a
+        // Label1) into a hotspot.
+        // Gzira.frm buttons:
+        //   CmdShow="גלה הכל" — restore all hidden Label1s (Form_Unload).
+        //   btnED(0)=Wav1 / btnED(1)=Wav2 — record prompt / affirmation audio.
+        if (name === "CmdShow")   return "kesem:gzira:show-all";
+        if (name === "btnED")     return `kesem:gzira:wav:${idx}`;
+        // Maslul.frm controls:
+        //   Option1(0..6) — game-type radio per Option1_Click (Gnu = 3/1/2/4/5/22/66).
+        //   Command3 = "אישור" (Commit → List2_DblClick equivalent).
+        //   btnBitul = "ביטול שורה" (Remove from List3).
+        //   btnReturn = save & exit. video(0/1)/btnSeret(0/1)/btnDelFilm(0/1)
+        //   = intro / outro video pickers + clear.
+        //   expo1(0/1) = open Expo / Impo.
+        if (name === "Option1")    return `kesem:maslul:opt:${idx}`;
+        if (name === "Command3")   return "kesem:maslul:commit";
+        // Start_ma.frm controls — Command2(0..5) per Command2_Click:
+        //   0=Edit  1=New  2=Delete  3=Rename  4=(unused)  5=Return
+        // Label4(0..5) and ChBox(0..5) are the 6 favorite slots.
+        if (name === "Command2")   return `kesem:smaslul:cmd:${idx}`;
+        if (name === "Label4")     return `kesem:smaslul:fav:${idx}`;
+        if (name === "ChBox")      return `kesem:smaslul:fav:${idx}`;
+        // Expo.frm — publish/export controls.
+        //   Command1 = "הוסף" (add selected RAS to export set)
+        //   Command3 = "נקה נבחר" (clear selected)
+        //   nikoy = "נקה הכל" (clear all)
+        //   transmit = "צור תיקיית העברה" (write the export bundle)
+        if (name === "Command1")   return "kesem:expo:add";
+        if (name === "Command3")   return "kesem:expo:clear-sel";
+        if (name === "nikoy")      return "kesem:expo:clear-all";
+        if (name === "transmit")   return "kesem:expo:transmit";
+        if (name === "btnBitul")   return "kesem:maslul:bitul";
+        if (name === "btnReturn")  return "kesem:maslul:return";
+        if (name === "btnDelFilm") return `kesem:maslul:delfilm:${idx}`;
+        if (name === "video")      return `kesem:maslul:video:${idx}`;
+        if (name === "btnSeret")   return `kesem:maslul:seret:${idx}`;
+        if (name === "expo1")      return `kesem:maslul:expo:${idx}`;
+    }
     return null;
 }
 
@@ -281,6 +349,15 @@ function buildSubtree(ctrl, scale, state, screenConf) {
     // handling above so we skip them here.
     if (startsHidden && !isTip) {
         node.style.display = "none";
+    }
+
+    // VB6 ToolTipText (set in the .frm header) maps directly to the
+    // browser's native title attribute — hover over a control to see
+    // its tooltip. The original ALSO supports dynamic tooltips via
+    // lbtip + MouseMove handlers; per-app wireup can override `title`
+    // later for that pattern.
+    if (ctrl.props.ToolTipText) {
+        node.title = ctrl.props.ToolTipText;
     }
 
     if (imgSrc) {

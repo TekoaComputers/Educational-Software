@@ -1,0 +1,889 @@
+{
+  "type": "VB.Form",
+  "name": "maslul",
+  "props": {
+    "BackColor": 12632256,
+    "BorderStyle": 0,
+    "Caption": "Maslul",
+    "ClientHeight": 7920,
+    "ClientLeft": 1068,
+    "ClientTop": 1308,
+    "ClientWidth": 10164,
+    "ScaleHeight": 7920,
+    "ScaleWidth": 10164
+  },
+  "children": [
+    {
+      "type": "VB.OptionButton",
+      "name": "Option1",
+      "props": {
+        "BackColor": 14386308,
+        "Caption": "צביעה",
+        "ForeColor": 16777215,
+        "Height": 375,
+        "Index": 6,
+        "Left": 3855,
+        "Top": 2760,
+        "Width": 1215
+      },
+      "children": [],
+      "px": {
+        "x": 257.2,
+        "y": 184.0,
+        "w": 81.0,
+        "h": 25.0
+      }
+    },
+    {
+      "type": "VB.OptionButton",
+      "name": "Option1",
+      "props": {
+        "BackColor": 14386308,
+        "Caption": "פאזל אוטומטי  ",
+        "ForeColor": 16777215,
+        "Height": 300,
+        "Index": 5,
+        "Left": 3495,
+        "Top": 3120,
+        "Width": 1575
+      },
+      "children": [],
+      "px": {
+        "x": 233.1,
+        "y": 208.0,
+        "w": 105.1,
+        "h": 20.0
+      }
+    },
+    {
+      "type": "VB.OptionButton",
+      "name": "Option1",
+      "props": {
+        "BackColor": 14386308,
+        "Caption": "מטוס",
+        "ForeColor": 16777215,
+        "Height": 495,
+        "Index": 4,
+        "Left": 3855,
+        "Top": 2310,
+        "Width": 1215
+      },
+      "children": [],
+      "px": {
+        "x": 257.2,
+        "y": 154.0,
+        "w": 81.0,
+        "h": 33.0
+      }
+    },
+    {
+      "type": "VB.OptionButton",
+      "name": "Option1",
+      "props": {
+        "BackColor": 14386308,
+        "Caption": "בחירה",
+        "ForeColor": 16777215,
+        "Height": 420,
+        "Index": 3,
+        "Left": 3855,
+        "Top": 1935,
+        "Width": 1215
+      },
+      "children": [],
+      "px": {
+        "x": 257.2,
+        "y": 129.0,
+        "w": 81.0,
+        "h": 28.0
+      }
+    },
+    {
+      "type": "VB.OptionButton",
+      "name": "Option1",
+      "props": {
+        "BackColor": 14386308,
+        "Caption": "פאזל  ",
+        "ForeColor": 16777215,
+        "Height": 420,
+        "Index": 2,
+        "Left": 3855,
+        "Top": 1560,
+        "Width": 1215
+      },
+      "children": [],
+      "px": {
+        "x": 257.2,
+        "y": 104.0,
+        "w": 81.0,
+        "h": 28.0
+      }
+    },
+    {
+      "type": "VB.OptionButton",
+      "name": "Option1",
+      "props": {
+        "BackColor": 14386308,
+        "Caption": "התאמה",
+        "ForeColor": 16777215,
+        "Height": 420,
+        "Index": 1,
+        "Left": 3855,
+        "Top": 1185,
+        "Width": 1215
+      },
+      "children": [],
+      "px": {
+        "x": 257.2,
+        "y": 79.0,
+        "w": 81.0,
+        "h": 28.0
+      }
+    },
+    {
+      "type": "VB.OptionButton",
+      "name": "Option1",
+      "props": {
+        "BackColor": 14386308,
+        "Caption": "חקירה ",
+        "ForeColor": 16777215,
+        "Height": 345,
+        "Index": 0,
+        "Left": 3855,
+        "Top": 885,
+        "Width": 1215
+      },
+      "children": [],
+      "px": {
+        "x": 257.2,
+        "y": 59.0,
+        "w": 81.0,
+        "h": 23.0
+      }
+    },
+    {
+      "type": "VB.ListBox",
+      "name": "List2",
+      "props": {
+        "BackColor": 16692415,
+        "ForeColor": 4194304,
+        "Height": 1968,
+        "Left": 1620,
+        "Top": 1050,
+        "Width": 2220
+      },
+      "children": [],
+      "px": {
+        "x": 108.1,
+        "y": 70.0,
+        "w": 148.1,
+        "h": 131.2
+      }
+    },
+    {
+      "type": "VB.CommandButton",
+      "name": "Command3",
+      "props": {
+        "BackColor": 16761024,
+        "Caption": "אישור",
+        "Height": 405,
+        "Left": 2250,
+        "Top": 3225,
+        "Width": 1005
+      },
+      "children": [],
+      "px": {
+        "x": 150.1,
+        "y": 215.0,
+        "w": 67.0,
+        "h": 27.0
+      }
+    },
+    {
+      "type": "VB.ListBox",
+      "name": "List1",
+      "props": {
+        "BackColor": 16761024,
+        "ForeColor": 8388608,
+        "Height": 2688,
+        "Left": 5325,
+        "Top": 1050,
+        "Width": 4065
+      },
+      "children": [],
+      "px": {
+        "x": 355.2,
+        "y": 70.0,
+        "w": 271.2,
+        "h": 179.2
+      }
+    },
+    {
+      "type": "VB.CommandButton",
+      "name": "btnSeret",
+      "props": {
+        "BackColor": 16761024,
+        "Height": 375,
+        "Index": 1,
+        "Left": 900,
+        "Top": 6615,
+        "Visible": 0,
+        "Width": 2775
+      },
+      "children": [],
+      "px": {
+        "x": 60.0,
+        "y": 441.0,
+        "w": 185.1,
+        "h": 25.0
+      }
+    },
+    {
+      "type": "VB.CommandButton",
+      "name": "btnSeret",
+      "props": {
+        "BackColor": 16761024,
+        "Height": 375,
+        "Index": 0,
+        "Left": 900,
+        "Top": 6255,
+        "Visible": 0,
+        "Width": 2775
+      },
+      "children": [],
+      "px": {
+        "x": 60.0,
+        "y": 417.0,
+        "w": 185.1,
+        "h": 25.0
+      }
+    },
+    {
+      "type": "VB.CommandButton",
+      "name": "video",
+      "props": {
+        "BackColor": 16761024,
+        "Caption": "סרט סיום",
+        "Height": 375,
+        "Index": 1,
+        "Left": 3780,
+        "Top": 6615,
+        "Width": 975
+      },
+      "children": [],
+      "px": {
+        "x": 252.1,
+        "y": 441.0,
+        "w": 65.0,
+        "h": 25.0
+      }
+    },
+    {
+      "type": "VB.CommandButton",
+      "name": "video",
+      "props": {
+        "BackColor": 16761024,
+        "Caption": "סרט פתיח",
+        "Height": 375,
+        "Index": 0,
+        "Left": 3780,
+        "Top": 6255,
+        "Width": 975
+      },
+      "children": [],
+      "px": {
+        "x": 252.1,
+        "y": 417.0,
+        "w": 65.0,
+        "h": 25.0
+      }
+    },
+    {
+      "type": "VB.ListBox",
+      "name": "List3",
+      "props": {
+        "BackColor": 16761024,
+        "ForeColor": 255,
+        "Height": 1392,
+        "Left": 555,
+        "Top": 4290,
+        "Width": 4215
+      },
+      "children": [],
+      "px": {
+        "x": 37.0,
+        "y": 286.0,
+        "w": 281.2,
+        "h": 92.8
+      }
+    },
+    {
+      "type": "VB.CommandButton",
+      "name": "btnBitul",
+      "props": {
+        "BackColor": 16761024,
+        "Caption": "ביטול  שורה",
+        "Height": 375,
+        "Left": 3450,
+        "Top": 5775,
+        "Width": 1365
+      },
+      "children": [],
+      "px": {
+        "x": 230.1,
+        "y": 385.0,
+        "w": 91.1,
+        "h": 25.0
+      }
+    },
+    {
+      "type": "VB.CommandButton",
+      "name": "btnDelFilm",
+      "props": {
+        "BackColor": 16761024,
+        "Caption": "x",
+        "Height": 375,
+        "Index": 0,
+        "Left": 540,
+        "Top": 6255,
+        "Visible": 0,
+        "Width": 255
+      },
+      "children": [],
+      "px": {
+        "x": 36.0,
+        "y": 417.0,
+        "w": 17.0,
+        "h": 25.0
+      }
+    },
+    {
+      "type": "VB.CommandButton",
+      "name": "btnDelFilm",
+      "props": {
+        "BackColor": 16761024,
+        "Caption": "x",
+        "Height": 375,
+        "Index": 1,
+        "Left": 540,
+        "Top": 6615,
+        "Visible": 0,
+        "Width": 255
+      },
+      "children": [],
+      "px": {
+        "x": 36.0,
+        "y": 441.0,
+        "w": 17.0,
+        "h": 25.0
+      }
+    },
+    {
+      "type": "VB.CommandButton",
+      "name": "endof",
+      "props": {
+        "BackColor": 16761024,
+        "Caption": "x",
+        "Height": 330,
+        "Left": 9300,
+        "MouseIcon": "MASLUL.frx",
+        "Top": 0,
+        "Width": 300
+      },
+      "children": [],
+      "px": {
+        "x": 620.4,
+        "y": 0.0,
+        "w": 20.0,
+        "h": 22.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "expo1",
+      "props": {
+        "Height": 690,
+        "Index": 1,
+        "Left": 75,
+        "MouseIcon": "MASLUL.frx",
+        "Top": 2025,
+        "Width": 1050
+      },
+      "children": [],
+      "px": {
+        "x": 5.0,
+        "y": 135.0,
+        "w": 70.0,
+        "h": 46.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "expo1",
+      "props": {
+        "Height": 690,
+        "Index": 0,
+        "Left": 75,
+        "MouseIcon": "MASLUL.frx",
+        "Top": 1350,
+        "Width": 1050
+      },
+      "children": [],
+      "px": {
+        "x": 5.0,
+        "y": 90.0,
+        "w": 70.0,
+        "h": 46.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "BorderStyle": 1,
+        "ForeColor": 2147483656,
+        "Height": 255,
+        "Index": 2,
+        "Left": 3360,
+        "Top": 3510,
+        "Visible": 0,
+        "Width": 105
+      },
+      "children": [],
+      "px": {
+        "x": 224.1,
+        "y": 234.0,
+        "w": 7.0,
+        "h": 17.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lblMaslul",
+      "props": {
+        "BorderStyle": 1,
+        "Height": 240,
+        "Left": 9750,
+        "Top": 3675,
+        "Width": 165
+      },
+      "children": [],
+      "px": {
+        "x": 650.4,
+        "y": 245.0,
+        "w": 11.0,
+        "h": 16.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "pan",
+      "props": {
+        "BorderStyle": 1,
+        "Height": 240,
+        "Left": 2100,
+        "Top": -785,
+        "Width": 165
+      },
+      "children": [],
+      "px": {
+        "x": 140.1,
+        "y": -52.3,
+        "w": 11.0,
+        "h": 16.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "BackColor": 2147483653,
+        "BorderStyle": 1,
+        "ForeColor": 2147483656,
+        "Height": 435,
+        "Index": 4,
+        "Left": 570,
+        "Top": 3150,
+        "Visible": 0,
+        "Width": 1290
+      },
+      "children": [],
+      "px": {
+        "x": 38.0,
+        "y": 210.0,
+        "w": 86.1,
+        "h": 29.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "BorderStyle": 1,
+        "ForeColor": 2147483656,
+        "Height": 225,
+        "Index": 3,
+        "Left": 1425,
+        "Top": 750,
+        "Visible": 0,
+        "Width": 75
+      },
+      "children": [],
+      "px": {
+        "x": 95.1,
+        "y": 50.0,
+        "w": 5.0,
+        "h": 15.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Label4",
+      "props": {
+        "Caption": "גזירות",
+        "ForeColor": 16766948,
+        "Height": 330,
+        "Left": 2475,
+        "Top": 765,
+        "Width": 1095
+      },
+      "children": [],
+      "px": {
+        "x": 165.1,
+        "y": 51.0,
+        "w": 73.0,
+        "h": 22.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "BorderStyle": 1,
+        "ForeColor": 2147483656,
+        "Height": 225,
+        "Index": 10,
+        "Left": 6525,
+        "Top": 3750,
+        "Visible": 0,
+        "Width": 75
+      },
+      "children": [],
+      "px": {
+        "x": 435.3,
+        "y": 250.0,
+        "w": 5.0,
+        "h": 15.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Label1",
+      "props": {
+        "Caption": "מסלול נוסף -  שלבים (גזירה-פעילות-קוד תמונה) ",
+        "ForeColor": 16766948,
+        "Height": 270,
+        "Left": 540,
+        "Top": 4050,
+        "Width": 3885
+      },
+      "children": [],
+      "px": {
+        "x": 36.0,
+        "y": 270.0,
+        "w": 259.2,
+        "h": 18.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "BorderStyle": 1,
+        "ForeColor": 2147483656,
+        "Height": 225,
+        "Index": 5,
+        "Left": 1785,
+        "Top": 5820,
+        "Visible": 0,
+        "Width": 75
+      },
+      "children": [],
+      "px": {
+        "x": 119.1,
+        "y": 388.0,
+        "w": 5.0,
+        "h": 15.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "BorderStyle": 1,
+        "ForeColor": 2147483656,
+        "Height": 225,
+        "Index": 6,
+        "Left": 1500,
+        "Top": 5775,
+        "Visible": 0,
+        "Width": 75
+      },
+      "children": [],
+      "px": {
+        "x": 100.1,
+        "y": 385.0,
+        "w": 5.0,
+        "h": 15.0
+      }
+    },
+    {
+      "type": "VB.Image",
+      "name": "Image1",
+      "props": {
+        "Height": 2820,
+        "Left": 5400,
+        "Top": 4050,
+        "Width": 3960
+      },
+      "children": [],
+      "px": {
+        "x": 360.2,
+        "y": 270.0,
+        "w": 264.2,
+        "h": 188.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "BorderStyle": 1,
+        "ForeColor": 2147483656,
+        "Height": 255,
+        "Index": 11,
+        "Left": 7335,
+        "Top": 6975,
+        "Visible": 0,
+        "Width": 105
+      },
+      "children": [],
+      "px": {
+        "x": 489.3,
+        "y": 465.0,
+        "w": 7.0,
+        "h": 17.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "BorderStyle": 1,
+        "ForeColor": 2147483656,
+        "Height": 255,
+        "Index": 9,
+        "Left": 3825,
+        "Top": 6975,
+        "Visible": 0,
+        "Width": 105
+      },
+      "children": [],
+      "px": {
+        "x": 255.2,
+        "y": 465.0,
+        "w": 7.0,
+        "h": 17.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "BorderStyle": 1,
+        "ForeColor": 2147483656,
+        "Height": 255,
+        "Index": 8,
+        "Left": 1725,
+        "Top": 6975,
+        "Visible": 0,
+        "Width": 105
+      },
+      "children": [],
+      "px": {
+        "x": 115.1,
+        "y": 465.0,
+        "w": 7.0,
+        "h": 17.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "BorderStyle": 1,
+        "ForeColor": 2147483656,
+        "Height": 255,
+        "Index": 7,
+        "Left": 525,
+        "Top": 6975,
+        "Visible": 0,
+        "Width": 105
+      },
+      "children": [],
+      "px": {
+        "x": 35.0,
+        "y": 465.0,
+        "w": 7.0,
+        "h": 17.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Label5",
+      "props": {
+        "Caption": "תמונות - שם וקוד",
+        "ForeColor": 16766948,
+        "Height": 330,
+        "Left": 6525,
+        "Top": 750,
+        "Width": 2010
+      },
+      "children": [],
+      "px": {
+        "x": 435.3,
+        "y": 50.0,
+        "w": 134.1,
+        "h": 22.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "BorderStyle": 1,
+        "ForeColor": 2147483656,
+        "Height": 255,
+        "Index": 12,
+        "Left": 8685,
+        "Top": 210,
+        "Visible": 0,
+        "Width": 105
+      },
+      "children": [],
+      "px": {
+        "x": 579.3,
+        "y": 14.0,
+        "w": 7.0,
+        "h": 17.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "BorderStyle": 1,
+        "ForeColor": 2147483656,
+        "Height": 255,
+        "Index": 1,
+        "Left": 225,
+        "Top": 2700,
+        "Visible": 0,
+        "Width": 105
+      },
+      "children": [],
+      "px": {
+        "x": 15.0,
+        "y": 180.0,
+        "w": 7.0,
+        "h": 17.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "BorderStyle": 1,
+        "ForeColor": 2147483656,
+        "Height": 255,
+        "Index": 0,
+        "Left": 225,
+        "Top": 1050,
+        "Visible": 0,
+        "Width": 105
+      },
+      "children": [],
+      "px": {
+        "x": 15.0,
+        "y": 70.0,
+        "w": 7.0,
+        "h": 17.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbHelp",
+      "props": {
+        "Height": 1065,
+        "Left": 75,
+        "MouseIcon": "MASLUL.frx",
+        "Top": 2865,
+        "Width": 900
+      },
+      "children": [],
+      "px": {
+        "x": 5.0,
+        "y": 191.0,
+        "w": 60.0,
+        "h": 71.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "btnReturn",
+      "props": {
+        "Height": 1110,
+        "Left": 75,
+        "MouseIcon": "MASLUL.frx",
+        "Top": 75,
+        "Width": 1020
+      },
+      "children": [],
+      "px": {
+        "x": 5.0,
+        "y": 5.0,
+        "w": 68.0,
+        "h": 74.0
+      }
+    }
+  ],
+  "design": {
+    "width": 678,
+    "height": 528,
+    "client_w_twips": 10164,
+    "client_h_twips": 7920
+  }
+}

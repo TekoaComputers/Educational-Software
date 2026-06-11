@@ -309,9 +309,34 @@ function onScreenChange(state, screenId) {
         wireDvashCatalog(state);
     } else if (screenId === "mashal") {
         wireMashalScreen(state);
+    } else if (screenId === "main" && state.config.id === "Kesem") {
+        // Kesem editor — picture album / catalog screen. Mirrors the
+        // original kesem/Main.frm Form_Load: GetAllPics reads BMP/Spisok.dat
+        // into List1 + n$/FN$ arrays, then PutPicture(SetPosMain) shows
+        // the last-selected picture.
+        wireKesemMain(state);
+        kesemApplyTooltips(state, "main");
+    } else if (screenId === "chgames" && state.config.id === "Kesem") {
+        wireKesemChgames(state);
+        kesemApplyTooltips(state, "chgames");
+    } else if (screenId === "gzira" && state.config.id === "Kesem") {
+        wireKesemGzira(state);
+        kesemApplyTooltips(state, "gzira");
+    } else if (screenId === "maslul" && state.config.id === "Kesem") {
+        wireKesemMaslul(state);
+        kesemApplyTooltips(state, "maslul");
+    } else if (screenId === "start_maslul" && state.config.id === "Kesem") {
+        wireKesemStartMaslul(state);
+        kesemApplyTooltips(state, "start_maslul");
+    } else if (screenId === "expo" && state.config.id === "Kesem") {
+        wireKesemExpo(state);
     } else if (screenId === "sst") {
         unhideRuntimeButtons(state);
         wireSstLamps(state);
+        if (state.config.id === "Kesem") {
+            wireKesemSst(state);
+            kesemApplyTooltips(state, "sst");
+        }
         if (state.config.book) wireSstBook(state);
         if (state.config.ivritDefaultView) wireSstIvrit(state);
         if (state.config.flipBook) wireFlipBookAnimation(state);
@@ -1310,6 +1335,1964 @@ function startIvritSelectedSong(state) {
     startPath(state, 0);
 }
 
+// === Kesem editor ========================================================
+// Persistent doc shape (mirrors data/paths/Kesem.json plus an in-memory
+// newAssets/dirty bookkeeping layer):
+//   { pictures: [{file, name}], rasb: {basename: hotspots[]},
+//     maslul: [{masFile, name, header, stages}],
+//     newAssets: {bmp: {name: dataURL}, wav: {key: dataURL}},
+//     dirty: boolean }
+// localStorage key: "kesem.doc". Seeded from window.PATHS.Kesem on first
+// load so the bundled sample library shows up immediately.
+const KESEM_DOC_KEY = "kesem.doc";
+
+function kesemLoadDoc(state) {
+    if (state.editor && state.editor.doc) return state.editor.doc;
+    let raw = null;
+    try { raw = localStorage.getItem(KESEM_DOC_KEY); }
+    catch (e) { klog("kesem: localStorage read failed:", e); }
+    let doc = null;
+    if (raw) {
+        try { doc = JSON.parse(raw); }
+        catch (e) { klog("kesem: doc JSON parse failed, reseeding"); doc = null; }
+    }
+    // Reseed from PATHS.Kesem when no doc exists OR the doc is unedited
+    // (dirty=false). Without this, stale localStorage from earlier port
+    // iterations (smaller picture catalog / empty rasb) sticks around
+    // even after parse_kesem.py re-runs against the master library.
+    // A teacher's edits (dirty=true) are preserved across rebuilds.
+    if (!doc || !doc.dirty) {
+        const seed = state.paths || {};
+        const prevFavs = doc && doc.favorites;
+        doc = {
+            pictures: Array.isArray(seed.pictures) ? seed.pictures.slice() : [],
+            rasb:     Object.assign({}, seed.rasb || {}),
+            maslul:   Array.isArray(seed.maslul) ? seed.maslul.slice() : [],
+            favorites: prevFavs || [null, null, null, null, null, null],
+            newAssets: { bmp: {}, wav: {} },
+            dirty: false,
+        };
+        kesemSaveDoc(doc);
+        klog("kesem: doc reseeded from PATHS — "
+             + doc.pictures.length + " pics, "
+             + Object.keys(doc.rasb).length + " rasb, "
+             + doc.maslul.length + " lessons");
+    }
+    state.editor = state.editor || {};
+    state.editor.doc = doc;
+    state.editor.selectedPicture = state.editor.selectedPicture ?? 0;
+    return doc;
+}
+
+function kesemSaveDoc(doc) {
+    try { localStorage.setItem(KESEM_DOC_KEY, JSON.stringify(doc)); }
+    catch (e) { klog("kesem: localStorage write failed (quota?):", e); }
+}
+
+// Resolve a picture filename (e.g. "101.bmp") to its rendered PNG path,
+// honoring newAssets overrides. Returns null if the file isn't shipped
+// and hasn't been uploaded — caller decides whether to skip or
+// placeholder.
+function kesemPictureUrl(state, fileName) {
+    if (!fileName) return null;
+    const doc = state.editor && state.editor.doc;
+    if (doc && doc.newAssets && doc.newAssets.bmp && doc.newAssets.bmp[fileName]) {
+        return doc.newAssets.bmp[fileName];
+    }
+    const stem = fileName.replace(/\.[^.]+$/, "").toLowerCase();
+    return state.config.assetsRoot + "/bmp/" + stem + ".png";
+}
+
+// kesem/Sst.frm screen wiring. Reproduces:
+//   * Form_Load LoadPicture calls — Picture1.Picture=sta2 / Picture2.Picture=sta1
+//     drawn at NATURAL size at (0,0) of their box, not stretched to the
+//     box's authored size. Picture2 (album view) is sized 680×505 in the
+//     .frm — wider than the form. VB6 PictureBox.Picture renders at the
+//     image's pixel-perfect 640×480 size from (0,0); we replicate by
+//     overriding the renderer's object-fit:fill default.
+//   * Form_Load.ListSubDirs(MASLUL\) — fills List1 with "<masStem>  <pathName>"
+//     rows for every .MAS file (BliMas + GetShm in the original).
+//   * Form_Load.btnHofshi_Click — would populate btnIcon(0..5) with the
+//     first 6 lessons' first-stage thumbnails; that's player-mode and
+//     not reached until the user clicks activ(0) "play".
+// Per-control → TipArray-index maps lifted from each editor form's
+// MouseMove handlers. Each entry says "when hovering control NAME (or
+// NAME[idx]), the original VB6 code does `lbtip(M).Caption = TipArray(N)`
+// — i.e. show tip text N". We bypass the lbtip mechanic and just set
+// the browser's native `title` attribute.
+//   Sst.frm   : activ_MouseMove (cases 0-6) + direct ToolTipText sets
+//   Main.frm  : already has design-time ToolTipText for del[0..3] +
+//               List1; the rest come from altaf.txt via MouseMove
+//               (Up_DN, choice, menu, ImpOle, etc.)
+//   Chgames   : ChG_MouseMove sets ToolTipText directly; Ed_But + butt_list
+//               + lbHelp via TipArray.
+//   Gzira     : btnED + CmdShow + lbHelp via TipArray.
+//   Maslul    : Option1, Command3, btnBitul, video, btnDelFilm,
+//               btnReturn, expo1, lbHelp via TipArray.
+//   Start_Maslul: Command2, lbHelp via TipArray.
+//
+// Each value can be a number (TipArray index) or a literal string (used
+// when the original sets ToolTipText = "literal" directly).
+const KESEM_TIPS = {
+    sst: {
+        // activ_MouseMove cases — see kesem/Sst.frm:1263-1410.
+        "activ": {
+            0: "הפעל",                   // ToolTipText = "הפעל"
+            1: "מסלולים נבחרים",         // ToolTipText = "מסלולים נבחרים"
+            2: 6,                        // lbtip(20) ← TipArray(6) "אלבום התמונות"
+            3: 7,                        // lbtip(19) ← TipArray(7) "עריכת מסלול חדש"
+            4: 8,                        // lbtip(18) ← TipArray(8) "מסלולים מוכנים"
+            5: 5,                        // lbtip(17) ← TipArray(5) "תאור כללי"
+            6: 9,                        // lbtip(16) ← TipArray(9) "עזרה"
+        },
+        "btnHofshi": 4,                  // tafrosh[4] "מסלולי תרגול נוספים"
+        "bac": 0,                        // "back" — Sst.bac_MouseMove uses lbtipu
+    },
+    main: {
+        // del_MouseMove sets ToolTipText directly per index:
+        // (already extracted by parse_frm; native title set in renderer)
+        // Up_DN_MouseMove maps to altaf indices 9/10 (album mode):
+        "Up_DN": { 0: 10, 1: 9 },        // up=תמונה קודמת / down=התמונה הבאה
+        "menu":  { 0: 11, 1: 12, 2: 13, 3: 14 },
+                                         // menu(0..3) = משחקים/גזירה חדשה/עריכה גרפית/הדפסה
+        "ImpOle": 8,                     // "לקבלת דף נקי"
+        "exit":   18,                    // "יציאה"
+        "lbHelp": 17,                    // "עזרה"
+        "choice": 1,                     // "אשר בחירה"
+        "endof":  0,                     // "כיבוי" / exit confirm
+    },
+    chgames: {
+        "ChG": {                         // ChG_MouseMove ToolTipText sets:
+            0: "חקירה",   1: "התאמה",  2: "פאזל",  3: "בחירה",  4: "מטוס",
+        },
+        "Ed_But":    { 0: 1, 1: 2, 2: 3 },   // ערוך גזירה / שינוי שם / מחיקת גזירה
+        "butt_list": { 2: 12 },              // "הפעל משחק נבחר"
+        "lbHelp":    13,
+        "endof":     0,
+        "Label1":    14,                     // "יציאה" (back to menu)
+    },
+    gzira: {
+        "btnED":    { 0: 5, 1: 6 },          // שאלה / תשובה לגזירה
+        "CmdShow":  7,                        // חלון הגזירה
+        "lbHelp":   8,
+        "endof":    9,
+    },
+    maslul: {
+        "Option1":   {                        // Option1_MouseMove uses TipArray(15)
+            0: 15, 1: 15, 2: 15, 3: 15, 4: 15, 5: 15, 6: 15,
+        },
+        "Command3":   14,                     // אשר בחירת גזירה ופעילות
+        "btnBitul":   7,                      // מחק שורה מוארת
+        "btnReturn":  17,
+        "btnDelFilm": { 0: 12, 1: 13 },
+        "video":      { 0: 8,  1: 9 },        // בחירת סרט פתיח/סיום
+        "btnSeret":   { 0: 10, 1: 11 },       // צפיה בסרט פתיח/סיום
+        "expo1":      { 0: "יצוא גזירות", 1: "יבוא גזירות" },
+        "lbHelp":     16,
+        "endof":      17,
+    },
+    start_maslul: {
+        "Command2": {
+            0: 8,    // עריכה משלימה
+            1: 7,    // מסלול חדש
+            2: 10,   // מחק מסלול
+            3: 9,    // שנה שם
+            4: 11,   // מחק רשימת מסלולים נבחרים
+            5: 12,   // הפעל מסלול
+        },
+        "lbHelp":  13,
+        "endof":   14,
+    },
+};
+
+// Apply the per-screen tooltip map to every relevant control.
+function kesemApplyTooltips(state, screenName) {
+    const stage = state.stage;
+    if (!stage) return;
+    const map = KESEM_TIPS[screenName];
+    if (!map) return;
+    const tips = (state.tafrosh && state.tafrosh.screens && state.tafrosh.screens[screenName]) || [];
+    function resolve(v) {
+        if (typeof v === "string") return v;
+        if (typeof v === "number") return (tips[v] || "").trim();
+        return "";
+    }
+    Object.keys(map).forEach(function (ctrlName) {
+        const entry = map[ctrlName];
+        if (typeof entry === "number" || typeof entry === "string") {
+            // Single-control (no index array). Apply to all matching nodes.
+            stage.querySelectorAll(".frm-ctrl--" + ctrlName).forEach(function (el) {
+                const t = resolve(entry);
+                if (t) el.title = t;
+            });
+        } else if (typeof entry === "object") {
+            // Per-index map: {0: tipA, 1: tipB, ...}
+            Object.keys(entry).forEach(function (idxKey) {
+                const sel = `.frm-ctrl--${ctrlName}[data-index="${idxKey}"]`;
+                const el = stage.querySelector(sel);
+                if (!el) return;
+                const t = resolve(entry[idxKey]);
+                if (t) el.title = t;
+            });
+        }
+    });
+}
+
+function wireKesemSst(state) {
+    const stage = state.stage;
+    if (!stage) return;
+
+    // --- Clip the stage at the form's 640×480 client area. The editor's
+    //     .frm was authored on an 800×600 IDE canvas; Form_Load forces
+    //     Me.Width = ScaleX(640) at runtime so the original .EXE shows
+    //     a 640×480 window. Some controls (e.g. activ(2) at right=651)
+    //     are partially clipped — matches original behavior.
+    stage.style.overflow = "hidden";
+
+    // --- Picture1 / Picture2 backgrounds at NATURAL pixel size --------
+    // VB6 PictureBox renders Picture at the image's natural pixel size
+    // from the box's top-left corner; the rest of the box shows the
+    // PictureBox.BackColor (default Win9x gray). The renderer's default
+    // `.frm-img` rule (`inset:0; width:100%; height:100%; object-fit:fill`)
+    // stretches sta1.png (640×480) to fill Picture2's authored 680×505
+    // box, which offsets every control painted ON the image — that's why
+    // the activ buttons and List1 appeared misaligned. Mirror VB6 by
+    // sizing the <img> to the natural image dims at (0,0), not stretching.
+    ["Picture1", "Picture2"].forEach(function (name) {
+        const ctrl = stage.querySelector(".frm-ctrl--" + name);
+        if (!ctrl) return;
+        ctrl.style.overflow = "hidden";   // matches VB6 PictureBox clip
+        const im = ctrl.querySelector("img.frm-img");
+        if (!im) return;
+        // Reset the renderer's stretching: clear `inset:0` by setting
+        // right/bottom to auto, and pin the image to top-left at its
+        // natural pixel dimensions.
+        Object.assign(im.style, {
+            left: "0", top: "0", right: "auto", bottom: "auto",
+            width:  "auto", height: "auto",
+            objectFit: "none", objectPosition: "top left",
+            maxWidth: "none", maxHeight: "none",
+        });
+    });
+
+    // --- List1 (lesson picker inside Picture2) ------------------------
+    // ListSubDirs walks MASLUL/ → AddItem "<BliMas(file)>  <GetShm(file)>"
+    // i.e. "<numeric stem>  <pathName from .MAS line 5>".
+    const doc = kesemLoadDoc(state);
+    const list = stage.querySelector(".frm-ctrl--List1");
+    if (list) {
+        list.innerHTML = "";
+        Object.assign(list.style, {
+            background: "rgba(255,255,255,.92)", overflow: "auto",
+            font: "13px Arial, sans-serif", color: "#000",
+            textAlign: "right", direction: "rtl", boxSizing: "border-box",
+            padding: "4px", display: "block", pointerEvents: "auto",
+        });
+        const ul = document.createElement("ul");
+        Object.assign(ul.style, { listStyle: "none", margin: 0, padding: 0 });
+        (doc.maslul || []).forEach(function (m, i) {
+            const li = document.createElement("li");
+            const stem = (m.masFile || "").replace(/\.[^.]+$/, "");
+            // BliMas strips the leading 0 and .MAS suffix; we keep both
+            // the stem and the human-readable name like the original.
+            const stripped = stem.replace(/^0+(?=\d)/, "");
+            li.textContent = stripped + "   " + (m.name || "");
+            li.dataset.idx = String(i);
+            Object.assign(li.style, {
+                padding: "2px 6px", cursor: "pointer", userSelect: "none",
+                background: state.editor && state.editor.sstSelMaslul === i ? "#cce8ff" : "transparent",
+            });
+            li.addEventListener("click", function () {
+                // List1_Click: show pri preview, hide SpG_l, hide lblPirut.
+                state.editor = state.editor || {};
+                state.editor.sstSelMaslul = i;
+                state.editor.sstShowSpG = false;
+                wireKesemSst(state);
+            });
+            li.addEventListener("dblclick", function () {
+                // List1_DblClick: ni=1; PutGFile 1; BeginGame; StartGames 40.
+                // Plays the selected lesson. Player path not wired yet on
+                // the editor's preview track — log + load lesson into
+                // currentLesson so the user can step to Maslul to inspect.
+                state.editor = state.editor || {};
+                state.editor.sstSelMaslul = i;
+                klog("kesem: dblclick lesson " + i + " (play path TBD)");
+            });
+            li.addEventListener("contextmenu", function (e) {
+                // List1_MouseDown Button=2: show SpG_l with stage detail.
+                e.preventDefault();
+                state.editor = state.editor || {};
+                state.editor.sstSelMaslul = i;
+                state.editor.sstShowSpG = true;
+                wireKesemSst(state);
+            });
+            ul.appendChild(li);
+        });
+        list.appendChild(ul);
+        // If nothing selected yet, default to the first row.
+        if ((doc.maslul || []).length && (state.editor || {}).sstSelMaslul == null) {
+            state.editor = state.editor || {};
+            state.editor.sstSelMaslul = 0;
+            // Re-paint to highlight row 0.
+            list.querySelectorAll("li").forEach(function (li) {
+                if (parseInt(li.dataset.idx, 10) === 0) li.style.background = "#cce8ff";
+            });
+        }
+    }
+
+    // --- pri preview + lblPirut + SpG_l (stage detail) ---------------
+    // Three mutually-exclusive views, controlled by which List1 event
+    // the user fired:
+    //   single-click  → pri visible, SpG_l hidden, lblPirut hidden
+    //   right-click   → SpG_l visible (stage list), pri hidden, lblPirut visible
+    //   dblclick      → would launch player; logged only for now
+    const pri = stage.querySelector(".frm-ctrl--pri");
+    const lblPirut = stage.querySelector(".frm-ctrl--lblPirut");
+    const spgL = stage.querySelector(".frm-ctrl--SpG_l");
+    const sel = (doc.maslul || [])[(state.editor || {}).sstSelMaslul || 0];
+    const showSpG = !!(state.editor && state.editor.sstShowSpG);
+
+    if (pri) {
+        if (!pri.querySelector("img.kesem-preview")) {
+            const im = document.createElement("img");
+            im.className = "kesem-preview";
+            Object.assign(im.style, {
+                width: "100%", height: "100%", objectFit: "contain",
+                display: "block",
+            });
+            pri.appendChild(im);
+        }
+        const im = pri.querySelector("img.kesem-preview");
+        const firstPic = sel && sel.stages && sel.stages[0] && sel.stages[0].pic;
+        if (firstPic) {
+            im.src = kesemPictureUrl(state, firstPic) || "";
+            im.style.opacity = im.src ? "1" : "0";
+        } else {
+            im.removeAttribute("src");
+        }
+        pri.style.display = showSpG ? "none" : "";
+    }
+    if (lblPirut) {
+        lblPirut.style.color = "#fff";
+        lblPirut.style.font = "13px David, Arial, sans-serif";
+        lblPirut.style.textAlign = "center";
+        lblPirut.style.direction = "rtl";
+        lblPirut.textContent = sel ? (sel.name || sel.masFile || "") : "";
+        lblPirut.style.display = showSpG ? "" : "none";
+    }
+    if (spgL) {
+        spgL.style.display = showSpG ? "block" : "none";
+        if (showSpG) {
+            // PutGameFile(F$): build "<picStem>     <Name_of_Rasb>{pad}<Str_Game(gn)>"
+            // per stage; bracket with "<0-סרט>...", "<1-סרט>..." if videos set.
+            Object.assign(spgL.style, {
+                background: "rgba(255,255,255,.92)", overflow: "auto",
+                font: "12px Arial, sans-serif", color: "#000",
+                textAlign: "right", direction: "rtl", boxSizing: "border-box",
+                padding: "4px",
+            });
+            spgL.innerHTML = "";
+            const ul = document.createElement("ul");
+            Object.assign(ul.style, { listStyle: "none", margin: 0, padding: 0 });
+            const startVid = sel && sel.header && sel.header.introVideo;
+            const endVid   = sel && sel.header && sel.header.mashalVideo;
+            if (startVid) {
+                const li = document.createElement("li");
+                li.textContent = "<0-סרט>" + startVid;
+                li.style.padding = "1px 6px";
+                ul.appendChild(li);
+            }
+            ((sel && sel.stages) || []).forEach(function (st) {
+                const recs = doc.rasb[st.razNom] || [];
+                const rasName = (recs[0] && recs[0].name) || st.razNom;
+                const gnLabel = (KESEM_MASLUL_OPTIONS.find(function (o) { return o.gnu === st.gameNumber; }) || {}).label || ("?" + st.gameNumber);
+                const li = document.createElement("li");
+                li.textContent = st.pic + "     " + rasName + "  " + gnLabel;
+                li.style.padding = "1px 6px";
+                ul.appendChild(li);
+            });
+            if (endVid) {
+                const li = document.createElement("li");
+                li.textContent = "<1-סרט>" + endVid;
+                li.style.padding = "1px 6px";
+                ul.appendChild(li);
+            }
+            spgL.appendChild(ul);
+        }
+    }
+}
+
+// kesem/Sst.frm: activ(1) "las" — flip from Picture2 (album) to Picture1
+// (gameplay view) and populate btnIcon(0..5) with the first 6 lessons'
+// first-stage thumbnails (1:1 with Form_Load.btnHofshi_Click → For q=0..5:
+// PutGFilei q + StartGames9 q + btnIcon(q).Picture = LoadPicture(Pics_F)).
+// activ(0) "ok" follows the same view-flip but lal is set to the selected
+// List1 lesson; the actual StartGames player track isn't yet ported, so
+// both routes share the same view-flip + tile population.
+function kesemSstShowPlayView(state) {
+    const stage = state.stage;
+    if (!stage) return;
+    const doc = kesemLoadDoc(state);
+    const p1 = stage.querySelector(".frm-ctrl--Picture1");
+    const p2 = stage.querySelector(".frm-ctrl--Picture2");
+    if (p1) p1.style.display = "";
+    if (p2) p2.style.display = "none";
+    const bac = stage.querySelector(".frm-ctrl--bac");
+    if (bac) bac.style.display = "";
+    // Picture1's children inherit visibility from the .frm: btnIcon[0..5]
+    // and btnLamp[0..5] are Visible=None (default true), so they appear
+    // automatically when Picture1 unhides. Controls explicitly hidden in
+    // the .frm (mahak, btnHofshi, lbtipu, lbtip[*]) stay hidden — that's
+    // 1:1 with the original Form_Load + activ_Click behaviour.
+    // Populate btnIcon(0..5) with the first-stage picture of the first
+    // 6 lessons (btnHofshi free-play default). Original picks d(0..5)
+    // from ListSubDirs(MASLUL\); we use the same ordered list.
+    const tiles = (doc.maslul || []).slice(0, 6);
+    for (let q = 0; q < 6; q++) {
+        const el = stage.querySelector(`.frm-ctrl--btnIcon[data-index="${q}"]`);
+        if (!el) continue;
+        // Drop in an <img> if not present; src = first-stage picture.
+        let im = el.querySelector("img.kesem-tile");
+        if (!im) {
+            im = document.createElement("img");
+            im.className = "kesem-tile";
+            Object.assign(im.style, {
+                position: "absolute", inset: "0",
+                width: "100%", height: "100%", objectFit: "cover",
+                pointerEvents: "none",
+            });
+            el.appendChild(im);
+        }
+        const lesson = tiles[q];
+        const firstPic = lesson && lesson.stages && lesson.stages[0] && lesson.stages[0].pic;
+        if (firstPic) {
+            im.src = kesemPictureUrl(state, firstPic) || "";
+            im.style.opacity = im.src ? "1" : "0";
+            el.title = lesson.name || lesson.masFile || "";
+            el.style.cursor = "pointer";
+            el.dataset.kesemLesson = String(q);
+        } else {
+            im.removeAttribute("src");
+            el.title = "";
+        }
+    }
+}
+
+// bac_Click — reverse activ(1): hide Picture1 / bac, show Picture2.
+function kesemSstShowAlbumView(state) {
+    const stage = state.stage;
+    if (!stage) return;
+    const p1 = stage.querySelector(".frm-ctrl--Picture1");
+    const p2 = stage.querySelector(".frm-ctrl--Picture2");
+    if (p1) p1.style.display = "none";
+    if (p2) p2.style.display = "";
+    const bac = stage.querySelector(".frm-ctrl--bac");
+    if (bac) bac.style.display = "none";
+}
+
+// kesem/Main.frm screen wiring. Reproduces Form_Load's GetAllPics + the
+// PutPicture(SetPosMain) initial preview, plus the List1_Click handler
+// that re-paints the preview on selection.
+//
+// Form_Load ends with `If Knica = 0 Then choice_Click`, and choice_Click
+// flips Panel3D1.Visible + List1.Visible to True. The parsed layout has
+// Visible=0 (design-time), so the renderer hides them — we explicitly
+// re-show them here.
+function wireKesemMain(state) {
+    const stage = state.stage;
+    if (!stage) return;
+    const doc = kesemLoadDoc(state);
+
+    // Override design-time Visible=False on Panel3D1 (per Main.frm
+    // choice_Click) so the catalog list shows on entry.
+    const panel = stage.querySelector(".frm-ctrl--Panel3D1");
+    if (panel) panel.style.display = "block";
+
+    // --- List1 (picture catalog) -----------------------------------------
+    const list = stage.querySelector(".frm-ctrl--List1");
+    if (list) {
+        list.innerHTML = "";
+        Object.assign(list.style, {
+            background: "rgba(255,255,255,.92)", overflow: "auto",
+            font: "13px Arial, sans-serif", color: "#000",
+            textAlign: "right", direction: "rtl", boxSizing: "border-box",
+            padding: "4px", visibility: "visible", display: "block",
+            pointerEvents: "auto",
+        });
+        const ul = document.createElement("ul");
+        Object.assign(ul.style, { listStyle: "none", margin: "0", padding: "0" });
+        (doc.pictures || []).forEach(function (p, i) {
+            const li = document.createElement("li");
+            li.textContent = (p.name && p.name.length) ? p.name : p.file;
+            li.dataset.idx = String(i);
+            Object.assign(li.style, {
+                padding: "2px 6px", cursor: "pointer", userSelect: "none",
+            });
+            li.addEventListener("click", function () { kesemSelectPicture(state, i); });
+            ul.appendChild(li);
+        });
+        list.appendChild(ul);
+    }
+
+    // --- Spic1.Picture1 preview ------------------------------------------
+    // Spic1 contains a single Picture1 child sized 657×429. Drop an <img>
+    // inside it; subsequent kesemSelectPicture calls reset its src.
+    const spic1 = stage.querySelector(".frm-ctrl--Spic1");
+    const preview = spic1 && spic1.querySelector(".frm-ctrl--Picture1");
+    if (preview && !preview.querySelector("img.kesem-preview")) {
+        const im = document.createElement("img");
+        im.className = "kesem-preview";
+        Object.assign(im.style, {
+            width: "100%", height: "100%", objectFit: "contain",
+            display: "block",
+        });
+        preview.appendChild(im);
+    }
+
+    // --- TxtZman / N_Bmp[0] captions -------------------------------------
+    // TxtZman = picture description; N_Bmp(0) = filename stem. Both live
+    // on the form at fixed positions; we re-populate them on every paint.
+    kesemRefreshPictureUI(state);
+
+    // --- Initial selection (Form_Load: List1.ListIndex = SetPosMain) -----
+    if (doc.pictures && doc.pictures.length) {
+        kesemSelectPicture(state, state.editor.selectedPicture || 0);
+    }
+}
+
+function kesemSelectPicture(state, idx) {
+    const doc = state.editor && state.editor.doc;
+    if (!doc || !doc.pictures) return;
+    const clamped = Math.max(0, Math.min(idx, doc.pictures.length - 1));
+    state.editor.selectedPicture = clamped;
+    // Highlight the list row.
+    const list = state.stage.querySelector(".frm-ctrl--List1");
+    if (list) {
+        list.querySelectorAll("li").forEach(function (li) {
+            const selected = parseInt(li.dataset.idx, 10) === clamped;
+            li.style.background = selected ? "#cce8ff" : "transparent";
+        });
+        // Scroll the selected row into view.
+        const sel = list.querySelector(`li[data-idx="${clamped}"]`);
+        if (sel && sel.scrollIntoView) sel.scrollIntoView({ block: "nearest" });
+    }
+    kesemRefreshPictureUI(state);
+}
+
+// Main.menu(3) — Printer.PaintPicture Picture1.Picture, 10, 10 + EndDoc.
+// Web equivalent: open a popup with the picture, trigger window.print(),
+// close on dialog dismiss. Some browsers block popups — fall back to
+// printing the current page with a one-shot @media print rule that hides
+// everything except the temporary <img>.
+function kesemPrintCurrentPicture(state) {
+    const doc = state.editor && state.editor.doc;
+    if (!doc) return;
+    const pic = (doc.pictures || [])[state.editor.selectedPicture || 0];
+    if (!pic) { klog("kesem: print — no picture selected"); return; }
+    const url = kesemPictureUrl(state, pic.file);
+    if (!url) { klog("kesem: print — picture asset missing for " + pic.file); return; }
+
+    // Pop-up approach first (clean separation, mirrors a separate Printer
+    // device context in VB6).
+    try {
+        const w = window.open("", "kesem-print", "width=800,height=600");
+        if (w && w.document) {
+            const title = (pic.name || pic.file || "kesem").replace(/[<>&"]/g, "");
+            w.document.write(
+                "<!DOCTYPE html><html><head><meta charset='utf-8'><title>" + title + "</title>" +
+                "<style>html,body{margin:0;padding:0}img{display:block;margin:10px;max-width:calc(100% - 20px)}</style>" +
+                "</head><body><img src='" + location.origin + location.pathname.replace(/[^/]*$/, "") + url + "' alt=''></body></html>"
+            );
+            w.document.close();
+            // Defer print() until the image has loaded so the preview shows the
+            // picture; some browsers print blank if window.print() runs first.
+            const im = w.document.querySelector("img");
+            const fire = function () { try { w.focus(); w.print(); } catch (e) {} };
+            if (im && !im.complete) im.addEventListener("load", fire);
+            else fire();
+            klog("kesem: print → popup window for " + pic.file);
+            return;
+        }
+    } catch (e) {
+        klog("kesem: print popup blocked:", e);
+    }
+
+    // Fallback — inline print overlay. Hide everything else via a
+    // dedicated <style> rule active only during the print job.
+    const layer = document.createElement("div");
+    layer.className = "kesem-print-layer";
+    Object.assign(layer.style, {
+        position: "fixed", inset: "0", background: "#fff",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        zIndex: "100000",
+    });
+    const img = document.createElement("img");
+    img.src = url;
+    Object.assign(img.style, { maxWidth: "100%", maxHeight: "100%" });
+    layer.appendChild(img);
+
+    const css = document.createElement("style");
+    css.textContent =
+        "@media print {" +
+        "  body > *:not(.kesem-print-layer) { display: none !important; }" +
+        "  .kesem-print-layer { position: static !important; inset: auto !important; background: #fff !important; }" +
+        "  .kesem-print-layer img { max-width: 100% !important; max-height: none !important; }" +
+        "}";
+
+    document.body.appendChild(css);
+    document.body.appendChild(layer);
+
+    const cleanup = function () {
+        layer.remove();
+        css.remove();
+        window.removeEventListener("afterprint", cleanup);
+    };
+    window.addEventListener("afterprint", cleanup);
+    const fire = function () { window.print(); };
+    if (img.complete) fire();
+    else img.addEventListener("load", fire);
+}
+
+// Main.menu(4) — Max_Pics++; savepics Max_Pics; GetMaxP. Original wrote
+// the current Picture1 contents to a new BMP at AppPath\bmp\<N+1>.bmp.
+// Without Gr_Edit there's nothing modified to save, but we duplicate the
+// doc.pictures entry so the catalog gets a new "slot" the user can then
+// rename/import-replace. dirty=true so localStorage persists the change.
+function kesemCloneCurrentPicture(state) {
+    const doc = kesemLoadDoc(state);
+    const pics = doc.pictures = doc.pictures || [];
+    const srcIdx = state.editor.selectedPicture || 0;
+    const src = pics[srcIdx];
+    if (!src) { klog("kesem: menu 4 — no picture to clone"); return; }
+    // Pick the next free numeric stem (matches Max_Pics + 1 semantics).
+    let maxStem = 0;
+    pics.forEach(function (p) {
+        const n = parseInt((p.file || "").replace(/\.[^.]+$/, ""), 10);
+        if (!isNaN(n) && n > maxStem) maxStem = n;
+    });
+    const newFile = (maxStem + 1) + ".bmp";
+    const newName = window.prompt("שם תמונה חדשה:", src.name || "");
+    if (newName == null) return;
+    pics.push({ file: newFile, name: newName.trim() });
+    // Mirror the asset blob if it existed in newAssets so the clone is
+    // self-contained (Expo bundle will carry both copies).
+    if (doc.newAssets && doc.newAssets.bmp && doc.newAssets.bmp[src.file]) {
+        doc.newAssets.bmp[newFile] = doc.newAssets.bmp[src.file];
+    }
+    doc.dirty = true;
+    kesemSaveDoc(doc);
+    state.editor.selectedPicture = pics.length - 1;
+    klog("kesem: cloned " + src.file + " → " + newFile);
+    wireKesemMain(state);
+}
+
+// ImpOle_Click — file picker → new doc.pictures entry + blob in
+// newAssets.bmp. The original FileCopy'd the selected file into
+// AppPath\bmp\<N>.bmp and appended to spisok.dat; the web equivalent
+// stores a data: URL in localStorage so the Expo bundle round-trips it.
+function kesemImportPicture(state) {
+    const doc = kesemLoadDoc(state);
+    const inp = document.createElement("input");
+    inp.type = "file";
+    inp.accept = "image/bmp,image/jpeg,image/png,image/gif";
+    inp.style.display = "none";
+    document.body.appendChild(inp);
+    inp.addEventListener("change", function () {
+        const f = inp.files && inp.files[0];
+        inp.remove();
+        if (!f) return;
+        const reader = new FileReader();
+        reader.onload = function () {
+            const dataUrl = reader.result;
+            // Stem strategy mirrors ImpOle's `LdelSpace(Str(Max_Pics + 1))`:
+            // next free numeric index.
+            let maxStem = 0;
+            (doc.pictures || []).forEach(function (p) {
+                const n = parseInt((p.file || "").replace(/\.[^.]+$/, ""), 10);
+                if (!isNaN(n) && n > maxStem) maxStem = n;
+            });
+            const newFile = (maxStem + 1) + ".bmp";
+            // Prompt for TString — the Hebrew description (EditString in
+            // the original). Default to the filename minus extension.
+            const baseName = f.name.replace(/\.[^.]+$/, "");
+            const newName = window.prompt("שם התמונה:", baseName);
+            if (newName == null) return;
+            doc.pictures = doc.pictures || [];
+            doc.pictures.push({ file: newFile, name: newName.trim() });
+            doc.newAssets = doc.newAssets || { bmp: {}, wav: {} };
+            doc.newAssets.bmp = doc.newAssets.bmp || {};
+            doc.newAssets.bmp[newFile] = dataUrl;
+            doc.dirty = true;
+            kesemSaveDoc(doc);
+            state.editor.selectedPicture = doc.pictures.length - 1;
+            klog("kesem: imported " + f.name + " → " + newFile + " (" + Math.round(dataUrl.length / 1024) + " kb data url)");
+            wireKesemMain(state);
+        };
+        reader.readAsDataURL(f);
+    }, { once: true });
+    inp.click();
+}
+
+function kesemRefreshPictureUI(state) {
+    const doc = state.editor && state.editor.doc;
+    if (!doc) return;
+    const idx = state.editor.selectedPicture || 0;
+    const pic = (doc.pictures || [])[idx];
+
+    // Spic1.Picture1 preview <img>
+    const spic1 = state.stage.querySelector(".frm-ctrl--Spic1");
+    const preview = spic1 && spic1.querySelector(".frm-ctrl--Picture1");
+    const im = preview && preview.querySelector("img.kesem-preview");
+    if (im) {
+        if (pic) {
+            const url = kesemPictureUrl(state, pic.file);
+            im.src = url || "";
+            im.style.opacity = url ? "1" : "0";
+        } else {
+            im.removeAttribute("src");
+        }
+    }
+
+    // TxtZman = picture description (n$ in original).
+    const tz = state.stage.querySelector(".frm-ctrl--TxtZman");
+    if (tz) {
+        tz.style.color = "#fff";
+        tz.style.font = "14px David, Arial, sans-serif";
+        tz.style.textAlign = "center";
+        tz.style.direction = "rtl";
+        tz.textContent = pic ? (pic.name || "") : "";
+    }
+    // N_Bmp(0) = filename stem (Bli_Zvezda(FN(idx)) in original — strip
+    // trailing "*" which the editor used to mark "has cutout").
+    state.stage.querySelectorAll(".frm-ctrl--N_Bmp").forEach(function (el) {
+        const i = parseInt(el.dataset.index, 10);
+        if (i === 0) {
+            el.style.color = "#fff";
+            el.style.font = "14px David, Arial, sans-serif";
+            el.style.textAlign = "center";
+            el.style.direction = "rtl";
+            el.textContent = pic ? pic.file.replace(/\.[^.]+$/, "") : "";
+        }
+    });
+}
+
+// Hebrew labels for the 5 ChG game-type buttons. From Chgames.frm
+// ChG_MouseMove ToolTipText assignments — these are the canonical names.
+// Index → (Game_Number, label).
+const KESEM_CHG_GAMES = [
+    { gn: 3, label: "חקירה" },   // 0 → Games3 (investigate)
+    { gn: 1, label: "התאמה" },   // 1 → Games  (matching)
+    { gn: 2, label: "פאזל" },    // 2 → Games2 (puzzle)
+    { gn: 4, label: "בחירה" },   // 3 → Games4 (choice)
+    { gn: 5, label: "מטוס" },    // 4 → Games5 (plane)
+];
+
+// Hebrew tooltip labels for the three Ed_But buttons (Chgames.frm
+// Ed_But_MouseMove via TipArray).
+const KESEM_EDBUT_LABELS = ["עריכת גזירה", "שינוי שם", "מחיקה"];
+
+// Picture filename stem → list of RAS basenames whose name starts with
+// "<stem>_". Used to populate Chgames List2 (the cutout list for the
+// currently-selected picture). Mirrors GetSpisokRas(Nom_Rasb).
+function kesemRasbForPicture(doc, picFile) {
+    const stem = (picFile || "").replace(/\.[^.]+$/, "");
+    if (!stem) return [];
+    const prefix = stem + "_";
+    const out = [];
+    Object.keys(doc.rasb || {}).forEach(function (key) {
+        if (key.indexOf(prefix) === 0) out.push(key);
+    });
+    out.sort(function (a, b) {
+        const ai = parseInt(a.split("_")[1], 10);
+        const bi = parseInt(b.split("_")[1], 10);
+        if (!isNaN(ai) && !isNaN(bi)) return ai - bi;
+        return a.localeCompare(b);
+    });
+    return out;
+}
+
+// kesem/Chgames.frm screen wiring. Form_Load sets ChGames.Picture =
+// choice2.bmp (background, via config), Ed_But Picture = gz/ri/pa.bmp
+// (via config images), Game_Number = 3 (default), then GetSpisokRas
+// populates List2 from RASB/<picStem>_<i>.ras.
+function wireKesemChgames(state) {
+    const stage = state.stage;
+    if (!stage) return;
+    const doc = kesemLoadDoc(state);
+    const pic = (doc.pictures || [])[state.editor.selectedPicture || 0];
+    const picFile = pic ? pic.file : "";
+
+    // Form_Load: Game_Number = 3 (the default — Games3 / "חקירה").
+    if (state.editor.currentGameNumber == null) state.editor.currentGameNumber = 3;
+
+    // --- ChG buttons — swap the rendered <img> between Picture (idle)
+    //     and DownPicture (selected/hover). 1:1 with VB6 OptionButton
+    //     Style=Graphical: shows Picture when Value=False, DownPicture
+    //     when Value=True. We treat hover identically to selected so the
+    //     button face still indicates interactivity without flicking back
+    //     to idle on mouse-leave for the selected entry.
+    const ChGIdle = state.config.screens.chgames.images.ChG;
+    const ChGDown = [
+        "assets/Kesem/frx/chgames/chgames_0xfe14.png",   // ChG[0] DownPicture
+        "assets/Kesem/frx/chgames/chgames_0xbe8c.png",   // ChG[1]
+        "assets/Kesem/frx/chgames/chgames_0x7f08.png",   // ChG[2]
+        "assets/Kesem/frx/chgames/chgames_0x3f84.png",   // ChG[3]
+        "assets/Kesem/frx/chgames/chgames_0x0000.png",   // ChG[4]
+    ];
+    KESEM_CHG_GAMES.forEach(function (info, i) {
+        const el = stage.querySelector(`.frm-ctrl--ChG[data-index="${i}"]`);
+        if (!el) return;
+        const im = el.querySelector("img.frm-img");
+        // Helpers read state.editor.currentGameNumber at call time, so
+        // they always reflect the LATEST selection — important since
+        // wireKesemChgames only re-binds hover listeners once per node.
+        const isSelected = function () { return state.editor.currentGameNumber === info.gn; };
+        const paint = function (hovered) {
+            if (!im) return;
+            im.src = (isSelected() || hovered) ? ChGDown[i] : ChGIdle[i];
+            el.style.outline = isSelected() ? "2px solid #ffeb3b" : "none";
+            el.style.outlineOffset = "-2px";
+        };
+        paint(false);
+        el.title = info.label;
+        el.style.cursor = "pointer";
+        if (!el._kesemHoverWired) {
+            el._kesemHoverWired = true;
+            el.addEventListener("mouseenter", function () { paint(true); });
+            el.addEventListener("mouseleave", function () { paint(false); });
+        }
+    });
+
+    // --- Ed_But tooltip text (the .png faces come from config.images).
+    KESEM_EDBUT_LABELS.forEach(function (text, i) {
+        const el = stage.querySelector(`.frm-ctrl--Ed_But[data-index="${i}"]`);
+        if (el) el.title = text;
+    });
+
+    // --- List2 (cutout list for the current picture) ---------------------
+    // Per Chgames.frm Form_Load.GetSpisokRas(Tek_Nom).
+    const list = stage.querySelector(".frm-ctrl--List2");
+    if (list) {
+        list.innerHTML = "";
+        Object.assign(list.style, {
+            background: "rgba(255,255,255,.92)", overflow: "auto",
+            font: "13px Arial, sans-serif", color: "#000",
+            textAlign: "right", direction: "rtl", boxSizing: "border-box",
+            padding: "4px", display: "block", pointerEvents: "auto",
+        });
+        const ras = kesemRasbForPicture(doc, picFile);
+        state.editor.currentRasList = ras;
+        if (state.editor.currentRazNom == null && ras.length) {
+            state.editor.currentRazNom = ras[0];
+        }
+        const ul = document.createElement("ul");
+        Object.assign(ul.style, { listStyle: "none", margin: "0", padding: "0" });
+        ras.forEach(function (key, i) {
+            const recs = doc.rasb[key] || [];
+            const label = (recs[0] && recs[0].name) || key;
+            const li = document.createElement("li");
+            li.textContent = label;
+            li.dataset.key = key;
+            Object.assign(li.style, {
+                padding: "2px 6px", cursor: "pointer", userSelect: "none",
+                background: key === state.editor.currentRazNom ? "#cce8ff" : "transparent",
+            });
+            li.addEventListener("click", function () {
+                state.editor.currentRazNom = key;
+                wireKesemChgames(state);   // repaint to refresh selection
+            });
+            li.addEventListener("dblclick", function () {
+                // List2_DblClick → ArkavatShmk Game_Number, sss; Unload.
+                state.editor.currentRazNom = key;
+                kesemChgamesCommit(state);
+            });
+            ul.appendChild(li);
+        });
+        list.appendChild(ul);
+    }
+
+    // --- TxtZman / N_Bmp(0) captions reflect the picture we're editing.
+    const tz = stage.querySelector(".frm-ctrl--TxtZman");
+    if (tz) {
+        tz.style.color = "#fff";
+        tz.style.font = "14px David, Arial, sans-serif";
+        tz.style.textAlign = "center";
+        tz.style.direction = "rtl";
+        tz.textContent = pic ? (pic.name || "") : "";
+    }
+    stage.querySelectorAll(".frm-ctrl--N_Bmp").forEach(function (el) {
+        const i = parseInt(el.dataset.index, 10);
+        if (i === 0) {
+            el.style.color = "#fff";
+            el.style.font = "14px David, Arial, sans-serif";
+            el.style.textAlign = "center";
+            el.style.direction = "rtl";
+            el.textContent = pic ? pic.file.replace(/\.[^.]+$/, "") : "";
+        }
+    });
+
+    // --- P_W: preview the picture being edited (Chgames.P_W.Picture =
+    //     Picture1.Picture in Main.Menu_Click before showing Chgames).
+    const pw = stage.querySelector(".frm-ctrl--P_W");
+    if (pw && pic) {
+        if (!pw.querySelector("img.kesem-preview")) {
+            const im = document.createElement("img");
+            im.className = "kesem-preview";
+            Object.assign(im.style, {
+                width: "100%", height: "100%", objectFit: "contain",
+            });
+            pw.appendChild(im);
+        }
+        const im = pw.querySelector("img.kesem-preview");
+        const url = kesemPictureUrl(state, pic.file);
+        im.src = url || "";
+        im.style.opacity = url ? "1" : "0";
+    }
+
+    // --- Label1 (back-to-menu hotspot). Chgames.frm Label1_Click →
+    //     Butt_list_Click 3 → NameRasb="" + Unload. We wire it here
+    //     instead of in actionFor so it doesn't accidentally promote
+    //     EVERY Label1 across editor screens into a hotspot.
+    const label1 = stage.querySelector(".frm-ctrl--Label1");
+    if (label1 && !label1._kesemWired) {
+        label1._kesemWired = true;
+        label1.style.pointerEvents = "auto";
+        label1.style.cursor = "pointer";
+        label1.addEventListener("click", function () {
+            setScreen(state, "main");
+        });
+    }
+}
+
+// Chgames "OK" — commit the (gameNumber, razNom) selection onto the
+// editor's pending stage and return to Main. The original
+// List2_DblClick / butt_list(2) call ArkavatShmk Game_Number, sss
+// which stamps these onto module-globals NameRasb + Game_Number and
+// Unloads. We store them on state.editor.pendingStage so Maslul can
+// pick them up when the user assembles a lesson.
+function kesemChgamesCommit(state) {
+    if (!state.editor) return;
+    const doc = state.editor.doc;
+    const pic = (doc && doc.pictures || [])[state.editor.selectedPicture || 0];
+    state.editor.pendingStage = {
+        gameNumber: state.editor.currentGameNumber,
+        pic: pic ? pic.file : "",
+        razNom: state.editor.currentRazNom || "",
+    };
+    klog("kesem: chgames commit", JSON.stringify(state.editor.pendingStage));
+    setScreen(state, "main");
+}
+
+// === Gzira (hotspot rectangle editor) =====================================
+// 1:1 port of kesem/Gzira.frm. Original model (Gzira.frm header):
+//   Dim FF(200) As FileStru                 -- per-rect record
+//   Dim nomer                               -- count + "next available" slot
+//   Dim Rasb_Nom                            -- currently selected rect
+//   Dim My_Edit_Num                         -- 0 = edit existing, 1 = new
+//   Dim priamo                              -- drag-in-progress
+//   Dim ResiZee                             -- shift-resize in progress
+// Picture1_MouseDown sets x_old/y_old; Picture1_MouseMove paints Shape1(nomer)
+// to the new rect; Picture1_MouseUp prompts ("?האם זה נכון") and either
+// commits FF(nomer) + advances nomer, or discards.
+//
+// Web port: render Picture1 as an <img>; overlay rects as absolutely-
+// positioned <div>s. Mouse events on a transparent capture layer over
+// Picture1 fire the same MouseDown/Move/Up flow.
+
+const KESEM_GZIRA_PICTURE_PX = { w: 525, h: 342 };  // Spic1.Width/Height @ /15
+
+function kesemGziraDoc(state) {
+    const doc = kesemLoadDoc(state);
+    doc.rasb = doc.rasb || {};
+    return doc;
+}
+
+// Resolve the RAS key the Gzira screen edits. Mirrors the original's
+// global NameRasb / Tek_Nom handling:
+//   - My_Edit_Num=0 (editing existing): NameRasb is the RAS basename the
+//     user selected in Chgames List2 (state.editor.currentRazNom).
+//   - My_Edit_Num=1 (new): Tmp_S = LdelSpace(Str(Tek_Nom)) + GetMaxRasb()
+//     where GetMaxRasb finds the next free <pic>_<n>.ras slot. We mirror
+//     that here.
+function kesemGziraResolveKey(state) {
+    const doc = state.editor.doc;
+    const myEdit = state.editor.gziraEditMode || 0;  // 0=existing, 1=new
+    if (myEdit === 0 && state.editor.currentRazNom) {
+        return state.editor.currentRazNom;
+    }
+    // New cutout: pick the lowest free index >= 101.
+    const pic = (doc.pictures || [])[state.editor.selectedPicture || 0];
+    if (!pic) return null;
+    const stem = pic.file.replace(/\.[^.]+$/, "");
+    let i = 101;   // matches Nom_Rasb_CD + 1 in GetMaxRasb()
+    while (doc.rasb[stem + "_" + i]) i += 1;
+    return stem + "_" + i;
+}
+
+function kesemGziraGetRects(state) {
+    const key = state.editor.gziraKey;
+    if (!key) return [];
+    const doc = state.editor.doc;
+    return (doc.rasb[key] || []).slice();
+}
+
+function kesemGziraSetRects(state, rects) {
+    const key = state.editor.gziraKey;
+    if (!key) return;
+    const doc = state.editor.doc;
+    doc.rasb[key] = rects;
+    doc.dirty = true;
+    kesemSaveDoc(doc);
+}
+
+// kesem/Gzira.frm screen wiring.
+function wireKesemGzira(state) {
+    const stage = state.stage;
+    if (!stage) return;
+    const doc = kesemGziraDoc(state);
+    const pic = (doc.pictures || [])[state.editor.selectedPicture || 0];
+    if (!pic) {
+        klog("kesem: gzira — no picture selected");
+        return;
+    }
+
+    // Decide whether we're editing an existing RAS or creating a new one.
+    // The original My_Edit_Num is set by the caller (Chgames Ed_But=0 →
+    // My_Edit_Num=0; Main.menu(1) → My_Edit_Num=1). We carry the same
+    // signal on state.editor.gziraEditMode.
+    state.editor.gziraKey = kesemGziraResolveKey(state);
+    state.editor.gziraSelected = null;
+    state.editor.gziraDrawing = null;
+
+    // --- Picture1 (the editable image) -----------------------------------
+    // Spic1 has one Picture1 child sized 525×342. Drop an <img>; layer
+    // a transparent capture <div> on top for mouse capture; rectangle
+    // overlays sit between as absolute divs.
+    const spic1 = stage.querySelector(".frm-ctrl--Spic1");
+    const p1 = spic1 && spic1.querySelector(".frm-ctrl--Picture1");
+    if (!p1) { klog("kesem: gzira — Picture1 missing"); return; }
+    p1.style.overflow = "hidden";
+    p1.style.position = "absolute";   // already set by frmRenderer; explicit
+    p1.style.background = "#222";
+    p1.style.userSelect = "none";
+
+    // Image
+    let img = p1.querySelector("img.kesem-gzira-pic");
+    if (!img) {
+        img = document.createElement("img");
+        img.className = "kesem-gzira-pic";
+        img.draggable = false;
+        Object.assign(img.style, {
+            position: "absolute", left: "0", top: "0",
+            width: KESEM_GZIRA_PICTURE_PX.w + "px",
+            height: KESEM_GZIRA_PICTURE_PX.h + "px",
+            pointerEvents: "none",
+        });
+        p1.appendChild(img);
+    }
+    const url = kesemPictureUrl(state, pic.file);
+    img.src = url || "";
+
+    // Rect overlay container — sits over the image; rectangles are
+    // children. Its own size matches the picture area (525×342).
+    let layer = p1.querySelector(".kesem-gzira-layer");
+    if (!layer) {
+        layer = document.createElement("div");
+        layer.className = "kesem-gzira-layer";
+        Object.assign(layer.style, {
+            position: "absolute", left: "0", top: "0",
+            width:  KESEM_GZIRA_PICTURE_PX.w + "px",
+            height: KESEM_GZIRA_PICTURE_PX.h + "px",
+            cursor: "crosshair", touchAction: "none",
+        });
+        p1.appendChild(layer);
+        installKesemGziraMouse(state, layer);
+    }
+
+    // Header captions
+    const tz = stage.querySelector(".frm-ctrl--TxtZman");
+    if (tz) {
+        tz.style.color = "#fff";
+        tz.style.font = "13px David, Arial, sans-serif";
+        tz.style.textAlign = "center";
+        tz.style.direction = "rtl";
+        tz.textContent = (state.editor.gziraKey || "") + "  " + (pic.name || "");
+    }
+    const nbmp0 = stage.querySelector(`.frm-ctrl--N_Bmp[data-index="0"]`);
+    if (nbmp0) {
+        nbmp0.style.color = "#fff";
+        nbmp0.style.font = "13px David, Arial, sans-serif";
+        nbmp0.textContent = pic.file.replace(/\.[^.]+$/, "");
+    }
+
+    // btnED Wav1/Wav2 + CmdShow — VB.CommandButtons with English/Hebrew
+    // captions per the .frm. Render with VB6-style gray button face.
+    stage.querySelectorAll(".frm-ctrl--btnED").forEach(function (el) {
+        const i = parseInt(el.dataset.index, 10);
+        kesemPaintCmdButton(el, i === 0 ? "Wav1" : "Wav2");
+    });
+    kesemPaintCmdButton(stage.querySelector(".frm-ctrl--CmdShow"), "גלה הכל");
+
+    // First paint of rectangle overlays.
+    kesemGziraRepaintRects(state);
+    installKesemGziraKeys(state);
+}
+
+function kesemGziraRepaintRects(state) {
+    const stage = state.stage;
+    const layer = stage && stage.querySelector(".kesem-gzira-layer");
+    if (!layer) return;
+    // Clear existing.
+    layer.querySelectorAll(".kesem-gzira-rect").forEach(function (n) { n.remove(); });
+    const rects = kesemGziraGetRects(state);
+    rects.forEach(function (r, i) {
+        const div = document.createElement("div");
+        div.className = "kesem-gzira-rect";
+        div.dataset.idx = String(i);
+        Object.assign(div.style, {
+            position: "absolute",
+            left: r.x + "px", top: r.y + "px",
+            width: r.w + "px", height: r.h + "px",
+            border: state.editor.gziraSelected === i ? "2px dashed #ffeb3b" : "2px solid #ff3030",
+            background: "rgba(255,48,48,.10)",
+            cursor: "pointer",
+            boxSizing: "border-box",
+        });
+        div.title = (r.name || "") + " (" + r.w + "×" + r.h + ")";
+        div.addEventListener("click", function (e) {
+            e.stopPropagation();
+            state.editor.gziraSelected = i;
+            kesemGziraRepaintRects(state);
+        });
+        layer.appendChild(div);
+    });
+    // Draft rect (while dragging).
+    const d = state.editor.gziraDrawing;
+    if (d) {
+        const draft = document.createElement("div");
+        draft.className = "kesem-gzira-rect kesem-gzira-draft";
+        Object.assign(draft.style, {
+            position: "absolute",
+            left: d.x + "px", top: d.y + "px",
+            width: d.w + "px", height: d.h + "px",
+            border: "2px solid #00d0ff",
+            background: "rgba(0,208,255,.15)",
+            pointerEvents: "none",
+            boxSizing: "border-box",
+        });
+        layer.appendChild(draft);
+    }
+}
+
+function installKesemGziraMouse(state, layer) {
+    function localXY(e) {
+        const r = layer.getBoundingClientRect();
+        // The stage is CSS-transform-scaled to fit the viewport (fitStage).
+        // Convert client coords to local layer coords accounting for scale.
+        const sx = r.width  / KESEM_GZIRA_PICTURE_PX.w;
+        const sy = r.height / KESEM_GZIRA_PICTURE_PX.h;
+        const x = (e.clientX - r.left) / sx;
+        const y = (e.clientY - r.top)  / sy;
+        return {
+            x: Math.max(0, Math.min(Math.round(x), KESEM_GZIRA_PICTURE_PX.w)),
+            y: Math.max(0, Math.min(Math.round(y), KESEM_GZIRA_PICTURE_PX.h)),
+        };
+    }
+
+    layer.addEventListener("mousedown", function (e) {
+        if (e.button !== 0) return;
+        const p = localXY(e);
+        // Picture1_MouseDown: nik=False, x_old=X, y_old=Y, priamo=True.
+        state.editor.gziraDrawing = { x: p.x, y: p.y, w: 0, h: 0, ox: p.x, oy: p.y, nik: false };
+        kesemGziraRepaintRects(state);
+        e.preventDefault();
+    });
+
+    layer.addEventListener("mousemove", function (e) {
+        const d = state.editor.gziraDrawing;
+        if (!d) return;
+        const p = localXY(e);
+        // Picture1_MouseMove "nik" check: any movement > 5px in either axis.
+        if (Math.abs(d.ox - p.x) > 5 || Math.abs(d.oy - p.y) > 5) d.nik = true;
+        // PutShape: rect from (min(ox,x), min(oy,y)) to (max(ox,x), max(oy,y))
+        const x0 = Math.min(d.ox, p.x), y0 = Math.min(d.oy, p.y);
+        const x1 = Math.max(d.ox, p.x), y1 = Math.max(d.oy, p.y);
+        d.x = x0; d.y = y0; d.w = x1 - x0; d.h = y1 - y0;
+        kesemGziraRepaintRects(state);
+    });
+
+    layer.addEventListener("mouseup", function (e) {
+        const d = state.editor.gziraDrawing;
+        if (!d) return;
+        // Picture1_MouseUp: if nik=False (no real drag), discard. Else
+        // confirm via MsgBox TMsg(18)="?האם זה נכון" → on Yes commit FF(nomer).
+        state.editor.gziraDrawing = null;
+        if (!d.nik || d.w < 4 || d.h < 4) {
+            kesemGziraRepaintRects(state);
+            return;
+        }
+        const yes = window.confirm("?האם זה נכון");
+        if (!yes) { kesemGziraRepaintRects(state); return; }
+        // Commit. Name_of_Rasb defaults to existing rect's name (or key).
+        const rects = kesemGziraGetRects(state);
+        const baseName = (rects[0] && rects[0].name) || state.editor.gziraKey || "";
+        rects.push({
+            name: baseName,
+            x: d.x, y: d.y, w: d.w, h: d.h,
+            wav: "",
+        });
+        kesemGziraSetRects(state, rects);
+        state.editor.gziraSelected = rects.length - 1;
+        kesemGziraRepaintRects(state);
+    });
+
+    // Right-click rect background → deselect.
+    layer.addEventListener("contextmenu", function (e) {
+        e.preventDefault();
+        state.editor.gziraSelected = null;
+        kesemGziraRepaintRects(state);
+    });
+}
+
+// Paint a VB6 CommandButton-style face onto a control. VB6 CommandButton
+// is a 3D-beveled gray rect with the caption centered. Many editor forms
+// use these for action buttons; without a custom Picture they fall back
+// to the OS rendering. This emulates that look in CSS for 1:1 parity.
+function kesemPaintCmdButton(el, caption, opts) {
+    if (!el) return;
+    opts = opts || {};
+    Object.assign(el.style, {
+        background: "linear-gradient(180deg, #f4f4f4 0%, #d9d9d9 50%, #c4c4c4 100%)",
+        border: "1px outset #d4d4d4",
+        color: "#000",
+        font: "bold 12px David, Arial, sans-serif",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        textAlign: "center", direction: "rtl",
+        cursor: "pointer", boxSizing: "border-box",
+        padding: "2px",
+    });
+    if (caption) el.textContent = caption;
+    if (opts.title) el.title = opts.title;
+}
+
+// Paint a VB6 OptionButton (Style=0 Standard) face: small radio circle
+// followed by the caption text, on the BackColor of the form. Used by
+// Maslul's Option1 game-type picker.
+function kesemPaintOptionButton(el, caption, selected, backColor) {
+    if (!el) return;
+    el.innerHTML = "";
+    Object.assign(el.style, {
+        background: backColor || "transparent",
+        color: "#000", font: "bold 12px David, Arial, sans-serif",
+        display: "flex", alignItems: "center", direction: "rtl",
+        cursor: "pointer", boxSizing: "border-box", padding: "0 4px",
+        gap: "4px",
+    });
+    const circle = document.createElement("span");
+    Object.assign(circle.style, {
+        display: "inline-block", width: "12px", height: "12px",
+        borderRadius: "50%", border: "1px solid #444",
+        background: selected ? "radial-gradient(circle at center, #000 0 4px, #fff 5px 8px)" : "#fff",
+        flex: "0 0 12px",
+    });
+    el.appendChild(circle);
+    const text = document.createElement("span");
+    text.textContent = caption || "";
+    text.style.flex = "1 1 auto";
+    el.appendChild(text);
+}
+
+// === Maslul (lesson sequencer) ===========================================
+// 1:1 port of kesem/Maslul.frm. Module state:
+//   FN(), n()      — picture catalog (Spisok.dat)
+//   PN(), RN(), GN()— stages in the current lesson (pic, raznom, gameNumber)
+//   TekStr         — count of stages in List3
+//   Gnu            — game-type for the next stage (3/1/2/4/5/22/66)
+//   Video_Start_Pr, Video_End_Pr, Video_Start, Video_End — intro/outro
+//   TString        — lesson display name
+//   f_maslul       — current .MAS filename ("" = new lesson)
+//
+// Web port stores the work-in-progress under state.editor.currentLesson:
+//   { masFile, name, videoStartPr, videoEndPr, videoStart, videoEnd,
+//     gnu, stages: [{pic, razNom, gameNumber}] }
+
+// Game-type label table per Option1.Caption / Option1_Click(Index) → Gnu.
+const KESEM_MASLUL_OPTIONS = [
+    { gnu: 3,  label: "חקירה " },         // 0 → Games3
+    { gnu: 1,  label: "התאמה" },          // 1 → Games
+    { gnu: 2,  label: "פאזל  " },         // 2 → Games2
+    { gnu: 4,  label: "בחירה" },          // 3 → Games4
+    { gnu: 5,  label: "מטוס" },           // 4 → Games5
+    { gnu: 22, label: "פאזל אוטומטי  " }, // 5 → auto-puzzle
+    { gnu: 66, label: "צביעה" },          // 6 → paint
+];
+
+function kesemMaslulNewLesson() {
+    return {
+        masFile: "",
+        name: "",
+        videoStartPr: "0", videoEndPr: "0",
+        videoStart: "", videoEnd: "",
+        gnu: 3,
+        stages: [],
+    };
+}
+
+function kesemMaslulEnsureLesson(state) {
+    state.editor = state.editor || {};
+    if (!state.editor.currentLesson) {
+        state.editor.currentLesson = kesemMaslulNewLesson();
+    }
+    return state.editor.currentLesson;
+}
+
+// kesem/Maslul.frm screen wiring.
+function wireKesemMaslul(state) {
+    const stage = state.stage;
+    if (!stage) return;
+    const doc = kesemLoadDoc(state);
+    const lesson = kesemMaslulEnsureLesson(state);
+
+    // --- List1 (picture catalog) -----------------------------------------
+    // Form_Load.GetAllPics: List1.AddItem FN(i) + "   " + n(i).
+    const list1 = stage.querySelector(".frm-ctrl--List1");
+    if (list1) {
+        list1.innerHTML = "";
+        Object.assign(list1.style, {
+            background: "rgba(255,255,255,.92)", overflow: "auto",
+            font: "13px Arial, sans-serif", color: "#000",
+            textAlign: "right", direction: "rtl", boxSizing: "border-box",
+            padding: "4px", display: "block",
+        });
+        const ul = document.createElement("ul");
+        Object.assign(ul.style, { listStyle: "none", margin: 0, padding: 0 });
+        (doc.pictures || []).forEach(function (p, i) {
+            const li = document.createElement("li");
+            const stem = p.file.replace(/\.[^.]+$/, "");
+            li.textContent = stem + "   " + (p.name || "");
+            li.dataset.idx = String(i);
+            Object.assign(li.style, {
+                padding: "2px 6px", cursor: "pointer", userSelect: "none",
+                background: state.editor.maslulPicIdx === i ? "#cce8ff" : "transparent",
+            });
+            li.addEventListener("click", function () {
+                state.editor.maslulPicIdx = i;
+                state.editor.maslulRasIdx = 0;
+                wireKesemMaslul(state);
+            });
+            ul.appendChild(li);
+        });
+        list1.appendChild(ul);
+    }
+
+    // --- Image1 preview of the selected picture --------------------------
+    const img1 = stage.querySelector(".frm-ctrl--Image1");
+    if (img1) {
+        if (!img1.querySelector("img.kesem-maslul-pic")) {
+            const im = document.createElement("img");
+            im.className = "kesem-maslul-pic";
+            Object.assign(im.style, {
+                width: "100%", height: "100%", objectFit: "contain",
+            });
+            img1.appendChild(im);
+        }
+        const im = img1.querySelector("img.kesem-maslul-pic");
+        const picIdx = state.editor.maslulPicIdx || 0;
+        const pic = (doc.pictures || [])[picIdx];
+        const url = pic ? kesemPictureUrl(state, pic.file) : null;
+        im.src = url || "";
+        im.style.opacity = url ? "1" : "0";
+    }
+
+    // --- List2 (cutouts for the selected picture) ------------------------
+    // Maslul.frm.GetSpisokRas(Bli_Zvezda(FN(ind))) reads RASB/<pic>_<i>.ras
+    // and adds Name_of_Rasb to List2.
+    const list2 = stage.querySelector(".frm-ctrl--List2");
+    if (list2) {
+        list2.innerHTML = "";
+        Object.assign(list2.style, {
+            background: "rgba(255,255,255,.92)", overflow: "auto",
+            font: "13px Arial, sans-serif", color: "#000",
+            textAlign: "right", direction: "rtl", boxSizing: "border-box",
+            padding: "4px", display: "block",
+        });
+        const pic = (doc.pictures || [])[state.editor.maslulPicIdx || 0];
+        const rasList = pic ? kesemRasbForPicture(doc, pic.file) : [];
+        state.editor.maslulRasList = rasList;
+        const ul = document.createElement("ul");
+        Object.assign(ul.style, { listStyle: "none", margin: 0, padding: 0 });
+        rasList.forEach(function (key, i) {
+            const recs = doc.rasb[key] || [];
+            const label = (recs[0] && recs[0].name) || key;
+            const li = document.createElement("li");
+            li.textContent = label;
+            li.dataset.key = key;
+            Object.assign(li.style, {
+                padding: "2px 6px", cursor: "pointer", userSelect: "none",
+                background: (state.editor.maslulRasIdx || 0) === i ? "#cce8ff" : "transparent",
+            });
+            li.addEventListener("click", function () {
+                state.editor.maslulRasIdx = i;
+                wireKesemMaslul(state);
+            });
+            li.addEventListener("dblclick", function () {
+                state.editor.maslulRasIdx = i;
+                kesemMaslulCommitStage(state);
+            });
+            ul.appendChild(li);
+        });
+        list2.appendChild(ul);
+    }
+
+    // --- List3 (current lesson sequence) ---------------------------------
+    // Each row: PN(i) + spaces + RAS-name + Str_Game(GN(i)).
+    const list3 = stage.querySelector(".frm-ctrl--List3");
+    if (list3) {
+        list3.innerHTML = "";
+        Object.assign(list3.style, {
+            background: "rgba(255,255,255,.92)", overflow: "auto",
+            font: "13px Arial, sans-serif", color: "#000",
+            textAlign: "right", direction: "rtl", boxSizing: "border-box",
+            padding: "4px", display: "block",
+        });
+        const ul = document.createElement("ul");
+        Object.assign(ul.style, { listStyle: "none", margin: 0, padding: 0 });
+        lesson.stages.forEach(function (st, i) {
+            const recs = doc.rasb[st.razNom] || [];
+            const rasName = (recs[0] && recs[0].name) || st.razNom;
+            const gameLabel = (KESEM_MASLUL_OPTIONS.find(function (o) { return o.gnu === st.gameNumber; }) || {}).label || ("?" + st.gameNumber);
+            const li = document.createElement("li");
+            li.textContent = st.pic + "  " + rasName + "  " + gameLabel;
+            li.dataset.idx = String(i);
+            Object.assign(li.style, {
+                padding: "2px 6px", cursor: "pointer", userSelect: "none",
+                background: state.editor.maslulSeqIdx === i ? "#cce8ff" : "transparent",
+            });
+            li.addEventListener("click", function () {
+                state.editor.maslulSeqIdx = i;
+                wireKesemMaslul(state);
+            });
+            ul.appendChild(li);
+        });
+        list3.appendChild(ul);
+    }
+
+    // --- Option1 radio buttons. The original .frm has them as Style=0
+    //     Standard OptionButtons with BackColor=&H00DB8484 (pink) and
+    //     Hebrew Captions. Paint a circle + text emulator.
+    const pinkBg = "#84DBDB";   // BGR &H00DB8484 → RGB #DB8484... wait
+    // VB6 BackColor &H00DB8484 stores BGR: blue=DB, green=84, red=84
+    // → RGB = #8484DB (light blue-violet). Use that.
+    KESEM_MASLUL_OPTIONS.forEach(function (info, i) {
+        const el = stage.querySelector(`.frm-ctrl--Option1[data-index="${i}"]`);
+        if (!el) return;
+        const selected = lesson.gnu === info.gnu;
+        kesemPaintOptionButton(el, info.label.trim(), selected, "#8484DB");
+        el.title = info.label.trim();
+    });
+
+    // --- Command3 / btnBitul / btnReturn / video — all VB.CommandButton
+    //     with Hebrew Caption. Render as VB6-style gray buttons.
+    kesemPaintCmdButton(stage.querySelector(".frm-ctrl--Command3"),  "אישור",       { title: "אישור" });
+    kesemPaintCmdButton(stage.querySelector(".frm-ctrl--btnBitul"),  "ביטול שורה",  { title: "ביטול שורה" });
+    kesemPaintCmdButton(stage.querySelector(".frm-ctrl--btnReturn"), "שמור וצא",     { title: "שמור וצא" });
+    stage.querySelectorAll(".frm-ctrl--video").forEach(function (el) {
+        const i = parseInt(el.dataset.index, 10);
+        kesemPaintCmdButton(el, i === 0 ? "סרט פתיח" : "סרט סיום");
+    });
+    // expo1 are VB.Label with FRX-embedded Picture (not extracted).
+    // Transparent hotspots over choice.bmp's painted regions.
+    stage.querySelectorAll(".frm-ctrl--expo1").forEach(function (el) {
+        const i = parseInt(el.dataset.index, 10);
+        el.title = i === 0 ? "יצוא גזירות" : "יבוא גזירות";
+        el.style.cursor = "pointer";
+    });
+
+    // --- btnSeret(0/1) and btnDelFilm(0/1) — Maslul.frm.PutGameFile sets
+    //     btnSeret(i).Caption = the chosen video filename, and toggles
+    //     btnSeret(i).Visible / btnDelFilm(i).Visible. Mirror by showing
+    //     the filename text on btnSeret and the "x" close on btnDelFilm,
+    //     hidden when no video is set.
+    stage.querySelectorAll(".frm-ctrl--btnSeret").forEach(function (el) {
+        const i = parseInt(el.dataset.index, 10);
+        const name = i === 0 ? lesson.videoStart : lesson.videoEnd;
+        if (!name) {
+            el.style.display = "none";
+            return;
+        }
+        el.style.display = "";
+        el.style.background = "rgba(255,255,255,.9)";
+        el.style.color = "#000";
+        el.style.font = "11px Arial, sans-serif";
+        el.style.textAlign = "center";
+        el.style.direction = "ltr";
+        el.style.padding = "2px";
+        el.style.boxSizing = "border-box";
+        el.textContent = name;
+    });
+    stage.querySelectorAll(".frm-ctrl--btnDelFilm").forEach(function (el) {
+        const i = parseInt(el.dataset.index, 10);
+        const name = i === 0 ? lesson.videoStart : lesson.videoEnd;
+        el.style.display = name ? "" : "none";
+        el.title = "x";
+    });
+
+    // --- lblMaslul (the active .MAS name, if any) ------------------------
+    const lblM = stage.querySelector(".frm-ctrl--lblMaslul");
+    if (lblM) {
+        lblM.textContent = lesson.masFile || "(מסלול חדש)";
+        lblM.style.color = "#fff";
+        lblM.style.font = "13px David, Arial, sans-serif";
+        lblM.style.direction = "rtl";
+        lblM.style.display = "block";
+    }
+}
+
+// Commit the (picture, ras, gnu) tuple into the current lesson's stages.
+// Mirrors Maslul.frm.List2_DblClick: builds Stroka, inserts into List3 at
+// List3.ListIndex+1, shifts subsequent PN/RN/GN entries, then sets the
+// new tuple at that index.
+function kesemMaslulCommitStage(state) {
+    const doc = kesemLoadDoc(state);
+    const lesson = kesemMaslulEnsureLesson(state);
+    const pic = (doc.pictures || [])[state.editor.maslulPicIdx || 0];
+    const rasList = state.editor.maslulRasList || [];
+    const ras = rasList[state.editor.maslulRasIdx || 0];
+    if (!pic || !ras) {
+        window.alert("צור גזירה");
+        return;
+    }
+    // Insert at the position after the currently-selected row in List3.
+    const insertAt = (state.editor.maslulSeqIdx == null)
+        ? lesson.stages.length
+        : state.editor.maslulSeqIdx + 1;
+    lesson.stages.splice(insertAt, 0, {
+        pic: pic.file,
+        razNom: ras,
+        gameNumber: lesson.gnu,
+    });
+    state.editor.maslulSeqIdx = insertAt;
+    wireKesemMaslul(state);
+}
+
+// btnBitul: remove List3.ListIndex row (Maslul.frm btnBitul_Click).
+function kesemMaslulBitul(state) {
+    const lesson = kesemMaslulEnsureLesson(state);
+    const i = state.editor.maslulSeqIdx;
+    if (i == null || i < 0 || i >= lesson.stages.length) return;
+    lesson.stages.splice(i, 1);
+    if (state.editor.maslulSeqIdx >= lesson.stages.length) {
+        state.editor.maslulSeqIdx = Math.max(0, lesson.stages.length - 1);
+    }
+    wireKesemMaslul(state);
+}
+
+// btnReturn: prompt for a name, then SaveMaslul. Mirrors Maslul.frm
+// btnReturn_Click → Shoila(TMsg(8)) → EditString.Show 1 → SaveMaslul.
+function kesemMaslulSaveAndClose(state) {
+    const doc = kesemLoadDoc(state);
+    const lesson = kesemMaslulEnsureLesson(state);
+    if (!lesson.stages.length) {
+        klog("kesem: maslul empty — discard");
+        state.editor.currentLesson = null;
+        setScreen(state, "sst");
+        return;
+    }
+    const yes = window.confirm("?לשמור את המסלול");
+    if (!yes) {
+        state.editor.currentLesson = null;
+        setScreen(state, "sst");
+        return;
+    }
+    let name = lesson.name;
+    if (!name) {
+        name = window.prompt("שם המסלול:") || "";
+        name = name.trim();
+        if (!name) return;
+    }
+    lesson.name = name;
+    // Allocate a new .MAS filename (00.MAS, 01.MAS, ...) if not editing
+    // an existing lesson (mirrors SaveMaslul's MaxMas loop).
+    if (!lesson.masFile) {
+        let max = 0;
+        (doc.maslul || []).forEach(function (m) {
+            const n = parseInt((m.masFile || "").replace(/\.[^.]+$/, ""), 10);
+            if (!isNaN(n) && n + 1 > max) max = n + 1;
+        });
+        lesson.masFile = (max < 10 ? "0" + max : "" + max) + ".MAS";
+    }
+    const entry = {
+        masFile: lesson.masFile,
+        name: lesson.name,
+        header: {
+            videoStartPr: lesson.videoStartPr || "0",
+            videoEndPr:   lesson.videoEndPr   || "0",
+            introVideo:   lesson.videoStart,
+            mashalVideo:  lesson.videoEnd,
+            pathName:     lesson.name,
+            stageCount:   String(lesson.stages.length),
+        },
+        stages: lesson.stages.map(function (s) {
+            // Carry hotspots inline so the previewer can read them
+            // without re-resolving rasb at runtime — matches the shape
+            // parse_paths.py emits for the other apps.
+            return Object.assign({}, s, {
+                hotspots: doc.rasb[s.razNom] || [],
+            });
+        }),
+    };
+    // Replace or append in doc.maslul.
+    doc.maslul = doc.maslul || [];
+    const existing = doc.maslul.findIndex(function (m) { return m.masFile === entry.masFile; });
+    if (existing >= 0) doc.maslul[existing] = entry;
+    else               doc.maslul.push(entry);
+    doc.dirty = true;
+    kesemSaveDoc(doc);
+    klog("kesem: maslul saved", entry.masFile, entry.name, entry.stages.length + " stages");
+    state.editor.currentLesson = null;
+    setScreen(state, "sst");
+}
+
+// === Start_Maslul (lesson loader) ========================================
+// 1:1 port of kesem/Start_ma.frm. List1 enumerates every .MAS file via
+// ListSubDirs(AppPath\MASLUL\) — for us that's doc.maslul[]. SpG_l shows
+// the stage detail (List3 of Maslul.frm equivalent) for the selected
+// lesson. Command2(idx) dispatches Edit/New/Delete/Rename/Return.
+// ChBox(0..5) + ChName/ChFname are favorite slots stored in ChBox4.ini —
+// here we store them on doc.favorites.
+
+function wireKesemStartMaslul(state) {
+    const stage = state.stage;
+    if (!stage) return;
+    const doc = kesemLoadDoc(state);
+    doc.favorites = doc.favorites || [null, null, null, null, null, null];
+    state.editor = state.editor || {};
+    if (state.editor.smaslulIdx == null) state.editor.smaslulIdx = 0;
+
+    // --- List1: all available .MAS lessons ------------------------------
+    const list1 = stage.querySelector(".frm-ctrl--List1");
+    if (list1) {
+        list1.innerHTML = "";
+        Object.assign(list1.style, {
+            background: "rgba(255,255,255,.92)", overflow: "auto",
+            font: "13px Arial, sans-serif", color: "#000",
+            textAlign: "right", direction: "rtl", boxSizing: "border-box",
+            padding: "4px", display: "block",
+        });
+        const ul = document.createElement("ul");
+        Object.assign(ul.style, { listStyle: "none", margin: 0, padding: 0 });
+        (doc.maslul || []).forEach(function (m, i) {
+            const li = document.createElement("li");
+            const stem = (m.masFile || "").replace(/\.[^.]+$/, "");
+            li.textContent = stem + "   " + (m.name || "");
+            li.dataset.idx = String(i);
+            Object.assign(li.style, {
+                padding: "2px 6px", cursor: "pointer", userSelect: "none",
+                background: state.editor.smaslulIdx === i ? "#cce8ff" : "transparent",
+            });
+            li.addEventListener("click", function () {
+                state.editor.smaslulIdx = i;
+                wireKesemStartMaslul(state);
+            });
+            li.addEventListener("dblclick", function () {
+                // List1_DblClick — toggle as favorite in next free slot.
+                kesemStartMaslulToggleFavorite(state, i);
+            });
+            ul.appendChild(li);
+        });
+        list1.appendChild(ul);
+    }
+
+    // --- SpG_l: stage preview of the selected lesson --------------------
+    const spg = stage.querySelector(".frm-ctrl--SpG_l");
+    if (spg) {
+        spg.innerHTML = "";
+        Object.assign(spg.style, {
+            background: "rgba(255,255,255,.92)", overflow: "auto",
+            font: "12px Arial, sans-serif", color: "#000",
+            textAlign: "right", direction: "rtl", boxSizing: "border-box",
+            padding: "4px", display: "block",
+        });
+        const sel = (doc.maslul || [])[state.editor.smaslulIdx];
+        if (sel) {
+            const ul = document.createElement("ul");
+            Object.assign(ul.style, { listStyle: "none", margin: 0, padding: 0 });
+            (sel.stages || []).forEach(function (st, i) {
+                const recs = doc.rasb[st.razNom] || [];
+                const rasName = (recs[0] && recs[0].name) || st.razNom;
+                const gameLabel = (KESEM_MASLUL_OPTIONS.find(function (o) { return o.gnu === st.gameNumber; }) || {}).label || ("?" + st.gameNumber);
+                const li = document.createElement("li");
+                li.textContent = (i + 1) + ". " + st.pic + "  " + rasName + "  " + gameLabel;
+                li.style.padding = "1px 6px";
+                ul.appendChild(li);
+            });
+            spg.appendChild(ul);
+        }
+    }
+
+    // --- Command2 buttons — hotspots over first1.jpg's painted buttons.
+    // Original .frm has Command2(0..5) as Style=Graphical labels with
+    // FRX-embedded Picture faces. We don't have those bitmaps extracted,
+    // so the form background does the visual work and Command2 controls
+    // are transparent click targets. Index 4 is unused in the original.
+    const cmdLabels = ["עריכה", "חדש", "מחיקה", "שינוי שם", "", "חזרה"];
+    cmdLabels.forEach(function (text, i) {
+        const el = stage.querySelector(`.frm-ctrl--Command2[data-index="${i}"]`);
+        if (!el) return;
+        if (!text) { el.style.display = "none"; return; }
+        el.title = text;
+        el.style.cursor = "pointer";
+    });
+
+    // --- ChBox favorite slots (Label4 sits over ChBox in the .frm) ------
+    // ChBox controls are Labels — at runtime the original sets
+    // ChBox(i).Caption = list-row-text and updates Label4(i).MousePointer
+    // to indicate a filled slot. Background painting comes from first1.jpg.
+    for (let i = 0; i < 6; i++) {
+        const cb = stage.querySelector(`.frm-ctrl--ChBox[data-index="${i}"]`);
+        if (!cb) continue;
+        const fav = doc.favorites[i];
+        const label = fav ? ((fav.masFile || "").replace(/\.[^.]+$/, "") + "   " + (fav.name || "")) : "";
+        Object.assign(cb.style, {
+            color: "#000", font: "12px David, Arial, sans-serif",
+            textAlign: "center", direction: "rtl", padding: "2px",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            pointerEvents: "auto", cursor: fav ? "pointer" : "default",
+        });
+        cb.textContent = label;
+    }
+}
+
+function kesemStartMaslulSelected(state) {
+    const doc = state.editor && state.editor.doc;
+    if (!doc) return null;
+    return (doc.maslul || [])[state.editor.smaslulIdx];
+}
+
+function kesemStartMaslulToggleFavorite(state, lessonIdx) {
+    const doc = state.editor.doc;
+    doc.favorites = doc.favorites || [null, null, null, null, null, null];
+    const lesson = (doc.maslul || [])[lessonIdx];
+    if (!lesson) return;
+    // If this lesson is already a favorite, remove it.
+    const existing = doc.favorites.findIndex(function (f) {
+        return f && f.masFile === lesson.masFile;
+    });
+    if (existing >= 0) {
+        doc.favorites[existing] = null;
+        doc.dirty = true;
+        kesemSaveDoc(doc);
+        wireKesemStartMaslul(state);
+        return;
+    }
+    // Otherwise put it into the first empty slot (last slot if all full).
+    let slot = doc.favorites.findIndex(function (f) { return !f; });
+    if (slot < 0) slot = 5;
+    doc.favorites[slot] = { masFile: lesson.masFile, name: lesson.name };
+    doc.dirty = true;
+    kesemSaveDoc(doc);
+    wireKesemStartMaslul(state);
+}
+
+// === Expo (publish / export) =============================================
+// 1:1 port of kesem/Expo.frm. The original transmit_Click writes a folder:
+//   trans/bmp/<pic>.bmp
+//   trans/rasb/<pic>_<i>.ras       (66-byte FileStru records)
+//   trans/rasb_wav/<pic>_<i>_<g>.wav
+//   trans/wav/<pic>_<i>/<n>(.wav?)
+//   trans/LLimoprt.lli             (manifest: List.Count + per-row pairs)
+//
+// Web equivalent: build a single .kesem.json bundle that round-trips via
+// Impo. Holds the doc verbatim (pictures, rasb, maslul, favorites) and
+// any newAssets blobs. The teacher commits the JSON file to git, or
+// shares it sideband.
+
+function wireKesemExpo(state) {
+    const stage = state.stage;
+    if (!stage) return;
+    const doc = kesemLoadDoc(state);
+    state.editor = state.editor || {};
+    state.editor.expoSel = state.editor.expoSel || new Set();
+
+    // --- List1: lessons (the original Expo loops through all picture+ras
+    //     pairs; here we treat lessons as the export-selectable units). --
+    const list1 = stage.querySelector(".frm-ctrl--List1");
+    if (list1) {
+        list1.innerHTML = "";
+        Object.assign(list1.style, {
+            background: "rgba(255,255,255,.92)", overflow: "auto",
+            font: "12px Arial, sans-serif", color: "#000",
+            textAlign: "right", direction: "rtl", boxSizing: "border-box",
+            padding: "4px", display: "block",
+        });
+        const ul = document.createElement("ul");
+        Object.assign(ul.style, { listStyle: "none", margin: 0, padding: 0 });
+        (doc.maslul || []).forEach(function (m, i) {
+            const li = document.createElement("li");
+            const stem = (m.masFile || "").replace(/\.[^.]+$/, "");
+            li.textContent = stem + "   " + (m.name || "");
+            Object.assign(li.style, {
+                padding: "2px 6px", cursor: "pointer", userSelect: "none",
+                background: state.editor.expoSel.has(stem) ? "#cce8ff" : "transparent",
+            });
+            li.addEventListener("click", function () {
+                if (state.editor.expoSel.has(stem)) state.editor.expoSel.delete(stem);
+                else state.editor.expoSel.add(stem);
+                wireKesemExpo(state);
+            });
+            ul.appendChild(li);
+        });
+        list1.appendChild(ul);
+    }
+
+    // --- gamor / finis: selected-for-export views.
+    const gamor = stage.querySelector(".frm-ctrl--gamor");
+    const finis = stage.querySelector(".frm-ctrl--finis");
+    function paintSelectedInto(el) {
+        if (!el) return;
+        el.innerHTML = "";
+        Object.assign(el.style, {
+            background: "rgba(255,255,255,.92)", overflow: "auto",
+            font: "12px Arial, sans-serif", color: "#000",
+            textAlign: "right", direction: "rtl", boxSizing: "border-box",
+            padding: "4px", display: "block",
+        });
+        const ul = document.createElement("ul");
+        Object.assign(ul.style, { listStyle: "none", margin: 0, padding: 0 });
+        (doc.maslul || []).forEach(function (m) {
+            const stem = (m.masFile || "").replace(/\.[^.]+$/, "");
+            if (!state.editor.expoSel.has(stem)) return;
+            const li = document.createElement("li");
+            li.textContent = stem + "   " + (m.name || "");
+            li.style.padding = "1px 6px";
+            ul.appendChild(li);
+        });
+        el.appendChild(ul);
+    }
+    paintSelectedInto(gamor);
+    paintSelectedInto(finis);
+
+    // --- Buttons. Expo.frm has CommandButton + Caption for each — render
+    //     with the VB6-style gray button face.
+    kesemPaintCmdButton(stage.querySelector(".frm-ctrl--Command1"),  "הוסף",            { title: "הוסף" });
+    kesemPaintCmdButton(stage.querySelector(".frm-ctrl--Command3"),  "נקה נבחר",        { title: "נקה נבחר" });
+    kesemPaintCmdButton(stage.querySelector(".frm-ctrl--nikoy"),     "נקה הכל",         { title: "נקה הכל" });
+    kesemPaintCmdButton(stage.querySelector(".frm-ctrl--transmit"),  "צור תיקיית העברה", { title: "צור תיקיית העברה" });
+
+    // --- Label1 / Label3: byte-counter for the export (original wrote MB).
+    const label1 = stage.querySelector(".frm-ctrl--Label1");
+    if (label1) {
+        let bytes = 0;
+        state.editor.expoSel.forEach(function (stem) {
+            const m = (doc.maslul || []).find(function (x) { return (x.masFile || "").replace(/\.[^.]+$/, "") === stem; });
+            if (!m) return;
+            (m.stages || []).forEach(function (s) {
+                bytes += 200;                            // .mas line overhead
+                const rasRecs = doc.rasb[s.razNom] || [];
+                bytes += rasRecs.length * 68;            // RAS records
+            });
+        });
+        label1.textContent = (bytes / 1024).toFixed(1) + " kb";
+        label1.style.color = "#fff";
+        label1.style.font = "13px David, Arial, sans-serif";
+        label1.style.textAlign = "center";
+        label1.style.direction = "rtl";
+    }
+}
+
+// transmit_Click — build the publish payload. Mirrors the original which
+// wrote the chosen subset into trans/. Here we serialize a JSON bundle
+// (doc subset + newAssets) and trigger a download.
+function kesemExpoTransmit(state) {
+    const doc = state.editor.doc;
+    const sel = state.editor.expoSel || new Set();
+    const lessons = (doc.maslul || []).filter(function (m) {
+        const stem = (m.masFile || "").replace(/\.[^.]+$/, "");
+        return sel.has(stem);
+    });
+    if (!lessons.length) {
+        window.alert("בחר לפחות מסלול אחד לייצוא");
+        return;
+    }
+    // Collect every (pic, razNom) referenced by the selected lessons so
+    // we can include just the rasb subset they need.
+    const picSet = new Set();
+    const rasSet = new Set();
+    lessons.forEach(function (m) {
+        (m.stages || []).forEach(function (s) {
+            if (s.pic) picSet.add(s.pic);
+            if (s.razNom) rasSet.add(s.razNom);
+        });
+    });
+    const rasbSubset = {};
+    rasSet.forEach(function (k) {
+        if (doc.rasb[k]) rasbSubset[k] = doc.rasb[k];
+    });
+    const picturesSubset = (doc.pictures || []).filter(function (p) {
+        return picSet.has(p.file);
+    });
+    const bundle = {
+        format: "kesem-bundle/v1",
+        when: (state._stamp || ""),  // filled in below; can't use Date here
+        lessons: lessons,
+        rasb: rasbSubset,
+        pictures: picturesSubset,
+        // Include any author-supplied asset blobs that map onto referenced
+        // pictures or wavs.
+        newAssets: {
+            bmp: {}, wav: {},
+        },
+    };
+    const newBmp = (doc.newAssets && doc.newAssets.bmp) || {};
+    Object.keys(newBmp).forEach(function (file) {
+        if (picSet.has(file)) bundle.newAssets.bmp[file] = newBmp[file];
+    });
+    const newWav = (doc.newAssets && doc.newAssets.wav) || {};
+    Object.keys(newWav).forEach(function (key) {
+        // Wav keys are "<pic>_<i>_<g>" or "<pic>_<i>/<n>" — heuristically
+        // include any key that starts with a selected ras prefix.
+        const owner = (key.split("/")[0] || "").split("_").slice(0, 2).join("_");
+        if (rasSet.has(owner)) bundle.newAssets.wav[key] = newWav[key];
+    });
+    const text = JSON.stringify(bundle, null, 2);
+    const blob = new Blob([text], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "kesem-bundle.json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+    klog("kesem: expo transmit (" + lessons.length + " lessons, " +
+         picSet.size + " pictures, " + rasSet.size + " ras)");
+}
+
+// Gzira keyboard: Delete removes the selected rect (Label1_KeyUp Case
+// vbKeyDelete). 1:1 with the original — except the original also offered
+// rect renumbering and WAV rename on delete; we just splice.
+function installKesemGziraKeys(state) {
+    if (state._gziraKeysInstalled) return;
+    state._gziraKeysInstalled = true;
+    document.addEventListener("keydown", function (e) {
+        if (state.currentScreen !== "gzira") return;
+        if (e.key === "Delete" || e.key === "Backspace") {
+            const i = state.editor.gziraSelected;
+            if (i == null) return;
+            e.preventDefault();
+            const yes = window.confirm("?למחוק אובייקט " + (i + 1));
+            if (!yes) return;
+            const rects = kesemGziraGetRects(state);
+            rects.splice(i, 1);
+            kesemGziraSetRects(state, rects);
+            state.editor.gziraSelected = null;
+            kesemGziraRepaintRects(state);
+        } else if (e.key === "Escape") {
+            // Form_Unload — return to caller (Chgames or Main).
+            setScreen(state, state.editor.gziraReturnTo || "main");
+        }
+    });
+}
+
 // Shirim / Shirim&Meshalim: initial Sst view shows BookIndex (chapter
 // picker). Per Form_Load the OpenPage container is .Visible=False at
 // design time — the renderer already honors that. If we're returning
@@ -1988,13 +3971,17 @@ function showSavedScores(state, pathIdx) {
     const stages = entry.stages || [];
     klog("score: replay nikod for", slot.name, "(" + stages.length + " stages saved)");
 
-    // Temporarily swap pathScore so showNikod reads the saved data, then
-    // restore. State.currentPath / currentStageIdx aren't touched — the user
-    // is still "on Sst" from the engine's perspective.
-    const savedPath = state.pathScore;
-    state.pathScore = stages;
+    // Temporarily swap pathScore so showNikod reads the saved data, and
+    // also stamp state.currentPath so the nikod Label2 single-stage
+    // replay (which calls enterStage(state) → slots[currentPath]) can
+    // route back into the right lesson. Restore both on close.
+    const savedPath  = state.pathScore;
+    const savedIdx   = state.currentPath;
+    state.pathScore  = stages;
+    state.currentPath = pathIdx;
     showNikod(state, slot, function () {
-        state.pathScore = savedPath;
+        state.pathScore  = savedPath;
+        state.currentPath = savedIdx;
     });
 }
 
@@ -2052,6 +4039,11 @@ function handleAction(appId, action /*, ctrl */) {
                     currentSession.activeStage = null;
                     currentSession.pathScore = null;
                     currentSession._activeSlotOverride = null;
+                    // Clear the single-stage-replay flag too — if the user
+                    // backs out mid-replay we don't want a stale flag
+                    // affecting the next regular path play.
+                    currentSession._singleStageReplay = false;
+                    currentSession._singleStageReplayOnClose = null;
                     setScreen(currentSession, "sst");
                 };
                 if (showScore && slot) showNikod(currentSession, slot, goSst);
@@ -2106,6 +4098,21 @@ function handleAction(appId, action /*, ctrl */) {
         // appropriate Games*.frm per stage.
         if (!currentSession) return;
         const pathIdx = parseInt(action.split(":")[1], 10) - 1;
+        if (appId === "Kesem") {
+            // kesem/Sst.frm btnIcon_Click(Index): n_masl=Index; PutGFile n_masl;
+            // BeginGame; StartGames n_masl. currentRamaSlots(Kesem) now
+            // returns doc.maslul[] directly so pathIdx maps cleanly to
+            // lesson N — no _activeSlotOverride needed, and scores save
+            // under (rama=1, pathIdx=N) instead of stomping on slot 0.
+            const doc = kesemLoadDoc(currentSession);
+            if (!(doc.maslul || [])[pathIdx]) {
+                klog("kesem: btnIcon — no lesson at index " + pathIdx);
+                return;
+            }
+            currentSession._activeSlotOverride = null;
+            startPath(currentSession, pathIdx);
+            return;
+        }
         startPath(currentSession, pathIdx);
         return;
     }
@@ -2169,6 +4176,453 @@ function handleAction(appId, action /*, ctrl */) {
         playVideo(currentSession.config.assetsRoot + "/" + rel);
         return;
     }
+    // === Kesem editor actions ===========================================
+    // Kesem's editor screens share generic control names (menu, del, choice,
+    // ImpOle, endof, exit) and the Sst's activ() routes differently from
+    // Ivrit's. Branch on appId so the Ivrit-tuned activ: handler below
+    // doesn't catch Kesem clicks.
+    if (appId === "Kesem") {
+        if (action === "kesem:back") {
+            if (!currentSession) return;
+            // Per-screen "back" target:
+            //   Main.endof → Sst                 (original Main.Form_Unload)
+            //   Chgames.endof / Label1 → Main    (original Butt_list_Click 3)
+            //   Gzira.endof → caller             (Form_Unload calls Main.Prov)
+            const screen = currentSession.currentScreen;
+            let target = "sst";
+            if (screen === "main")    target = "sst";
+            if (screen === "chgames") target = "main";
+            if (screen === "gzira") {
+                target = currentSession.editor && currentSession.editor.gziraReturnTo || "main";
+            }
+            if (screen === "maslul")       target = "sst";
+            if (screen === "start_maslul") target = "main";
+            if (screen === "expo")         target = "start_maslul";
+            setScreen(currentSession, target);
+            return;
+        }
+        if (action === "kesem:help") {
+            klog("kesem: help (not implemented)");
+            return;
+        }
+        if (action && action.indexOf("kesem:menu:") === 0) {
+            // kesem/Main.frm Menu_Click(Index):
+            //   0 → ChGames.Show 1 → Games(n).Show 1 (game-type picker +
+            //         preview through the runtime player).
+            //   1 → Gzira.Show (hotspot rect editor). Needs Gzira port.
+            //   2 → Gr_Edit.Show + Printer.PaintPicture (paint — out of
+            //         scope on web).
+            //   3 → Printer.PaintPicture (print — no web equivalent).
+            //   4 → Max_Pics++ + savepics(Max_Pics) (new picture from
+            //         file picker). Needs ImpOle wiring.
+            const idx = parseInt(action.split(":")[2], 10);
+            if (idx === 0) {
+                if (currentSession) setScreen(currentSession, "chgames");
+                return;
+            }
+            if (idx === 1) {
+                // Main.menu(1) → Gzira.Show with My_Edit_Num=1 (new cutout).
+                if (!currentSession) return;
+                currentSession.editor = currentSession.editor || {};
+                currentSession.editor.gziraEditMode = 1;
+                currentSession.editor.gziraReturnTo = "main";
+                setScreen(currentSession, "gzira");
+                return;
+            }
+            if (idx === 2) {
+                // Main.menu(2) → Gr_Edit (paint editor). No web equivalent
+                // — the original uses BitBltControl + Picture1.PSet pixel
+                // ops which we can't faithfully port without recreating a
+                // full paint UI. Log and skip.
+                klog("kesem: menu 2 (Gr_Edit paint — not ported)");
+                return;
+            }
+            if (idx === 3) {
+                // Main.menu(3) → Printer.PaintPicture Picture1.Picture, 10, 10;
+                // Printer.EndDoc. Prints the currently-displayed picture.
+                // Web equivalent: open a new window with just the picture
+                // and trigger window.print().
+                if (!currentSession) return;
+                kesemPrintCurrentPicture(currentSession);
+                return;
+            }
+            if (idx === 4) {
+                // Main.menu(4): Max_Pics++; savepics Max_Pics; GetMaxP.
+                // savepics does `SavePicture Picture1.Picture, AppPath\bmp\<N+1>.bmp`
+                // i.e. duplicates the current picture to a new slot.
+                // Without Gr_Edit-style modification, the duplicate is
+                // identical — still useful for "stamp a copy under a new
+                // name" workflow paired with EditString.
+                if (!currentSession) return;
+                kesemCloneCurrentPicture(currentSession);
+                return;
+            }
+            klog("kesem: menu " + idx + " (not implemented yet)");
+            return;
+        }
+        if (action === "kesem:gzira:show-all") {
+            // CmdShow_Click in Gzira.frm — re-show all rectangles that
+            // Label1_KeyUp(Ctrl) had hidden. Our port doesn't yet support
+            // hide-on-Ctrl; this is a no-op repaint.
+            if (currentSession) kesemGziraRepaintRects(currentSession);
+            return;
+        }
+        if (action && action.indexOf("kesem:gzira:wav:") === 0) {
+            // btnED_Click — record Wav1 (prompt) or Wav2 (affirmation) for
+            // the selected rect via Wave subform. Browser equivalent =
+            // MediaRecorder; not yet wired.
+            const idx = parseInt(action.split(":")[3], 10);
+            klog("kesem: gzira record wav" + (idx + 1) + " (not implemented)");
+            return;
+        }
+        // === Maslul actions =============================================
+        if (action && action.indexOf("kesem:maslul:opt:") === 0) {
+            // Option1_Click(Index) — pick game-type for next stage.
+            if (!currentSession) return;
+            const idx = parseInt(action.split(":")[3], 10);
+            const info = KESEM_MASLUL_OPTIONS[idx];
+            if (!info) return;
+            const lesson = kesemMaslulEnsureLesson(currentSession);
+            lesson.gnu = info.gnu;
+            wireKesemMaslul(currentSession);
+            return;
+        }
+        if (action === "kesem:maslul:commit") {
+            // Command3 / List2_DblClick — add the (picture, ras, gnu)
+            // tuple to the current lesson sequence.
+            if (currentSession) kesemMaslulCommitStage(currentSession);
+            return;
+        }
+        if (action === "kesem:maslul:bitul") {
+            // btnBitul_Click — remove the selected row from the sequence.
+            if (currentSession) kesemMaslulBitul(currentSession);
+            return;
+        }
+        if (action === "kesem:maslul:return") {
+            // btnReturn_Click — prompt for name then SaveMaslul + Unload.
+            if (currentSession) kesemMaslulSaveAndClose(currentSession);
+            return;
+        }
+        if (action && action.indexOf("kesem:maslul:delfilm:") === 0) {
+            // btnDelFilm(Index) — clear the intro (0) or outro (1) video.
+            if (!currentSession) return;
+            const idx = parseInt(action.split(":")[3], 10);
+            const lesson = kesemMaslulEnsureLesson(currentSession);
+            if (idx === 0) { lesson.videoStart = ""; lesson.videoStartPr = "0"; }
+            else           { lesson.videoEnd   = ""; lesson.videoEndPr   = "0"; }
+            wireKesemMaslul(currentSession);
+            return;
+        }
+        if (action && action.indexOf("kesem:maslul:video:") === 0) {
+            // video_Click(Index) — original opened OpenDlg/CMDialog1 to
+            // browse AVI files. On web, prompt for a filename string
+            // (we don't have a filesystem picker for the editor's AVIs).
+            if (!currentSession) return;
+            const idx = parseInt(action.split(":")[3], 10);
+            const lesson = kesemMaslulEnsureLesson(currentSession);
+            const cur = idx === 0 ? lesson.videoStart : lesson.videoEnd;
+            const name = window.prompt("שם הסרט (e.g. start.avi):", cur || "");
+            if (name == null) return;
+            if (idx === 0) { lesson.videoStart = name; lesson.videoStartPr = "0"; }
+            else           { lesson.videoEnd   = name; lesson.videoEndPr   = "0"; }
+            wireKesemMaslul(currentSession);
+            return;
+        }
+        if (action && action.indexOf("kesem:maslul:seret:") === 0) {
+            // btnSeret_Click(Index) — toggles VideoStartEnd flag (run
+            // inline vs. popup). Skip: treat as a no-op label.
+            klog("kesem: maslul seret toggle (not implemented)");
+            return;
+        }
+        if (action && action.indexOf("kesem:maslul:expo:") === 0) {
+            // expo1(0)=open Expo, expo1(1)=open impo. Route to those
+            // screens (still stubs).
+            if (!currentSession) return;
+            const idx = parseInt(action.split(":")[3], 10);
+            if (idx === 0) setScreen(currentSession, "expo");
+            else           setScreen(currentSession, "impo");
+            return;
+        }
+        // === Start_Maslul actions ======================================
+        if (action && action.indexOf("kesem:smaslul:cmd:") === 0) {
+            // Command2_Click(Index) — Edit / New / Delete / Rename / Return.
+            if (!currentSession) return;
+            const idx = parseInt(action.split(":")[3], 10);
+            const lesson = kesemStartMaslulSelected(currentSession);
+            const doc = currentSession.editor.doc;
+            if (idx === 0) {
+                // Edit — load the selected lesson into currentLesson and
+                // open Maslul. f_maslul = d(List1.ListIndex + 1).
+                if (!lesson) return;
+                currentSession.editor.currentLesson = {
+                    masFile: lesson.masFile,
+                    name: lesson.name,
+                    videoStartPr: (lesson.header && lesson.header.videoStartPr) || "0",
+                    videoEndPr:   (lesson.header && lesson.header.videoEndPr)   || "0",
+                    videoStart:   (lesson.header && lesson.header.introVideo)   || "",
+                    videoEnd:     (lesson.header && lesson.header.mashalVideo)  || "",
+                    gnu: 3,
+                    stages: (lesson.stages || []).map(function (s) {
+                        return { pic: s.pic, razNom: s.razNom, gameNumber: s.gameNumber };
+                    }),
+                };
+                setScreen(currentSession, "maslul");
+                return;
+            }
+            if (idx === 1) {
+                // New — f_maslul = "", open Maslul with a fresh lesson.
+                currentSession.editor.currentLesson = kesemMaslulNewLesson();
+                setScreen(currentSession, "maslul");
+                return;
+            }
+            if (idx === 2) {
+                // Delete — Kill MASLUL\<masFile>.
+                if (!lesson) return;
+                if (!window.confirm("?למחוק את המסלול")) return;
+                const i = doc.maslul.indexOf(lesson);
+                if (i >= 0) doc.maslul.splice(i, 1);
+                // Also clear it from favorites.
+                (doc.favorites || []).forEach(function (f, j) {
+                    if (f && f.masFile === lesson.masFile) doc.favorites[j] = null;
+                });
+                doc.dirty = true;
+                kesemSaveDoc(doc);
+                if (currentSession.editor.smaslulIdx >= doc.maslul.length) {
+                    currentSession.editor.smaslulIdx = Math.max(0, doc.maslul.length - 1);
+                }
+                wireKesemStartMaslul(currentSession);
+                return;
+            }
+            if (idx === 3) {
+                // Rename — prompt for a new TString, save into the
+                // selected lesson's name field.
+                if (!lesson) return;
+                const n = window.prompt("שם המסלול:", lesson.name || "");
+                if (n == null) return;
+                const name = n.trim();
+                if (!name) return;
+                lesson.name = name;
+                if (lesson.header) lesson.header.pathName = name;
+                doc.dirty = true;
+                kesemSaveDoc(doc);
+                wireKesemStartMaslul(currentSession);
+                return;
+            }
+            if (idx === 5) {
+                // Return — Main.Show + Unload Start_Maslul.
+                setScreen(currentSession, "main");
+                return;
+            }
+            return;
+        }
+        if (action && action.indexOf("kesem:smaslul:fav:") === 0) {
+            // ChBox / Label4 click — open the favorite-pinned lesson.
+            if (!currentSession) return;
+            const slot = parseInt(action.split(":")[3], 10);
+            const doc = currentSession.editor.doc;
+            const fav = (doc.favorites || [])[slot];
+            if (!fav) return;
+            const i = (doc.maslul || []).findIndex(function (m) { return m.masFile === fav.masFile; });
+            if (i < 0) return;
+            currentSession.editor.smaslulIdx = i;
+            wireKesemStartMaslul(currentSession);
+            return;
+        }
+        // === Expo actions ===============================================
+        if (action === "kesem:expo:add") {
+            // Command1_Click — original moves List1 selection into the
+            // gamor "selected for export" list. Our List1 click toggles
+            // selection directly; this button is a no-op (kept for
+            // parity, would otherwise dupe-select).
+            klog("kesem: expo add (click rows in List1 to toggle)");
+            return;
+        }
+        if (action === "kesem:expo:clear-sel") {
+            if (!currentSession) return;
+            // Remove only the row currently highlighted in gamor — we
+            // don't track that separately yet, so clear all selections
+            // matching the currently-focused row (gamor focus not wired).
+            // Simplest 1:1 behavior: no-op with hint.
+            klog("kesem: expo clear-sel (highlight a row in List1 to toggle)");
+            return;
+        }
+        if (action === "kesem:expo:clear-all") {
+            if (!currentSession) return;
+            currentSession.editor.expoSel = new Set();
+            wireKesemExpo(currentSession);
+            return;
+        }
+        if (action === "kesem:expo:transmit") {
+            if (!currentSession) return;
+            kesemExpoTransmit(currentSession);
+            return;
+        }
+        if (action && action.indexOf("kesem:chg:") === 0) {
+            // Chgames.frm ChG_Click(Index): sets Game_Number per index.
+            //   0→3 (Games3), 1→1 (Games), 2→2 (Games2), 3→4 (Games4), 4→5 (Games5)
+            if (!currentSession) return;
+            const idx = parseInt(action.split(":")[2], 10);
+            const info = [
+                { gn: 3 }, { gn: 1 }, { gn: 2 }, { gn: 4 }, { gn: 5 },
+            ][idx];
+            if (info) {
+                currentSession.editor = currentSession.editor || {};
+                currentSession.editor.currentGameNumber = info.gn;
+                wireKesemChgames(currentSession);
+            }
+            return;
+        }
+        if (action && action.indexOf("kesem:edb:") === 0) {
+            // Chgames.frm Ed_But_Click(Index): 0=edit→Gzira, 1=rename, 2=delete.
+            if (!currentSession) return;
+            const idx = parseInt(action.split(":")[2], 10);
+            if (idx === 0) {
+                // Butt_list_Click 0 → My_Edit_Num=0 + NameRasb=...+ Gzira.Show.
+                if (!currentSession.editor.currentRazNom) {
+                    klog("kesem: edb edit — no RAS selected");
+                    return;
+                }
+                currentSession.editor.gziraEditMode = 0;
+                currentSession.editor.gziraReturnTo = "chgames";
+                setScreen(currentSession, "gzira");
+                return;
+            }
+            if (idx === 1) {
+                klog("kesem: edb rename (not implemented)");
+                return;
+            }
+            if (idx === 2) {
+                // Dele(NO): Kill RASB\NO.ras + remove WAV\NO\.
+                const key = currentSession.editor.currentRazNom;
+                if (!key) return;
+                const yes = window.confirm("?למחוק את הגזירה");
+                if (!yes) return;
+                const doc = currentSession.editor.doc;
+                delete doc.rasb[key];
+                doc.dirty = true;
+                kesemSaveDoc(doc);
+                // After delete, pick the next available cutout.
+                const remaining = kesemRasbForPicture(doc, ((doc.pictures||[])[currentSession.editor.selectedPicture||0]||{}).file);
+                currentSession.editor.currentRazNom = remaining[0] || null;
+                wireKesemChgames(currentSession);
+                return;
+            }
+            return;
+        }
+        if (action && action.indexOf("kesem:blist:") === 0) {
+            // butt_list(2) = OK / commit. butt_list(3) doesn't exist; the
+            // original Label1 click goes through Butt_list_Click(3) →
+            // NameRasb="" + Unload (cancel).
+            if (!currentSession) return;
+            const idx = parseInt(action.split(":")[2], 10);
+            if (idx === 2) { kesemChgamesCommit(currentSession); return; }
+            klog("kesem: blist " + idx + " (not implemented)");
+            return;
+        }
+        if (action && action.indexOf("kesem:del:") === 0) {
+            // kesem/Main.frm del_Click(Index): picture-row actions on the
+            // album list. Index meaning per the original:
+            //   0 = list selector  1 = rename  2 = accept  3 = delete
+            const idx = parseInt(action.split(":")[2], 10);
+            klog("kesem: del " + idx + " (not implemented yet)");
+            return;
+        }
+        if (action === "kesem:import") {
+            // ImpOle_Click — original opened a CMDialog file picker filtered
+            // to BMP/JPG/GIF and pasted into spisok.dat as a new entry.
+            // Web equivalent: <input type=file>, prompt name, append to
+            // doc.pictures + doc.newAssets.bmp (the in-memory blob carries
+            // through to Expo's downloadable bundle).
+            if (!currentSession) return;
+            kesemImportPicture(currentSession);
+            return;
+        }
+        if (action === "kesem:choice") {
+            // choice "H" button (Main.frm). Original triggered a quick
+            // mode-flip — Knica=0 then choice_Click flipped Panel3D1 +
+            // List1 visible. We keep them visible permanently, so the
+            // button is a no-op force-refresh.
+            if (currentSession) wireKesemMain(currentSession);
+            return;
+        }
+        if (action && action.indexOf("kesem:nav:") === 0) {
+            // Up_DN_MouseDown(Index): scroll List1 by one with WRAP-AROUND.
+            //   Index 1 (down): SetPosMain++; if > count-1 → 0
+            //   Index 0 (up):   SetPosMain--; if < 0       → count-1
+            if (!currentSession) return;
+            const idx = parseInt(action.split(":")[2], 10);
+            const doc = kesemLoadDoc(currentSession);
+            const total = (doc.pictures || []).length;
+            if (!total) return;
+            const sel = (currentSession.editor && currentSession.editor.selectedPicture) || 0;
+            let next;
+            if (idx === 1) { next = sel + 1; if (next > total - 1) next = 0; }
+            else           { next = sel - 1; if (next < 0)         next = total - 1; }
+            kesemSelectPicture(currentSession, next);
+            return;
+        }
+        if (action && action.indexOf("activ:") === 0) {
+            // kesem/Sst.frm activ_Click(Index):
+            //   0 = ok      → PutGFile 1; BeginGame; StartGames 40 (play)
+            //   1 = las     → ni=2; Picture1.Visible=True; Picture2.Visible=False
+            //   2 = alb     → Main.Show
+            //   3 = ml      → maslul.Show 1 (edit current path)
+            //   4 = ms      → Start_Maslul.Show
+            //   5 = cred    → \avi\_kescre1.avi
+            //   6 = credas  → \help\_tafnew.avi
+            if (!currentSession) return;
+            const idx = parseInt(action.split(":")[1], 10);
+            if (idx === 0) {
+                // activ(0) = ok → play the lesson highlighted in List1.
+                // 1:1 with original: lal=d(List1.ListIndex); PutGFile 1;
+                // StartGames 40. currentRamaSlots(Kesem) returns
+                // doc.maslul[] so passing the actual lesson index as
+                // pathIdx routes the player + persists the score map
+                // under that index.
+                const doc = kesemLoadDoc(currentSession);
+                const sel = (currentSession.editor || {}).sstSelMaslul;
+                const lessonIdx = sel == null ? 0 : sel;
+                const lesson = (doc.maslul || [])[lessonIdx];
+                if (!lesson || !lesson.stages || !lesson.stages.length) {
+                    klog("kesem: activ(0) play — no lesson selected");
+                    return;
+                }
+                currentSession._activeSlotOverride = null;
+                startPath(currentSession, lessonIdx);
+                return;
+            }
+            if (idx === 1) {
+                // activ(1) = las → ni=2; Picture1.Visible=True;
+                // picture2.Visible=False; bac.Visible=True; btnHofshi_Click.
+                // Switches to the 6-tile "free play" gameplay view.
+                kesemSstShowPlayView(currentSession);
+                return;
+            }
+            if (idx === 2) { setScreen(currentSession, "main"); return; }
+            if (idx === 3) {
+                // activ(3) = ml → maslul.Show 1 (edit current lesson).
+                // f_maslul carries the current .MAS filename; if empty
+                // the user is composing a new lesson.
+                setScreen(currentSession, "maslul");
+                return;
+            }
+            if (idx === 4) {
+                // activ(4) = ms → Start_Maslul.Show (browse paths).
+                setScreen(currentSession, "start_maslul");
+                return;
+            }
+            if (idx === 5 || idx === 6) {
+                const vbPath = idx === 5 ? "\\avi\\_kescre1.avi" : "\\help\\_tafnew.avi";
+                const rel = resolveVideoPath(currentSession, vbPath);
+                if (rel) playVideo(currentSession.config.assetsRoot + "/" + rel);
+                else klog("kesem activ: video missing (" + vbPath + ")");
+                return;
+            }
+            klog("kesem: activ " + idx + " (not implemented yet)");
+            return;
+        }
+    }
+
     if (action && action.indexOf("activ:") === 0) {
         // Ivrit Sst.activ_Click — primary buttons on Picture2 (song picker).
         //   0: start the song currently highlighted in List1
@@ -2243,9 +4697,14 @@ function handleAction(appId, action /*, ctrl */) {
         return;
     }
     if (action === "ivrit:back") {
-        // bac_Click: Picture1.Visible=False, picture2.Visible=True. Take
-        // the user back to the song picker.
+        // bac_Click: Picture1.Visible=False, picture2.Visible=True.
         if (!currentSession) return;
+        if (appId === "Kesem") {
+            // kesem/Sst.frm bac_Click: reverse activ(1) — back to the
+            // album view (Picture2). ni=1; bac.Visible=False.
+            kesemSstShowAlbumView(currentSession);
+            return;
+        }
         showIvritView(currentSession, "picker");
         return;
     }
@@ -2934,6 +5393,17 @@ function currentRamaSlots(state) {
     // the song chosen from List1 plays directly from its parsed maslul
     // data instead of routing through CHBOX (mirrors PutGFile ni=1).
     if (state._activeSlotOverride) return [state._activeSlotOverride];
+    // Kesem editor has no CHBOX/rama partitioning — lessons live as a
+    // flat doc.maslul[] array. Treat each lesson as a slot at its array
+    // index so pathIdx=N consistently maps to lesson N for both startPath
+    // (play) and showSavedScores (replay nikod). state.paths.maslul is
+    // the bundled seed; state.editor.doc.maslul is the live (editable)
+    // version — prefer the doc since it reflects any teacher edits.
+    if (state.config && state.config.id === "Kesem") {
+        const doc = state.editor && state.editor.doc;
+        const m = (doc && doc.maslul) || paths.maslul;
+        return Array.isArray(m) ? m : null;
+    }
     // Some apps' LoadCh ignores rama and pins to a specific .INI (Dvash uses
     // ChBox4.ini for all rama). Honor the `activityRamaPin` config override.
     const r = String(state.config.activityRamaPin || state.rama);
@@ -4710,6 +7180,42 @@ function advanceStage(state) {
     // render per-stage rows; sum of `total` becomes mispar's denominator.
     snapStageScore(state);
 
+    // Single-stage replay (Label2 click on the nikod score board): the
+    // original StartGamesA `Loop While ShlavNahehi <= nma` with
+    // ShlavNahehi=nma exits after exactly one iteration, then Sst falls
+    // through to savescore + btnLamp_Click yoy (= re-open nikod). Mirror
+    // that here: skip the natural stage advancement, save the updated
+    // path scores, and reopen the score board on top of the updated
+    // state.pathScore.
+    if (state._singleStageReplay) {
+        state._singleStageReplay = false;
+        const closer = state._singleStageReplayOnClose;
+        state._singleStageReplayOnClose = null;
+        klog("single-stage replay done → save scores + reopen nikod");
+        markPathCompleted(state);
+        // Return to Sst FIRST so the nikod overlay lands on the parent
+        // form, not on the game screen we were in. Mirrors VB6 where the
+        // single-stage Games3.Show 1 Unloads back to Sst before
+        // btnLamp_Click yoy reopens the nikod.
+        state.activeStage = null;
+        setScreen(state, "sst");
+        playSlotVideo(state, slot, "end", function () {
+            showNikod(state, slot, function () {
+                // closer is showSavedScores's restore: it just resets
+                // state.pathScore + state.currentPath. No navigation
+                // needed — we're already on Sst.
+                if (typeof closer === "function") closer();
+                else {
+                    state.currentPath = null;
+                    state.currentStageIdx = 0;
+                    state.pathScore = null;
+                    state._activeSlotOverride = null;
+                }
+            });
+        });
+        return;
+    }
+
     state.currentStageIdx = (state.currentStageIdx || 0) + 1;
     if (!slot.stages || state.currentStageIdx >= slot.stages.length) {
         klog("end of path — play Video_End then show nikod (score board)");
@@ -5096,7 +7602,12 @@ function showNikod(state, slot, onClose) {
             // original formula to design px.
             const colLeftPx = 380 - (335 / (shlavend + 1)) - (wq * 320 / shlavend);
 
-            // Label2 — column header pill (pink, raised border, stage #)
+            // Label2 — column header pill (pink, raised border, stage #).
+            // Click → replay just this single stage. 1:1 with nikod.frm
+            // Label2_Click(Index) → Sst.StartGamesA n_masl, Index+1, which
+            // loops `Do … While ShlavNahehi <= nma` with ShlavNahehi=nma
+            // (exits after one iteration). Tooltip text comes from the
+            // commented original `Label2(Index).ToolTipText = "לתירגול חוזר"`.
             const lbl = el("button", place(colLeftPx, labelTop, lampW, 26));
             Object.assign(lbl.style, {
                 background: "#FFC0C0",
@@ -5104,13 +7615,35 @@ function showNikod(state, slot, onClose) {
                 fontSize: "11px",
                 fontWeight: "700",
                 color: "#000",
-                cursor: "default",
+                cursor: "pointer",
                 fontFamily: "'MS Sans Serif', sans-serif",
                 padding: "0",
                 direction: "ltr",
             });
             lbl.type = "button";
             lbl.textContent = String(wq + 1);
+            lbl.title = "תרגיל חוזר לשלב " + (wq + 1);
+            (function (stageIdx) {
+                lbl.addEventListener("click", function (e) {
+                    e.stopPropagation();
+                    klog("CLICK nikod Label2[" + stageIdx + "] → single-stage replay");
+                    // Tear down the overlay WITHOUT firing onClose: we need
+                    // state.pathScore preserved across the replay so the
+                    // other stages' scores survive snapStageScore()'s
+                    // per-slot overwrite.
+                    if (typeof state._nikodTeardown === "function") {
+                        state._nikodTeardown();
+                        state._nikodTeardown = null;
+                    }
+                    state._singleStageReplay = true;
+                    // Stash the onClose so advanceStage's end-of-replay
+                    // path can route back to it (matching nikod's original
+                    // dismiss → return-to-Sst).
+                    state._singleStageReplayOnClose = onClose;
+                    state.currentStageIdx = stageIdx;
+                    enterStage(state);
+                });
+            })(wq);
             picture2.appendChild(lbl);
 
             // tovis lamps — bottom-up fill: green, then yellow, then red,
@@ -5193,18 +7726,28 @@ function showNikod(state, slot, onClose) {
         }
     }, 30);
 
-    function dismiss() {
-        klog("CLICK nikod Command1 → return");
+    // Tear down without notifying the caller — used by Label2 click which
+    // needs to keep state.pathScore intact going into the single-stage
+    // replay (showSavedScores's onClose otherwise restores pathScore=null
+    // and we'd lose the other stages' results).
+    function teardown() {
         clearInterval(timg);
         stopAllAudio(state);
         overlay.remove();
         window.removeEventListener("resize", onResize);
         document.removeEventListener("keydown", onKey);
+    }
+    function dismiss() {
+        klog("CLICK nikod Command1 → return");
+        teardown();
         if (onClose) onClose();
     }
     function onKey(e) { if (e.key === "Escape" || e.key === "Enter") dismiss(); }
     cmd1.addEventListener("click", dismiss);
     document.addEventListener("keydown", onKey);
+    // Expose the no-callback teardown so the Label2 column-header click
+    // (wired below) can dismiss the overlay without invoking onClose.
+    state._nikodTeardown = teardown;
 
     overlay.appendChild(box);
     document.body.appendChild(overlay);

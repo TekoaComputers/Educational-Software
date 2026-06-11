@@ -28,7 +28,7 @@ from pathlib import Path
 SOURCE_ENCODING = "cp1255"
 
 # Properties we copy verbatim from each control / form.
-STRING_PROPS = {"Caption", "Name", "Picture", "MouseIcon", "Icon"}
+STRING_PROPS = {"Caption", "Name", "Picture", "MouseIcon", "Icon", "ToolTipText"}
 NUM_PROPS = {"Left", "Top", "Width", "Height", "Index",
              "ClientWidth", "ClientHeight", "ClientLeft", "ClientTop",
              "ScaleWidth", "ScaleHeight", "ScaleMode",

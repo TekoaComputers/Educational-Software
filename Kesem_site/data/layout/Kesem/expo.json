@@ -1,0 +1,330 @@
+{
+  "type": "VB.Form",
+  "name": "expo",
+  "props": {
+    "Caption": "יצוא",
+    "ClientHeight": 7428,
+    "ClientLeft": 1380,
+    "ClientTop": 1140,
+    "ClientWidth": 9552,
+    "ScaleHeight": 619,
+    "ScaleMode": 3,
+    "ScaleWidth": 796
+  },
+  "children": [
+    {
+      "type": "VB.ListBox",
+      "name": "bmpn",
+      "props": {
+        "BackColor": 16692415,
+        "ForeColor": 4194304,
+        "Height": 816,
+        "Left": 5475,
+        "Top": 6300,
+        "Visible": 0,
+        "Width": 1320
+      },
+      "children": [],
+      "px": {
+        "x": 456.2,
+        "y": 525.0,
+        "w": 110.0,
+        "h": 68.0
+      }
+    },
+    {
+      "type": "VB.CommandButton",
+      "name": "Command3",
+      "props": {
+        "BackColor": 16761024,
+        "Caption": "נקה נבחר",
+        "Height": 315,
+        "Left": 2025,
+        "Top": 5475,
+        "Width": 915
+      },
+      "children": [],
+      "px": {
+        "x": 168.8,
+        "y": 456.2,
+        "w": 76.2,
+        "h": 26.2
+      }
+    },
+    {
+      "type": "VB.CommandButton",
+      "name": "nikoy",
+      "props": {
+        "BackColor": 16761024,
+        "Caption": "נקה הכל",
+        "Height": 315,
+        "Left": 675,
+        "Top": 5475,
+        "Width": 915
+      },
+      "children": [],
+      "px": {
+        "x": 56.2,
+        "y": 456.2,
+        "w": 76.2,
+        "h": 26.2
+      }
+    },
+    {
+      "type": "VB.ListBox",
+      "name": "gamor",
+      "props": {
+        "BackColor": 16692415,
+        "ForeColor": 4194304,
+        "Height": 816,
+        "Left": 6825,
+        "Top": 6300,
+        "Visible": 0,
+        "Width": 1320
+      },
+      "children": [],
+      "px": {
+        "x": 568.8,
+        "y": 525.0,
+        "w": 110.0,
+        "h": 68.0
+      }
+    },
+    {
+      "type": "VB.ListBox",
+      "name": "movdat",
+      "props": {
+        "BackColor": 16692415,
+        "ForeColor": 4194304,
+        "Height": 816,
+        "Left": 8175,
+        "Top": 6300,
+        "Visible": 0,
+        "Width": 1320
+      },
+      "children": [],
+      "px": {
+        "x": 681.2,
+        "y": 525.0,
+        "w": 110.0,
+        "h": 68.0
+      }
+    },
+    {
+      "type": "VB.CommandButton",
+      "name": "transmit",
+      "props": {
+        "BackColor": 16761024,
+        "Caption": "צור תיקיית העברה",
+        "Height": 465,
+        "Left": 1650,
+        "Top": 6000,
+        "Width": 1590
+      },
+      "children": [],
+      "px": {
+        "x": 137.5,
+        "y": 500.0,
+        "w": 132.5,
+        "h": 38.8
+      }
+    },
+    {
+      "type": "VB.ListBox",
+      "name": "finis",
+      "props": {
+        "BackColor": 16692415,
+        "ForeColor": 4194304,
+        "Height": 1776,
+        "Left": 450,
+        "Top": 3615,
+        "Width": 4170
+      },
+      "children": [],
+      "px": {
+        "x": 37.5,
+        "y": 301.2,
+        "w": 347.5,
+        "h": 148.0
+      }
+    },
+    {
+      "type": "VB.CommandButton",
+      "name": "Command1",
+      "props": {
+        "BackColor": 16761024,
+        "Caption": "הוסף",
+        "Height": 390,
+        "Left": 1875,
+        "Top": 2925,
+        "Width": 1290
+      },
+      "children": [],
+      "px": {
+        "x": 156.2,
+        "y": 243.8,
+        "w": 107.5,
+        "h": 32.5
+      }
+    },
+    {
+      "type": "VB.ListBox",
+      "name": "List1",
+      "props": {
+        "BackColor": 16761024,
+        "ForeColor": 8388608,
+        "Height": 2208,
+        "Left": 5175,
+        "Top": 825,
+        "Width": 4065
+      },
+      "children": [],
+      "px": {
+        "x": 431.2,
+        "y": 68.8,
+        "w": 338.8,
+        "h": 184.0
+      }
+    },
+    {
+      "type": "VB.ListBox",
+      "name": "List2",
+      "props": {
+        "BackColor": 16692415,
+        "ForeColor": 4194304,
+        "Height": 1968,
+        "Left": 450,
+        "Top": 825,
+        "Width": 4200
+      },
+      "children": [],
+      "px": {
+        "x": 37.5,
+        "y": 68.8,
+        "w": 350.0,
+        "h": 164.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Label3",
+      "props": {
+        "ForeColor": 16777215,
+        "Height": 690,
+        "Left": 0,
+        "MouseIcon": "Expo.frx",
+        "Top": 0,
+        "Width": 765
+      },
+      "children": [],
+      "px": {
+        "x": 0.0,
+        "y": 0.0,
+        "w": 63.8,
+        "h": 57.5
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Label2",
+      "props": {
+        "Caption": "גזירות נבחרות",
+        "ForeColor": 16761024,
+        "Height": 315,
+        "Index": 2,
+        "Left": 1725,
+        "Top": 3375,
+        "Width": 1890
+      },
+      "children": [],
+      "px": {
+        "x": 143.8,
+        "y": 281.2,
+        "w": 157.5,
+        "h": 26.2
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Label2",
+      "props": {
+        "Caption": "שם הגזירה",
+        "ForeColor": 16761024,
+        "Height": 315,
+        "Index": 1,
+        "Left": 1875,
+        "Top": 525,
+        "Width": 1890
+      },
+      "children": [],
+      "px": {
+        "x": 156.2,
+        "y": 43.8,
+        "w": 157.5,
+        "h": 26.2
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Label2",
+      "props": {
+        "Caption": "שם התמונה",
+        "ForeColor": 16761024,
+        "Height": 315,
+        "Index": 0,
+        "Left": 6600,
+        "Top": 525,
+        "Width": 1890
+      },
+      "children": [],
+      "px": {
+        "x": 550.0,
+        "y": 43.8,
+        "w": 157.5,
+        "h": 26.2
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Label1",
+      "props": {
+        "Caption": "0",
+        "ForeColor": 16777215,
+        "Height": 315,
+        "Left": 3450,
+        "Top": 5475,
+        "Width": 1140
+      },
+      "children": [],
+      "px": {
+        "x": 287.5,
+        "y": 456.2,
+        "w": 95.0,
+        "h": 26.2
+      }
+    },
+    {
+      "type": "VB.Image",
+      "name": "Image1",
+      "props": {
+        "Height": 2475,
+        "Left": 5400,
+        "Top": 3375,
+        "Width": 3585
+      },
+      "children": [],
+      "px": {
+        "x": 450.0,
+        "y": 281.2,
+        "w": 298.8,
+        "h": 206.2
+      }
+    }
+  ],
+  "design": {
+    "width": 796,
+    "height": 619,
+    "client_w_twips": 9552,
+    "client_h_twips": 7428
+  }
+}

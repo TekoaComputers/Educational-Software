@@ -1,0 +1,597 @@
+{
+  "type": "VB.Form",
+  "name": "ChGames",
+  "props": {
+    "BackColor": 8421504,
+    "BorderStyle": 0,
+    "Caption": "Choice Games",
+    "ClientHeight": 7224,
+    "ClientLeft": 1080,
+    "ClientTop": 1272,
+    "ClientWidth": 9600,
+    "ScaleHeight": 602,
+    "ScaleMode": 3,
+    "ScaleWidth": 800
+  },
+  "children": [
+    {
+      "type": "VB.OptionButton",
+      "name": "ChG",
+      "props": {
+        "Height": 720,
+        "Index": 4,
+        "Left": 300,
+        "Picture": "CHGAMES.frx",
+        "Top": 5550,
+        "Width": 840
+      },
+      "children": [],
+      "px": {
+        "x": 25.0,
+        "y": 462.5,
+        "w": 70.0,
+        "h": 60.0
+      }
+    },
+    {
+      "type": "VB.OptionButton",
+      "name": "ChG",
+      "props": {
+        "Height": 720,
+        "Index": 3,
+        "Left": 1275,
+        "Picture": "CHGAMES.frx",
+        "Top": 5550,
+        "Width": 840
+      },
+      "children": [],
+      "px": {
+        "x": 106.2,
+        "y": 462.5,
+        "w": 70.0,
+        "h": 60.0
+      }
+    },
+    {
+      "type": "VB.OptionButton",
+      "name": "ChG",
+      "props": {
+        "Height": 720,
+        "Index": 2,
+        "Left": 2250,
+        "Picture": "CHGAMES.frx",
+        "Top": 5550,
+        "Width": 840
+      },
+      "children": [],
+      "px": {
+        "x": 187.5,
+        "y": 462.5,
+        "w": 70.0,
+        "h": 60.0
+      }
+    },
+    {
+      "type": "VB.OptionButton",
+      "name": "ChG",
+      "props": {
+        "Height": 720,
+        "Index": 1,
+        "Left": 3225,
+        "Picture": "CHGAMES.frx",
+        "Top": 5550,
+        "Width": 840
+      },
+      "children": [],
+      "px": {
+        "x": 268.8,
+        "y": 462.5,
+        "w": 70.0,
+        "h": 60.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "P_W",
+      "props": {
+        "Height": 5130,
+        "Left": 1500,
+        "ScaleHeight": 5088,
+        "ScaleWidth": 7848,
+        "Top": 300,
+        "Width": 7890
+      },
+      "children": [],
+      "px": {
+        "x": 125.0,
+        "y": 25.0,
+        "w": 657.5,
+        "h": 427.5
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "Picture1",
+      "props": {
+        "Height": 1455,
+        "Left": 5250,
+        "ScaleHeight": 1404,
+        "ScaleWidth": 3084,
+        "Top": 5550,
+        "Width": 3135
+      },
+      "children": [
+        {
+          "type": "VB.ListBox",
+          "name": "List2",
+          "props": {
+            "BackColor": 16761024,
+            "ForeColor": 4194304,
+            "Height": 624,
+            "Left": 0,
+            "Top": 0,
+            "Width": 3105
+          },
+          "children": [],
+          "px": {
+            "x": 0.0,
+            "y": 0.0,
+            "w": 258.8,
+            "h": 52.0
+          }
+        }
+      ],
+      "px": {
+        "x": 437.5,
+        "y": 462.5,
+        "w": 261.2,
+        "h": 121.2
+      }
+    },
+    {
+      "type": "VB.CommandButton",
+      "name": "Ed_But",
+      "props": {
+        "Height": 465,
+        "Index": 2,
+        "Left": 8520,
+        "Top": 6495,
+        "Width": 945
+      },
+      "children": [],
+      "px": {
+        "x": 710.0,
+        "y": 541.2,
+        "w": 78.8,
+        "h": 38.8
+      }
+    },
+    {
+      "type": "VB.CommandButton",
+      "name": "Ed_But",
+      "props": {
+        "Height": 465,
+        "Index": 1,
+        "Left": 8520,
+        "Top": 6015,
+        "Width": 945
+      },
+      "children": [],
+      "px": {
+        "x": 710.0,
+        "y": 501.2,
+        "w": 78.8,
+        "h": 38.8
+      }
+    },
+    {
+      "type": "VB.CommandButton",
+      "name": "Ed_But",
+      "props": {
+        "Height": 465,
+        "Index": 0,
+        "Left": 8520,
+        "Top": 5535,
+        "Width": 945
+      },
+      "children": [],
+      "px": {
+        "x": 710.0,
+        "y": 461.2,
+        "w": 78.8,
+        "h": 38.8
+      }
+    },
+    {
+      "type": "VB.CommandButton",
+      "name": "butt_list",
+      "props": {
+        "BackColor": 12632256,
+        "Height": 765,
+        "Index": 2,
+        "Left": 2175,
+        "Top": 6375,
+        "Width": 1035
+      },
+      "children": [],
+      "px": {
+        "x": 181.2,
+        "y": 531.2,
+        "w": 86.2,
+        "h": 63.8
+      }
+    },
+    {
+      "type": "VB.OptionButton",
+      "name": "ChG",
+      "props": {
+        "Height": 750,
+        "Index": 0,
+        "Left": 4200,
+        "Picture": "CHGAMES.frx",
+        "Top": 5550,
+        "Width": 840
+      },
+      "children": [],
+      "px": {
+        "x": 350.0,
+        "y": 462.5,
+        "w": 70.0,
+        "h": 62.5
+      }
+    },
+    {
+      "type": "VB.CommandButton",
+      "name": "endof",
+      "props": {
+        "Caption": "x",
+        "Height": 285,
+        "Left": 9300,
+        "MouseIcon": "CHGAMES.frx",
+        "Top": 0,
+        "Width": 315
+      },
+      "children": [],
+      "px": {
+        "x": 775.0,
+        "y": 0.0,
+        "w": 26.2,
+        "h": 23.8
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "BorderStyle": 1,
+        "ForeColor": 2147483656,
+        "Height": 225,
+        "Index": 7,
+        "Left": 9225,
+        "Top": 5175,
+        "Visible": 0,
+        "Width": 105
+      },
+      "children": [],
+      "px": {
+        "x": 768.8,
+        "y": 431.2,
+        "w": 8.8,
+        "h": 18.8
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "BorderStyle": 1,
+        "ForeColor": 2147483656,
+        "Height": 225,
+        "Index": 6,
+        "Left": 3525,
+        "Top": 6450,
+        "Visible": 0,
+        "Width": 105
+      },
+      "children": [],
+      "px": {
+        "x": 293.8,
+        "y": 537.5,
+        "w": 8.8,
+        "h": 18.8
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "BorderStyle": 1,
+        "ForeColor": 2147483656,
+        "Height": 255,
+        "Index": 9,
+        "Left": 3375,
+        "Top": 6450,
+        "Visible": 0,
+        "Width": 105
+      },
+      "children": [],
+      "px": {
+        "x": 281.2,
+        "y": 537.5,
+        "w": 8.8,
+        "h": 21.2
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "BorderStyle": 1,
+        "ForeColor": 2147483656,
+        "Height": 225,
+        "Index": 5,
+        "Left": 4035,
+        "Top": 5400,
+        "Visible": 0,
+        "Width": 105
+      },
+      "children": [],
+      "px": {
+        "x": 336.2,
+        "y": 450.0,
+        "w": 8.8,
+        "h": 18.8
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "BorderStyle": 1,
+        "ForeColor": 2147483656,
+        "Height": 225,
+        "Index": 4,
+        "Left": 3015,
+        "Top": 5400,
+        "Visible": 0,
+        "Width": 105
+      },
+      "children": [],
+      "px": {
+        "x": 251.2,
+        "y": 450.0,
+        "w": 8.8,
+        "h": 18.8
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "BorderStyle": 1,
+        "ForeColor": 2147483656,
+        "Height": 225,
+        "Index": 3,
+        "Left": 2295,
+        "Top": 5400,
+        "Visible": 0,
+        "Width": 105
+      },
+      "children": [],
+      "px": {
+        "x": 191.2,
+        "y": 450.0,
+        "w": 8.8,
+        "h": 18.8
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "BorderStyle": 1,
+        "ForeColor": 2147483656,
+        "Height": 225,
+        "Index": 2,
+        "Left": 1155,
+        "Top": 5430,
+        "Visible": 0,
+        "Width": 105
+      },
+      "children": [],
+      "px": {
+        "x": 96.2,
+        "y": 452.5,
+        "w": 8.8,
+        "h": 18.8
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "BorderStyle": 1,
+        "ForeColor": 2147483656,
+        "Height": 255,
+        "Index": 8,
+        "Left": 8760,
+        "Top": 0,
+        "Visible": 0,
+        "Width": 105
+      },
+      "children": [],
+      "px": {
+        "x": 730.0,
+        "y": 0.0,
+        "w": 8.8,
+        "h": 21.2
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "BorderStyle": 1,
+        "ForeColor": 2147483656,
+        "Height": 255,
+        "Index": 1,
+        "Left": 45,
+        "Top": 4275,
+        "Visible": 0,
+        "Width": 105
+      },
+      "children": [],
+      "px": {
+        "x": 3.8,
+        "y": 356.2,
+        "w": 8.8,
+        "h": 21.2
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbtip",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "BorderStyle": 1,
+        "ForeColor": 2147483656,
+        "Height": 255,
+        "Index": 0,
+        "Left": 105,
+        "Top": 1755,
+        "Visible": 0,
+        "Width": 105
+      },
+      "children": [],
+      "px": {
+        "x": 8.8,
+        "y": 146.2,
+        "w": 8.8,
+        "h": 21.2
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "lbHelp",
+      "props": {
+        "Height": 1320,
+        "Left": 90,
+        "MouseIcon": "CHGAMES.frx",
+        "Top": 2805,
+        "Width": 1095
+      },
+      "children": [],
+      "px": {
+        "x": 7.5,
+        "y": 233.8,
+        "w": 91.2,
+        "h": 110.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "N_Bmp",
+      "props": {
+        "BackColor": 2147483653,
+        "Caption": "תפריט  גזירות",
+        "ForeColor": 65535,
+        "Height": 255,
+        "Index": 1,
+        "Left": 7290,
+        "MouseIcon": "CHGAMES.frx",
+        "Top": 0,
+        "Width": 1905
+      },
+      "children": [],
+      "px": {
+        "x": 607.5,
+        "y": 0.0,
+        "w": 158.8,
+        "h": 21.2
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "N_Bmp",
+      "props": {
+        "BackColor": 2147483653,
+        "ForeColor": 65535,
+        "Height": 255,
+        "Index": 0,
+        "Left": 0,
+        "MouseIcon": "CHGAMES.frx",
+        "Top": 0,
+        "Width": 1035
+      },
+      "children": [],
+      "px": {
+        "x": 0.0,
+        "y": 0.0,
+        "w": 86.2,
+        "h": 21.2
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Label1",
+      "props": {
+        "Height": 1185,
+        "Left": 75,
+        "MouseIcon": "CHGAMES.frx",
+        "Top": 360,
+        "Width": 1155
+      },
+      "children": [],
+      "px": {
+        "x": 6.2,
+        "y": 30.0,
+        "w": 96.2,
+        "h": 98.8
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "TxtZman",
+      "props": {
+        "BackColor": 8388608,
+        "ForeColor": 16777215,
+        "Height": 285,
+        "Left": 0,
+        "Top": 0,
+        "Width": 9315
+      },
+      "children": [],
+      "px": {
+        "x": 0.0,
+        "y": 0.0,
+        "w": 776.2,
+        "h": 23.8
+      }
+    }
+  ],
+  "design": {
+    "width": 800,
+    "height": 602,
+    "client_w_twips": 9600,
+    "client_h_twips": 7224
+  }
+}
