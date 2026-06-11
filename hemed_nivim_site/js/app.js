@@ -273,6 +273,84 @@
                 return;
             }
         });
+
+        // MF-4 — Hemed-only goat strip across the bottom (Nivim has
+        // `Exit Sub` at top of GoatRunTimer per orig:393). Two goats
+        // walk left across the form using GameHaklada goat1_/goat2_
+        // sprite sets (shared with Haklada's status 1 + 2 animations).
+        // Orig GoatRunTimer:418-455 — 80 ms tick, X -= 5 on frames
+        // 5..18 (skipping mode-1 frames 4/11/12). Wrap X > 810 → 0,
+        // X < -100 → 800. Frame overflow → random new mode 0/1.
+        if (!isNivim) startHemedGoatStrip(stg);
+    }
+
+    // ===== Hemed MainForm goat strip helper =====
+    function startHemedGoatStrip(stg) {
+        const SPRITE_W = 130, SPRITE_H = 136;
+        // Strip is drawn at form-Y 440 per orig (600-160=440 then
+        // BitBlt 800×150). Goats' relative Y: 0 → -5 / 18.
+        const STRIP_Y = 440;
+        const BASE = "assets/Hemed/pictures/GameHaklada/";
+        const MODE_FRAMES = [21, 15];   // goat1_: 21 frames, goat2_: 15
+        // Build two frame stacks (one per goat). Each stack holds 21+15=36
+        // <img> tags so all frames stay in GPU cache (avoids per-frame
+        // texture flash, same approach as the game goats).
+        function makeGoat(initialX, initialY) {
+            const wrap = document.createElement("div");
+            wrap.className = "ctrl main-goat";
+            wrap.style.left = initialX + "px";
+            wrap.style.top  = (STRIP_Y + initialY) + "px";
+            wrap.style.width  = SPRITE_W + "px";
+            wrap.style.height = SPRITE_H + "px";
+            const imgs = [[], []];          // imgs[mode][frame]
+            for (let m = 0; m < 2; m++) {
+                const prefix = m === 0 ? "goat1_" : "goat2_";
+                for (let f = 0; f < MODE_FRAMES[m]; f++) {
+                    const img = document.createElement("img");
+                    img.className = "main-goat-frame";
+                    img.src = BASE + prefix + f + ".png";
+                    img.draggable = false;
+                    wrap.appendChild(img);
+                    imgs[m].push(img);
+                }
+            }
+            stg.appendChild(wrap);
+            return { wrap, imgs, x: initialX, y: initialY, mode: 0, frame: 0 };
+        }
+        const goats = [
+            makeGoat(780, -5),
+            makeGoat(800, 18),
+        ];
+        function show(g) {
+            // Hide all imgs except the current (mode, frame).
+            for (let m = 0; m < 2; m++) {
+                for (let f = 0; f < g.imgs[m].length; f++) {
+                    g.imgs[m][f].style.opacity =
+                        (m === g.mode && f === g.frame) ? "1" : "0";
+                }
+            }
+            g.wrap.style.left = g.x + "px";
+        }
+        goats.forEach(show);
+        const tickHandle = setInterval(function () {
+            if (!stg.isConnected) { clearInterval(tickHandle); return; }
+            goats.forEach(function (g) {
+                // Overflow check (orig:425-428).
+                if (g.frame >= MODE_FRAMES[g.mode]) {
+                    g.frame = 1;
+                    g.mode  = Math.floor(Math.random() * 2);
+                }
+                // Move X by -5 on frames 5..18, EXCEPT mode-1 frames 4/11/12.
+                const skip = (g.mode === 1 &&
+                              (g.frame === 4 || g.frame === 11 || g.frame === 12));
+                if (!skip && g.frame > 4 && g.frame < 19) g.x -= 5;
+                // Wrap.
+                if (g.x > 810)  g.x = 0;
+                if (g.x < -100) g.x = 800;
+                show(g);
+                g.frame += 1;
+            });
+        }, 80);
     }
 
     // ============== Screen: Unit list (parchment scroll) ==============
@@ -806,18 +884,42 @@
             location.hash = "#/" + appId + "/units";
         }, null, "game-menu");
 
-        // Title bar — Form_Paint draws this in RGB(90,131,252) with a
-        // pale-lavender shadow above (y=8/9), centered around x=400.
+        // Title bar — orig Form_Paint:592-599 builds the string as
+        //   UnitName + AllTips(115) + Subject + AllTips(114) + Rama
+        //                            + AllTips(113) + User + AllTips(112)
+        // AllTips(112..115) are Hebrew separator labels (" של ", " נושא "
+        // etc.). Drawn TWICE: shadow at y=8 in RGB(220,221,252), main at
+        // y=9 in RGB(90,131,252) — a vertical-only 1 px drop shadow.
         let userName = "";
         try { userName = localStorage.getItem("hnd." + appId + ".user") || ""; } catch (e) {}
         let rama = "";
         try { rama = localStorage.getItem("hnd." + appId + ".rama") || ""; } catch (e) {}
-        const titleParts = [unit.name, unit.category, rama, userName].filter(Boolean);
-        const title = el("div", { class: "ctrl game-menu-title", text: titleParts.join(" · ") });
+        function buildTitleStr() {
+            const sep115 = HND.tip(appId, 115) || " · ";
+            const sep114 = HND.tip(appId, 114) || " · ";
+            const sep113 = HND.tip(appId, 113) || " · ";
+            const sep112 = HND.tip(appId, 112) || "";
+            let s = unit.name || "";
+            if (unit.category) s += sep115 + unit.category;
+            if (rama)          s += sep114 + rama;
+            if (userName)      s += sep113 + userName + sep112;
+            return s;
+        }
+        const title = el("div", { class: "ctrl game-menu-title", text: buildTitleStr() });
         stg.appendChild(title);
+        // Re-render once tips.json loads in.
+        if (HND.loadTips) HND.loadTips(appId).then(function () {
+            title.textContent = buildTitleStr();
+        });
 
         // windowPic — preview parchment, hidden until a sign is hovered.
-        const preview = el("div", { class: "ctrl game-menu-preview" });
+        // Orig windowPic_Click:710-712 — `CmdPlus1_Click selectedGame`
+        // (clicking the preview opens the currently-hovered game).
+        const preview = el("button", { class: "ctrl game-menu-preview" });
+        preview.addEventListener("click", function () {
+            const sign = stg.querySelector(".game-sign.k" + kbSelected);
+            if (sign) sign.click();
+        });
         stg.appendChild(preview);
 
         // ShakePic — grass tufts at the bottom. setBack_Timer cycles through
@@ -882,25 +984,33 @@
             // Hakira has no scoring in the original (GameHakira.frm calls no
             // AddScore / ScoreForm); skip the badge even if a stale localStorage
             // entry survives from earlier builds.
+            // Per-slot key (American 2/3/4 and Haklada 5/6 each have
+            // their own score per orig CurrentGameKind = slot×10).
             const p = slot.game === "hakira"
                 ? null
-                : HND.loadProgress(appId, unit.id, slot.game);
+                : HND.loadProgress(appId, unit.id, HND.gameKey(slot.game, i));
             if (p) {
                 // Original drawScore renders just the integer (no '%').
                 const score = el("span", { class: "game-sign-score", text: String(p.best) });
                 sign.appendChild(score);
             }
-            // CmdPlus1_MouseOn → load window<i>.jpg into windowPic, show it;
-            // and slide the goat to track this sign's Top.
+            // CmdPlus1_MouseOn → load window<i>.jpg, show preview, slide
+            // goat. Orig DOESN'T hide preview on MouseOff (windowPic.Visible
+            // only flips True in MouseOn, never back), so preview is sticky
+            // after first hover — matches orig:370-372. Also sync
+            // `kbSelected` so Enter-after-hover opens the hovered game
+            // (orig CmdPlus1_MouseOn:382 sets selectedGame = Index).
             sign.addEventListener("mouseenter", function () {
                 preview.style.backgroundImage =
                     "url('" + picPath("GameMenu/window" + i + ".png") + "')";
                 preview.classList.add("visible");
                 moveGoatTo(slotTops[i]);
+                kbSelected = i;
+                Array.from(stg.querySelectorAll(".game-sign.kb-sel"))
+                     .forEach(function (s) { s.classList.remove("kb-sel"); });
+                sign.classList.add("kb-sel");
             });
-            sign.addEventListener("mouseleave", function () {
-                preview.classList.remove("visible");
-            });
+            // No mouseleave handler — preview stays visible per orig.
             sign.addEventListener("click", function () {
                 HND.log("click", "game-menu pick", "slot=" + i, "game=" + slot.game,
                         "mode=" + (slot.title || "default"),
@@ -916,6 +1026,64 @@
             });
             stg.appendChild(sign);
         });
+
+        // Collect per-slot scores for the total readout + cleanup buttons.
+        const playedSlots = visibleSlots.filter(function (i) {
+            const slot = KORA_SLOTS[i];
+            if (slot.game === "hakira") return false;
+            const p = HND.loadProgress(appId, unit.id, HND.gameKey(slot.game, i));
+            return p && typeof p.best === "number";
+        });
+
+        // GM-3 — Total score under the exit-icon (orig Form_Paint:614-625
+        // draws Int(sum/n) at (75, 118) in RGB(200,250,160), only when at
+        // least one slot has a score).
+        if (playedSlots.length > 0) {
+            let sum = 0;
+            playedSlots.forEach(function (i) {
+                const slot = KORA_SLOTS[i];
+                const p = HND.loadProgress(appId, unit.id, HND.gameKey(slot.game, i));
+                sum += p.best;
+            });
+            const avg = Math.round(sum / playedSlots.length);
+            const tot = el("div", { class: "ctrl game-menu-total", text: String(avg) });
+            stg.appendChild(tot);
+        }
+
+        // GM-12 — CleanScore button (orig at L=0 T=432 W=55 H=55, visible
+        // only when some slot has a score). Click prompts AllTips(163)
+        // ("האם למחוק...") then wipes per-slot progress for this unit.
+        if (playedSlots.length > 0) {
+            const cleanBtn = el("button", { class: "ctrl game-menu-clean", title: "מחק ציונים" });
+            cleanBtn.addEventListener("click", function () {
+                const msg = (HND.tip(appId, 163) || "האם למחוק את הציונים?") +
+                            "\n" + unit.name;
+                if (!confirm(msg)) return;
+                playedSlots.forEach(function (i) {
+                    const slot = KORA_SLOTS[i];
+                    const key = HND.gameKey(slot.game, i);
+                    try {
+                        localStorage.removeItem(HND._key(appId, unit.id, key));
+                    } catch (e) {}
+                });
+                HND.log("game-menu", "scores cleaned for unit=" + unit.id);
+                // Re-render to drop badges + total.
+                showGameMenu(unit);
+            });
+            stg.appendChild(cleanBtn);
+        }
+
+        // GM-13 — CmdDaf (per-unit lesson notes). Orig Form_Load:572-576
+        // checks for `units\<id>\Daf.txt`; if present, shows a button at
+        // (168, 452, 55, 55) that opens it in ShowDaf. Port: if the unit
+        // data carries a `daf` string, show the button and open it in an
+        // alert-style modal.
+        const dafText = (unit && (unit.daf || (unit.data && unit.data.daf))) || "";
+        if (dafText) {
+            const dafBtn = el("button", { class: "ctrl game-menu-daf", title: "הסבר השיעור" });
+            dafBtn.addEventListener("click", function () { alert(dafText); });
+            stg.appendChild(dafBtn);
+        }
 
         // Keyboard nav — orig GameMenu.frm Form_KeyDown/KeyUp:
         //   F1     → CmdHelp_Click

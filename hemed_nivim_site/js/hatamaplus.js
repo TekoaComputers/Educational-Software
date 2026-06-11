@@ -10,7 +10,7 @@ window.HND = window.HND || {};
 HND.startHatamaPlus = function (root, app, unit, onComplete) {
     HND.log("hatamaplus → match (stub .frm, no own engine)");
     return HND.startMatch(root, app, unit, function (score) {
-        HND.saveProgress(app.id, unit.id, "hatamaplus", score);
+        HND.saveProgress(app.id, unit.id, HND.currentSlotKey(app.id, "hatamaplus"), score);
         if (onComplete) onComplete(score);
     });
 };

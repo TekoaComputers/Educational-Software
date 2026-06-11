@@ -392,21 +392,24 @@ body {
 /* Title bar — Form_Paint draws this at y=8 in RGB(90,131,252) over a
    pale-lavender RGB(220,221,252) shadow row at y=9, centered x=400. */
 .game-menu-title {
-    left: 0; top: 6px; width: 800px;
+    left: 0; top: 9px; width: 800px;
     text-align: center;
     color: rgb(90, 131, 252);
-    text-shadow:
-        0 1px 0 rgb(220, 221, 252),
-        1px 0 0 rgb(220, 221, 252),
-        -1px 0 0 rgb(220, 221, 252);
-    font-size: 1.15rem;
+    /* Orig Form_Paint:598-599 paints twice: shadow row at y=8 in
+       RGB(220,221,252), main row at y=9 in RGB(90,131,252). Pure
+       vertical 1 px drop — no 4-direction halo. */
+    text-shadow: 0 -1px 0 rgb(220, 221, 252);
+    font-size: 1.5rem;
     font-weight: 700;
     direction: rtl;
     pointer-events: none;
 }
 
 /* windowPic preview — L=285 T=2865 W=3075 H=2700 → 19,191,205,180.
-   Hidden until a sign is hovered (CmdPlus1_MouseOn). */
+   Hidden until a sign is hovered (CmdPlus1_MouseOn). Per orig
+   windowPic.Visible is set True on MouseOn and stays True (no MouseOff
+   restore), so once hovered the preview is sticky for the session.
+   Click launches the hovered game (windowPic_Click:710-712). */
 .game-menu-preview {
     left: 19px; top: 191px; width: 205px; height: 180px;
     background-color: transparent;
@@ -415,9 +418,73 @@ body {
     background-position: center;
     opacity: 0;
     transition: opacity 0.18s;
-    pointer-events: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
 }
 .game-menu-preview.visible { opacity: 1; }
+
+/* Total-score readout — orig Form_Paint:614-625 paints
+   `Int(sum/n)` at (75, 118) in RGB(200,250,160), visible only when at
+   least one slot has a score. */
+.game-menu-total {
+    left: 50px; top: 110px; width: 50px;
+    text-align: center;
+    color: rgb(200, 250, 160);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+    font-size: 1.4rem;
+    font-weight: 700;
+    pointer-events: none;
+}
+
+/* CleanScore button — orig at L=0 T=432 W=55 H=55 (off-screen-left).
+   Reuses the exit-style icon as a placeholder since orig had its own
+   asset we don't have. */
+.game-menu-clean {
+    left: 5px; top: 432px; width: 55px; height: 55px;
+    background-color: rgba(120, 30, 30, 0.55);
+    border: 1px solid rgba(80, 20, 20, 0.6);
+    border-radius: 6px;
+    color: #fff8e8;
+    font: 700 0.85rem "David CLM", "Heebo", "Segoe UI", Arial, sans-serif;
+    cursor: pointer;
+    direction: rtl;
+}
+.game-menu-clean:hover  { filter: brightness(1.1); }
+.game-menu-clean:active { filter: brightness(0.9); }
+.game-menu-clean::before { content: "\05de\05d7\05e7"; }   /* "מחק" */
+
+/* CmdDaf — orig at L=168 T=452 W=55 H=55, uses dafu.bmp/dafd.bmp.
+   Asset not shipped; render a styled "דף" button. */
+.game-menu-daf {
+    left: 168px; top: 452px; width: 55px; height: 55px;
+    background-color: rgba(160, 130, 70, 0.65);
+    border: 1px solid rgba(110, 80, 30, 0.7);
+    border-radius: 6px;
+    color: #fff8e8;
+    font: 700 1rem "David CLM", "Heebo", "Segoe UI", Arial, sans-serif;
+    cursor: pointer;
+    direction: rtl;
+}
+.game-menu-daf:hover  { filter: brightness(1.1); }
+.game-menu-daf:active { filter: brightness(0.9); }
+.game-menu-daf::before { content: "\05d3\05e3";  }   /* "דף" */
+
+/* MainForm running-goat strip (Hemed only). Container holds two
+   absolute-positioned <div>s, each with stacked <img> frames at
+   opacity:0; JS toggles the active frame's opacity per tick. */
+.main-goat {
+    pointer-events: none;
+    z-index: 2;
+}
+.main-goat-frame {
+    position: absolute;
+    left: 0; top: 0;
+    width: 130px; height: 136px;
+    opacity: 0;
+    user-select: none;
+    pointer-events: none;
+}
 
 /* GoatArow — 2-frame goat sprite at x=712, drawn 90×70 per the BitBlt
    call in setBack_Timer. Slides vertically to GoatY = avg(GoatY, target).
@@ -1225,13 +1292,15 @@ body {
     background-image: url("../assets/Hemed/pictures/replay_on.png");
 }
 
-/* Divider anchors at --apple-div-x (= Middle*7.5 + 25 per .frm:531).
-   width=8 matches middle.png native, height=49 → we round up to 60. */
+/* Divider (MiddlePic) — orig GameApple.frm:531:
+     MiddlePic.MaskB CurrentUnit.Middle * 7.5 + 25, 550
+   MaskB positions the TOP-LEFT of the sprite at (X, 550). Native size
+   is 8 × 49 from middle.png; no stretch. */
 .apple-divider {
-    left: calc(var(--apple-div-x, 400px) - 4px);
-    top: 528px; width: 8px; height: 60px;
+    left: var(--apple-div-x, 400px);
+    top: 550px; width: 8px; height: 49px;
     background-image: url("../assets/Hemed/pictures/GameApple/middle.png");
-    background-size: 100% 100%; background-repeat: no-repeat;
+    background-size: 8px 49px; background-repeat: no-repeat;
     pointer-events: none;
 }
 
@@ -1277,8 +1346,13 @@ body {
     background-image: url("../assets/Hemed/pictures/GameApple/q_mark1.png");
 }
 
+/* CmdSound (the speaker button). Orig GameApple.frm:96-108 —
+   Left=11040t Top=4185t W=510t H=510t → (736, 279, 34×34). Sits in
+   the upper-right area, BETWEEN the foliage and the right edge —
+   NOT at the bottom near the Q text. (Port previously had it at
+   (732, 540) which placed it at the bottom-right corner — wrong.) */
 .apple-sound {
-    left: 732px; top: 540px; width: 40px; height: 40px;
+    left: 736px; top: 279px; width: 34px; height: 34px;
     background-image: url("../assets/Hemed/pictures/GameApple/sound.png");
     background-size: 100% 100%; background-repeat: no-repeat;
     background-color: transparent;

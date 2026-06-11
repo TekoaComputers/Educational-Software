@@ -147,6 +147,28 @@ HND._currentUser = function (appId) {
 HND._key = function (appId, unitId, gameId) {
     return "hnd." + HND._currentUser(appId) + "." + appId + "." + unitId + "." + gameId;
 };
+// Map (game, slot) → progress-key. Orig GameMenu.frm scores per CmdPlus1
+// slot (GameId = slot×10, badge keyed by `Mid(CStr(GameId),1,1)`), so the
+// THREE American variants (slots 2/3/4) and TWO Haklada variants (5/6)
+// each have their own score. Single-slot games keep their plain name.
+HND.SLOT_KEYS = {
+    2: "american_sound", 3: "american_pic", 4: "american_text",
+    5: "haklada_reg",    6: "haklada_dict",
+};
+HND.gameKey = function (game, slotIdx) {
+    if (slotIdx == null) return game;
+    return HND.SLOT_KEYS[slotIdx] || game;
+};
+// Each game runner reads sessionStorage.lastSlot (set by GameMenu click)
+// to derive its own slot-specific key.
+HND.currentSlotKey = function (appId, fallbackGame) {
+    let slot = null;
+    try {
+        const raw = sessionStorage.getItem("hnd." + appId + ".lastSlot");
+        if (raw != null && raw !== "") slot = parseInt(raw, 10);
+    } catch (e) {}
+    return HND.gameKey(fallbackGame, slot);
+};
 HND.loadProgress = function (appId, unitId, gameId) {
     try {
         const raw = localStorage.getItem(HND._key(appId, unitId, gameId));

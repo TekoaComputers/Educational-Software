@@ -588,7 +588,7 @@ HND.startConnect = function (root, app, unit, onComplete) {
             return game.errorsByItem.hasOwnProperty(idx)
                 ? game.errorsByItem[idx] : 0;
         });
-        HND.saveProgress(app.id, unit.id, "connect", score, errorsByQ);
+        HND.saveProgress(app.id, unit.id, HND.currentSlotKey(app.id, "connect"), score, errorsByQ);
         runWinAnimation(score, errorsByQ);
         if (onComplete) onComplete(score);
     }

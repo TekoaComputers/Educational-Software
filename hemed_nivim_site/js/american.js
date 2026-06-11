@@ -564,7 +564,7 @@ HND.startAmerican = function (root, app, unit, onComplete) {
         state.completed = true;
         const score = Math.max(0, 100 - Math.floor(state.penalty));
         HND.log("american FINISH", "score=" + score, "penalty=" + state.penalty);
-        HND.saveProgress(app.id, unit.id, "american", score, state.errorsByQ);
+        HND.saveProgress(app.id, unit.id, HND.currentSlotKey(app.id, "american"), score, state.errorsByQ);
         // Orig TimerGoat:870-878 — Current>QCount triggers GoatStatus=6
         // (win-loop) and plays Win.WAV. Goat dances at its last-walked
         // position (the just-completed flower); raise z-index so it

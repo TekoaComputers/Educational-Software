@@ -1027,7 +1027,7 @@ HND.startApple = function (root, app, unit, onComplete) {
             // actual drain math (AddScore × ticks + bonuses) per orig
             // SoundStatus=-999 → `AddScore CurrentUnit.unitId, ...` flow.
             HND.log("apple FINISH", "score=" + finalScore);
-            HND.saveProgress(app.id, unit.id, "apple", finalScore, state.errorsByQ);
+            HND.saveProgress(app.id, unit.id, HND.currentSlotKey(app.id, "apple"), finalScore, state.errorsByQ);
             HND.playWave("assets/" + app.id + "/sounds/score_" + bucket + ".wav", function () {
                 setTimeout(function () {
                     HND.showScoreForm(

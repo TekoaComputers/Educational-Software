@@ -433,7 +433,7 @@ HND.startMatch = function (root, app, unit, onComplete) {
         const score = Math.max(0, 100 - Math.floor(state.penalty));
         HND.log("match FINISH", "score=" + score, "penalty=" + state.penalty);
         setGoatPose("win");
-        HND.saveProgress(app.id, unit.id, "match", score, state.errorsPerQ);
+        HND.saveProgress(app.id, unit.id, HND.currentSlotKey(app.id, "match"), score, state.errorsPerQ);
         // Original WaveMe_Done Case 100 → plays Win.WAV → Case 101 → WinGame.
         // WinGame calls ScoreForm.ShowGameScore. We delay 800ms (matching the
         // praise-wave window) and then show our ScoreForm overlay.

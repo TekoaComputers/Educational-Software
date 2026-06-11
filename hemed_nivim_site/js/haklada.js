@@ -686,7 +686,7 @@ HND.startHaklada = function (root, app, unit, onComplete) {
         state.completed = true;
         const score = Math.max(0, 100 - Math.floor(state.penalty));
         HND.log("haklada FINISH", "score=" + score, "penalty=" + state.penalty);
-        HND.saveProgress(app.id, unit.id, "haklada", score, state.errorsByQ);
+        HND.saveProgress(app.id, unit.id, HND.currentSlotKey(app.id, "haklada"), score, state.errorsByQ);
         // Win loop + win.wav (orig TimerGoat case 6 line 744; ScoreForm
         // opens from WaveMe_Done case 79 — AFTER win.wav finishes).
         // Goat stays at its last-walked position (just-completed flower)
