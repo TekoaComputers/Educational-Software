@@ -209,8 +209,16 @@
         });
         entry.title = "כניסה לתרגול";
         entry.addEventListener("click", function () {
+            // Validate user name — orig CmdShowUnits_Click:323 calls
+            // CheckUser which prompts for one if blank.
+            if (!user.value.trim()) {
+                user.focus();
+                alert("נא להזין שם תלמיד תחילה");
+                return;
+            }
+            try { localStorage.setItem("hnd." + appId + ".user", user.value); } catch (e) {}
             try { localStorage.setItem("hnd." + appId + ".rama", rama.value || ""); } catch (e) {}
-            HND.log("click", "main entry", "user=" + (user.value || "?"), "rama=" + (rama.value || "?"));
+            HND.log("click", "main entry", "user=" + user.value, "rama=" + (rama.value || "?"));
             location.hash = "#/" + appId + "/units";
         });
         stg.appendChild(entry);
@@ -268,6 +276,12 @@
             if (e.key === "F5")    { e.preventDefault(); location.hash = "#/" + appId + "/units?edit"; return; }
             if (e.key === "Enter") {
                 e.preventDefault();
+                if (!user.value.trim()) {
+                    user.focus();
+                    alert("נא להזין שם תלמיד תחילה");
+                    return;
+                }
+                try { localStorage.setItem("hnd." + appId + ".user", user.value); } catch (e2) {}
                 try { localStorage.setItem("hnd." + appId + ".rama", rama.value || ""); } catch (e2) {}
                 location.hash = "#/" + appId + "/units";
                 return;
@@ -584,6 +598,18 @@
         padCell.className = "cell unit-list-pad";
         scores.appendChild(padCell);
 
+        // Scroll-into-view if needed — orig ListPlus.ctl:165 pattern.
+        // Instant (no smooth) to avoid racing the custom scrollbar.
+        function scrollRowIntoView(rowEl) {
+            const cRect = list.getBoundingClientRect();
+            const rRect = rowEl.getBoundingClientRect();
+            const padTop = 8, padBot = 8;
+            if (rRect.top < cRect.top + padTop) {
+                list.scrollTop -= (cRect.top + padTop) - rRect.top;
+            } else if (rRect.bottom > cRect.bottom - padBot) {
+                list.scrollTop += rRect.bottom - (cRect.bottom - padBot);
+            }
+        }
         // Selection helper — used by row click + auto-select + restore.
         function selectUnit(u, row, cell) {
             Array.from(list.children).forEach(function (c) { c.classList.remove("sel"); });
@@ -592,6 +618,10 @@
             if (cell) cell.classList.add("sel");
             currentUnit = u;
             unitListSelectedId = u.id;
+            // Auto-scroll the row into view so the selection highlight
+            // doesn't get clipped by the top/bottom 4 px mask-fade
+            // (issue #32 — "selection box cuts off midway").
+            scrollRowIntoView(row);
             HND.log("click", "unit-list pick", "unit=" + u.id, "name=" + u.name,
                     "items=" + ((u.data && u.data.items) ? u.data.items.length : 0));
         }
@@ -637,22 +667,6 @@
                 if (renderedRows[i].unit.id === currentUnit.id) return i;
             }
             return -1;
-        }
-        // Orig ListPlus.ctl:165 — scrolls only if the new selection is
-        // outside the visible area, and does so INSTANTLY (sets
-        // ScrollPlus.value directly). No smooth animation, no scroll
-        // when already in view. Smooth animation here would race the
-        // custom-scrollbar sync + queue up under rapid key holds.
-        function scrollRowIntoView(rowEl) {
-            const cRect = list.getBoundingClientRect();
-            const rRect = rowEl.getBoundingClientRect();
-            const padTop    = 5;     // matches .unit-scroll padding-top
-            const padBottom = 5;
-            if (rRect.top < cRect.top + padTop) {
-                list.scrollTop -= (cRect.top + padTop) - rRect.top;
-            } else if (rRect.bottom > cRect.bottom - padBottom) {
-                list.scrollTop += rRect.bottom - (cRect.bottom - padBottom);
-            }
         }
         function moveSelection(delta) {
             const cur = currentRowIdx();
@@ -1234,7 +1248,7 @@
     // single-active student is tagged with ★.
     function showStudentManager() {
         HND.log("screen", "students", "app=" + appId);
-        const stg = makeStage(picPath("Main/studentBack.jpg"));
+        const stg = makeStage(picPath("Main/studentback.jpg"));
 
         // CmdExit + CmdHelp at original .frm positions (5,2 / 740,2 / 55×55).
         const exit = el("button", {

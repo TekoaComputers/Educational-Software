@@ -315,30 +315,39 @@ HND.startApple = function (root, app, unit, onComplete) {
     // each basket once at BasketPos and never re-paints prior baskets on
     // stage transitions. We mirror that with a parallel stages array so
     // later stage flips don't recolor history.
+    // Update-in-place. Wiping basketLayer.innerHTML each call (during
+    // score-drain, ~10×/sec) forced the browser to re-allocate the
+    // background-image url even from cache → visible flash per basket.
+    // Keep one <div> per qIdx and only mutate its inline backgroundImage.
+    const basketNodes = {};
     function renderBaskets() {
-        basketLayer.innerHTML = "";
         state.baskets.forEach(function (errors, qi) {
             if (errors == null) return;
             if (qi >= BASKET_POS.length) return;
             const p = BASKET_POS[qi];
-            const b = HND._el("div", { class: "ctrl apple-basket" });
             const basketStage = state.basketStages[qi] != null
                               ? state.basketStages[qi] : state.stage;
-            // Sprite N = current GOOD apples in basket. Default: 8 - errors
-            // (initial state). During score-drain, state.basketsLiveGood[qi]
-            // overrides and decrements toward 0 — basket VISIBLY EMPTIES per
-            // orig ScoreTimer (.frm:765-774).
             const baseGood = 8 - errors;
             const liveOverride = state.basketsLiveGood
                               && state.basketsLiveGood[qi] != null
                               ?  state.basketsLiveGood[qi] : null;
             const good = liveOverride != null ? liveOverride : baseGood;
             const n = Math.max(0, Math.min(8, good));
-            b.style.cssText =
-                "left:" + p[0] + "px; top:" + (p[1] - 20) + "px;" +
-                "background-image: url('assets/" + app.id +
-                "/pictures/GameApple/basket" + basketStage + "_" + n + ".png');";
-            basketLayer.appendChild(b);
+            const url = "assets/" + app.id +
+                        "/pictures/GameApple/basket" + basketStage + "_" + n + ".png";
+            let b = basketNodes[qi];
+            if (!b) {
+                b = HND._el("div", { class: "ctrl apple-basket" });
+                b.style.left = p[0] + "px";
+                b.style.top  = (p[1] - 20) + "px";
+                basketNodes[qi] = b;
+                basketLayer.appendChild(b);
+            }
+            const desired = "url(\"" + url + "\")";
+            if (b._curUrl !== desired) {
+                b.style.backgroundImage = desired;
+                b._curUrl = desired;
+            }
         });
     }
     function addBasketFor(qIdx, errorCount) {
@@ -450,10 +459,18 @@ HND.startApple = function (root, app, unit, onComplete) {
     function _applyGoatClass(stateName) {
         // Keep "visible" + class hooks for non-sprite styling (eat-walk
         // background-size override, transform animations for walk-translate).
-        ["enter", "stand", "sad", "yes", "no", "eat", "pick",
-         "pick-walk", "eat-walk", "win", "win-loop"]
-            .forEach(function (s) { goat.classList.remove(s); });
-        void goat.offsetWidth;
+        //
+        // No reflow between remove + add — a forced `void offsetWidth`
+        // can prompt the browser to paint the no-class state (default
+        // transform), making the goat snap to translateX(0) for one
+        // frame mid-chain. The pose class always changes between calls
+        // (chained via setGoat onDone), so animation re-trigger isn't
+        // needed.
+        const POSES = ["enter", "stand", "sad", "yes", "no", "eat",
+                       "pick", "pick-walk", "eat-walk", "win", "win-loop"];
+        for (let i = 0; i < POSES.length; i++) {
+            if (POSES[i] !== stateName) goat.classList.remove(POSES[i]);
+        }
         if (stateName) goat.classList.add(stateName);
         goat.classList.add("visible");
     }
@@ -1030,10 +1047,15 @@ HND.startApple = function (root, app, unit, onComplete) {
             HND.saveProgress(app.id, unit.id, HND.currentSlotKey(app.id, "apple"), finalScore, state.errorsByQ);
             HND.playWave("assets/" + app.id + "/sounds/score_" + bucket + ".wav", function () {
                 setTimeout(function () {
+                    // skipWave: apple has already played the per-bucket
+                    // score_*.wav above before the 1.7 s finale pause
+                    // (per orig SoundStatus=-999 flow). showScoreForm
+                    // would otherwise play it AGAIN.
                     HND.showScoreForm(
                         stage, app.id, unit.name, userName, finalScore, state.errorsByQ,
                         function onExit()   { location.hash = "#/" + app.id + "/unit/" + unit.id + "/games"; },
-                        function onReplay() { HND.restartGame(app.id, unit.id, "apple"); }
+                        function onReplay() { HND.restartGame(app.id, unit.id, "apple"); },
+                        { skipWave: true }
                     );
                 }, 1705);
             });
@@ -1071,12 +1093,16 @@ HND.startApple = function (root, app, unit, onComplete) {
         if (drainPlan.length) {
             setTimeout(drainTick, 400);                  // brief pause before drain
         } else {
-            // Perfect game (no baskets to drain): credit full 100, play
-            // Win.WAV, then chain into finishAndShowScore on its end so
-            // the score wave doesn't overlap Win.WAV.
-            totalScore = 100; renderLiveScore(100); setGoat("win");
-            winFired = true;
-            HND.playWave("assets/" + app.id + "/sounds/win.wav", finishAndShowScore);
+            // No good apples to drain — could be EITHER a perfect game
+            // (no baskets needed, totalScore stays at the running value
+            // which is high if all answered correctly with no error
+            // contributions) OR all-failed (every basket has 8 errors →
+            // 0 good apples). Don't hard-credit 100; just finish with
+            // whatever totalScore accumulated during gameplay (which
+            // is 0 for the failed case since orig only awards score
+            // during the ScoreTimer drain).
+            HND.log("apple drain", "empty plan — skip directly to score");
+            setTimeout(finishAndShowScore, 600);
         }
         if (onComplete) onComplete(0);
     }

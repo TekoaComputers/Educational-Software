@@ -222,11 +222,24 @@ HND.startConnect = function (root, app, unit, onComplete) {
     function simTick() {
         const sel = state.hoverId;   // hover, not pick — orig SelectedId
         const ch  = state.selected;  // pick — orig ChosenId
+        // Suppress hover-freeze + repulsion while ANY box is still
+        // travelling toward its target — i.e. during the initial
+        // fly-in scatter and during the post-click "fly to bottom"
+        // animation. Otherwise hovering grabs a box mid-flight and
+        // freezes it on the spot. Orig technically does the same, but
+        // the desired UX (per user) is: only hover-arrest at rest.
+        let settled = true;
+        for (let i = 0; i < boxes.length; i++) {
+            const b = boxes[i];
+            if (Math.abs(b.x - b.xk) > 2 || Math.abs(b.y - b.yk) > 2) {
+                settled = false; break;
+            }
+        }
         for (let i = 0; i < boxes.length; i++) {
             const b = boxes[i];
             let Fx = -PHYS.k * (b.x - b.xk);
             let Fy = -PHYS.k * (b.y - b.yk);
-            if (sel != null) {
+            if (sel != null && settled) {
                 if (i === sel || i === ch) {
                     Fx = 0; Fy = 0; b.vx = 0; b.vy = 0;
                 } else {
@@ -254,8 +267,17 @@ HND.startConnect = function (root, app, unit, onComplete) {
         // set) and hide (selected null) paths internally. Without an
         // unconditional call, clearing state.selected wouldn't hide the
         // ball cursor at its last-stuck position.
+        //
+        // Rate: orig Timer_Timer:622 — `ropeTiming = ropeTiming + 25 / DisBM`.
+        // Far cursor → DisBM large → wave barely advances (calm rope);
+        // close cursor → DisBM ≈ 10 → wave advances ~2.5/tick (lively).
+        // A flat `+1` made the rope thrash even when stationary far away.
         if (state.selected != null) {
-            state.ropeTiming = (state.ropeTiming + 1) % 50;
+            const b = boxes[state.selected];
+            const bx = b.x + b.w / 2, by = b.y + b.h / 2;
+            const dx = state.mouseX - bx, dy = state.mouseY - by;
+            const DisBM = 10 + Math.pow(dx * dx + dy * dy, 0.25);
+            state.ropeTiming = (state.ropeTiming + 25 / DisBM) % 50;
         }
         drawWavyRope();
     }
@@ -268,46 +290,87 @@ HND.startConnect = function (root, app, unit, onComplete) {
         if (tickHandle) { clearInterval(tickHandle); tickHandle = null; }
     }
 
-    // Wavy rope from ChosenId box to cursor (orig Timer_Timer:725-735).
-    //   DisBM = 10 + (dx² + dy²)^0.25 — distance with smoothing offset
-    //   numberOfLoops = Int(DisBM) * 1.5 — more segments when far
-    //   per-segment offset:
-    //     amplitude = 500 / DisBM   (close cursor = wild swing, far = subtle)
-    //     phase     = ropeTiming * 2π / 50
-    //     ox = amp * sin(i/N * π) * cos(phase)
-    //     oy = amp * sin(i/N * π) * sin(phase)
-    // We render this as a single SVG polyline with computed points.
+    // Wavy rope from ChosenId box to cursor — direct port of orig
+    // Timer_Timer:725-735:
+    //
+    //   DisBM         = 10 + ((box.X + box.w/2 - mX)² + (box.Y + box.h/2 - mY)²)^0.25
+    //   numberOfLoops = Int(DisBM) * 1.5
+    //   For i = 1 To numberOfLoops:
+    //     ropePic.MaskB
+    //       500/DisBM * Sin((i/N)*π) * Cos(ropeTiming*2π/50)
+    //         + box.X - ropePic.W/2 + box.w/2 + (mX - box.X - box.w/2)*i/N,
+    //       500/DisBM * Sin((i/N)*π) * Sin(ropeTiming*2π/50)
+    //         + box.Y - ropePic.H/2 + box.h/2 + (mY - box.Y - box.h/2)*i/N
+    //
+    // ropePic = not.bmp (9×9), drawn with MaskB (top-left at given (x,y)).
+    // We render N copies of the actual sprite via SVG <image> elements
+    // so the visual matches the orig 1:1, not a stylized approximation.
+    const NOT_W = 9, NOT_H = 9;
+    const ropeSpriteUrl = "assets/" + app.id + "/pictures/GameConnect/not.png";
     function drawWavyRope() {
-        const line = state._liveRope;
-        if (!line) return;
-        if (state.selected == null || !state.mouseInside) {
-            line.setAttribute("points", "");
-            line.setAttribute("opacity", "0");
+        const grp = state._liveRope;
+        if (!grp) return;
+        // Orig only gates on ChosenId > -1 AND Boxes(ChosenId).Y < 600
+        // (i.e. the picked box is still on-screen — matched boxes fly to
+        // y >= 600 and the rope stops). No cursor-position gating: mX/mY
+        // are last-known and the rope keeps painting regardless of what
+        // the cursor is over (or even off-form).
+        if (state.selected == null) {
+            grp.setAttribute("opacity", "0");
             updateBallCursor(false);
             return;
         }
         const b = boxes[state.selected];
-        const bx = b.x + b.w / 2, by = b.y + b.h / 2;
+        if (b.y >= 600) {
+            grp.setAttribute("opacity", "0");
+            updateBallCursor(false);
+            return;
+        }
+        const bx = b.x + b.w / 2, by = b.y + b.h / 2;   // box center
         const dx = state.mouseX - bx, dy = state.mouseY - by;
         const DisBM = 10 + Math.pow(dx * dx + dy * dy, 0.25);
-        const N = Math.max(4, Math.floor(DisBM * 1.5));
+        const N = Math.max(1, Math.floor(DisBM * 1.5));   // orig: Int(DisBM)*1.5, For i=1 To N
         const amp = 500 / DisBM;
         const phase = state.ropeTiming * (2 * Math.PI) / 50;
         const cosP = Math.cos(phase), sinP = Math.sin(phase);
-        const pts = [];
-        for (let i = 0; i <= N; i++) {
-            const t = i / N;
-            const baseX = bx + dx * t;
-            const baseY = by + dy * t;
-            const offX = amp * Math.sin(t * Math.PI) * cosP;
-            const offY = amp * Math.sin(t * Math.PI) * sinP;
-            pts.push((baseX + offX).toFixed(1) + "," + (baseY + offY).toFixed(1));
+        const svgNS = "http://www.w3.org/2000/svg";
+        const xlinkNS = "http://www.w3.org/1999/xlink";
+        while (grp.childNodes.length < N) {
+            const im = document.createElementNS(svgNS, "image");
+            im.setAttribute("width",  NOT_W);
+            im.setAttribute("height", NOT_H);
+            im.setAttributeNS(xlinkNS, "href", ropeSpriteUrl);
+            im.setAttribute("href", ropeSpriteUrl);   // SVG2
+            grp.appendChild(im);
         }
-        line.setAttribute("points", pts.join(" "));
-        line.setAttribute("opacity", "0.85");
+        for (let i = 0; i < grp.childNodes.length; i++) {
+            const im = grp.childNodes[i];
+            if (i < N) {
+                // Orig For i = 1 To N — i is 1-indexed, t = i/N runs
+                // 1/N..1. Our DOM child indices are 0-indexed, so use
+                // (idx+1)/N.
+                const t = (i + 1) / N;
+                // Orig draws sprite top-left at (boxCenter - sprite/2)
+                // + linear-interp toward cursor + wave-offset. The
+                // sprite center traces the curve from box-center to mX.
+                const left = b.x - NOT_W / 2 + b.w / 2 + (state.mouseX - b.x - b.w / 2) * t
+                           + amp * Math.sin(t * Math.PI) * cosP;
+                const top  = b.y - NOT_H / 2 + b.h / 2 + (state.mouseY - b.y - b.h / 2) * t
+                           + amp * Math.sin(t * Math.PI) * sinP;
+                im.setAttribute("x", left.toFixed(1));
+                im.setAttribute("y", top.toFixed(1));
+                im.style.display = "";
+            } else {
+                im.style.display = "none";
+            }
+        }
+        grp.setAttribute("opacity", "1");
         updateBallCursor(true);
     }
 
+    // Orig ballPic is ball.bmp (16×16), centered at (mX, mY) via
+    //   ballPic.MaskB mX - ballPic.Width/2, mY - ballPic.Height/2
+    const BALL_W = 16, BALL_H = 16;
     function updateBallCursor(visible) {
         let ball = root.querySelector(".connect-ball");
         if (!visible) {
@@ -316,10 +379,14 @@ HND.startConnect = function (root, app, unit, onComplete) {
         }
         if (!ball) {
             ball = HND._el("div", { class: "ctrl connect-ball" });
+            ball.style.width  = BALL_W + "px";
+            ball.style.height = BALL_H + "px";
+            ball.style.backgroundImage =
+                "url('assets/" + app.id + "/pictures/GameConnect/ball.png')";
             root.appendChild(ball);
         }
-        ball.style.left = (state.mouseX - 12) + "px";
-        ball.style.top  = (state.mouseY - 12) + "px";
+        ball.style.left = (state.mouseX - BALL_W / 2) + "px";
+        ball.style.top  = (state.mouseY - BALL_H / 2) + "px";
         ball.style.opacity = "1";
     }
 
@@ -330,21 +397,23 @@ HND.startConnect = function (root, app, unit, onComplete) {
         const svg = document.createElementNS(svgNS, "svg");
         svg.setAttribute("class", "ctrl connect-ropes");
         svg.setAttribute("viewBox", "0 0 800 600");
-        svg.style.cssText = "left:0;top:0;width:800px;height:600px;pointer-events:none;";
+        // z-index: 5 — orig blits the rope to TempBackPic AFTER the
+        // boxes (Timer_Timer:730), so the rope must paint OVER box
+        // sprites. Without this the SVG sits behind boxes (it's the
+        // first child of root) and the rope vanishes whenever it passes
+        // under a box or the cursor is on top of one.
+        svg.style.cssText = "left:0;top:0;width:800px;height:600px;pointer-events:none;z-index:5;";
         root.appendChild(svg);
 
         // Live wavy rope from ChosenId box to cursor (orig Timer_Timer:
         // 725-735 — the ONLY rope the original draws). drawWavyRope()
-        // updates points each tick based on ropeTiming.
-        const liveRope = document.createElementNS(svgNS, "polyline");
-        liveRope.setAttribute("class", "connect-rope-live");
-        liveRope.setAttribute("fill", "none");
-        liveRope.setAttribute("stroke", "#ffe19a");
-        liveRope.setAttribute("stroke-width", "3");
-        liveRope.setAttribute("stroke-linecap", "round");
-        liveRope.setAttribute("opacity", "0");
-        svg.appendChild(liveRope);
-        state._liveRope = liveRope;
+        // populates this <g> with N <image> copies of not.png at each
+        // tick — direct match to the orig sprite-blit loop.
+        const ropeGroup = document.createElementNS(svgNS, "g");
+        ropeGroup.setAttribute("class", "connect-rope-live");
+        ropeGroup.setAttribute("opacity", "0");
+        svg.appendChild(ropeGroup);
+        state._liveRope = ropeGroup;
 
         boxes.forEach(function (b, i) {
             let cls = "ctrl connect-box"
@@ -419,21 +488,22 @@ HND.startConnect = function (root, app, unit, onComplete) {
     // Track cursor in stage-px so the physics tick can draw the wavy
     // rope + ball cursor. Mapping (clientX,Y) → (0..800, 0..600) via
     // the .stage element's bounding rect (it may be scaled by CSS).
-    root.onmousemove = function (ev) {
+    // .game-root has `pointer-events: none` (only children flip to auto),
+    // so mousemove over the empty background never fires on `root` —
+    // events pass through. Attach to the parent .stage instead so we
+    // pick up mousemove regardless of which sub-element is under the
+    // cursor (boxes, background, even outside the box layer).
+    const moveTarget = root.parentNode || root;
+    moveTarget.addEventListener("mousemove", function (ev) {
         const rect = root.getBoundingClientRect();
         const scaleX = rect.width  / 800;
         const scaleY = rect.height / 600;
         state.mouseX = (ev.clientX - rect.left) / (scaleX || 1);
         state.mouseY = (ev.clientY - rect.top)  / (scaleY || 1);
-        state.mouseInside = true;
-    };
-    // When the cursor leaves the stage entirely, hide the ball + rope
-    // so they don't get stuck at the edge.
-    root.onmouseleave = function () {
-        state.mouseInside = false;
-        updateBallCursor(false);
-        if (state._liveRope) state._liveRope.setAttribute("opacity", "0");
-    };
+    });
+    // Orig keeps drawing the rope to the last-known mX/mY even after
+    // the cursor leaves the form (Form_MouseMove just stops updating —
+    // it doesn't clear). Mirror that — no onmouseleave clearing.
 
     // Audio chain after a correct match (orig WaveMe_Done:787-810).
     // SECOND-clicked box drives the chain — its OWN side first, then

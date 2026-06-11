@@ -513,7 +513,10 @@ HND._shuffle = function (arr) {
 //   errorsByQ— array of per-question error counts (0/1+/3+)
 //   onExit   — called when Exit clicked
 //   onReplay — called when Replay clicked (optional)
-HND.showScoreForm = function (stage, appId, unitName, userName, score, errorsByQ, onExit, onReplay) {
+// `opts.skipWave = true` — caller has already played the score_*.wav
+// (apple plays it BEFORE the 1.7 s finale pause per orig SoundStatus=-999
+// flow, so the form should not replay it).
+HND.showScoreForm = function (stage, appId, unitName, userName, score, errorsByQ, onExit, onReplay, opts) {
     HND.log("score-form show", appId, "score=" + score);
     const root = "assets/" + appId + "/pictures/Main/";
     const overlay = HND._el("div", { class: "ctrl score-form score-form-enter" });
@@ -541,7 +544,9 @@ HND.showScoreForm = function (stage, appId, unitName, userName, score, errorsByQ
                       : score < 80 ? 70
                       : score < 90 ? 80
                                    : 90;
-    HND.playWave("assets/" + appId + "/sounds/score_" + scoreBucket + ".wav");
+    if (!(opts && opts.skipWave)) {
+        HND.playWave("assets/" + appId + "/sounds/score_" + scoreBucket + ".wav");
+    }
 
     // DrawString tmpStr (UnitName + AllTips(116) " · "), (300, 5), 24pt,
     // RGB(100, 50, 80). We hard-code the separator " · " as the unicode
