@@ -69,11 +69,19 @@ load source JS directly — no build step.
   `hatamaplus.js` (matching+1), `match.js` (memory pairs). Per-question
   error tracking + nikod score board built in. `tools/port_hemed_nivim.py`
   is the porting script (forms + assets). The original `Hemed.exe` /
-  `Nivim.exe` binaries run fine under Wine via `VM/launch.sh` — but only
-  with audio disabled (Form_Load's `ScrollWave.value = GetVolume(0)`
-  overflows the VB6 Integer setter when Wine's mixer returns a value the
-  Windows mixer doesn't). The launch.sh per-app `case` already handles
-  this. The `.frm` sources ARE intact: [Hemed/](Hemed/) ships
+  `Nivim.exe` binaries run fine under Wine via `VM/launch.sh`, audio
+  included. Form_Load's `ScrollWave.value = GetVolume(0)` would otherwise
+  overflow the VB6 Integer setter when Wine's mixer returns junk, so
+  `VM/winmm-shim/` ships a tiny mingw-built winmm.dll that short-circuits
+  `mixerGetControlDetailsA/W` to `MMSYSERR_INVALHANDLE` (volume slider
+  reads 0, no overflow) while forwarding every other winmm export to a
+  renamed copy of Wine's builtin (`wnmm2.dll{,.so}`). Audio playback
+  through MCI32.OCX flows through unaffected. launch.sh's per-app `case`
+  wires this up automatically for `Hemed|Nivim`. Rebuild via
+  `make -C VM/winmm-shim deploy` (depends on `gcc-mingw-w64-i686`); the
+  .so input is copied from whatever Wine version is installed, so a Wine
+  upgrade requires a rebuild. The `.frm` sources ARE intact:
+  [Hemed/](Hemed/) ships
   the full set (`GameHaklada.frm`, `GameAmerican.frm`, `GameApple.frm`,
   `GameConnect.frm`, `GameHakira.frm`, `GameHatama.frm`,
   `GameHatamaPlus.frm`, `MainForm.frm`, …). Nivim only ships
