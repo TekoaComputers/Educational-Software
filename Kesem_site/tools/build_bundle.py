@@ -5053,38 +5053,104 @@ function confirmGameBack(onYesExit, onNoCancel, onJumpTo) {
 }
 
 // === Video player overlay (VideoBox.frm) ================================
-// Original VIDEOBOX.FRM at native 632x453 pixel canvas (ScaleMode=3):
-//   Form.Picture  = \menu\ser1.bmp           (640x480 decorative frame)
-//   Picture1      = (155,192) size 321x241   ← actual video window
-//   MCI control   = (264,104) size 101x33    ← play/pause/stop buttons
-//   re scrollbar  = (152,160) size 322x19    ← seek bar
-//   Label1 close  = (0,0)    size 51x51      ← invisible click target,
-//                                              MousePointer=99 + custom .ico
+// Each Kesem app has its own VIDEOBOX.FRM. The frame is always ser1.bmp
+// (640x480), and Form_Load swaps to ser2.bmp + repositions Picture1/MCI/re
+// when the video filename starts with "_" (help / intro videos like
+// _tafnew.avi). The default + alt layouts vary per app — three layout
+// families for the standard btnSeret-style apps and one for the
+// "video-above, controls-below" Dvash/Ivrit/Shirim/Shirim&Meshalim/Kesem
+// family. Close hotspot: Label1 (0,0,51,51) for the standard apps;
+// btnStop (10,10,61,56) for the video-above family.
 //
-// We replicate it: a 640x480 box framed by ser1.png, an HTML5 <video> sized
-// to the original Picture1 rectangle, a custom seek slider matching `re`,
-// HTML5 native controls disabled in favour of the original layout. The box
-// scales to fit the viewport while preserving aspect ratio so the frame
-// stays intact on any screen.
+// We replicate by rendering a 640x480 box scaled to the viewport, with a
+// per-app layout chosen at runtime from VBX_LAYOUTS. The whole modal sits
+// on a dimmer overlay; Esc/end/dimmer click dismisses (matches
+// VideoBox.Label1_Click + MCI_Done).
 //
-// Per-app ser1 lives at assets/<App>/menu/ser1.png (already converted in
-// build_bundle.py-driven asset prep). Currentstate.config.assetsRoot picks
-// the right one. The whole modal sits on a dimmer overlay; Esc/end/dimmer
-// click dismisses (matches VideoBox.Label1_Click + GoMovie_Done).
-const VBX = {
-    frameW: 640, frameH: 480,            // ser1.bmp native size
-    picX: 155, picY: 192,                // Picture1 position (design px)
-    picW: 321, picH: 241,
-    mciX: 264, mciY: 104, mciW: 101, mciH: 33,
-    reX: 152,  reY: 160,  reW: 322, reH: 19,
-    closeX: 0, closeY: 0, closeW: 51, closeH: 51,
+// Layout values lifted verbatim from each app's VIDEOBOX.FRM:
+//   - default branch:  design-time twips/15 → px (at 96 DPI runtime).
+//   - alt branch:      raw values from Form_Load `If Mid(MyF,1,1)="_"` block.
+const VBX_FRAME = { w: 640, h: 480 };
+const VBX_CLOSE_LABEL1  = { x: 0,  y: 0,  w: 51, h: 51 };  // 12 standard apps
+const VBX_CLOSE_BTNSTOP = { x: 10, y: 10, w: 61, h: 56 };  // 4 video-above apps + Kesem editor
+const VBX_LAYOUTS = {
+    // --- Standard 12 apps: Pic1 right-of-MCI/re ---
+    Brahot:   { default: { pic:[155,192,321,241], mci:[264,104,101,33], re:[152,160,322,19] },
+                alt:     { pic:[60,112,520,325],  mci:[264,43,101,33],  re:[80,95,480,19]   }, close: VBX_CLOSE_LABEL1 },
+    EnglishA: { default: { pic:[155,192,321,241], mci:[264,104,101,33], re:[152,160,322,19] },
+                alt:     { pic:[60,112,520,325],  mci:[264,43,101,33],  re:[80,95,480,19]   }, close: VBX_CLOSE_LABEL1 },
+    EnglishB: { default: { pic:[155,192,321,241], mci:[264,104,101,33], re:[152,160,322,19] },
+                alt:     { pic:[60,112,520,325],  mci:[264,43,101,33],  re:[80,95,480,19]   }, close: VBX_CLOSE_LABEL1 },
+    EnglishC: { default: { pic:[155,192,321,241], mci:[264,104,101,33], re:[152,160,322,19] },
+                alt:     { pic:[60,112,520,325],  mci:[264,43,101,33],  re:[80,95,480,19]   }, close: VBX_CLOSE_LABEL1 },
+    Hagim:    { default: { pic:[155,192,321,241], mci:[264,104,101,33], re:[152,160,322,19] },
+                alt:     { pic:[60,112,520,325],  mci:[264,43,101,33],  re:[80,95,480,19]   }, close: VBX_CLOSE_LABEL1 },
+    Heshbon:  { default: { pic:[155,192,321,241], mci:[264,104,101,33], re:[152,160,322,19] },
+                alt:     { pic:[60,112,520,325],  mci:[264,43,101,33],  re:[80,95,480,19]   }, close: VBX_CLOSE_LABEL1 },
+    Shabat:   { default: { pic:[155,192,321,241], mci:[264,104,101,33], re:[152,160,322,19] },
+                alt:     { pic:[60,112,520,325],  mci:[264,43,101,33],  re:[80,95,480,19]   }, close: VBX_CLOSE_LABEL1 },
+    Yeled:    { default: { pic:[155,192,321,241], mci:[264,104,101,33], re:[152,160,322,19] },
+                alt:     { pic:[60,112,520,325],  mci:[264,43,101,33],  re:[80,95,480,19]   }, close: VBX_CLOSE_LABEL1 },
+    // KolKoreA/B share default + alt (alt: 525x341 + MCI.Top=33)
+    KolKoreA: { default: { pic:[155,192,321,241], mci:[264,104,101,33], re:[152,160,322,19] },
+                alt:     { pic:[60,112,525,341],  mci:[264,33,101,33],  re:[60,93,525,19]   }, close: VBX_CLOSE_LABEL1 },
+    KolKoreB: { default: { pic:[155,192,321,241], mci:[264,104,101,33], re:[152,160,322,19] },
+                alt:     { pic:[60,112,525,341],  mci:[264,33,101,33],  re:[60,93,525,19]   }, close: VBX_CLOSE_LABEL1 },
+    // KolKoreC/D share default + alt (alt: 500x375 + MCI.Top=20)
+    KolKoreC: { default: { pic:[155,192,321,241], mci:[264,104,101,33], re:[152,160,322,19] },
+                alt:     { pic:[60,80,500,375],   mci:[264,20,101,33],  re:[60,60,500,19]   }, close: VBX_CLOSE_LABEL1 },
+    KolKoreD: { default: { pic:[155,192,321,241], mci:[264,104,101,33], re:[152,160,322,19] },
+                alt:     { pic:[60,80,500,375],   mci:[264,20,101,33],  re:[60,60,500,19]   }, close: VBX_CLOSE_LABEL1 },
+    // --- Video-above family: Pic1 on top, MCI/re below ---
+    // Dvash has Pic1.Top=99 (others in this family use 147)
+    Dvash:    { default: { pic:[136,99,321,241],  mci:[235,419,111,33], re:[136,339,322,19] },
+                alt:     { pic:[90,35,480,360],   mci:[235,419,111,33], re:[90,395,480,13]  }, close: VBX_CLOSE_BTNSTOP },
+    Ivrit:    { default: { pic:[136,147,321,241], mci:[235,419,111,33], re:[136,387,322,19] },
+                alt:     { pic:[58,70,525,335],   mci:[235,419,111,33], re:[58,405,525,13]  }, close: VBX_CLOSE_BTNSTOP },
+    Shirim:   { default: { pic:[136,147,321,241], mci:[235,419,111,33], re:[136,387,322,19] },
+                alt:     { pic:[70,35,480,360],   mci:[235,419,111,33], re:[70,395,480,13]  }, close: VBX_CLOSE_BTNSTOP },
+    "Shirim&Meshalim": { default: { pic:[136,147,321,241], mci:[235,419,111,33], re:[136,387,322,19] },
+                        alt:     { pic:[70,35,480,360],   mci:[235,419,111,33], re:[70,395,480,13]  }, close: VBX_CLOSE_BTNSTOP },
+    // Kesem editor — same shape as Ivrit (kesem/VIDEOBOX.FRM).
+    Kesem:    { default: { pic:[136,147,321,241], mci:[235,419,111,33], re:[136,387,322,19] },
+                alt:     { pic:[58,70,525,335],   mci:[235,419,111,33], re:[58,405,525,13]  }, close: VBX_CLOSE_BTNSTOP },
 };
+// Apps that ship a real menu/ser2.png in their asset bundle. Apps not in
+// this set fall back to ser1.png in alt mode — matches the original's
+// silent LoadPicture failure on ser2.jpg.
+const VBX_HAS_SER2 = new Set([
+    "EnglishA","EnglishB","Heshbon","Ivrit","Kesem","KolKoreA","KolKoreC","KolKoreD",
+]);
+function resolveVideoboxLayout(appId, url) {
+    const layouts = VBX_LAYOUTS[appId] || VBX_LAYOUTS.Brahot;
+    // "_" prefix on the filename (last path segment) triggers alt branch.
+    // url may be a full URL or assetsRoot-relative path; we just look at
+    // what comes after the final "/".
+    const slash = url.lastIndexOf("/");
+    const fname = slash >= 0 ? url.slice(slash + 1) : url;
+    const isAlt = fname.charAt(0) === "_";
+    return {
+        rect:  isAlt ? layouts.alt : layouts.default,
+        close: layouts.close,
+        bg:    (isAlt && VBX_HAS_SER2.has(appId)) ? "ser2.png" : "ser1.png",
+        isAlt: isAlt,
+    };
+}
 
 function playVideo(url, opts) {
     opts = opts || {};
     klog("video play:", url);
 
-    const root = currentSession ? currentSession.config.assetsRoot : "";
+    const root  = currentSession ? currentSession.config.assetsRoot : "";
+    const appId = currentSession ? currentSession.config.id : "";
+    // Per-app layout + ser1/ser2 selection based on "_" filename prefix.
+    const layout = resolveVideoboxLayout(appId, url);
+    const pic    = layout.rect.pic;    // [x, y, w, h]
+    const mciR   = layout.rect.mci;
+    const reR    = layout.rect.re;
+    const closeR = layout.close;       // { x, y, w, h }
+    klog("video layout:", appId, layout.isAlt ? "alt" : "default", "bg=" + layout.bg);
+
     const overlay = document.createElement("div");
     overlay.className = "video-overlay";
     Object.assign(overlay.style, {
@@ -5096,17 +5162,16 @@ function playVideo(url, opts) {
 
     // The frame is rendered at its native 640x480 design size, then scaled
     // as a unit via CSS transform. Child positions are in design pixels so
-    // they line up with the cutouts in ser1.png automatically.
+    // they line up with the cutouts in ser1/ser2.png automatically.
     const box = document.createElement("div");
     Object.assign(box.style, {
         position: "relative",
-        width:  VBX.frameW + "px",
-        height: VBX.frameH + "px",
-        backgroundImage: "url('" + root + "/menu/ser1.png')",
-        backgroundSize: VBX.frameW + "px " + VBX.frameH + "px",
+        width:  VBX_FRAME.w + "px",
+        height: VBX_FRAME.h + "px",
+        backgroundImage: "url('" + root + "/menu/" + layout.bg + "')",
+        backgroundSize: VBX_FRAME.w + "px " + VBX_FRAME.h + "px",
         backgroundRepeat: "no-repeat",
-        // Fit the box to the viewport while keeping aspect ratio.
-        // 95vmin matches ~95% of the smaller viewport dimension.
+        backgroundColor: "#000",  // matches Form.BackColor=0 when ser2 LoadPicture silently fails
         transform: "scale(" + 1 + ")",
         transformOrigin: "center center",
     });
@@ -5114,8 +5179,8 @@ function playVideo(url, opts) {
 
     function fit() {
         const margin = 32;
-        const sx = (window.innerWidth - margin) / VBX.frameW;
-        const sy = (window.innerHeight - margin) / VBX.frameH;
+        const sx = (window.innerWidth - margin) / VBX_FRAME.w;
+        const sy = (window.innerHeight - margin) / VBX_FRAME.h;
         const s = Math.min(sx, sy, 2.2);          // cap at 2.2x so the frame stays crisp
         box.style.transform = "scale(" + Math.max(0.3, s) + ")";
     }
@@ -5141,7 +5206,7 @@ function playVideo(url, opts) {
     // Original Picture1 has its own black background; the form's ScaleMode is
     // pixel with no scaling, so video plays at native resolution. We use
     // object-fit:contain so wider clips letterbox cleanly inside the cutout.
-    Object.assign(vid.style, place(VBX.picX, VBX.picY, VBX.picW, VBX.picH), {
+    Object.assign(vid.style, place(pic[0], pic[1], pic[2], pic[3]), {
         background: "#000",
         objectFit: "contain",
         cursor: "pointer",       // Picture1_Click toggles play/pause in VB6
@@ -5175,7 +5240,7 @@ function playVideo(url, opts) {
     };
 
     const mci = document.createElement("div");
-    Object.assign(mci.style, place(VBX.mciX, VBX.mciY, VBX.mciW, VBX.mciH), w9xRaised, {
+    Object.assign(mci.style, place(mciR[0], mciR[1], mciR[2], mciR[3]), w9xRaised, {
         display: "flex", alignItems: "center", justifyContent: "space-between",
         padding: "1px",
         boxSizing: "border-box",
@@ -5224,7 +5289,7 @@ function playVideo(url, opts) {
     // rectangle, left/right arrow buttons at each end. We build it manually
     // since browser <input type=range> won't render this style cross-platform.
     const re = document.createElement("div");
-    Object.assign(re.style, place(VBX.reX, VBX.reY, VBX.reW, VBX.reH), {
+    Object.assign(re.style, place(reR[0], reR[1], reR[2], reR[3]), {
         background: W9X_FACE,
         display: "flex",
         boxSizing: "border-box",
@@ -5235,8 +5300,8 @@ function playVideo(url, opts) {
         a.type = "button";
         a.textContent = glyph;
         Object.assign(a.style, w9xRaised, {
-            width: VBX.reH + "px",
-            height: VBX.reH + "px",
+            width: reR[3] + "px",
+            height: reR[3] + "px",
             padding: "0",
             background: W9X_FACE, color: "#000",
             fontSize: "9px", lineHeight: "1",
@@ -5321,7 +5386,7 @@ function playVideo(url, opts) {
     close.type = "button";
     close.title = "סגור";
     close.setAttribute("aria-label", "close");
-    Object.assign(close.style, place(VBX.closeX, VBX.closeY, VBX.closeW, VBX.closeH), {
+    Object.assign(close.style, place(closeR.x, closeR.y, closeR.w, closeR.h), {
         background: "transparent",
         border: "none",
         cursor: "pointer",
@@ -5349,7 +5414,7 @@ function playVideo(url, opts) {
         klog("video error — file missing or unsupported:", url);
         const msg = document.createElement("div");
         msg.textContent = "הסרטון לא זמין";
-        Object.assign(msg.style, place(VBX.picX, VBX.picY, VBX.picW, VBX.picH), {
+        Object.assign(msg.style, place(pic[0], pic[1], pic[2], pic[3]), {
             color: "#fbcf66",
             display: "flex", alignItems: "center", justifyContent: "center",
             background: "#000",
