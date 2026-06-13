@@ -39,7 +39,7 @@
     {
         "@context": "https://schema.org",
         "@type": "CollectionPage",
-        "name": "תקוע מחשבים — קטלוג לומדות חינוכיות",
+        "name": "תקוע מחשבים — קטלוג לומדות",
         "url": "https://tekoacomputers.github.io/Educational-Software/",
         "inLanguage": "he",
         "isPartOf": {
@@ -53,7 +53,7 @@
             "sameAs": "https://he.wikipedia.org/wiki/%D7%AA%D7%A7%D7%95%D7%A2_%D7%9E%D7%97%D7%A9%D7%91%D7%99%D7%9D"
         },
         "hasPart": [
-            { "@type": "SoftwareApplication", "name": "תרגולית",            "applicationCategory": "EducationalApplication", "operatingSystem": "Web",  "url": "https://tekoacomputers.github.io/Educational-Software/Tirgolit_site/" },
+            { "@type": "SoftwareApplication", "name": "תרגולית עם תרנגול",  "applicationCategory": "EducationalApplication", "operatingSystem": "Web",  "url": "https://tekoacomputers.github.io/Educational-Software/Tirgolit_site/" },
             { "@type": "SoftwareApplication", "name": "ברכות",              "applicationCategory": "EducationalApplication", "operatingSystem": "Web",  "url": "https://tekoacomputers.github.io/Educational-Software/Kesem_site/index.html#/Brahot" },
             { "@type": "SoftwareApplication", "name": "חגי ישראל",          "applicationCategory": "EducationalApplication", "operatingSystem": "Web",  "url": "https://tekoacomputers.github.io/Educational-Software/Kesem_site/index.html#/Hagim" },
             { "@type": "SoftwareApplication", "name": "עולם הילד",          "applicationCategory": "EducationalApplication", "operatingSystem": "Web",  "url": "https://tekoacomputers.github.io/Educational-Software/Kesem_site/index.html#/Yeled" },
@@ -67,8 +67,8 @@
             { "@type": "SoftwareApplication", "name": "שירים ומשלים",       "applicationCategory": "EducationalApplication", "operatingSystem": "Web",  "url": "https://tekoacomputers.github.io/Educational-Software/Kesem_site/index.html#/Shirim&Meshalim" },
             { "@type": "SoftwareApplication", "name": "צמד-חמד",            "applicationCategory": "EducationalApplication", "operatingSystem": "Web",  "url": "https://tekoacomputers.github.io/Educational-Software/hemed_nivim_site/index.html#/Hemed" },
             { "@type": "SoftwareApplication", "name": "ניבים ופתגמים",      "applicationCategory": "EducationalApplication", "operatingSystem": "Web",  "url": "https://tekoacomputers.github.io/Educational-Software/hemed_nivim_site/index.html#/Nivim" },
-            { "@type": "SoftwareApplication", "name": "מקהלה",              "applicationCategory": "EducationalApplication", "operatingSystem": "Web",  "url": "https://tekoacomputers.github.io/Educational-Software/makhela_site/" },
-            { "@type": "SoftwareApplication", "name": "עורך קסם",           "applicationCategory": "EducationalApplication", "operatingSystem": "Web",  "url": "https://tekoacomputers.github.io/Educational-Software/Kesem_site/index.html#/Kesem" }
+            { "@type": "SoftwareApplication", "name": "מקהלה עליזה",        "applicationCategory": "EducationalApplication", "operatingSystem": "Web",  "url": "https://tekoacomputers.github.io/Educational-Software/makhela_site/" },
+            { "@type": "SoftwareApplication", "name": "חלונות קסם",         "applicationCategory": "EducationalApplication", "operatingSystem": "Web",  "url": "https://tekoacomputers.github.io/Educational-Software/Kesem_site/index.html#/Kesem" }
         ]
     }
     </script>
@@ -86,15 +86,25 @@
         }
         .banner-row {
             display: flex;
+            align-items: center;
             justify-content: center;
-            padding: 0.75rem 0.75rem 0;
+            gap: 1.5rem;
+            padding: 0.75rem 1rem 0.5rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .banner-row h2 {
+            margin: 0;
+            border: 0;
+            padding: 0;
+            font-size: 1.7rem;
         }
         .banner-link {
             display: block;
             line-height: 0;
-            width: 30vw;             /* ~30% of viewport width */
-            min-width: 260px;
-            max-width: 560px;
+            width: 22vw;             /* slimmer now that it shares the row */
+            min-width: 200px;
+            max-width: 420px;
         }
         .banner-link img {
             display: block;
@@ -171,17 +181,17 @@
 </head>
 <body>
     <div class="banner-row">
+        <h2>קטלוג לומדות תקוע מחשבים</h2>
         <a class="banner-link" href="https://he.wikipedia.org/wiki/%D7%AA%D7%A7%D7%95%D7%A2_%D7%9E%D7%97%D7%A9%D7%91%D7%99%D7%9D">
             <img src="main_site_assets/banner.jpg" alt="תקוע מחשבים">
         </a>
     </div>
 
     <main>
-        <h2>קטלוג לומדות חינוכיות</h2>
         <div class="grid">
             <a class="card" href="Tirgolit_site/index.html">
                 <img class="card-icon" src="main_site_assets/Tirgolit.gif" alt="">
-                <div class="card-title">תרגולית</div>
+                <div class="card-title">תרגולית עם תרנגול</div>
             </a>
             <a class="card" href="https://www.old-games.org/misc/peledor/">
                 <img class="card-icon" src="main_site_assets/Peledor.gif" alt="">
@@ -253,7 +263,7 @@
             </a>
             <a class="card" href="hemed_nivim_site/index.html#/Hemed">
                 <img class="card-icon" src="main_site_assets/Hemed.jpg" alt="">
-                <div class="card-title">חמ"ד</div>
+                <div class="card-title">צמד חמד</div>
             </a>
             <a class="card" href="hemed_nivim_site/index.html#/Nivim">
                 <img class="card-icon" src="main_site_assets/Nivim.jpg" alt="">
@@ -261,15 +271,15 @@
             </a>
             <a class="card" href="makhela_site/index.html">
                 <img class="card-icon" src="main_site_assets/Makhela.jpg" alt="">
-                <div class="card-title">מקהלה</div>
+                <div class="card-title">מקהלה עליזה</div>
             </a>
             <a class="card" href="Mikraot_site/index.html">
                 <img class="card-icon" src="main_site_assets/Mikraot.jpg" alt="">
-                <div class="card-title">מקראות</div>
+                <div class="card-title">מקראות אות ועוד...</div>
             </a>
             <a class="card" href="Kesem_site/index.html#/Kesem">
                 <img class="card-icon" src="main_site_assets/Kesem.jpg" alt="">
-                <div class="card-title">עורך</div>
+                <div class="card-title">חלונות קסם</div>
             </a>
         </div>
     </main>
