@@ -209,8 +209,10 @@
 
         // Form_Load tail: if NomerMasl < 0 (free-play / Likro entry),
         // Timer1.Enabled = True → Timer1_Timer plays x2.wav once.
+        // Played immediately (no setTimeout) so the user-activation
+        // context from the click is preserved for the audio request.
         if (nomerMasl < 0 && refs.PicFea) {
-            setTimeout(function () { MK.play("mik_siha/x2.wav"); }, 250);
+            MK.play("mik_siha/x2.wav");
         }
     };
 })();

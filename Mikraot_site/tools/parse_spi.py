@@ -94,6 +94,15 @@ def parse_stage(path: Path) -> dict:
         stage["words"].append({
             "rect": [i(r, 86), i(r, 90), i(r, 88), i(r, 92)],  # x,y,w,h
             "wav":  s(r, 94, 40),
+            # Word-level Q&A (tirgul=4 text questions). Offsets per
+            # File_Stru header above.
+            "q":    s(r, 134, 80),
+            "qfont":s(r, 214, 40),
+            "qsize":i(r, 254),
+            "wavQ": s(r, 256, 40),
+            "wavA": s(r, 296, 40),
+            "wavN": s(r, 336, 40),
+            "wavP": s(r, 376, 40),
         })
     for idx in range(stage["kol_p"]):
         r = raw[idx * RECORD_SIZE : (idx + 1) * RECORD_SIZE]

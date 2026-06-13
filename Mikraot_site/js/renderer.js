@@ -102,9 +102,33 @@
         stage.style.transform = "scale(" + s + ")";
     };
 
+    // Global render token — bumped every time any screen calls
+    // makeStage. Async chains (audio sequences, animation cycles) that
+    // captured the token at start can check `MK.stale(myToken)` after
+    // each await; if a new screen has rendered, they bail out so their
+    // tail MK.play / setState calls don't fire from a screen that no
+    // longer exists. Mirrors the source's Unload-form-cancels-pending-
+    // sounds behavior (VB6's sndPlaySound stops on form Unload).
+    let _renderToken = 0;
+    MK.currentToken = function () { return _renderToken; };
+    MK.stale = function (t) { return t !== _renderToken; };
+    // Click handlers that initiate a new audio sequence should call this
+    // FIRST, so any pending async chain from the previous-screen's
+    // `activateIntroAudio` (still in a sleep / await) sees stale=true
+    // before its tail MK.play fires from a screen the user has left.
+    MK.bumpToken = function () { _renderToken += 1; };
+
     // Optional w/h to render this screen at a non-default canvas size.
     // The MILON popup is 317×377, KIVUN is 640×480 like the main forms.
     MK.makeStage = function (root, w, h) {
+        _renderToken += 1;
+        // Stop any audio still playing from the previous screen. Its
+        // async chain's awaits resolve via the pause event, then their
+        // `MK.stale(myToken)` check returns true → they bail before
+        // firing any tail MK.play that would step on the new screen's
+        // intro audio. Without this, coin/newchim from a previous
+        // onCorrect can interrupt the next screen's BB007/KFP1 cue.
+        if (typeof MK.cancelAudio === "function") MK.cancelAudio();
         const stage = document.createElement("div");
         stage.className = "stage";
         const sw = w || MK.STAGE_W, sh = h || MK.STAGE_H;
@@ -114,7 +138,7 @@
         stage.dataset.stageH = sh;
         root.replaceChildren(stage);
         MK.fitStage(stage);
-        MK.log("stage", sw + "x" + sh);
+        MK.log("stage", sw + "x" + sh, "token=" + _renderToken);
         return stage;
     };
 

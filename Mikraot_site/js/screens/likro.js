@@ -121,6 +121,19 @@
             btnShmaNodes: [],
             picture1Node: null,
             picture2Node: null,
+            // Q&A state (tirgul 4/5). Mirrors GAMES1.FRM module-level Dim's:
+            //   N_V        current question index (1-based)
+            //   otvet      count of correct answers in this round
+            //   Taut       wrong attempts on current question
+            //   Mis_Tsuva  1/2/3 — which wrong-feedback cue to play next
+            //   Mahamaa    1..3 — which Tov1 (good answer) audio sequence
+            //   Vprs[]     pool of valid question indices (q != "None")
+            //   SahAkol    count of valid questions
+            //   KolMonet   total coins this round
+            // Must be initialized BEFORE startQA() fires (called below at
+            // tirgul=4/5 path before this block used to run).
+            qa: { N_V: 0, otvet: 0, Taut: 0, Mis_Tsuva: 1, Mahamaa: 1,
+                  Vprs: [], SahAkol: 0, KolMonet: 0 },
         };
 
         // Render controls in original Z-order (.frm earlier-first = on top
@@ -174,18 +187,36 @@
         //   FrmVisibl(1) → reversed (Q&A modes)
         applyFrmVisibl(state.tirgul > 3 ? 1 : 0);
 
-        // Form_Load: plays Mik_Siha\KFP1.wav. The .spi data uses WAV\ but
-        // the opening sound is in mik_siha/. Real path: WAV/KFP1.wav in
-        // the stage data root — but the original loads it from Cur_Dir
-        // which is the app root. Try that location.
+        // Form_Load tail — two branches per GAMES1.FRM:
+        //   If NomerMasl = -1 (free play): play WAV\KFP1.wav (single cue).
+        //   Else: Timer1.Enabled = True → Timer1_Timer fires after the form
+        //         paints, which for NomerMasl 0/1/2 calls btn{Slog,Slovo,
+        //         Stroka}_Click — those play KNOC<n>.wav + delay + FALL1 +
+        //         PicFea cycle. Mirror that here.
+        const nomerMasl = +(ctx.params.nomerMasl != null ? ctx.params.nomerMasl : -1);
         if (state.tirgul < 4) {
-            // GAMES1.FRM Form_Load: `sndPlaySound(Cur_Dir$ & "WAV\KFP1.wav", 1)`.
-            // Lives in wav/ root (the runtime's Cur_Dir), NOT in mik_siha/.
-            setTimeout(function () { MK.play("wav/kfp1.wav"); }, 250);
+            if (nomerMasl < 0) {
+                MK.play("wav/kfp1.wav");
+            } else {
+                // Chain entry — emulate the auto btn_Click. KNOC index per
+                // GAMES1.FRM: Slog (tirgul=3)→KNOC1, Slovo (tirgul=2)→KNOC2,
+                // Stroka (tirgul=1)→KNOC3.
+                (async function () {
+                    const knocIdx = state.tirgul === 1 ? 3 : state.tirgul === 2 ? 2 : 1;
+                    MK.play("wav/knoc" + knocIdx + ".wav");
+                    await MK.sleep(1000);
+                    if (state.rishon && state.picFeaNode) {
+                        state.rishon = false;
+                        MK.play("wav/fall1.wav");
+                        await animateSprite(state.picFeaNode, "pic_fea", 6, 200);
+                    }
+                })();
+            }
         } else if (state.tirgul === 4 || state.tirgul === 5) {
-            // Q&A mode: kick off the question loop after Form_Load
-            // completes so refs (btnVoprosNode, picFeaNode, etc.) exist.
-            setTimeout(startQA, 250);
+            // Q&A mode: kick off the question loop. startQA is async
+            // and awaits the intro audio (BB007/BB008) before showing
+            // the first question.
+            startQA();
         }
 
         function mkBtn(ctrl, img, onclick, title) {
@@ -217,9 +248,28 @@
         // `overflow: visible` on its container — the box stays at design
         // dims for layout/Z, but the image sits inside at natural size,
         // and rect overlays are positioned absolutely against that image.
-        function mkPictureContainer(ctrl, style, rel, overlays, onclickIdx) {
+        // VB6 control-array Z-order on overlapping transparent labels —
+        // the topmost catches clicks. Our DOM mirrors that (later sibling
+        // = on top), but some .spi files contain trailing "sentinel"
+        // entries (rect duplicates an earlier entry + wav/q == empty)
+        // that get loaded by `For i = 1 To Kol_t/Kol_P` and end up on
+        // top, swallowing clicks meant for the real entry below them.
+        // Pass `priority(i) -> boolean`: priority entries are inserted
+        // AFTER non-priority ones (= on top in DOM), so the empty/None
+        // entries always sit below their real-data twins. Net effect:
+        // clicking the visible hot zone hits the entry that does the
+        // intended thing (plays a wav, asks a question), not the
+        // stale sentinel.
+        function mkPictureContainer(ctrl, style, rel, overlays, onclickIdx, isPriority) {
             const wrap = MK.el("div", { class: "ctrl no-click", style: style });
-            wrap.style.overflow = "visible";
+            // Source PictureBox has BorderStyle=0 and would technically
+            // draw the BMP at its natural size, overflowing the box. In
+            // practice that lets txt1.png (425 tall) leak past the
+            // picture box bottom (333) into the bottom-strip area —
+            // visually messy. The .spi overlay rects are always within
+            // the box's design dims (max y+h ≈ 298 < 333), so clipping
+            // here loses nothing functional and cleans up the layout.
+            wrap.style.overflow = "hidden";
             stageEl.appendChild(wrap);
             const png = bmpToPng(rel);
             const img = MK.el("img", { src: png ? ("assets/bmp/" + png.replace(/^bmp\//, "")) : "" });
@@ -229,7 +279,11 @@
             img.style.maxWidth = "none";   // override any global img sizing
             wrap.appendChild(img);
             // Overlays sit on the same coordinate origin as the image (the
-            // wrap's top-left), so the .spi rects map 1:1.
+            // wrap's top-left), so the .spi rects map 1:1. 1:1 with
+            // Pic_Zone_MouseMove from GAMES1.FRM: a Shape2 outline
+            // appears around the hovered zone (visible only when not
+            // mid-Q&A — Pi > 0 Or N_V = 0 in source; we mirror by always
+            // showing on hover in read modes).
             const overlayNodes = overlays.map(function (rect, i) {
                 const [x, y, w, h] = rect;
                 const sn = MK.el("div", {
@@ -240,28 +294,76 @@
                         cursor: "pointer",
                         background: "transparent",
                         pointerEvents: "auto",
+                        boxSizing: "content-box",
+                        border: "1px solid transparent",
                     },
                 });
                 sn.addEventListener("click", function () { onclickIdx(i); });
-                wrap.appendChild(sn);
+                sn.addEventListener("mouseenter", function () {
+                    sn.style.border = "2px solid #ff0000";
+                });
+                sn.addEventListener("mouseleave", function () {
+                    sn.style.border = "1px solid transparent";
+                });
                 return sn;
             });
+            // Two-pass insertion — non-priority first, priority on top.
+            const prio = typeof isPriority === "function" ? isPriority : function () { return true; };
+            overlayNodes.forEach(function (sn, i) { if (!prio(i)) wrap.appendChild(sn); });
+            overlayNodes.forEach(function (sn, i) { if  (prio(i)) wrap.appendChild(sn); });
             return { wrap, img, overlayNodes };
         }
+        // GLOBAL.BAS BliZeva(name): strip extension + append "p.BMP" — the
+        // "blank" page variant ( avaza.bmp → avazap.bmp, txt1.bmp → txt1p.bmp ).
+        // GAMES1.FRM Form_Load uses the blank for the IRRELEVANT picture
+        // in Q&A modes (tirgul=4 blanks Picture1, tirgul=5 blanks Picture2)
+        // — see the `Select Case tirgul` block. Without this, Q&A modes
+        // show both pages full of clickable overlays which look like
+        // leftover hot-zones from the read mode.
+        function bliZevaSrc(bmpRel) {
+            if (!bmpRel) return bmpRel;
+            return bmpRel.replace(/^(.*)\.[Bb][Mm][Pp]$/, "$1p.BMP");
+        }
+        // Priority rule per entry: in Q&A modes, entries that CAN be the
+        // current question (q non-empty, non-"None") sit on top — they
+        // must catch clicks even when a sentinel "None" entry below has
+        // the same rect. In read modes, entries with a real wav are on
+        // top so empty-wav twins don't swallow Slovo_Click's PlayZad.
+        function makePriority(entries, mode) {
+            return function (i) {
+                const e = entries[i] || {};
+                if (mode === "qa") {
+                    const q = (e.q || "").replace(/^[?\s]+/, "").trim();
+                    return q.length > 0 && q !== "None";
+                }
+                const wav = (e.wav || "").trim();
+                if (!wav) return false;
+                const base = wav.split(/[\\/]/).pop().replace(/\.wav$/i, "");
+                return base.length > 0 && base.toLowerCase() !== "none";
+            };
+        }
         function mkPicture1(ctrl, style) {
-            const built = mkPictureContainer(ctrl, style, stage.left,
-                stage.zones.map(function (z) { return z.rect; }),
-                onPicZoneClick);
+            const useBlank = state.tirgul === 4;
+            const src = useBlank ? bliZevaSrc(stage.left) : stage.left;
+            const rects = useBlank ? [] : stage.zones.map(function (z) { return z.rect; });
+            const mode = state.tirgul === 5 ? "qa" : "read";
+            const prio = useBlank ? function () { return false; } : makePriority(stage.zones, mode);
+            const built = mkPictureContainer(ctrl, style, src, rects, onPicZoneClick, prio);
             state.picture1Node = built.wrap;
             state.zoneNodes = built.overlayNodes;
-            stage.zones.forEach(function (z, i) {
-                built.overlayNodes[i].title = z.q || "";
-            });
+            if (!useBlank) {
+                stage.zones.forEach(function (z, i) {
+                    built.overlayNodes[i].title = z.q || "";
+                });
+            }
         }
         function mkPicture2(ctrl, style) {
-            const built = mkPictureContainer(ctrl, style, stage.right,
-                stage.words.map(function (w) { return w.rect; }),
-                onSlovoClick);
+            const useBlank = state.tirgul === 5;
+            const src = useBlank ? bliZevaSrc(stage.right) : stage.right;
+            const rects = useBlank ? [] : stage.words.map(function (w) { return w.rect; });
+            const mode = state.tirgul === 4 ? "qa" : "read";
+            const prio = useBlank ? function () { return false; } : makePriority(stage.words, mode);
+            const built = mkPictureContainer(ctrl, style, src, rects, onSlovoClick, prio);
             state.picture2Node = built.wrap;
             state.slovoNodes = built.overlayNodes;
         }
@@ -386,18 +488,6 @@
             location.hash = "#/play/" + song + "/" + newVariant + "?tirgul=" + newTirgul + nmQ;
         }
 
-        // Q&A state (tirgul 4/5). Mirrors GAMES1.FRM module-level Dim's:
-        //   N_V        current question index (1-based)
-        //   otvet      count of correct answers in this round
-        //   Taut       wrong attempts on current question
-        //   Mis_Tsuva  1/2/3 — which wrong-feedback cue to play next
-        //   Mahamaa    1..3 — which Tov1 (good answer) audio sequence
-        //   Vprs[]     pool of valid question indices (q != "None")
-        //   SahAkol    count of valid questions
-        //   KolMonet   total coins this round
-        state.qa = { N_V: 0, otvet: 0, Taut: 0, Mis_Tsuva: 1, Mahamaa: 1,
-                     Vprs: [], SahAkol: 0, KolMonet: 0 };
-
         async function startQA() {
             // GAMES1.FRM Timer1_Timer for tirgul=4/5 plays the intro,
             // then sleeps 500ms, then enables Timer3 (cycles aa016/aa017
@@ -409,13 +499,9 @@
             const list = isText ? stage.words : stage.zones;
             const valid = [];
             list.forEach(function (entry, i) {
-                const q = isText ? null : (entry.q || "");
-                if (isText) {
-                    // .spi text Questions field not extracted into
-                    // Slovo records by the Phase-2 parser — accept all.
+                const q = entry.q || "";
+                if (q && q.replace(/^[?\s]+/, "").length > 0 && q !== "None") {
                     valid.push(i + 1);
-                } else {
-                    if (q && q.replace(/^[?\s]+/, "").length > 0) valid.push(i + 1);
                 }
             });
             state.qa.Vprs = valid.slice();
@@ -428,6 +514,22 @@
             await MK.sleep(500);
             nextVopros();
         }
+        // GAMES1.FRM Timer3 (Interval=60000ms) re-asks the current
+        // question after 60s of inactivity — Pic_Zone_Click resets it
+        // every click. Mirror with a single-screen setInterval; the
+        // global render token guards us if the user navigates away.
+        const myToken = MK.currentToken();
+        let qaNagTimer = null;
+        function resetQaNag() {
+            if (qaNagTimer) { clearInterval(qaNagTimer); qaNagTimer = null; }
+            if (state.tirgul !== 4 && state.tirgul !== 5) return;
+            qaNagTimer = setInterval(function () {
+                if (MK.stale(myToken)) { clearInterval(qaNagTimer); return; }
+                const list = state.tirgul === 4 ? stage.words : stage.zones;
+                const e = list[state.qa.N_V - 1];
+                if (e && e.wavQ) play(e.wavQ);
+            }, 60000);
+        }
         function nextVopros() {
             if (state.qa.Vprs.length === 0) return finishQA();
             const choice = Math.floor(Math.random() * state.qa.Vprs.length);
@@ -437,19 +539,16 @@
             state.qa.Taut = 0;
             state.qa.Mis_Tsuva = 1;
             // Update btnVopros caption.
-            const isText = state.tirgul === 4;
-            const list = isText ? stage.words : stage.zones;
+            const list = state.tirgul === 4 ? stage.words : stage.zones;
             const e = list[idx - 1];
-            const q = isText
-                ? (e.q || "")  // Slovo rows don't carry q in our parser
-                : (e.q || "");
+            const q = e.q || "";
             if (state.btnVoprosNode) {
                 state.btnVoprosNode.textContent = q || "? ";
                 state.btnVoprosNode.style.display = "";
             }
-            // Play the question's WavFileName_Questions(s)P audio.
-            const qWav = isText ? (e.wavQ || null) : (e.wavQ || null);
-            if (qWav) play(qWav);
+            // Play the question's WavFileName_Questions(P) audio.
+            if (e.wavQ) play(e.wavQ);
+            resetQaNag();
         }
         function finishQA() {
             // After all questions exhausted OR 3 correct → SofSipur:
@@ -474,8 +573,9 @@
             }
             location.hash = "#/sofer/" + song + "/0";
         }
-        function awardCoin(misp) {
-            // Matbeot1: Taut=0→matbea4 (+3), 1→matbea3 (+2), 2→matbea2 (+1), >2→matbea0
+        async function awardCoin(misp) {
+            // GAMES1.FRM Matbeot1(Misp): Halon image + KolMonet bump +
+            // PlayZad(coin.wav | coin1.wav) — SYNC blocking.
             const t = state.qa.Taut;
             const img = t === 0 ? "menu/matbea4.png"
                       : t === 1 ? "menu/matbea3.png"
@@ -486,22 +586,48 @@
             if (state.halonNodes && state.halonNodes[misp]) {
                 state.halonNodes[misp].style.backgroundImage = bgImg(img);
             }
-            if (wav) MK.play(wav);
             state.qa.KolMonet += value;
+            if (wav) await MK.playSync(wav);   // SYNC (PlayZad) — must block.
+        }
+        // GLOBAL.BAS Tov1(form, k):
+        //   sndPlaySound("milon\ranit\C<k>.wav", 1)   ' async (taut=0)
+        //                "milon\ranit\M<k>.wav"      ' async (taut>0) — unused
+        //                                              here, awardCoin guards
+        //                                              taut==0 for full coin
+        //   PicFea cells 0..5 @ 200ms
+        //   If Taut < 2:
+        //     sleep 100
+        //     sndPlaySound("milon\ranit\NOC<k>.wav", 1)
+        //     PicBur cells 0..5 @ 200ms
+        async function tov1Likro(k, taut) {
+            const ki = String(((k - 1) % 3) + 1);
+            MK.play(taut === 0 ? ("milon/ranit/c" + ki + ".wav")
+                               : ("milon/ranit/m" + ki + ".wav"));
+            await animateSprite(state.picFeaNode, "pic_fea", 6, 200);
+            if (taut < 2) {
+                await MK.sleep(100);
+                MK.play("milon/ranit/noc" + ki + ".wav");
+                await animateSprite(state.picBurNode, "pic_bur", 6, 200);
+            }
         }
         async function onCorrect() {
-            // 1:1 with GAMES1.FRM Slovo_Click (tirgul > 3, index = N_V):
-            //   Matbeot1 otvet-1          ' coin (sync wav)
-            //   Tov1 Form1, Mahamaa       ' PicFea anim cycle 0..5
-            //   sndPlaySound(AWavFileName_Questions, 0)  ' answer wav SYNC
-            //   btnVopros.Visible = False
-            //   sndPlaySound("MIK_SIHA\NEWCHIM.wav", 1)  ' async
+            // 1:1 with GAMES1.FRM Pic_Zone_Click (tirgul = 5, index = N_V):
+            //   otvet += 1
+            //   Matbeot1 otvet-1          ' PlayZad(coin.wav)   SYNC
+            //   Tov1 Form1, Mahamaa       ' C<k>.wav + PicFea (+ NOC + PicBur)
+            //   Taut = 0
+            //   Mahamaa += 1 (wrap 1..3)
+            //   sndPlaySound(AWavFileName_QuestionsP$(N_V), 0)  ' answer SYNC
+            //   sndPlaySound("MIK_SIHA\newCHIM.wav", 1)         ' async
             //   delay 1500
-            //   If (otvet < 3) And (otvet < SahAkol) → pick next vopros
-            //   Else → SofSipur (sofer.Show + chain end)
+            //   If otvet < 3 → pick next vopros (random Vprs)
+            //   Else → SofSipur (sofer + chain end)
             state.qa.otvet += 1;
-            awardCoin(state.qa.otvet - 1);            // plays coin/coin1.wav (sync)
-            animateSprite(state.picFeaNode, "pic_fea", 6, 100);
+            const tautAtAnswer = state.qa.Taut;
+            await awardCoin(state.qa.otvet - 1);     // SYNC coin
+            await tov1Likro(state.qa.Mahamaa, tautAtAnswer);  // praise + anim
+            state.qa.Taut = 0;
+            state.qa.Mahamaa = (state.qa.Mahamaa % 3) + 1;   // 1→2→3→1
             const list = state.tirgul === 4 ? stage.words : stage.zones;
             const e = list[state.qa.N_V - 1];
             if (e && e.wavA) await playAwait(e.wavA);   // answer wav SYNC
@@ -536,35 +662,32 @@
             animateSprite(state.picBurNode, "pic_bur", 6, 100);
             const list = state.tirgul === 4 ? stage.words : stage.zones;
             const e = list[state.qa.N_V - 1];
-            if (state.qa.Taut > 2) {
-                // Kishal_3 + advance (reveal answer + count as missed).
-                await MK.playSync("milon/RANIT/kish3.wav");
-                if (e && e.wavN) await playAwait(e.wavN);
-                state.qa.otvet += 1;
-                if (state.halonNodes && state.halonNodes[state.qa.otvet - 1]) {
-                    state.halonNodes[state.qa.otvet - 1].style.backgroundImage = bgImg("menu/matbea0.png");
-                }
-                if (state.qa.otvet >= 3 || state.qa.Vprs.length === 0) {
-                    finishQA();
-                    return;
-                }
-                nextVopros();
-                return;
-            }
+            // GAMES1.FRM Slovo_Click (tirgul=4) and Pic_Zone_Click (tirgul=5)
+            // do NOT advance the question on Taut>2 — they cycle Mis_Tsuva
+            // 1→2→3→1 forever until the user clicks the right one. Earlier
+            // versions of this port mimicked the milon sub-games' Kishal_3
+            // auto-advance, but the main reading game expects the player
+            // to land on the answer themselves.
             const mt = state.qa.Mis_Tsuva;
+            // Slovo_Click (tirgul=4) Mis_Tsuva=3 uses WAV\TAUTG1.WAV;
+            // Pic_Zone_Click (tirgul=5) uses WAV\tautG2.WAV. Mirror.
+            const tautG = state.tirgul === 5 ? "wav/tautg2.wav" : "wav/tautg1.wav";
             const cue = mt === 1 ? "wav/tautik1.wav"
                       : mt === 2 ? "wav/tautik2.wav"
-                                 : "wav/tautg1.wav";
+                                 : tautG;
             await MK.playSync(cue);
             // For Mis_Tsuva 1/2: replay the question. For 3: play the
-            // answer + a confirm jingle + flash the correct word.
+            // answer + a confirm jingle + flash the correct word/zone.
             if (mt === 3) {
                 if (e && e.wavA) await playAwait(e.wavA);
                 await MK.playSync("mik_siha/newchim.wav");
                 state.qa.Mis_Tsuva = 1;
-                // Three quick flashes of the correct Slovo.
-                for (let k = 0; k < 3; k++) {
-                    flashHighlight(state.slovoNodes[state.qa.N_V - 1]);
+                // Three quick flashes of the correct overlay (zone for
+                // tirgul=5, word for tirgul=4).
+                const nodes = state.tirgul === 5 ? state.zoneNodes : state.slovoNodes;
+                const target = nodes && nodes[state.qa.N_V - 1];
+                for (let k = 0; k < 3 && target; k++) {
+                    flashHighlight(target);
                     await MK.sleep(500);
                 }
             } else {
@@ -587,6 +710,9 @@
             }
             // Q&A text mode (tirgul=4)
             if (state.tirgul !== 4) return;
+            // Original: `Timer3.Enabled = False ; Timer3.Enabled = True`
+            // at the top of Slovo_Click — push the nag-replay forward.
+            resetQaNag();
             if ((i + 1) === state.qa.N_V) {
                 flashHighlight(state.slovoNodes[i]);
                 onCorrect();
@@ -604,6 +730,7 @@
             if (state.tirgul === 1 || state.tirgul === 3) { play(z.wav); return; }
             if (state.tirgul === 2) { play(z.sWav); return; }
             if (state.tirgul !== 5) return;
+            resetQaNag();   // same as Slovo_Click — Timer3 reset
             if ((i + 1) === state.qa.N_V) {
                 flashHighlight(state.zoneNodes[i]);
                 onCorrect();

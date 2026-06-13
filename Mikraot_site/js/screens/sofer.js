@@ -66,7 +66,14 @@
             max2 += i < 3 ? 0 : i < 5 ? 9 : 10;
         }
 
-        MK.renderForm(stage, layout, scale, {
+        // Source .frm has 4 Picture1 + 4 picKolba slots in a row at
+        // x ∈ {440,320,200,80}, y=72. Picture1 holds the step-icon
+        // (MS<n>.bmp, top portion h=27), picKolba holds the coin
+        // (mat<n>.bmp, full h=160). InstalKolb populates them based
+        // on KolKolb (number of completed steps). For our port we
+        // bind the first N slots (left-to-right at the .frm positions)
+        // to the actual completed steps; unused slots stay hidden.
+        const bindings = {
             btnExit:   { img: "menu/stop.png", title: "יציאה", onclick: function () {
                 MK.play("mik_siha/aastop.wav");
                 window.location.href = "../index.html";
@@ -82,41 +89,46 @@
                         location.hash = "#/maslul/" + gameNomer;
                     }
                 }},
-            modiin: { img: "menu/kupd2.png" },
+            // SOFER.FRM modiin_Click 1:1: ShmVideo = "Video\<n>.avi";
+            // Unload sofer. Per-song .avi videos aren't transcoded —
+            // fall back to PROBA so the user at least sees cred.avi.
+            modiin: { img: "menu/kupd2.png", onclick: function () {
+                MK.log("sofer modiin → would play Video/" + gameNomer + ".avi; falling back to PROBA");
+                location.hash = "#/";
+            }},
             Panel3D1: { text: completed ? (SHIR[gameNomer - 1] || "") : "",
                 bg: "rgb(0,128,255)", color: "#fff", visible: completed },
             lblTozaot: {
                 text: completed ? (" אספת " + sum + " מטבעות מתוך " + max2) : "",
                 color: "#ffff00", fontSize: 16, fontFamily: "David, serif",
             },
-        });
-
-        // Per-step coin row — InstalKolb in SOFER.FRM. For each completed
-        // step `i`, show its coin BMP (mat<n>.bmp where n = coin count)
-        // and the step's icon (MS<NomerMasl>.bmp). The .frm uses
-        // KolKolb-based x-positioning; we render a single row centered
-        // in the stage instead — same data, less hand-tuning.
-        if (completed && steps.length > 0) {
-            const row = MK.el("div", { style: {
-                position: "absolute", left: "0", right: "0", top: "40%",
-                display: "flex", justifyContent: "center", gap: "12px",
-                direction: "rtl",
-            }});
-            steps.forEach(function (s) {
-                const cell = MK.el("div", { style: {
-                    display: "flex", flexDirection: "column",
-                    alignItems: "center", gap: "4px",
-                }});
-                const icon = MK.el("img", { src: "assets/menu/ms" + s.i + ".png",
-                    style: { width: "48px", height: "48px" }});
-                const coin = MK.el("img", { src: "assets/menu/mat" + s.coins + ".png",
-                    style: { width: "40px", height: "40px" }});
-                cell.appendChild(icon);
-                cell.appendChild(coin);
-                row.appendChild(cell);
-            });
-            stage.appendChild(row);
+            // Shape1 outline box — frame around the score row.
+            Shape1: { bg: "transparent", visible: completed, style: {
+                border: "2px solid #888", borderRadius: "4px",
+                pointerEvents: "none",
+            }},
+        };
+        // 4 picKolba slots: from left in source, x ∈ {440, 320, 200, 80}.
+        // .frm Index 0 is the rightmost; in completed mode we fill from
+        // Index 0 → steps[0] (= first completed step).
+        for (let i = 0; i < 4; i++) {
+            const step = completed && steps[i] ? steps[i] : null;
+            bindings["picKolba_" + i] = step ? {
+                img: "menu/mat" + step.coins + ".png",
+                style: { backgroundSize: "contain", backgroundRepeat: "no-repeat",
+                         backgroundPosition: "center" },
+            } : { visible: false };
+            bindings["Picture1_" + i] = step ? {
+                img: "menu/ms" + step.i + ".png",
+                style: { backgroundSize: "contain", backgroundRepeat: "no-repeat",
+                         backgroundPosition: "center" },
+            } : { visible: false };
         }
+        // Halon coins (in-progress mode) — hide in completed mode.
+        for (let i = 0; i < 5; i++) {
+            bindings["Halon_" + i] = { visible: false };
+        }
+        MK.renderForm(stage, layout, scale, bindings);
 
         // Tozaot.Dat IO toolbar — not in the original .frm; an extension
         // for the web port that lets a user import an existing Mikraot

@@ -112,7 +112,11 @@
         const layout  = window.MK_LAYOUT.kivun;
         const sz      = MK.stageSizeFor(layout);
         const scale   = MK.scaleFor(layout);
+        // makeStage bumps the global render token — capture it so the
+        // intro-audio chain can bail if a later screen renders. See
+        // MK.stale() in renderer.js.
         const stage   = MK.makeStage(root, sz.w, sz.h);
+        const myToken = MK.currentToken();
         // KIVUN.FRM design canvas is 953×689 (ScaleMode=Pixel, ScaleWidth=
         // 953). The BG mikr2.bmp shipped as 640×480 — VB6 stretched it to
         // the form's coord system at runtime. We stretch via CSS so that
@@ -155,19 +159,64 @@
         }
         setTimeout(activateIntroAudio, 100);
 
+        // KIVUN.FRM has KeyPreview=-1 — form receives keypresses before
+        // any focused control. Two shortcuts wired in source:
+        //
+        //   Form_KeyDown / btnShir_KeyDown — Shift = 6 (= Ctrl+Alt):
+        //     Response = 3; Misgeret() confirm; if 6 (Yes) → ResetKlali
+        //     (zero out Tozaot for ALL songs); reload form.
+        //
+        //   btnShir_KeyPress — keyascii = 48 ("0") + GameNomer > 0:
+        //     ShmVideo = "Video\<GameNomer>.avi"; Unload maslul.
+        //     Plays the per-song celebration video then returns to PROBA.
+        //
+        // We attach as document-level listeners and clean up on the
+        // next hashchange (= screen unmount).
+        const kivunKeyHandler = function (e) {
+            // Shift+Ctrl+Alt held (VB Shift mask 6 = Ctrl 2 | Alt 4)
+            if (e.ctrlKey && e.altKey) {
+                e.preventDefault();
+                if (confirm("?למחוק את התוצאות (כל השירים)")) {
+                    try { localStorage.removeItem("mikraot:tozaot"); } catch (err) {}
+                    location.hash = "#/maslul";
+                    // Hard reload to redraw the song grid colors.
+                    setTimeout(function () { location.reload(); }, 50);
+                }
+                return;
+            }
+            if (e.key === "0" && gameNomer > 0) {
+                e.preventDefault();
+                // ShmVideo = per-song .avi — we don't have these
+                // transcoded (only CRED.AVI). Mirror "Unload maslul" by
+                // hopping back to PROBA so the user sees the entry video.
+                MK.log("kivun key '0' — exit to PROBA");
+                location.hash = "#/";
+            }
+        };
+        document.addEventListener("keydown", kivunKeyHandler);
+        // Clean up on route change so we don't leak handlers across screens.
+        const cleanup = function () {
+            document.removeEventListener("keydown", kivunKeyHandler);
+            window.removeEventListener("hashchange", cleanup);
+        };
+        window.addEventListener("hashchange", cleanup);
+
         // ---- handlers (1:1 from KIVUN.FRM) ---------------------------
 
-        async function btnShir_Click(idx) {
+        function btnShir_Click(idx) {
             // KIVUN.FRM btnShir_Click(Index) 1:1:
             //   Paam_Rishon = False
             //   GN = Index+1; sf = "games\<GN>_2.spi"
             //   If no .spi file → Exit Sub
-            //   Hide previous song's lblShm; show new song's lblShm
-            //   GameNomer = Index+1; SFN$ = sf
-            //   Bdikat_Masl       (show 3 maslul buttons + hofshi)
-            //   sndPlaySound("...L1.wav", 0)   ' SND_SYNC blocks
+            //   GameNomer = Index+1; SFN$ = sf; Bdikat_Masl
+            //   sndPlaySound("<GN>L1.wav", 0)   ' SND_SYNC blocks ~3-5 sec
             //   Sleep 1000
-            //   If povtor → sndPlaySound("I2.wav", 1)  ' async
+            //   If povtor → sndPlaySound("I2.wav", 1)
+            //
+            // We can't block in a web click handler the way VB6 does, so
+            // we set a flag and let the post-navigation re-render of the
+            // "song-picked" view drive the audio sequence (otherwise the
+            // new render's activateIntroAudio would interrupt our L1).
             const gn = idx + 1;
             const stages = window.MK_STAGES[String(gn)];
             if (!stages || !stages["2"]) {
@@ -176,24 +225,27 @@
             }
             sessionStorage.setItem("mikraot:gameNomer", String(gn));
             sessionStorage.setItem("mikraot:paam_rishon", "0");
-            // Navigate first so the maslul-picker UI re-renders with the
-            // chosen song's lblShm visible; then play the song's title
-            // and the "now pick a maslul" prompt afterwards. (The original
-            // does the picture/maslul UI updates BEFORE the blocking
-            // L1 play — same effective ordering.)
+            sessionStorage.setItem("mikraot:justPickedSong", String(gn));
+            // Invalidate the current activateIntroAudio chain (mid-sleep
+            // it would otherwise fire its tail I2 from a screen the
+            // user has just left). The chain's `stale()` check after
+            // its next await will return true and bail.
+            MK.bumpToken();
             location.hash = "#/maslul/" + gn;
-            await MK.playSync("wav/" + gn + "_1/" + gn + "l1.wav");
-            await MK.sleep(1000);
-            if (sessionStorage.getItem("mikraot:povtor") === "1") {
-                MK.play("mik_siha/i2.wav");
-                sessionStorage.removeItem("mikraot:povtor");
-            }
         }
-        function btnMsl1_Click(idx) {
-            // Pick maslul `idx` (0..2). Play I3/I4/I5 maslul intro, then
-            // if already completed → sofer, else start the Kivun walker.
-            MK.play("mik_siha/i" + (idx + 3) + ".wav");
+        async function btnMsl1_Click(idx) {
+            // Pick maslul `idx` (0..2). 1:1 with KIVUN.btnMsl1_Click:
+            //   PlayZad(MIK_SIHA\I<idx+3>.wav)   ' SYNC blocks
+            //   If completed (Tozaot.Masl(idx,12)=1) → sofer.Show
+            //   Else → Kivun(idx) walker
+            // PlayZad is SYNC so the navigation that follows starts
+            // only after the I-cue finishes. Mirror with await.
             if (gameNomer === 0) return;
+            // Same reason as btnShir_Click — cancel any in-flight
+            // activateIntroAudio chain so its sleep-tail doesn't
+            // interrupt our I-cue (the I2 vs I3 collision).
+            MK.bumpToken();
+            await MK.playSync("mik_siha/i" + (idx + 3) + ".wav");
             if (maslulCompleted(gameNomer, idx)) {
                 location.hash = "#/sofer/" + gameNomer + "/" + idx;
                 return;
@@ -214,10 +266,11 @@
             if (!steps || steps.length === 0) return;
             launchStep(steps, 0, idx);
         }
-        function btnHofshi_Click() {
-            // Free-play: NomerMasl=-1, clear all Tozaot.Masl(*,12),
-            // play Mik_Siha/n2.wav, then start.Show 1 (= START.FRM).
-            MK.play("mik_siha/n2.wav").catch(function () {});
+        async function btnHofshi_Click() {
+            // 1:1 with KIVUN.btnHofshi_Click:
+            //   NomerMasl=-1; clear Tozaot.Masl(*,12) for current song
+            //   PlayZad("Mik_Siha\n2.wav")   ' SYNC blocks
+            //   If GameNomer>0: start.Show 1
             const t = loadTozaot();
             if (t[gameNomer]) {
                 [0,1,2].forEach(function (i) {
@@ -225,6 +278,8 @@
                 });
                 saveTozaot(t);
             }
+            MK.bumpToken();
+            await MK.playSync("mik_siha/n2.wav");
             if (gameNomer > 0) location.hash = "#/start";
         }
         function btnReturn_Click() {
@@ -254,25 +309,24 @@
             }));
             const code = steps[stepIdx];
             const variant = "2";   // SFN$=games/<n>_2.spi per Kivun()
-            // Dispatch per KIVUN.FRM Kivun(Ind) Select Case NomerMasl:
-            //   0 → Form1 tirgul=1 Stroka  → games\<n>_1.spi (lines)
-            //   1 → Form1 tirgul=2 Slovo   → games\<n>_2.spi (words)
-            //   2 → Form1 tirgul=3 Slog    → games\<n>_3.spi (syllables)
-            //   3 → Form1 tirgul=4 VoprTx  → games\<n>_2.spi (text Q&A on words)
-            //   4 → Form1 tirgul=5 VoprTm  → games\<n>_1.spi (picture Q&A)
+            // Dispatch per KIVUN.FRM Kivun(Ind) Select Case NomerMasl —
+            // KIVUN sets tirgul to one value before Form1.Show but Form_Load's
+            // Timer1_Timer immediately fires btnSlog/Slovo/Stroka_Click based
+            // on NomerMasl, and those handlers OVERWRITE tirgul to their own
+            // value (btnSlog→3, btnSlovo→2, btnStroka→1). Effective mapping
+            // (after Timer1 settles):
+            //   0 → btnSlog_Click   → tirgul=3 Slog   → _3.spi (syllables)
+            //   1 → btnSlovo_Click  → tirgul=2 Slovo  → _2.spi (words)
+            //   2 → btnStroka_Click → tirgul=1 Stroka → _1.spi (lines)
+            //   3 → Form_Load Q&A text  → tirgul=4 → _2.spi
+            //   4 → Form_Load Q&A pic   → tirgul=5 → _1.spi
             //   5..11 → MILON sub-games
-            //
-            // The .spi variant per tirgul is set by GAMES1.FRM Make_Games:
-            //   index <= 3 → K_S = "<n>_<index>"
-            //   index = 4  → "<n>_2"
-            //   index = 5  → "<n>_1"
-            const variantForTirgul = function (t) {
-                return t === 1 ? 1 : t === 2 ? 2 : t === 3 ? 3 : t === 4 ? 2 : 1;
-            };
+            const tirgulByCode  = [3, 2, 1, 4, 5];
+            const variantByCode = [3, 2, 1, 2, 1];
             const baseHash = "/" + gameNomer + "/" + maslIdx + "?nomerMasl=" + code;
             if (code >= 0 && code <= 4) {
-                const tirgul = [1, 2, 3, 4, 5][code];
-                const v = variantForTirgul(tirgul);
+                const tirgul = tirgulByCode[code];
+                const v = variantByCode[code];
                 location.hash = "#/play/" + gameNomer + "/" + v + "?tirgul=" + tirgul + "&nomerMasl=" + code;
             } else if (code === 5) location.hash = "#/game1" + baseHash + "&mishak=4";
             else if (code === 6) location.hash = "#/game1" + baseHash + "&mishak=1";
@@ -293,26 +347,85 @@
             return node;
         }
         function mkPicFea(style) {
+            // KIVUN.FRM PicFea_Click 1:1:
+            //   If GameNomer > 0:
+            //     sndPlaySound("I8.wav", 1)  +  12-cell anim  +  6-cell anim
+            //   Else if leserugin = 0:
+            //     sndPlaySound("I1.wav", 1)  +  12-cell × 2
+            //     leserugin = 1
+            //     sndPlaySound("<sipm>_1\<sipm>L1.wav", 1)
+            //     hide all lblShm except sipm-1's
+            //   Else (leserugin = 1):
+            //     leserugin = 0
+            //     sndPlaySound("I7.wav", 1)
+            //   Tail: 6-cell + 12-cell anim
             const node = MK.el("button", { class: "ctrl", style: style });
             node.style.backgroundImage = bgImg("anim/pic_fea_0.png");
-            let i = 0;
-            node.addEventListener("click", function () {
-                MK.play("mik_siha/x2.wav").catch(function () {});
-                const tick = function () {
-                    if (i >= 6) { i = 0; node.style.backgroundImage = bgImg("anim/pic_fea_0.png"); return; }
-                    node.style.backgroundImage = bgImg("anim/pic_fea_" + i + ".png");
-                    i += 1; setTimeout(tick, 100);
-                };
-                tick();
+            const leserugin = { value: 0 };
+            const animCycle = function (cells) {
+                let j = 0;
+                return new Promise(function (resolve) {
+                    const tick = function () {
+                        if (j >= cells) { node.style.backgroundImage = bgImg("anim/pic_fea_0.png"); resolve(); return; }
+                        node.style.backgroundImage = bgImg("anim/pic_fea_" + j + ".png");
+                        j += 1; setTimeout(tick, 200);
+                    };
+                    tick();
+                });
+            };
+            node.addEventListener("click", async function () {
+                if (gameNomer > 0) {
+                    MK.play("mik_siha/i8.wav");
+                    await animCycle(12);
+                    await animCycle(6);
+                } else if (leserugin.value === 0) {
+                    MK.play("mik_siha/i1.wav");
+                    await animCycle(12);
+                    await animCycle(12);
+                    leserugin.value = 1;
+                    const sipm = sipurMumlaz();
+                    if (sipm > 0) {
+                        MK.play("wav/" + sipm + "_1/" + sipm + "l1.wav");
+                        refs.lblShm.forEach(function (l) { if (l) l.style.visibility = "hidden"; });
+                        if (refs.lblShm[sipm - 1]) {
+                            refs.lblShm[sipm - 1].textContent = SHIR[sipm - 1];
+                            refs.lblShm[sipm - 1].style.visibility = "visible";
+                        }
+                    }
+                } else {
+                    leserugin.value = 0;
+                    MK.play("mik_siha/i7.wav");
+                }
+                await animCycle(6);
+                await animCycle(12);
             });
             stage.appendChild(node);
         }
         function mkModiin(style) {
-            const node = MK.el("div", { class: "ctrl no-click", style: style });
-            // SipurMumlaz() returns 0 when ALL songs completed.
-            // kupd1 = "done", kupd2 = "in progress" per Form_Activate.
+            // KIVUN.FRM modiin_Click 1:1:
+            //   If ArrAzaga(0) = 1 (song 1 has at least one completed
+            //     maslul): Azaga=True; TekFilm=1; ShmVideo="Video\1.avi";
+            //     Unload maslul (= jump to celebration-video sequence).
+            //   Else: PlayZad("MIK_SIHA\I9.wav") ("you haven't finished
+            //     any song yet" prompt).
+            const node = MK.el("button", { class: "ctrl", style: style, title: "מודיעין" });
             const allDone = checkAllDone();
             node.style.backgroundImage = bgImg(allDone ? "menu/kupd1.png" : "menu/kupd2.png");
+            node.style.background = "transparent " + (allDone ? "url('assets/menu/kupd1.png')" : "url('assets/menu/kupd2.png')") + " no-repeat";
+            node.addEventListener("click", function () {
+                const t = loadTozaot();
+                const song1 = t["1"] || {};
+                const song1Done = [0,1,2].some(function (i) { return ((song1[i] || {}).done) === 1; });
+                if (song1Done) {
+                    // Azaga cycle — the per-song .avi celebration videos
+                    // aren't transcoded. Hop to PROBA so the user at
+                    // least sees the entry video (cred.avi).
+                    MK.log("modiin: Azaga cycle starts (song 1 completed)");
+                    location.hash = "#/";
+                } else {
+                    MK.play("mik_siha/i9.wav");
+                }
+            });
             stage.appendChild(node);
         }
         function mkMaslulBtn(ctrl, style, idx) {
@@ -466,6 +579,8 @@
             }
             return 0;
         }
+        // Abort if a later render has superseded this one.
+        function stale() { return MK.stale(myToken); }
         async function activateIntroAudio() {
             // Form_Activate 1:1, mirroring the original sync/async flag
             // pattern:
@@ -492,6 +607,7 @@
             const povtorMumlaz = sessionStorage.getItem("mikraot:povtorMumlaz") === "1";
             if (sipm === 0 && povtorMumlaz) {
                 await MK.playSync("wav/done.wav");
+                if (stale()) return;
                 sessionStorage.removeItem("mikraot:povtorMumlaz");
                 return;
             }
@@ -503,6 +619,7 @@
                         refs.lblShm[sipm - 1].style.visibility = "visible";
                     }
                     await MK.playSync("mik_siha/i1.wav");
+                    if (stale()) return;
                     MK.play("wav/" + sipm + "_1/" + sipm + "l1.wav");
                 } else {
                     await MK.playSync("mik_siha/ii1.wav");
@@ -511,6 +628,19 @@
                 if (refs.lblShm[gameNomer - 1]) {
                     refs.lblShm[gameNomer - 1].textContent = SHIR[gameNomer - 1];
                     refs.lblShm[gameNomer - 1].style.visibility = "visible";
+                }
+                const just = sessionStorage.getItem("mikraot:justPickedSong");
+                if (just && +just === gameNomer) {
+                    sessionStorage.removeItem("mikraot:justPickedSong");
+                    await MK.playSync("wav/" + gameNomer + "_1/" + gameNomer + "l1.wav");
+                    if (stale()) return;
+                    await MK.sleep(1000);
+                    if (stale()) return;
+                    if (sessionStorage.getItem("mikraot:povtor") === "1") {
+                        MK.play("mik_siha/i2.wav");
+                        sessionStorage.removeItem("mikraot:povtor");
+                    }
+                    return;
                 }
                 const nm = +(sessionStorage.getItem("mikraot:nomerMasl") || -1);
                 if (nm < 0) await MK.playSync("mik_siha/i8.wav");

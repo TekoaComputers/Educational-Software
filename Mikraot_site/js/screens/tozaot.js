@@ -38,19 +38,22 @@
                      : kolKolb === 3 ? [L1 + Pol, L2 + Pol, L3 + Pol]
                      :                 [L0, L1, L2, L3];
 
-        // Render Picture1 slots manually at their computed positions
-        // (Picture1 in .frm has Index 0..3 with the same Left/Top — they
-        // get reassigned at runtime; renderForm wouldn't know the right
-        // positions). Each Picture1 in the .frm is ~990×1110 twips
-        // → ~66×74 px at twips/15.
-        const w = px(990), h = px(1110);
-        const y = Math.round((sz.h - h) / 2);
+        // Picture1 .frm dims: Width=1860 twips → 124 px, Height=780 →
+        // 52 px (twips/15). Top=2640 → 176 px. The .frm places them at
+        // x ∈ {1200,3000,4800,6600} twips matching L3/L2/L1/L0 — so
+        // KolKolb=4 lines up exactly with the .frm Picture1(0..3) Left
+        // values. The slotXs array now matches the dispatch table.
+        const icoW = Math.round(1860 / 15);   // 124 px
+        const icoH = Math.round(780 / 15);    // 52 px
+        const icoY = px(2640);                 // 176 px (matches Picture1.Top)
+        // slotXs entries are LEFT edges (matching the source's
+        // Picture1.Left = L0/L1/L2/L3 assignments) — place as-is.
         steps.slice(0, 4).forEach(function (nomerMasl, i) {
             const node = MK.el("img", {
                 src: "assets/menu/ms" + nomerMasl + ".png",
                 style: { position: "absolute",
-                    left: (slotXs[i] - w / 2) + "px", top: y + "px",
-                    width: w + "px", height: h + "px" },
+                    left: slotXs[i] + "px", top: icoY + "px",
+                    width: icoW + "px", height: icoH + "px" },
             });
             stage.appendChild(node);
         });

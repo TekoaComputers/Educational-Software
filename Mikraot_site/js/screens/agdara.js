@@ -47,6 +47,25 @@
         const settings = loadSettings();
         const values = (settings[maslIdx] || DEFAULTS[String(maslIdx)] || new Array(12).fill(0)).slice();
         const checkRefs = [];
+        let shihzorBtn = null;
+
+        // AGDARA.FRM bdika() 1:1 — compare current Check1 values against
+        // the maslul's defaults. Returns 1 if match (no need to restore),
+        // 0 if differ. Used to gate the "שיחזור" (restore-defaults)
+        // button's Enabled state.
+        function bdika() {
+            const def = DEFAULTS[String(maslIdx)];
+            if (!def) return 1;
+            for (let i = 0; i < 12; i++) {
+                if ((values[i] ? 1 : 0) !== (def[i] ? 1 : 0)) return 0;
+            }
+            return 1;
+        }
+        function refreshShihzor() {
+            if (!shihzorBtn) return;
+            shihzorBtn.disabled = (bdika() === 1);
+            shihzorBtn.style.opacity = shihzorBtn.disabled ? "0.5" : "1";
+        }
 
         // Bindings:
         //   - btnExit/Return/Shihzor wired
@@ -62,19 +81,53 @@
                 saveSettings(settings);
                 location.hash = "#/maslul";
             }},
-            btnShihzor: { text: "שיחזור", bg: "#c0c0c0", color: "#000", onclick: function () {
-                const d = DEFAULTS[String(maslIdx)];
-                if (d) {
-                    d.forEach(function (v, i) { values[i] = v; if (checkRefs[i]) checkRefs[i].checked = !!v; });
-                }
+            btnShihzor: { build: function (ctrl, sc, parent) {
+                const b = MK.el("button", { class: "ctrl", style: MK.posStyle(ctrl, sc) },
+                    ["שיחזור"]);
+                b.style.background = "#c0c0c0";
+                b.style.color = "#000";
+                b.style.fontFamily = "David, serif";
+                b.style.fontSize = "16px";
+                b.addEventListener("click", function () {
+                    const d = DEFAULTS[String(maslIdx)];
+                    if (!d) return;
+                    d.forEach(function (v, i) {
+                        values[i] = v;
+                        if (checkRefs[i]) checkRefs[i].checked = !!v;
+                    });
+                    refreshShihzor();
+                });
+                stage.appendChild(b);
+                shihzorBtn = b;
+                return b;
             }},
             Panel3D1: { text: "הגדרת מסלול " + maslIdx, bg: "rgb(0,128,255)", color: "#fff" },
             lblKotarot: { text: "שלבי המסלול", color: "#fff", fontSize: 14 },
         };
         // Picture1(0..11) — icons extracted from AGDARA.FRX. The .frm
-        // Index maps directly to NomerMasl step code.
+        // Index maps directly to NomerMasl step code. Clicking the icon
+        // toggles the matching Check1 (1:1 with Picture1_Click in source).
         for (let i = 0; i < 12; i++) {
-            bindings["Picture1_" + i] = { img: "agdara_icons/step_" + i + ".png", title: STEP_LABELS[i] };
+            bindings["Picture1_" + i] = {
+                build: (function (idx) {
+                    return function (ctrl, sc, parent) {
+                        const node = MK.el("button", { class: "ctrl", style: MK.posStyle(ctrl, sc), title: STEP_LABELS[idx] });
+                        node.style.backgroundImage = "url('assets/agdara_icons/step_" + idx + ".png')";
+                        node.style.backgroundSize = "contain";
+                        node.style.backgroundRepeat = "no-repeat";
+                        node.style.backgroundPosition = "center";
+                        node.style.backgroundColor = "transparent";
+                        node.style.cursor = "pointer";
+                        node.addEventListener("click", function () {
+                            values[idx] = values[idx] ? 0 : 1;
+                            if (checkRefs[idx]) checkRefs[idx].checked = !!values[idx];
+                            refreshShihzor();
+                        });
+                        stage.appendChild(node);
+                        return node;
+                    };
+                })(i),
+            };
         }
         // Check1 → real checkbox + label centered in the slot.
         for (let i = 0; i < 12; i++) {
@@ -93,6 +146,7 @@
                         cb.checked = !!values[idx];
                         cb.addEventListener("change", function () {
                             values[idx] = cb.checked ? 1 : 0;
+                            refreshShihzor();
                         });
                         wrap.appendChild(cb);
                         stage.appendChild(wrap);
@@ -103,6 +157,7 @@
             };
         }
         MK.renderForm(stage, layout, scale, bindings);
+        refreshShihzor();   // initial state based on Form_Load bdika().
 
         // Tozaot.Dat IO toolbar (web-port extension — not in the .frm).
         // Pinned bottom-right of the settings stage so it doesn't

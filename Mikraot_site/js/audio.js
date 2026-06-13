@@ -35,6 +35,29 @@
     // Last awaitable Promise — useful to "let the previous finish" even
     // without an explicit await at the call site.
     let lastEnd = Promise.resolve();
+    // True once any audio has successfully played — used to detect the
+    // browser autoplay-block state. If a play() fails with NotAllowed-
+    // Error before this turns true, we queue it to fire on the next
+    // user gesture.
+    let audioUnlocked = false;
+    // Pending audio waiting for first user gesture (when MK.play was
+    // called before the page had any user activation, e.g. when the
+    // user lands on the page via URL bar / refresh). Cleared once the
+    // browser allows playback.
+    const pendingOnGesture = [];
+
+    function primeOnGesture() {
+        // Run any deferred plays now that we have user activation.
+        audioUnlocked = true;
+        while (pendingOnGesture.length) {
+            const fn = pendingOnGesture.shift();
+            try { fn(); } catch (e) {}
+        }
+    }
+    // One-time listeners on multiple gesture types — first match wins.
+    ["click", "keydown", "touchstart", "pointerdown"].forEach(function (ev) {
+        document.addEventListener(ev, primeOnGesture, { once: true, capture: true });
+    });
 
     function isNonePath(rel) {
         // VB6 .spi data uses literal "None" as a "no audio" marker.
@@ -79,6 +102,11 @@
     // Core play. Returns a Promise<void>. With `await:true` it resolves
     // when the sound ends naturally (or is interrupted); otherwise it
     // resolves as soon as play() succeeds.
+    //
+    // If play() rejects with NotAllowedError (browser autoplay block),
+    // the call is queued to fire on the next user gesture — so when
+    // the user reloads / lands on a /play URL directly, the audio
+    // doesn't drop silently. It plays as soon as they click.
     MK.play = function (relPath, opts) {
         opts = opts || {};
         if (isNonePath(relPath)) {
@@ -86,28 +114,46 @@
             return Promise.resolve();
         }
         const url = "assets/" + String(relPath).replace(/^\/+/, "").toLowerCase();
-        const a = getAudio(url);
 
-        // VB6 sndPlaySound stops the previously-playing sound before
-        // starting the new one. Mirror that — but allow opt-out for
-        // sequence callers that want layered audio.
-        if (opts.stopOthers !== false && current && current !== a) {
-            try { current.pause(); current.currentTime = 0; } catch (e) {}
-        }
-        current = a;
-        try { a.currentTime = 0; } catch (e) {}
-        const endP = attachEndPromise(a);
-        const playP = a.play();
-        const safeStart = (playP && playP.catch) ? playP.catch(function (err) {
-            MK.log("audio play failed", url, String(err && err.message || err));
-        }) : Promise.resolve();
+        const doPlay = function () {
+            const a = getAudio(url);
+            if (opts.stopOthers !== false && current && current !== a) {
+                try { current.pause(); current.currentTime = 0; } catch (e) {}
+            }
+            current = a;
+            try { a.currentTime = 0; } catch (e) {}
+            const endP = attachEndPromise(a);
+            const playP = a.play();
+            const safeStart = (playP && playP.catch) ? playP.catch(function (err) {
+                const msg = String(err && err.message || err);
+                // NotAllowedError = browser autoplay-block (no user
+                // gesture yet). Queue for next gesture so the sound
+                // isn't silently lost.
+                if (err && err.name === "NotAllowedError" && !audioUnlocked) {
+                    MK.log("audio queued for next gesture", url);
+                    pendingOnGesture.push(function () {
+                        try { a.play().catch(function () {}); } catch (e) {}
+                    });
+                } else {
+                    MK.log("audio play failed", url, msg);
+                }
+            }) : Promise.resolve();
+            // If play() resolves, we have audio permission for the rest
+            // of the session — flip the unlocked flag so subsequent
+            // late plays aren't queued unnecessarily.
+            if (playP && playP.then) {
+                playP.then(function () { audioUnlocked = true; }).catch(function () {});
+            }
+            return { safeStart, endP };
+        };
 
+        const result = doPlay();
         if (opts.await) {
-            lastEnd = safeStart.then(function () { return endP; });
+            lastEnd = result.safeStart.then(function () { return result.endP; });
             return lastEnd;
         }
-        lastEnd = safeStart;
-        return safeStart;
+        lastEnd = result.safeStart;
+        return result.safeStart;
     };
 
     // PlayZad equivalent — always blocks until the audio ends. Use at
@@ -129,15 +175,15 @@
         current = null;
     };
 
-    // Cancel any in-flight awaitable. Useful when navigating away
-    // from a screen mid-sequence so stale promises don't linger.
+    // Cancel any in-flight audio + reset the sequence promise. Each
+    // screen calls this in its cleanup path if it wants to stop the
+    // previous screen's audio. We DON'T auto-cancel on hashchange —
+    // that races with click handlers that play an intro cue and then
+    // navigate (e.g. KIVUN.btnShir_Click plays the song's L1.wav then
+    // updates the URL; hashchange-on-cancel would pause L1 before
+    // it could play).
     MK.cancelAudio = function () {
         MK.stop();
         lastEnd = Promise.resolve();
     };
-
-    // Auto-cancel on hash change — when the user navigates away,
-    // stop any playing audio and reset the sequence promise. Saves
-    // every screen from needing a cleanup hook.
-    window.addEventListener("hashchange", function () { MK.cancelAudio(); });
 })();

@@ -35,6 +35,21 @@
         right:   { bg: "#d0ffd0", emoji: "✓" },
     };
 
+    // VB6 OLE_COLOR → CSS color. Stored as 0x00BBGGRR; values with the
+    // high byte set (0x80000005..) are *system* color refs (button face,
+    // window bg, etc.) — we can't honor those exactly in CSS, so fall
+    // back to the supplied default for them.
+    function vbColor(n, fallback) {
+        if (n == null) return fallback;
+        // VB6 .frm parser may surface negative ints (32-bit signed) for
+        // values >= 0x80000000. Normalize to unsigned.
+        const u = (n >>> 0);
+        if ((u & 0x80000000) !== 0) return fallback;  // system color
+        const r = u & 0xFF;
+        const g = (u >>> 8) & 0xFF;
+        const b = (u >>> 16) & 0xFF;
+        return "rgb(" + r + "," + g + "," + b + ")";
+    }
     function rng(n) { return Math.floor(Math.random() * n); }
     function getEntries(song) {
         const idxs = window.MK_TEM[String(song)] || [];
@@ -57,9 +72,26 @@
         }
         return result;
     }
+    // Variant of pick4 that returns N items — always INCLUDING `correct`.
+    // The previous impl built a 4-item shuffled array then `slice(0, n)`'d
+    // it, which would drop `correct` ~(4-n)/4 of the time → in game5
+    // (n=3) about 25% of rounds had no valid answer.
     function pickN(pool, correct, n) {
-        const r = pick4(pool, correct);
-        return r.slice(0, n);
+        const others = pool.filter(function (e) { return e !== correct; });
+        const result = [correct];
+        const seen = new Set([correct.mila]);
+        while (result.length < n && others.length) {
+            const i = rng(others.length);
+            const e = others.splice(i, 1)[0];
+            if (seen.has(e.mila)) continue;
+            seen.add(e.mila);
+            result.push(e);
+        }
+        for (let i = result.length - 1; i > 0; i--) {
+            const j = rng(i + 1);
+            [result[i], result[j]] = [result[j], result[i]];
+        }
+        return result;
     }
     function awardCoin(taut) {
         if (taut === 0) return { img: "menu/matbea3.png", wav: "mik_siha/coin.wav",  value: 2 };
@@ -78,11 +110,11 @@
         // sndPlaySound is async-by-default (flag 1) and the For-loop
         // animation reads on the same UI thread. We mirror by NOT
         // awaiting the wav before starting the animation.
-        MK.play("milon/RANIT/c" + ki + ".wav");
+        MK.play("milon/ranit/c" + ki + ".wav");
         await animSprite(picFeaNode, "pic_fea", 6, 200);
         if (taut < 2) {
             await MK.sleep(100);
-            MK.play("milon/RANIT/noc" + ki + ".wav");
+            MK.play("milon/ranit/noc" + ki + ".wav");
             await animSprite(picBurNode, "pic_bur", 6, 200);
         }
     }
@@ -94,10 +126,10 @@
     //   5. PicBur cells 0..5
     async function kishalon(picFeaNode, picBurNode, k) {
         const ki = String(Math.min(Math.max(k, 1), 3));
-        MK.play("milon/RANIT/kish" + ki + ".wav");
+        MK.play("milon/ranit/kish" + ki + ".wav");
         await animSprite(picFeaNode, "pic_fea", 6, 200);
         await MK.sleep(1000);
-        MK.play("milon/RANIT/nok" + ki + ".wav");
+        MK.play("milon/ranit/nok" + ki + ".wav");
         await animSprite(picBurNode, "pic_bur", 6, 200);
     }
     function saveCoins(song, masl, code, coins) {
@@ -121,14 +153,14 @@
         return window.MK_MILON.indexOf(entry) + 1;
     }
     function milonImgUrl(entry) {
-        return "assets/milon/BMP/" + getMilonIdx(entry) + ".png";
+        return "assets/milon/bmp/" + getMilonIdx(entry) + ".png";
     }
     function milonWavUrl(entry, mode) {
         // Mode "p" = pronounce the word; "a" = a syllable's audio
         // (a<N>.wav from milon/Avara.wav). We just pronounce the word.
         const idx = getMilonIdx(entry);
-        // milon/WAV/<n>.wav holds the recording for record n.
-        return "milon/WAV/" + idx + ".wav";
+        // milon/wav/<n>.wav holds the recording for record n.
+        return "milon/wav/" + idx + ".wav";
     }
 
     MK.advanceMaslulChain = advanceChain;
@@ -148,9 +180,16 @@
         const code = chain.steps[chain.stepIdx];
         const base = "/" + chain.song + "/" + chain.masl + "?nomerMasl=" + code;
         if (code >= 0 && code <= 4) {
-            // Make_Games maps tirgul → .spi variant: 1→_1, 2→_2, 3→_3, 4→_2, 5→_1.
-            const tirgul = [1,2,3,4,5][code];
-            const variant = tirgul === 1 ? 1 : tirgul === 2 ? 2 : tirgul === 3 ? 3 : tirgul === 4 ? 2 : 1;
+            // KIVUN's Kivun() sets tirgul before Form1.Show, but Timer1_Timer
+            // in GAMES1.FRM Form_Load fires btnSlog/Slovo/Stroka_Click which
+            // overwrites tirgul (Slog→3, Slovo→2, Stroka→1). Effective:
+            //   0 → tirgul=3 _3.spi (syllables / Slog)
+            //   1 → tirgul=2 _2.spi (words / Slovo)
+            //   2 → tirgul=1 _1.spi (lines / Stroka)
+            //   3 → tirgul=4 _2.spi (Q&A text)
+            //   4 → tirgul=5 _1.spi (Q&A picture)
+            const tirgul  = [3, 2, 1, 4, 5][code];
+            const variant = [3, 2, 1, 2, 1][code];
             location.hash = "#/play/" + chain.song + "/" + variant + "?tirgul=" + tirgul + "&nomerMasl=" + code;
         } else if (code === 5) location.hash = "#/game1" + base + "&mishak=4";
         else if (code === 6) location.hash = "#/game1" + base + "&mishak=1";
@@ -195,8 +234,11 @@
         const sz     = MK.stageSizeFor(layout);
         const scale  = MK.scaleFor(layout);
         const stage  = MK.makeStage(root, sz.w, sz.h);
-        // Background: most game forms have BackColor system-default light gray.
-        stage.style.background = "#c0c0c0";
+        // VB6 BackColor is stored 0x00BBGGRR. WAV/WAV1/SLOG/GM3A all use
+        // &H00800000& = rgb(0, 0, 128) navy blue. GAME5 uses the system
+        // button-face default (light gray). Convert the form's actual
+        // BackColor instead of forcing a uniform fill.
+        stage.style.background = vbColor((layout.props || {}).BackColor, "#c0c0c0");
 
         const refs = MK.renderForm(stage, layout, scale, {
             btnExit: { img: "menu/stop.png", title: "יציאה", onclick: function () {
@@ -291,7 +333,10 @@
             state.attempts = 0;
             const correct = entries[rng(entries.length)];
             state.current = correct;
-            const choices = pick4(entries, correct).slice(0, opts.choices || 4);
+            // pickN guarantees `correct` is in the returned slice (and
+            // shuffled among the rest). `pick4(...).slice(0, n)` did
+            // not — it would drop `correct` ~(4-n)/4 of the time.
+            const choices = pickN(entries, correct, opts.choices || 4);
             opts.setupRound(correct, choices, onAnswer);
         }
         // Audio sequencing 1:1 with WAV.FRM btnOtvet_Click:
@@ -318,7 +363,7 @@
                 state.attempts += 1;
                 if (state.attempts > 2) {
                     sc.setHalon(state.round - 1, "wrong");
-                    await MK.playSync("milon/RANIT/kish3.wav");
+                    await MK.playSync("milon/ranit/kish3.wav");
                     nextRound();
                 } else {
                     await kishalon(sc.refs.PicFea, sc.refs.PicBur, state.attempts);
@@ -337,6 +382,19 @@
         const titles = { "1": "?איפה זה כתוב", "2": "? מה נשמע", "4": "? במה זה מתחיל" };
         const sc = buildScaffold(root, ctx, "wav", titles[mishak] || "מילון");
 
+        // WAV.FRM Timer4_Timer (Enabled=False design-time, set True at the
+        // end of Form_Load with Interval=1500) — auto-fires once 1.5s
+        // after the form paints. Mishak-specific intro:
+        //   Mishak=1: BB005.wav + PicFea cycle + enables Timer2 nag
+        //   Mishak=2: BB005.wav (no PicFea cycle — quiz is audio-only)
+        //   Mishak=4: BB010.wav + PicFea cycle + enables Timer2 nag
+        setTimeout(async function () {
+            await MK.playSync(mishak === 4 ? "mik_siha/bb010.wav" : "mik_siha/bb005.wav");
+            if (mishak !== 2 && sc.refs.PicFea) {
+                await animSprite(sc.refs.PicFea, "pic_fea", 6, 200);
+            }
+        }, 1500);
+
         // Style answer rows: use the form's own btnMila / btnOt / btnOtvet
         // / btnTmuna positions exactly (from renderForm).
         runQuiz(sc, {
@@ -349,7 +407,7 @@
                 //                identifies by audio)
                 if (sc.refs.btnTmuna) {
                     const img = mishak === 2
-                        ? "assets/milon/BMP/arcade.png"
+                        ? "assets/milon/bmp/arcade.png"
                         : milonImgUrl(correct);
                     sc.refs.btnTmuna.style.backgroundImage = "url('" + img + "')";
                     sc.refs.btnTmuna.style.backgroundSize = "contain";
@@ -360,8 +418,9 @@
                     };
                 }
                 if (mishak === 2) {
-                    // Audio prompt — autoplay correct word audio.
-                    setTimeout(function () { MK.play(milonWavUrl(correct)).catch(function () {}); }, 200);
+                    // Mishak=2 (מה נשמע): no visual hint — user picks
+                    // by audio. Play the word immediately.
+                    MK.play(milonWavUrl(correct));
                 }
                 // Answer buttons: Mishak 4 uses btnOt (picture letters);
                 // others use btnMila (text labels).
@@ -392,7 +451,7 @@
                             // LoadPicture(Dirs$ & "Avara.bmp\a" & Slg(0) & ".bmp")
                             // — the per-syllable letter graphic.
                             const slg = (choice.slg[0] || "").trim();
-                            const url = slg ? "assets/milon/AVARA.BMP/A" + slg + ".png" : "";
+                            const url = slg ? "assets/milon/avara.bmp/A" + slg + ".png" : "";
                             btnOt.textContent = "";
                             btnOt.style.backgroundImage = url ? "url('" + url + "')" : "";
                             btnOt.style.backgroundSize = "contain";
@@ -592,7 +651,7 @@
                 }
             },
         });
-        setTimeout(function () { MK.play("mik_siha/bb004.wav"); }, 250);
+        MK.play("mik_siha/bb004.wav");   // Form_Load intro
     };
 
     // ---- Slog / SLOG.FRM — syllable-arrangement game -----------------
@@ -623,7 +682,7 @@
 
         function avaraUrl(code) {
             const c = (code || "").trim();
-            return c ? "assets/milon/AVARA.BMP/A" + c + ".png" : "";
+            return c ? "assets/milon/avara.bmp/A" + c + ".png" : "";
         }
 
         function setup() {
@@ -698,7 +757,7 @@
                 }
             }
             // Play the word audio as an opening cue.
-            setTimeout(function () { MK.play(milonWavUrl(miln)); }, 250);
+            MK.play(milonWavUrl(miln));
         }
         async function onPick(idx) {
             const expected = state.slgMap[state.tekSlog];
@@ -730,7 +789,7 @@
                 state.attempts += 1;
                 if (state.attempts > 2) {
                     sc.setHalon(state.round - 1, "wrong");
-                    await MK.playSync("milon/RANIT/kish3.wav");
+                    await MK.playSync("milon/ranit/kish3.wav");
                     setup();
                 } else {
                     await kishalon(sc.refs.PicFea, sc.refs.PicBur, state.attempts);
@@ -776,6 +835,47 @@
             sc.stage.appendChild(MK.el("div", { style: { color: "#fff", padding: "40px" }}, ["אין נתונים"]));
             return;
         }
+
+        // GM3A.FRM Form_KeyPress 1:1 — Hebrew QWERTY layout. Pressing
+        // the corresponding key acts as a click on btnABC(idx). The
+        // English-letter aliases match the standard Israeli keyboard
+        // layout (e.g. "t" = א row's leftmost on QWERTY).
+        //
+        //   t=0(א) c=1(ב) d=2(ג) s=3(ד) v=4(ה) u=5(ו) z=6(ז) j=7(ח)
+        //   y=8(ט) h=9(י) l=10(ך) f=11(כ) k=12(ל) o=13(ם) n=14(מ)
+        //   i=15(ן) b=16(נ) x=17(ס) g=18(ע) ;=19(ף) p=20(פ) .=21(ץ)
+        //   m=22(צ) e=23(ק) r=24(ר) a=25(ש) ,=26(ת)
+        const QWERTY = {
+            "t":0,"c":1,"d":2,"s":3,"v":4,"u":5,"z":6,"j":7,"y":8,"h":9,
+            "l":10,"f":11,"k":12,"o":13,"n":14,"i":15,"b":16,"x":17,
+            "g":18,";":19,"p":20,".":21,"m":22,"e":23,"r":24,"a":25,",":26,
+        };
+        const gm3aKey = function (e) {
+            // Hebrew character direct match — Unicode 0x5D0..0x5EA maps
+            // to btnABC index 0..21 (אבגדהוזחטיכךלמםנןסעפףצץקרשת).
+            const k = e.key;
+            if (k && k.length === 1) {
+                const cc = k.charCodeAt(0);
+                const heb = HEB_ABC.indexOf(k);
+                if (heb >= 0) {
+                    e.preventDefault();
+                    onLetter(heb);
+                    return;
+                }
+                const en = k.toLowerCase();
+                if (QWERTY.hasOwnProperty(en)) {
+                    e.preventDefault();
+                    onLetter(QWERTY[en]);
+                    return;
+                }
+            }
+        };
+        document.addEventListener("keydown", gm3aKey);
+        const cleanupKey = function () {
+            document.removeEventListener("keydown", gm3aKey);
+            window.removeEventListener("hashchange", cleanupKey);
+        };
+        window.addEventListener("hashchange", cleanupKey);
         const state = { round: 0, totalCoins: 0, attempts: 0, current: null,
                         slovo: "", mas: [], kol: 0, tek: 1 };
         const slots = [];
@@ -848,7 +948,7 @@
                 sc.refs.btnTmuna.onclick = function () { MK.play(milonWavUrl(state.current)); };
             }
             // Play the word audio as opening cue.
-            setTimeout(function () { MK.play(milonWavUrl(state.current)); }, 250);
+            MK.play(milonWavUrl(state.current));
         }
         async function onLetter(btnIdx) {
             // Expected: starting consonant of syllable `tek` =
