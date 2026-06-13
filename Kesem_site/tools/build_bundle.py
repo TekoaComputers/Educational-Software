@@ -330,6 +330,17 @@ function onScreenChange(state, screenId) {
         kesemApplyTooltips(state, "start_maslul");
     } else if (screenId === "expo" && state.config.id === "Kesem") {
         wireKesemExpo(state);
+    } else if (screenId === "impo" && state.config.id === "Kesem") {
+        wireKesemImpo(state);
+    } else if (screenId === "gr_edit" && state.config.id === "Kesem") {
+        wireKesemGrEdit(state);
+        kesemApplyTooltips(state, "gr_edit");
+    } else if (screenId === "edstamps" && state.config.id === "Kesem") {
+        wireKesemPaintEditor(state, { mode: "edstamps" });
+    } else if (screenId === "words" && state.config.id === "Kesem") {
+        wireKesemPaintEditor(state, { mode: "words" });
+    } else if ((screenId === "game22" || screenId === "game66") && state.config.id === "Kesem") {
+        wireKesemFreePlayStage(state, screenId);
     } else if (screenId === "sst") {
         unhideRuntimeButtons(state);
         wireSstLamps(state);
@@ -1346,6 +1357,200 @@ function startIvritSelectedSong(state) {
 // load so the bundled sample library shows up immediately.
 const KESEM_DOC_KEY = "kesem.doc";
 
+// === EditString / EditTxt — styled modal replacements for window.prompt ===
+// 1:1 port of kesem/EDITSTRI.FRM (single-line) and kesem/EDITTXT.FRM
+// (multi-line) — both are tiny "Text1 + ok/no" dialogs. The original VB6
+// flow is `TString = ""; EditString.Show 1` blocking modal — the calling
+// code reads TString afterwards. Web async equivalent: callback or Promise.
+//
+// `multi=true` switches to a textarea (EditTxt.frm shape).
+function kesemPromptString(opts, onResult) {
+    opts = opts || {};
+    const multi = !!opts.multi;
+    const overlay = document.createElement("div");
+    Object.assign(overlay.style, {
+        position: "fixed", inset: "0", background: "rgba(0,0,0,.6)",
+        zIndex: "100000",
+        display: "flex", alignItems: "center", justifyContent: "center",
+    });
+    const box = document.createElement("div");
+    Object.assign(box.style, {
+        background: "#C0C0C0", color: "#000",
+        padding: "12px 16px 14px",
+        border: "2px outset #d4d4d4",
+        font: "bold 16px David, Arial, sans-serif",
+        direction: "rtl", textAlign: "right",
+        minWidth: multi ? "480px" : "420px",
+    });
+    if (opts.title) {
+        const t = document.createElement("div");
+        t.textContent = opts.title;
+        t.style.cssText = "font-size:14px;margin-bottom:6px;color:#333";
+        box.appendChild(t);
+    }
+    const inp = document.createElement(multi ? "textarea" : "input");
+    if (!multi) inp.type = "text";
+    inp.value = opts.value || "";
+    Object.assign(inp.style, {
+        width: "100%", boxSizing: "border-box",
+        padding: "4px 6px", border: "1px inset #888",
+        background: "#fff", color: "#000",
+        font: "bold 18px David, Arial, sans-serif",
+        direction: "rtl",
+        resize: multi ? "vertical" : "none",
+    });
+    if (multi) inp.rows = 8;
+    box.appendChild(inp);
+
+    const btns = document.createElement("div");
+    btns.style.cssText = "margin-top:10px;display:flex;gap:10px;justify-content:center;direction:ltr";
+    const ok = document.createElement("button");
+    ok.textContent = opts.okLabel || "ok";
+    Object.assign(ok.style, {
+        padding: "4px 16px", font: "bold 14px David, Arial, sans-serif",
+        cursor: "pointer",
+    });
+    const no = document.createElement("button");
+    no.textContent = opts.cancelLabel || "no";
+    Object.assign(no.style, ok.style);
+    btns.appendChild(ok); btns.appendChild(no);
+    box.appendChild(btns);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    inp.focus(); inp.select && inp.select();
+
+    function dismiss(val) {
+        overlay.remove();
+        document.removeEventListener("keydown", onKey);
+        if (typeof onResult === "function") onResult(val);
+    }
+    function onKey(e) {
+        if (e.key === "Escape") { e.preventDefault(); dismiss(null); }
+        else if (e.key === "Enter" && !multi) { e.preventDefault(); dismiss(inp.value); }
+    }
+    ok.addEventListener("click", function () { dismiss(inp.value); });
+    no.addEventListener("click", function () { dismiss(null); });
+    document.addEventListener("keydown", onKey);
+}
+
+// === Color picker (kesem/COLOR_F.FRM) ====================================
+// Tiny modal wrapping the native <input type="color">. The original
+// COLOR_F.frm shows a palette + RGB sliders; the browser's color picker
+// gives a richer UX than we'd build by hand. Returns the chosen color
+// (as #rrggbb) or null if cancelled. Pre-fills with `current`.
+function kesemPromptColor(current, onResult) {
+    const overlay = document.createElement("div");
+    Object.assign(overlay.style, {
+        position: "fixed", inset: "0", background: "rgba(0,0,0,.6)",
+        zIndex: "100000",
+        display: "flex", alignItems: "center", justifyContent: "center",
+    });
+    const box = document.createElement("div");
+    Object.assign(box.style, {
+        background: "#C0C0C0", border: "2px outset #d4d4d4",
+        padding: "16px", font: "13px David, Arial, sans-serif",
+        textAlign: "center",
+    });
+    box.innerHTML =
+        "<div style='font-weight:700;margin-bottom:8px'>בחר צבע</div>" +
+        "<input id='kesem-color-pick' type='color' style='width:80px;height:40px;cursor:pointer'>" +
+        "<div style='margin-top:12px;direction:ltr'>" +
+            "<button id='kesem-color-ok' style='padding:4px 14px;margin:0 4px'>ok</button>" +
+            "<button id='kesem-color-cancel' style='padding:4px 14px;margin:0 4px'>cancel</button>" +
+        "</div>";
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    const inp = box.querySelector("#kesem-color-pick");
+    if (current) inp.value = current;
+    box.querySelector("#kesem-color-ok").addEventListener("click", function () {
+        const v = inp.value;
+        overlay.remove();
+        if (typeof onResult === "function") onResult(v);
+    });
+    box.querySelector("#kesem-color-cancel").addEventListener("click", function () {
+        overlay.remove();
+        if (typeof onResult === "function") onResult(null);
+    });
+}
+
+// IndexedDB-backed blob store for doc.newAssets. localStorage has a ~5 MB
+// quota per origin which a handful of imported BMPs (∼500 kB each) blows
+// through. newAssets.bmp/wav/video keys point at idb keys ("bmp/1.bmp",
+// "wav/1_35/3.wav", ...) and the actual data URLs live in IDB. Both the
+// renderer (kesemPictureUrl) and Expo (kesemDataUrlToBytes via Promise)
+// resolve them lazily — the doc keeps tiny metadata only.
+//
+// Layered policy: when the data URL we get is < ~200 kB AND total IDB
+// size is small, we still inline in localStorage so the trivial "edit a
+// label" case doesn't pay an IDB write. Otherwise we promote to IDB.
+const KESEM_IDB_DB    = "kesem-doc";
+const KESEM_IDB_STORE = "assets";
+
+function kesemIdbOpen() {
+    return new Promise(function (resolve, reject) {
+        const req = indexedDB.open(KESEM_IDB_DB, 1);
+        req.onupgradeneeded = function () {
+            const db = req.result;
+            if (!db.objectStoreNames.contains(KESEM_IDB_STORE)) {
+                db.createObjectStore(KESEM_IDB_STORE);
+            }
+        };
+        req.onsuccess = function () { resolve(req.result); };
+        req.onerror = function () { reject(req.error); };
+    });
+}
+function kesemIdbPut(key, value) {
+    return kesemIdbOpen().then(function (db) {
+        return new Promise(function (resolve, reject) {
+            const tx = db.transaction(KESEM_IDB_STORE, "readwrite");
+            tx.objectStore(KESEM_IDB_STORE).put(value, key);
+            tx.oncomplete = function () { resolve(); };
+            tx.onerror = function () { reject(tx.error); };
+        });
+    });
+}
+function kesemIdbGet(key) {
+    return kesemIdbOpen().then(function (db) {
+        return new Promise(function (resolve, reject) {
+            const tx = db.transaction(KESEM_IDB_STORE, "readonly");
+            const req = tx.objectStore(KESEM_IDB_STORE).get(key);
+            req.onsuccess = function () { resolve(req.result); };
+            req.onerror = function () { reject(req.error); };
+        });
+    });
+}
+
+// Resolve a newAssets value to its data URL — either the value itself
+// (legacy localStorage-inlined) or {idb: "<key>"} (large blob in IDB).
+// Async — returns a Promise.
+function kesemResolveAsset(asset) {
+    if (!asset) return Promise.resolve(null);
+    if (typeof asset === "string") return Promise.resolve(asset);
+    if (asset && asset.idb) return kesemIdbGet(asset.idb);
+    return Promise.resolve(null);
+}
+
+// Store a new asset. Small values (<150 kB data URL) stay inline so the
+// edit-a-string case doesn't go through IDB; larger go to IDB and the
+// doc keeps just an {idb:<key>} pointer.
+function kesemStoreAsset(map, key, dataUrl) {
+    const SMALL = 150 * 1024;
+    if (typeof indexedDB === "undefined" || dataUrl.length < SMALL) {
+        map[key] = dataUrl;
+        return Promise.resolve();
+    }
+    const idbKey = key + ":" + Date.now();
+    return kesemIdbPut(idbKey, dataUrl).then(function () {
+        map[key] = { idb: idbKey };
+    }).catch(function (e) {
+        // IDB failed (private mode? quota?) — fall back to inline so the
+        // edit isn't lost. Triggers the localStorage quota issue on big
+        // imports but at least preserves the data this session.
+        klog("kesem: IDB store failed, inlining:", e);
+        map[key] = dataUrl;
+    });
+}
+
 function kesemLoadDoc(state) {
     if (state.editor && state.editor.doc) return state.editor.doc;
     let raw = null;
@@ -1392,12 +1597,29 @@ function kesemSaveDoc(doc) {
 // Resolve a picture filename (e.g. "101.bmp") to its rendered PNG path,
 // honoring newAssets overrides. Returns null if the file isn't shipped
 // and hasn't been uploaded — caller decides whether to skip or
-// placeholder.
+// placeholder. Inline data URLs resolve synchronously; IDB-promoted
+// blobs fall back to the static asset path until kesemPreloadAssets
+// runs and replaces them with resolved data URLs in-place.
 function kesemPictureUrl(state, fileName) {
     if (!fileName) return null;
     const doc = state.editor && state.editor.doc;
-    if (doc && doc.newAssets && doc.newAssets.bmp && doc.newAssets.bmp[fileName]) {
-        return doc.newAssets.bmp[fileName];
+    const v = doc && doc.newAssets && doc.newAssets.bmp && doc.newAssets.bmp[fileName];
+    if (typeof v === "string") return v;
+    // IDB-stored newAsset → kick off an async resolve, return null for
+    // this frame; caller paints with whatever fallback it has. After
+    // resolution the in-memory cache below makes future calls sync.
+    if (v && v.idb) {
+        if (state._idbCache && state._idbCache[v.idb]) return state._idbCache[v.idb];
+        kesemResolveAsset(v).then(function (dataUrl) {
+            if (!dataUrl) return;
+            state._idbCache = state._idbCache || {};
+            state._idbCache[v.idb] = dataUrl;
+            // Trigger a repaint of the current screen so the resolved
+            // url shows up.
+            if (typeof state._onScreenChange === "function") {
+                state._onScreenChange(state.currentScreen);
+            }
+        });
     }
     const stem = fileName.replace(/\.[^.]+$/, "").toLowerCase();
     return state.config.assetsRoot + "/bmp/" + stem + ".png";
@@ -1610,13 +1832,19 @@ function wireKesemSst(state) {
                 wireKesemSst(state);
             });
             li.addEventListener("dblclick", function () {
-                // List1_DblClick: ni=1; PutGFile 1; BeginGame; StartGames 40.
-                // Plays the selected lesson. Player path not wired yet on
-                // the editor's preview track — log + load lesson into
-                // currentLesson so the user can step to Maslul to inspect.
+                // Sst.list1_DblClick: ni=1; lal=d(idx); PutGFile 1;
+                // BeginGame; StartGames 40. Now routed through startPath
+                // (currentRamaSlots returns doc.maslul[] for Kesem so
+                // pathIdx = lesson index).
                 state.editor = state.editor || {};
                 state.editor.sstSelMaslul = i;
-                klog("kesem: dblclick lesson " + i + " (play path TBD)");
+                const lesson = (doc.maslul || [])[i];
+                if (!lesson || !lesson.stages || !lesson.stages.length) {
+                    klog("kesem: dblclick lesson " + i + " — empty");
+                    return;
+                }
+                state._activeSlotOverride = null;
+                startPath(state, i);
             });
             li.addEventListener("contextmenu", function (e) {
                 // List1_MouseDown Button=2: show SpG_l with stage detail.
@@ -1722,6 +1950,149 @@ function wireKesemSst(state) {
     }
 }
 
+// Maslul video_Click(Index) — pick an MP4/AVI/WebM for the lesson's
+// intro (idx=0) or outro (idx=1). Stores the blob in doc.newAssets.video
+// so Expo can ship it; stamps videoStart/End to the chosen filename.
+function kesemMaslulPickVideo(state, idx) {
+    const doc = kesemLoadDoc(state);
+    const lesson = kesemMaslulEnsureLesson(state);
+    const inp = document.createElement("input");
+    inp.type = "file";
+    inp.accept = "video/*,.avi,.mp4,.webm";
+    inp.style.display = "none";
+    document.body.appendChild(inp);
+    inp.addEventListener("change", function () {
+        const f = inp.files && inp.files[0];
+        inp.remove();
+        if (!f) return;
+        const reader = new FileReader();
+        reader.onload = function () {
+            const name = f.name;
+            doc.newAssets = doc.newAssets || { bmp: {}, wav: {}, video: {} };
+            doc.newAssets.video = doc.newAssets.video || {};
+            kesemStoreAsset(doc.newAssets.video, name, reader.result).then(function () {
+                if (idx === 0) { lesson.videoStart = name; lesson.videoStartPr = "0"; }
+                else           { lesson.videoEnd   = name; lesson.videoEndPr   = "0"; }
+                doc.dirty = true;
+                kesemSaveDoc(doc);
+                klog("kesem: maslul video(" + idx + ") = " + name +
+                     " (" + Math.round(reader.result.length / 1024) + " kb)");
+                wireKesemMaslul(state);
+            });
+        };
+        reader.readAsDataURL(f);
+    }, { once: true });
+    inp.click();
+}
+
+// === Wave recording helper (Gzira btnED, Maslul video) ===================
+// Opens a tiny modal with start/stop/save/cancel buttons; pipes
+// MediaRecorder output to doc.newAssets.wav[<key>] as a base64 data URL.
+// Mirrors the original Wave / Rec_W subforms that wrapped MCI recording.
+function kesemRecordWav(state, key, opts) {
+    opts = opts || {};
+    const doc = kesemLoadDoc(state);
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia ||
+        typeof MediaRecorder === "undefined") {
+        window.alert("הדפדפן לא תומך בהקלטה");
+        return;
+    }
+    // === Modal overlay =================================================
+    const overlay = document.createElement("div");
+    Object.assign(overlay.style, {
+        position: "fixed", inset: "0",
+        background: "rgba(0,0,0,.7)", zIndex: "100000",
+        display: "flex", alignItems: "center", justifyContent: "center",
+    });
+    const box = document.createElement("div");
+    Object.assign(box.style, {
+        background: "#e8e8e8", color: "#000",
+        padding: "20px 24px", borderRadius: "6px",
+        border: "2px solid #444",
+        font: "13px David, Arial, sans-serif",
+        textAlign: "center", direction: "rtl", minWidth: "320px",
+    });
+    box.innerHTML =
+        "<div style='margin-bottom:8px;font-weight:700'>הקלטת קול</div>" +
+        "<div id='kesem-rec-key' style='font-size:11px;direction:ltr;color:#444;margin-bottom:10px'></div>" +
+        "<div id='kesem-rec-status' style='margin:8px 0;color:#800'></div>" +
+        "<button id='kesem-rec-rec' style='padding:6px 14px;margin:2px'>הקלט</button>" +
+        "<button id='kesem-rec-stop' style='padding:6px 14px;margin:2px' disabled>עצור</button>" +
+        "<button id='kesem-rec-play' style='padding:6px 14px;margin:2px' disabled>השמע</button>" +
+        "<div style='margin-top:12px'>" +
+            "<button id='kesem-rec-save' style='padding:6px 14px;margin:2px;background:#3a7bd5;color:#fff' disabled>שמור</button>" +
+            "<button id='kesem-rec-cancel' style='padding:6px 14px;margin:2px;background:#888;color:#fff'>ביטול</button>" +
+        "</div>";
+    box.querySelector("#kesem-rec-key").textContent = key;
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    const rec = box.querySelector("#kesem-rec-rec");
+    const stop = box.querySelector("#kesem-rec-stop");
+    const play = box.querySelector("#kesem-rec-play");
+    const save = box.querySelector("#kesem-rec-save");
+    const cancel = box.querySelector("#kesem-rec-cancel");
+    const status = box.querySelector("#kesem-rec-status");
+
+    let stream = null, mr = null, chunks = [], blobUrl = null, blob = null;
+
+    function teardown() {
+        if (blobUrl) { try { URL.revokeObjectURL(blobUrl); } catch (e) {} }
+        if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
+        overlay.remove();
+    }
+    cancel.addEventListener("click", teardown);
+
+    rec.addEventListener("click", function () {
+        rec.disabled = true; status.textContent = "מתחבר למיקרופון…";
+        navigator.mediaDevices.getUserMedia({ audio: true }).then(function (s) {
+            stream = s; chunks = [];
+            mr = new MediaRecorder(s);
+            mr.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
+            mr.onstop = function () {
+                blob = new Blob(chunks, { type: mr.mimeType || "audio/webm" });
+                blobUrl = URL.createObjectURL(blob);
+                status.textContent = "הקלטה הסתיימה — האזן או שמור";
+                play.disabled = false; save.disabled = false;
+                stop.disabled = true; rec.disabled = false;
+            };
+            mr.start();
+            status.textContent = "מקליט…";
+            stop.disabled = false;
+        }).catch(function (err) {
+            status.textContent = "נכשל: " + (err && err.message || err);
+            rec.disabled = false;
+        });
+    });
+
+    stop.addEventListener("click", function () {
+        if (mr && mr.state === "recording") mr.stop();
+    });
+
+    play.addEventListener("click", function () {
+        if (!blobUrl) return;
+        const a = new Audio(blobUrl);
+        a.play();
+    });
+
+    save.addEventListener("click", function () {
+        if (!blob) return;
+        const reader = new FileReader();
+        reader.onload = function () {
+            doc.newAssets = doc.newAssets || { bmp: {}, wav: {} };
+            doc.newAssets.wav = doc.newAssets.wav || {};
+            kesemStoreAsset(doc.newAssets.wav, key, reader.result).then(function () {
+                doc.dirty = true;
+                kesemSaveDoc(doc);
+                klog("kesem: wav saved → " + key + " (" + Math.round(blob.size / 1024) + " kb)");
+                teardown();
+                if (typeof opts.onSave === "function") opts.onSave();
+            });
+        };
+        reader.readAsDataURL(blob);
+    });
+}
+
 // kesem/Sst.frm: activ(1) "las" — flip from Picture2 (album) to Picture1
 // (gameplay view) and populate btnIcon(0..5) with the first 6 lessons'
 // first-stage thumbnails (1:1 with Form_Load.btnHofshi_Click → For q=0..5:
@@ -1790,6 +2161,59 @@ function kesemSstShowAlbumView(state) {
     if (bac) bac.style.display = "none";
 }
 
+// Switch Knica state + re-apply the mode display.
+function kesemMainSetMode(state, knica) {
+    state.editor.knica = knica | 0;
+    kesemMainApplyMode(state);
+    klog("kesem: main mode → " + (knica === 0 ? "album (Knica=0)" : "menu (Knica=1)"));
+}
+
+// Toggle the Knica two-mode display on Main. Called by wireKesemMain on
+// every mount and by the transition handlers (del[1] click + exit click).
+function kesemMainApplyMode(state) {
+    const stage = state.stage;
+    if (!stage) return;
+    const knica = state.editor.knica || 0;
+    const panel = stage.querySelector(".frm-ctrl--Panel3D1");
+    const image1 = stage.querySelector(".frm-ctrl--Image1");
+    const list1 = stage.querySelector(".frm-ctrl--List1");
+    const exitCtrl = stage.querySelector(".frm-ctrl--exit");
+
+    // Album mode: Panel3D1 + List1 + del[*] visible; menu[*] + Image1 hidden;
+    // exit hotspot disabled (it'd otherwise mask del[3] at the same twips
+    // because exit is form-level rendered after Panel3D1.del[3]).
+    // Menu mode: inverse.
+    if (knica === 0) {
+        if (panel)  panel.style.display = "block";
+        if (image1) image1.style.display = "none";
+        if (list1)  list1.style.display = "block";
+        stage.querySelectorAll(".frm-ctrl--menu").forEach(function (el) {
+            el.style.display = "none";
+        });
+        if (exitCtrl) {
+            exitCtrl.style.pointerEvents = "none";
+            exitCtrl.tabIndex = -1;
+        }
+    } else {
+        if (panel)  panel.style.display = "none";
+        if (image1) image1.style.display = "";
+        if (list1)  list1.style.display = "none";
+        stage.querySelectorAll(".frm-ctrl--menu").forEach(function (el) {
+            el.style.display = "";
+        });
+        if (exitCtrl) {
+            exitCtrl.style.pointerEvents = "auto";
+            exitCtrl.style.cursor = "pointer";
+            exitCtrl.tabIndex = 0;
+        }
+    }
+    // N_Bmp[1] caption: "אלבום תמונות" (album) vs "תפריט ראשי" (main menu)
+    const nbmp1 = stage.querySelector('.frm-ctrl--N_Bmp[data-index="1"]');
+    if (nbmp1) {
+        nbmp1.textContent = knica === 0 ? "אלבום תמונות" : "תפריט ראשי";
+    }
+}
+
 // kesem/Main.frm screen wiring. Reproduces Form_Load's GetAllPics + the
 // PutPicture(SetPosMain) initial preview, plus the List1_Click handler
 // that re-paints the preview on selection.
@@ -1803,10 +2227,42 @@ function wireKesemMain(state) {
     if (!stage) return;
     const doc = kesemLoadDoc(state);
 
-    // Override design-time Visible=False on Panel3D1 (per Main.frm
-    // choice_Click) so the catalog list shows on entry.
-    const panel = stage.querySelector(".frm-ctrl--Panel3D1");
-    if (panel) panel.style.display = "block";
+    // === Knica two-mode display ========================================
+    // kesem/Main.frm has TWO distinct UI states gated on the global `Knica`
+    // var, NOT both always-on (which was the previous porting bug — and is
+    // why clicking "what looks like new paint" routed to menu[3] PRINT
+    // instead of del[3] new-picture: the menu[*] hotspots were stacked on
+    // top of Panel3D1's clipboard/OK/edit/trash icons because both were
+    // visible at the same time).
+    //
+    //   Knica = 0  → album mode (entry default; from Sst.activ(2))
+    //                  Panel3D1 visible  (clipboard | OK | edit | trash)
+    //                  List1 visible inside Panel3D1
+    //                  del[0..3] usable (rename/delete/new/accept)
+    //                  Image1 hidden, menu[0..3] hidden
+    //                  Caption: "אלבום תמונות"
+    //
+    //   Knica = 1  → menu mode (after the user clicks del[1] "אשר בחירה")
+    //                  Panel3D1 hidden
+    //                  Image1 banner visible
+    //                  menu[0..3] visible  (ChGames | Gzira | Gr_Edit | Print)
+    //                  exit Label re-purposed as the "back to album" hotspot
+    //                  Caption: "תפריט ראשי"
+    //
+    // Transitions:
+    //   del[1] click   → Knica 0 → 1 (matches Del_Click Index=1)
+    //   list1_DblClick → same (Del_Click 1 per .frm)
+    //   exit click     → Knica 1 → 0 (Exit_Click body wrapped in If Knica=1)
+    if (state.editor.knica == null) state.editor.knica = 0;
+    // Form_Activate post-Gr_Edit fixup: if we just returned from creating
+    // a new picture (state.editor.newPic set when leaving del[3]) and
+    // we're somehow in menu mode, revert to album mode and refresh List1.
+    // Mirrors Form_Activate `If Knica = 1 And New_Pic <> 0 Then choice_Click`.
+    if (state.editor.newPic && state.editor.knica === 1) {
+        state.editor.newPic = 0;
+        state.editor.knica = 0;
+    }
+    kesemMainApplyMode(state);
 
     // --- List1 (picture catalog) -----------------------------------------
     const list = stage.querySelector(".frm-ctrl--List1");
@@ -1829,9 +2285,33 @@ function wireKesemMain(state) {
                 padding: "2px 6px", cursor: "pointer", userSelect: "none",
             });
             li.addEventListener("click", function () { kesemSelectPicture(state, i); });
+            // list1_DblClick → Del_Click 1 (accept selection, switch to
+            // menu mode). The original collapses the album to show the
+            // chosen picture full-size with ChGames/Gzira/Gr_Edit/Print
+            // tools below it.
+            li.addEventListener("dblclick", function () {
+                kesemSelectPicture(state, i);
+                kesemMainSetMode(state, 1);
+            });
             ul.appendChild(li);
         });
         list.appendChild(ul);
+    }
+
+    // === exit click → return to album mode (Knica 1 → 0) =================
+    // Mirrors kesem/Main.frm Exit_Click which is `If Knica = 1 Then ...
+    // Knica = 0`. In album mode exit is disabled by kesemMainApplyMode
+    // (pointerEvents:none) so it can't intercept clicks meant for del[3]
+    // (which sits at the same form-twips coords).
+    const exitCtrl = stage.querySelector(".frm-ctrl--exit");
+    if (exitCtrl && !exitCtrl._kesemWired) {
+        exitCtrl._kesemWired = true;
+        exitCtrl.addEventListener("click", function (e) {
+            if (state.editor.knica === 1) {
+                e.stopPropagation();
+                kesemMainSetMode(state, 0);
+            }
+        });
     }
 
     // --- Spic1.Picture1 preview ------------------------------------------
@@ -1880,10 +2360,12 @@ function kesemSelectPicture(state, idx) {
 }
 
 // Main.menu(3) — Printer.PaintPicture Picture1.Picture, 10, 10 + EndDoc.
-// Web equivalent: open a popup with the picture, trigger window.print(),
-// close on dialog dismiss. Some browsers block popups — fall back to
-// printing the current page with a one-shot @media print rule that hides
-// everything except the temporary <img>.
+// Web equivalent: a confirm modal ("Print this picture?") → inline
+// @media-print CSS that hides everything except the picture → call
+// window.print(). The confirm modal is the disambiguating gate: without
+// it users can mistake the print preview (especially Chrome's "Save as
+// PDF" default target) for a "save file" dialog. The modal labels the
+// action clearly so the user knows what's about to happen.
 function kesemPrintCurrentPicture(state) {
     const doc = state.editor && state.editor.doc;
     if (!doc) return;
@@ -1892,65 +2374,70 @@ function kesemPrintCurrentPicture(state) {
     const url = kesemPictureUrl(state, pic.file);
     if (!url) { klog("kesem: print — picture asset missing for " + pic.file); return; }
 
-    // Pop-up approach first (clean separation, mirrors a separate Printer
-    // device context in VB6).
-    try {
-        const w = window.open("", "kesem-print", "width=800,height=600");
-        if (w && w.document) {
-            const title = (pic.name || pic.file || "kesem").replace(/[<>&"]/g, "");
-            w.document.write(
-                "<!DOCTYPE html><html><head><meta charset='utf-8'><title>" + title + "</title>" +
-                "<style>html,body{margin:0;padding:0}img{display:block;margin:10px;max-width:calc(100% - 20px)}</style>" +
-                "</head><body><img src='" + location.origin + location.pathname.replace(/[^/]*$/, "") + url + "' alt=''></body></html>"
-            );
-            w.document.close();
-            // Defer print() until the image has loaded so the preview shows the
-            // picture; some browsers print blank if window.print() runs first.
-            const im = w.document.querySelector("img");
-            const fire = function () { try { w.focus(); w.print(); } catch (e) {} };
-            if (im && !im.complete) im.addEventListener("load", fire);
-            else fire();
-            klog("kesem: print → popup window for " + pic.file);
-            return;
-        }
-    } catch (e) {
-        klog("kesem: print popup blocked:", e);
-    }
-
-    // Fallback — inline print overlay. Hide everything else via a
-    // dedicated <style> rule active only during the print job.
-    const layer = document.createElement("div");
-    layer.className = "kesem-print-layer";
-    Object.assign(layer.style, {
-        position: "fixed", inset: "0", background: "#fff",
+    // Disambiguation modal — labels the action so the user is not
+    // surprised when the browser's print preview opens.
+    const overlay = document.createElement("div");
+    Object.assign(overlay.style, {
+        position: "fixed", inset: "0", background: "rgba(0,0,0,.7)",
+        zIndex: "100001",
         display: "flex", alignItems: "center", justifyContent: "center",
-        zIndex: "100000",
     });
-    const img = document.createElement("img");
-    img.src = url;
-    Object.assign(img.style, { maxWidth: "100%", maxHeight: "100%" });
-    layer.appendChild(img);
+    const card = document.createElement("div");
+    Object.assign(card.style, {
+        background: "#C0C0C0", border: "2px outset #d4d4d4",
+        padding: "20px 24px",
+        font: "13px David, Arial, sans-serif", direction: "rtl",
+        textAlign: "center", minWidth: "360px",
+    });
+    card.innerHTML =
+        "<div style='font-size:18px;font-weight:700;margin-bottom:6px'>הדפסה</div>" +
+        "<div style='margin-bottom:14px'>להדפיס את התמונה <b>" +
+            (pic.name || pic.file).replace(/[<>&]/g, "") +
+            "</b>?</div>" +
+        "<button id='kesem-print-go' style='padding:6px 18px;font-size:14px;background:#3a7bd5;color:#fff;cursor:pointer'>הדפס</button>" +
+        " <button id='kesem-print-cancel' style='padding:6px 18px;font-size:14px;cursor:pointer'>ביטול</button>";
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+    card.querySelector("#kesem-print-cancel").addEventListener("click", function () {
+        overlay.remove();
+    });
+    card.querySelector("#kesem-print-go").addEventListener("click", function () {
+        overlay.remove();
+        // Inline @media print: hide the entire app body, show ONLY a
+        // floating .kesem-print-layer with the picture, then window.print().
+        const layer = document.createElement("div");
+        layer.className = "kesem-print-layer";
+        Object.assign(layer.style, {
+            position: "fixed", inset: "0", background: "#fff",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            zIndex: "100000",
+        });
+        const img = document.createElement("img");
+        img.src = url;
+        Object.assign(img.style, { maxWidth: "100%", maxHeight: "100%" });
+        layer.appendChild(img);
 
-    const css = document.createElement("style");
-    css.textContent =
-        "@media print {" +
-        "  body > *:not(.kesem-print-layer) { display: none !important; }" +
-        "  .kesem-print-layer { position: static !important; inset: auto !important; background: #fff !important; }" +
-        "  .kesem-print-layer img { max-width: 100% !important; max-height: none !important; }" +
-        "}";
+        const css = document.createElement("style");
+        css.textContent =
+            "@media print {" +
+            "  body > *:not(.kesem-print-layer) { display: none !important; }" +
+            "  .kesem-print-layer { position: static !important; inset: auto !important; background: #fff !important; }" +
+            "  .kesem-print-layer img { max-width: 100% !important; max-height: none !important; }" +
+            "}";
+        document.body.appendChild(css);
+        document.body.appendChild(layer);
 
-    document.body.appendChild(css);
-    document.body.appendChild(layer);
-
-    const cleanup = function () {
-        layer.remove();
-        css.remove();
-        window.removeEventListener("afterprint", cleanup);
-    };
-    window.addEventListener("afterprint", cleanup);
-    const fire = function () { window.print(); };
-    if (img.complete) fire();
-    else img.addEventListener("load", fire);
+        const cleanup = function () {
+            layer.remove();
+            css.remove();
+            window.removeEventListener("afterprint", cleanup);
+        };
+        window.addEventListener("afterprint", cleanup);
+        const fire = function () { try { window.print(); } catch (e) { klog("print:", e); } };
+        if (img.complete) fire();
+        else img.addEventListener("load", fire);
+        klog("kesem: print → inline " + pic.file);
+    });
 }
 
 // Main.menu(4) — Max_Pics++; savepics Max_Pics; GetMaxP. Original wrote
@@ -2021,12 +2508,13 @@ function kesemImportPicture(state) {
             doc.pictures.push({ file: newFile, name: newName.trim() });
             doc.newAssets = doc.newAssets || { bmp: {}, wav: {} };
             doc.newAssets.bmp = doc.newAssets.bmp || {};
-            doc.newAssets.bmp[newFile] = dataUrl;
-            doc.dirty = true;
-            kesemSaveDoc(doc);
-            state.editor.selectedPicture = doc.pictures.length - 1;
-            klog("kesem: imported " + f.name + " → " + newFile + " (" + Math.round(dataUrl.length / 1024) + " kb data url)");
-            wireKesemMain(state);
+            kesemStoreAsset(doc.newAssets.bmp, newFile, dataUrl).then(function () {
+                doc.dirty = true;
+                kesemSaveDoc(doc);
+                state.editor.selectedPicture = doc.pictures.length - 1;
+                klog("kesem: imported " + f.name + " → " + newFile + " (" + Math.round(dataUrl.length / 1024) + " kb)");
+                wireKesemMain(state);
+            });
         };
         reader.readAsDataURL(f);
     }, { once: true });
@@ -2074,6 +2562,45 @@ function kesemRefreshPictureUI(state) {
             el.textContent = pic ? pic.file.replace(/\.[^.]+$/, "") : "";
         }
     });
+
+    // Prov() — Main.frm Public Sub Prov:
+    //   GetSpisokRas Tek_Nom
+    //   If NameRasb = "" Then
+    //     Image1.Visible = True : Menu(0).Enabled = False : Picture2.Visible = True
+    //   Else
+    //     Picture2.Visible = False : Image1.Visible = False : Menu(0).Enabled = True
+    //   End If
+    // Picture2 = tira.bmp "no hotspots" warning at bottom-right. Without
+    // this gate, tira.bmp paints over Panel3D1.del[*] in album mode.
+    const stem = pic ? pic.file.replace(/\.[^.]+$/, "") : "";
+    const rasb = (doc.rasb || {});
+    let hasHotspots = false;
+    if (stem) {
+        // doc.rasb keys are "<stem>_<n>" — checking the prefix is enough.
+        const prefix = stem + "_";
+        for (const k in rasb) {
+            if (k.indexOf(prefix) === 0) { hasHotspots = true; break; }
+        }
+    }
+    const picture2 = state.stage.querySelector(".frm-ctrl--Picture2");
+    const image1   = state.stage.querySelector(".frm-ctrl--Image1");
+    if (picture2) picture2.style.display = hasHotspots ? "none" : "";
+    // Image1 visibility is also gated by Knica mode (album hides Image1).
+    // Prov sets it True when Picture2 shows, False otherwise. The Knica=1
+    // case in kesemMainApplyMode re-shows Image1; we only override here
+    // when Prov() wants it hidden because hotspots exist.
+    if (image1 && hasHotspots && state.editor && state.editor.knica !== 0) {
+        // hotspot-present + menu mode: hide Image1 (mirrors Prov's else branch)
+        image1.style.display = "none";
+    }
+    // Menu(0) (ChGames) — disabled when no hotspots. We approximate by
+    // gating click + visually dimming. kesemMainApplyMode still controls
+    // its visibility per Knica mode.
+    const menu0 = state.stage.querySelector('.frm-ctrl--menu[data-index="0"]');
+    if (menu0) {
+        menu0.style.pointerEvents = hasHotspots ? "auto" : "none";
+        menu0.style.filter        = hasHotspots ? ""     : "grayscale(.6) opacity(.5)";
+    }
 }
 
 // Hebrew labels for the 5 ChG game-type buttons. From Chgames.frm
@@ -2329,20 +2856,52 @@ function kesemGziraResolveKey(state) {
     return stem + "_" + i;
 }
 
-function kesemGziraGetRects(state) {
+// Gzira holds rects in a per-session DRAFT (state.editor.gziraDraft) so the
+// original VB6 behavior — changes are in-memory until Label4_Click runs
+// SavePuzzle — is preserved. Previously each rect drag / new / delete
+// auto-wrote into doc.rasb + kesemSaveDoc, breaking the "discard" branch
+// of the Label4 save-exit prompt.
+function kesemGziraEnsureDraft(state) {
     const key = state.editor.gziraKey;
     if (!key) return [];
+    const draft = state.editor.gziraDraft;
+    if (draft && draft.key === key) return draft.rects;
     const doc = state.editor.doc;
-    return (doc.rasb[key] || []).slice();
+    const seed = (doc.rasb[key] || []).map(function (r) { return Object.assign({}, r); });
+    state.editor.gziraDraft = { key: key, rects: seed, dirty: false };
+    return seed;
+}
+
+function kesemGziraGetRects(state) {
+    return kesemGziraEnsureDraft(state).slice();
 }
 
 function kesemGziraSetRects(state, rects) {
     const key = state.editor.gziraKey;
     if (!key) return;
+    kesemGziraEnsureDraft(state);
+    state.editor.gziraDraft.rects = rects;
+    state.editor.gziraDraft.dirty = true;
+    // NO kesemSaveDoc — original holds rects in memory until Label4_Click
+    // runs SavePuzzle. Commit happens in kesemGziraCommitDraft.
+}
+
+// Commit the in-memory draft into doc.rasb + persist. Called by the
+// Label4 "save & exit" handler when the user picks "yes save".
+function kesemGziraCommitDraft(state) {
+    const draft = state.editor.gziraDraft;
+    if (!draft) return;
     const doc = state.editor.doc;
-    doc.rasb[key] = rects;
+    if (!doc) return;
+    doc.rasb = doc.rasb || {};
+    doc.rasb[draft.key] = draft.rects;
     doc.dirty = true;
     kesemSaveDoc(doc);
+    state.editor.gziraDraft = null;
+}
+
+function kesemGziraDiscardDraft(state) {
+    state.editor.gziraDraft = null;
 }
 
 // kesem/Gzira.frm screen wiring.
@@ -2445,7 +3004,11 @@ function kesemGziraRepaintRects(state) {
     // Clear existing.
     layer.querySelectorAll(".kesem-gzira-rect").forEach(function (n) { n.remove(); });
     const rects = kesemGziraGetRects(state);
+    const hidden = state.editor.gziraHidden || {};
     rects.forEach(function (r, i) {
+        // Ctrl-hidden rects are kept out of the DOM entirely (1:1 with
+        // Label1(Rasb_Nom).Visible = False in Gzira.frm Label1_KeyUp).
+        if (hidden[i]) return;
         const div = document.createElement("div");
         div.className = "kesem-gzira-rect";
         div.dataset.idx = String(i);
@@ -2503,18 +3066,39 @@ function installKesemGziraMouse(state, layer) {
         if (e.button !== 0) return;
         const p = localXY(e);
         // Picture1_MouseDown: nik=False, x_old=X, y_old=Y, priamo=True.
+        // Shift held with a rect selected → resize that rect instead of
+        // creating a new one (mirrors Label1_KeyDown vbKeyShift +
+        // Picture1_MouseMove `If Shift = 1 And Rasb_Nom > 0 And
+        // ResiZee = True Then ... PutShape(Rasb_Nom, ...)`).
+        const sel = state.editor.gziraSelected;
+        if (e.shiftKey && sel != null) {
+            state.editor.gziraResizing = { idx: sel, ox: p.x, oy: p.y };
+            kesemGziraRepaintRects(state);
+            e.preventDefault();
+            return;
+        }
         state.editor.gziraDrawing = { x: p.x, y: p.y, w: 0, h: 0, ox: p.x, oy: p.y, nik: false };
         kesemGziraRepaintRects(state);
         e.preventDefault();
     });
 
     layer.addEventListener("mousemove", function (e) {
+        const p = localXY(e);
+        const r = state.editor.gziraResizing;
+        if (r) {
+            // Live-resize the selected rect: rect spans (ox,oy)..(p.x,p.y).
+            const rects = kesemGziraGetRects(state);
+            const tgt = rects[r.idx];
+            if (!tgt) return;
+            const x0 = Math.min(r.ox, p.x), y0 = Math.min(r.oy, p.y);
+            const x1 = Math.max(r.ox, p.x), y1 = Math.max(r.oy, p.y);
+            tgt.x = x0; tgt.y = y0; tgt.w = x1 - x0; tgt.h = y1 - y0;
+            kesemGziraRepaintRects(state);
+            return;
+        }
         const d = state.editor.gziraDrawing;
         if (!d) return;
-        const p = localXY(e);
-        // Picture1_MouseMove "nik" check: any movement > 5px in either axis.
         if (Math.abs(d.ox - p.x) > 5 || Math.abs(d.oy - p.y) > 5) d.nik = true;
-        // PutShape: rect from (min(ox,x), min(oy,y)) to (max(ox,x), max(oy,y))
         const x0 = Math.min(d.ox, p.x), y0 = Math.min(d.oy, p.y);
         const x1 = Math.max(d.ox, p.x), y1 = Math.max(d.oy, p.y);
         d.x = x0; d.y = y0; d.w = x1 - x0; d.h = y1 - y0;
@@ -2522,10 +3106,19 @@ function installKesemGziraMouse(state, layer) {
     });
 
     layer.addEventListener("mouseup", function (e) {
+        // Shift-resize commit — write the (already-updated) rect back to
+        // doc.rasb. No confirm dialog: the original Picture1_DragDrop just
+        // commits the new position on drop.
+        const r = state.editor.gziraResizing;
+        if (r) {
+            state.editor.gziraResizing = null;
+            const rects = kesemGziraGetRects(state);
+            kesemGziraSetRects(state, rects);
+            kesemGziraRepaintRects(state);
+            return;
+        }
         const d = state.editor.gziraDrawing;
         if (!d) return;
-        // Picture1_MouseUp: if nik=False (no real drag), discard. Else
-        // confirm via MsgBox TMsg(18)="?האם זה נכון" → on Yes commit FF(nomer).
         state.editor.gziraDrawing = null;
         if (!d.nik || d.w < 4 || d.h < 4) {
             kesemGziraRepaintRects(state);
@@ -2533,7 +3126,6 @@ function installKesemGziraMouse(state, layer) {
         }
         const yes = window.confirm("?האם זה נכון");
         if (!yes) { kesemGziraRepaintRects(state); return; }
-        // Commit. Name_of_Rasb defaults to existing rect's name (or key).
         const rects = kesemGziraGetRects(state);
         const baseName = (rects[0] && rects[0].name) || state.editor.gziraKey || "";
         rects.push({
@@ -3138,6 +3730,7 @@ function wireKesemExpo(state) {
             li.addEventListener("click", function () {
                 if (state.editor.expoSel.has(stem)) state.editor.expoSel.delete(stem);
                 else state.editor.expoSel.add(stem);
+                state.editor.expoLast = stem;   // for Command3 clear-sel
                 wireKesemExpo(state);
             });
             ul.appendChild(li);
@@ -3200,6 +3793,1377 @@ function wireKesemExpo(state) {
     }
 }
 
+// === Player stub: game22 / game66 (puzzle / paint stages) ===============
+// Minimal viable player view for Maslul stages with Gnu=22 (auto-puzzle)
+// or Gnu=66 (paint). Original GamePazel.frm cuts the picture into draggable
+// pieces; GamePaint.frm gives the kid a colored brush over an outline.
+// We render the picture full-screen with a "המשך" advance button so the
+// player can walk through these stages — completion isn't gated on solving
+// the puzzle / completing the painting. Both call advanceStage on click.
+function wireKesemFreePlayStage(state, screenId) {
+    const stage = state.stage;
+    if (!stage) return;
+    const active = state.activeStage;
+    const root = state.config.assetsRoot;
+    stage.innerHTML = "";
+
+    // Picture (fills the form).
+    if (active && active.pic) {
+        const stem = active.pic.replace(/\.[^.]+$/, "").toLowerCase();
+        const im = document.createElement("img");
+        im.src = root + "/bmp/" + stem + ".png";
+        Object.assign(im.style, {
+            position: "absolute", inset: "0",
+            width: "100%", height: "100%", objectFit: "contain",
+            background: "#fff",
+        });
+        stage.appendChild(im);
+    }
+
+    // Tiny corner label so the tester sees which stub mode this is.
+    const label = document.createElement("div");
+    label.textContent = screenId === "game66" ? "צביעה (תצוגה בלבד)" : "פאזל (תצוגה בלבד)";
+    Object.assign(label.style, {
+        position: "absolute", left: "8px", top: "8px",
+        padding: "2px 8px",
+        background: "rgba(255,255,255,.85)", color: "#333",
+        font: "12px David, Arial, sans-serif",
+        border: "1px solid #888", borderRadius: "3px",
+    });
+    stage.appendChild(label);
+
+    // Continue button (lower-right) → advance to next stage.
+    const next = document.createElement("button");
+    next.textContent = "המשך ▶";
+    Object.assign(next.style, {
+        position: "absolute", right: "12px", bottom: "12px",
+        padding: "8px 18px",
+        font: "bold 14px David, Arial, sans-serif",
+        background: "#2e8b57", color: "#fff",
+        border: "1px outset #1a5c39", borderRadius: "4px",
+        cursor: "pointer", direction: "rtl",
+    });
+    next.addEventListener("click", function () { advanceStage(state); });
+    stage.appendChild(next);
+
+    // Picexi-style back to Sst.
+    const back = document.createElement("button");
+    back.textContent = "◀ חזרה";
+    Object.assign(back.style, {
+        position: "absolute", left: "12px", bottom: "12px",
+        padding: "8px 18px",
+        font: "bold 14px David, Arial, sans-serif",
+        background: "#888", color: "#fff",
+        border: "1px outset #555", borderRadius: "4px",
+        cursor: "pointer", direction: "rtl",
+    });
+    back.addEventListener("click", function () {
+        state.currentPath = null;
+        state.currentStageIdx = 0;
+        state.activeStage = null;
+        state._activeSlotOverride = null;
+        setScreen(state, "sst");
+    });
+    stage.appendChild(back);
+}
+
+// === Paint editor (GR_EDIT / Edstamps / Words) ===========================
+// One canvas + toolbar shell shared by three screens because they all
+// "draw on a picture and save" — only the canvas size and saved-file
+// destination differ:
+//
+//   gr_edit (Main.menu(2) → GR_EDIT.FRM)
+//      Paints over the full 640×480 picture; saves into
+//      doc.newAssets.bmp[<pic.file>] replacing the in-memory asset.
+//   edstamps (Edstamps.frm)
+//      80×80 stamp canvas; saves into doc.newAssets.stamps[<n>].
+//      Stamps are referenced by Games 3 / Games 4 hotspot data.
+//   words (Words.frm)
+//      Draws Hebrew/English text on top of the picture in a chosen
+//      font + color; saves like gr_edit.
+//
+// Not a 1:1 port — the original VB6 uses BitBltControl with per-pixel
+// PSet ops, hand-rolled flood-fill, and a custom palette. We use HTML
+// <canvas> with the standard 2d context: pencil draws round strokes,
+// fill is canvas API floodFill via getImageData, text is fillText.
+// Functional equivalent + cleaner than recreating the BitBlt logic.
+function wireKesemPaintEditor(state, opts) {
+    const stage = state.stage;
+    if (!stage) return;
+    const doc = kesemLoadDoc(state);
+    const mode = opts.mode || "gr_edit";
+    const isStamps = mode === "edstamps";
+    const isWords  = mode === "words";
+
+    // Clear the form layout — we render a custom toolbar + canvas ourselves.
+    stage.innerHTML = "";
+
+    const W = isStamps ? 80 : 525;     // gr_edit/words use the picture's
+    const H = isStamps ? 80 : 342;     // natural ~525×342 (Spic1 box).
+
+    // === Layout =======================================================
+    const root_el = document.createElement("div");
+    Object.assign(root_el.style, {
+        position: "absolute", inset: "0",
+        background: "#C0C0C0", color: "#000",
+        font: "13px David, Arial, sans-serif", direction: "rtl",
+        display: "flex", flexDirection: "column",
+    });
+    stage.appendChild(root_el);
+
+    // Toolbar (top)
+    const bar = document.createElement("div");
+    Object.assign(bar.style, {
+        padding: "6px 8px", display: "flex", gap: "6px",
+        background: "#a8a8a8", borderBottom: "1px solid #555",
+        alignItems: "center", flexWrap: "wrap",
+    });
+    root_el.appendChild(bar);
+
+    // Canvas area (centered)
+    const canvasWrap = document.createElement("div");
+    Object.assign(canvasWrap.style, {
+        flex: "1", display: "flex", alignItems: "center", justifyContent: "center",
+        overflow: "hidden",
+    });
+    root_el.appendChild(canvasWrap);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = W; canvas.height = H;
+    Object.assign(canvas.style, {
+        background: "#fff",
+        cursor: "crosshair",
+        boxShadow: "0 0 6px rgba(0,0,0,.5)",
+        // For stamps (80×80) zoom 4× so the painter can see what they're doing.
+        transform: isStamps ? "scale(4)" : "scale(1)",
+        transformOrigin: "center center",
+        imageRendering: isStamps ? "pixelated" : "auto",
+    });
+    canvasWrap.appendChild(canvas);
+
+    const ctx = canvas.getContext("2d");
+
+    // === State ========================================================
+    const paint = state.editor.paint = state.editor.paint || {};
+    paint.tool  = paint.tool  || "pencil";
+    paint.color = paint.color || "#000000";
+    paint.size  = paint.size  || (isStamps ? 1 : 3);
+    paint.undoStack = [];     // last N canvas snapshots
+    paint.textStr = paint.textStr || "";
+    paint.fontPx  = paint.fontPx || 32;
+
+    // Seed the canvas with the current picture (gr_edit / words) or a
+    // blank white background (edstamps / new-picture). When del[3] sets
+    // state.editor.grEditNew, we start with a blank canvas and save as a
+    // NEW doc.pictures entry on commit (mirrors Gr_Edit's
+    // N_Bmp(0).Caption = "תמונה חדשה" / Max_Pics++ behavior).
+    const newPicMode = !!state.editor.grEditNew;
+    function loadSource() {
+        if (isStamps || newPicMode) {
+            ctx.fillStyle = "#fff";
+            ctx.fillRect(0, 0, W, H);
+            return;
+        }
+        const pic = (doc.pictures || [])[state.editor.selectedPicture || 0];
+        if (!pic) {
+            ctx.fillStyle = "#fff";
+            ctx.fillRect(0, 0, W, H);
+            return;
+        }
+        const url = kesemPictureUrl(state, pic.file);
+        if (!url) {
+            ctx.fillStyle = "#fff";
+            ctx.fillRect(0, 0, W, H);
+            return;
+        }
+        const im = new Image();
+        im.crossOrigin = "anonymous";
+        im.onload = function () {
+            ctx.drawImage(im, 0, 0, W, H);
+        };
+        im.onerror = function () {
+            ctx.fillStyle = "#fff";
+            ctx.fillRect(0, 0, W, H);
+        };
+        im.src = url;
+    }
+    loadSource();
+
+    // === Drawing ======================================================
+    function snapshot() {
+        try {
+            paint.undoStack.push(ctx.getImageData(0, 0, W, H));
+            if (paint.undoStack.length > 12) paint.undoStack.shift();
+        } catch (e) {}
+    }
+    function undo() {
+        const last = paint.undoStack.pop();
+        if (last) ctx.putImageData(last, 0, 0);
+    }
+    function localXY(e) {
+        const r = canvas.getBoundingClientRect();
+        const sx = r.width / W, sy = r.height / H;
+        return {
+            x: (e.clientX - r.left) / sx,
+            y: (e.clientY - r.top)  / sy,
+        };
+    }
+    let dragging = false, lastP = null;
+    canvas.addEventListener("mousedown", function (e) {
+        if (e.button !== 0) return;
+        const p = localXY(e);
+        snapshot();
+        if (paint.tool === "fill") { kesemFloodFill(ctx, p.x | 0, p.y | 0, paint.color); return; }
+        if (paint.tool === "text") {
+            ctx.fillStyle = paint.color;
+            ctx.font = "bold " + paint.fontPx + "px David, Arial, sans-serif";
+            ctx.textBaseline = "top";
+            ctx.fillText(paint.textStr || "", p.x, p.y);
+            return;
+        }
+        dragging = true; lastP = p;
+        drawDot(p.x, p.y);
+    });
+    canvas.addEventListener("mousemove", function (e) {
+        if (!dragging) return;
+        const p = localXY(e);
+        drawSeg(lastP.x, lastP.y, p.x, p.y);
+        lastP = p;
+    });
+    window.addEventListener("mouseup", function () { dragging = false; });
+
+    function drawDot(x, y) {
+        ctx.fillStyle = paint.tool === "eraser" ? "#ffffff" : paint.color;
+        ctx.beginPath();
+        ctx.arc(x, y, paint.size / 2, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    function drawSeg(x0, y0, x1, y1) {
+        ctx.strokeStyle = paint.tool === "eraser" ? "#ffffff" : paint.color;
+        ctx.lineWidth = paint.size;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.beginPath();
+        ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
+        ctx.stroke();
+    }
+
+    // === Toolbar buttons ==============================================
+    function makeBtn(label, onClick, key) {
+        const b = document.createElement("button");
+        b.textContent = label;
+        b.dataset.tool = key || "";
+        Object.assign(b.style, {
+            padding: "4px 10px",
+            font: "bold 12px David, Arial, sans-serif",
+            cursor: "pointer",
+            border: "1px outset #d4d4d4",
+            background: "#ddd",
+        });
+        b.addEventListener("click", onClick);
+        bar.appendChild(b);
+        return b;
+    }
+    function selectTool(t) {
+        paint.tool = t;
+        bar.querySelectorAll("button[data-tool]").forEach(function (el) {
+            el.style.background = el.dataset.tool === t ? "#3a7bd5" : "#ddd";
+            el.style.color      = el.dataset.tool === t ? "#fff"    : "#000";
+        });
+        canvas.style.cursor = (t === "fill" ? "cell" : t === "text" ? "text" : "crosshair");
+    }
+    makeBtn("עיפרון", function () { selectTool("pencil"); }, "pencil");
+    makeBtn("מילוי",  function () { selectTool("fill");   }, "fill");
+    makeBtn("מחק",    function () { selectTool("eraser"); }, "eraser");
+    if (!isStamps) makeBtn("טקסט", function () {
+        kesemPromptString({ title: "טקסט להוסיף:", value: paint.textStr },
+            function (val) {
+                if (val == null) return;
+                paint.textStr = val;
+                selectTool("text");
+            });
+    }, "text");
+
+    // Color swatch
+    const swatch = document.createElement("button");
+    Object.assign(swatch.style, {
+        width: "28px", height: "24px", border: "2px solid #444",
+        cursor: "pointer", background: paint.color, padding: "0",
+    });
+    swatch.title = "צבע";
+    swatch.addEventListener("click", function () {
+        kesemPromptColor(paint.color, function (v) {
+            if (!v) return;
+            paint.color = v;
+            swatch.style.background = v;
+        });
+    });
+    bar.appendChild(swatch);
+
+    // Brush size
+    const sizeLabel = document.createElement("span");
+    sizeLabel.textContent = "עובי:";
+    sizeLabel.style.marginRight = "4px";
+    bar.appendChild(sizeLabel);
+    const sizeInp = document.createElement("input");
+    sizeInp.type = "range"; sizeInp.min = "1"; sizeInp.max = "24"; sizeInp.value = String(paint.size);
+    sizeInp.style.width = "80px";
+    sizeInp.addEventListener("input", function () { paint.size = parseInt(sizeInp.value, 10); });
+    bar.appendChild(sizeInp);
+
+    // Undo / clear / save / cancel
+    makeBtn("בטל", function () { undo(); });
+    makeBtn("נקה", function () {
+        snapshot();
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, W, H);
+    });
+    const spacer = document.createElement("div");
+    spacer.style.flex = "1";
+    bar.appendChild(spacer);
+    makeBtn("שמור", function () {
+        const dataUrl = canvas.toDataURL("image/png");
+        if (isStamps) {
+            const idx = state.editor.stampIdx == null ? 0 : state.editor.stampIdx;
+            doc.newAssets = doc.newAssets || { bmp: {}, wav: {} };
+            doc.newAssets.stamps = doc.newAssets.stamps || {};
+            kesemStoreAsset(doc.newAssets.stamps, String(idx), dataUrl).then(function () {
+                doc.dirty = true;
+                kesemSaveDoc(doc);
+                klog("kesem: stamp " + idx + " saved (" + Math.round(dataUrl.length / 1024) + " kb)");
+                setScreen(state, "main");
+            });
+            return;
+        }
+        if (newPicMode) {
+            // del[3] new-picture flow — mirrors Gr_Edit.SavePicture +
+            // Max_Pics++ + spisok.dat append. Pick the lowest free numeric
+            // stem and prompt for the Hebrew description.
+            kesemPromptString({
+                title: "שם התמונה החדשה:",
+                value: "",
+            }, function (name) {
+                if (name == null || !name.trim()) {
+                    // Cancelled — clear the flag so we don't loop, return to main.
+                    state.editor.grEditNew = false;
+                    state.editor.newPic = 0;
+                    setScreen(state, "main");
+                    return;
+                }
+                let max = 0;
+                (doc.pictures || []).forEach(function (p) {
+                    const n = parseInt((p.file || "").replace(/\.[^.]+$/, ""), 10);
+                    if (!isNaN(n) && n > max) max = n;
+                });
+                const newFile = (max + 1) + ".bmp";
+                doc.pictures = doc.pictures || [];
+                doc.pictures.push({ file: newFile, name: name.trim() });
+                doc.newAssets = doc.newAssets || { bmp: {}, wav: {} };
+                doc.newAssets.bmp = doc.newAssets.bmp || {};
+                kesemStoreAsset(doc.newAssets.bmp, newFile, dataUrl).then(function () {
+                    doc.dirty = true;
+                    kesemSaveDoc(doc);
+                    state.editor.selectedPicture = doc.pictures.length - 1;
+                    state.editor.grEditNew = false;
+                    klog("kesem: new picture saved → " + newFile + " (" + name + ")");
+                    setScreen(state, "main");
+                });
+            });
+            return;
+        }
+        const pic = (doc.pictures || [])[state.editor.selectedPicture || 0];
+        if (!pic) { klog("kesem: paint save — no picture"); return; }
+        doc.newAssets = doc.newAssets || { bmp: {}, wav: {} };
+        doc.newAssets.bmp = doc.newAssets.bmp || {};
+        kesemStoreAsset(doc.newAssets.bmp, pic.file, dataUrl).then(function () {
+            // Invalidate any cached idb resolution for this picture
+            if (state._idbCache) {
+                const v = doc.newAssets.bmp[pic.file];
+                if (v && v.idb) delete state._idbCache[v.idb];
+            }
+            doc.dirty = true;
+            kesemSaveDoc(doc);
+            klog("kesem: paint save → " + pic.file + " (" + Math.round(dataUrl.length / 1024) + " kb)");
+            setScreen(state, "main");
+        });
+    });
+    makeBtn("ביטול", function () {
+        state.editor.grEditNew = false;
+        state.editor.newPic = 0;
+        setScreen(state, "main");
+    });
+
+    selectTool(paint.tool);
+}
+
+// Canvas flood-fill (4-connected). Replaces VB6 Picture1.Floodfill —
+// reads pixels via getImageData, BFS-fills matching pixels with target.
+function kesemFloodFill(ctx, x, y, hexColor) {
+    const c = ctx.canvas;
+    const id = ctx.getImageData(0, 0, c.width, c.height);
+    const d = id.data;
+    const off0 = (y * c.width + x) * 4;
+    const tr = parseInt(hexColor.slice(1, 3), 16);
+    const tg = parseInt(hexColor.slice(3, 5), 16);
+    const tb = parseInt(hexColor.slice(5, 7), 16);
+    const sr = d[off0], sg = d[off0 + 1], sb = d[off0 + 2];
+    if (sr === tr && sg === tg && sb === tb) return;
+    const stack = [[x, y]];
+    while (stack.length) {
+        const p = stack.pop();
+        const px = p[0], py = p[1];
+        if (px < 0 || py < 0 || px >= c.width || py >= c.height) continue;
+        const off = (py * c.width + px) * 4;
+        if (d[off] !== sr || d[off + 1] !== sg || d[off + 2] !== sb) continue;
+        d[off] = tr; d[off + 1] = tg; d[off + 2] = tb; d[off + 3] = 255;
+        stack.push([px + 1, py]);
+        stack.push([px - 1, py]);
+        stack.push([px, py + 1]);
+        stack.push([px, py - 1]);
+    }
+    ctx.putImageData(id, 0, 0);
+}
+
+// === Gr_Edit (1:1 paint editor — kesem/GR_EDIT.FRM) =====================
+// 1:1 port of the VB6 graphics editor that opens from Main.menu(2) or
+// from Main.del(3) for a new picture. Renders the actual form layout
+// (gr_edit.png background + magash.bmp tool sprites + menu_gr / butt_press
+// labels at original twip coords) and wires VB6 handlers:
+//
+//   butt_press(0..11) — 12-cell tool strip (magash.bmp 6×2). Each cell
+//     sets Rezim (drawing mode). Mapping by lptip label / source code:
+//        0 = select-rect / cut             1 = save preview (Small_Pic)
+//        2 = ellipse outline (מעגלים)      3 = line (קווים)
+//        4 = pencil (ציור חופשי, default)  5 = hidden (off-canvas x=648)
+//        6 = zoom toggle (התקרבות)         7 = type / Words form (הקלדה)
+//        8 = filled rect (מרובעים)         9 = polyline (מצולעים)
+//       10 = stamps (חותמות)              11 = mirror pencil (ציור סימטרי)
+//
+//   menu_gr(0..5) — main side hotspots. menu_gr_Click handles 0/1/5:
+//        0 = new (Shoila TMsg(12) → LoadPicture() → N_Bmp="תמונה חדשה")
+//        1 = save & exit (Shoila1 TMsg(13) → EditString → SavePicture
+//            → Knica=1 → Unload Gr_Edit). Mirrors Main's del[1] commit.
+//        5 = color palette (Color_f.Show 1).
+//
+//   Import — pick a local image file, load into Picture1 (Rezim=4).
+//   und    — undo last stroke (uses tem.bmp snapshot before each draw).
+//   endof  — "x" close. Ezia → back to Main.
+//   lbHelp — plays _hlpdrw.avi (not yet wired on web; logs).
+//   Label1(0..2) — line-width selector (8 / 3 / 2 px → DrawWidth).
+//   strelka — small arrow that follows the active Label1 width.
+//
+// Canvas: 527×343 inside Picture2 at form-coords (87, 24). Inside our
+// 640×480 design canvas the form's twip-derived px coords match the
+// gr_edit.png background pixel-for-pixel because the asset and the
+// design canvas are both 640×480.
+function wireKesemGrEdit(state) {
+    const stage = state.stage;
+    if (!stage) return;
+    const doc = kesemLoadDoc(state);
+
+    // Picture1 sits inside Picture2 at form coords. We compute the canvas
+    // size from the rendered DOM rather than hard-coding it, so that
+    // future layout edits or DPR scaling stay 1:1.
+    const pic1Div = stage.querySelector(".frm-ctrl--Picture1");
+    if (!pic1Div) {
+        klog("kesem: gr_edit — Picture1 not found in layout");
+        return;
+    }
+    const W = 527, H = 343;   // matches VB6 Picture1.ScaleWidth/Height
+
+    // === <canvas> inside Picture1 =======================================
+    let canvas = pic1Div.querySelector("canvas.kesem-gr-canvas");
+    if (!canvas) {
+        canvas = document.createElement("canvas");
+        canvas.className = "kesem-gr-canvas";
+        canvas.width = W; canvas.height = H;
+        Object.assign(canvas.style, {
+            position: "absolute", left: "0", top: "0",
+            width: "100%", height: "100%",
+            background: "#ffffff",
+            cursor: "crosshair",
+            // Picture1 is below the toolbar labels in DOM order so they
+            // already render on top — no z-index needed.
+        });
+        pic1Div.appendChild(canvas);
+    }
+    const ctx = canvas.getContext("2d");
+
+    // === Paint state ====================================================
+    const paint = state.editor.paint = state.editor.paint || {};
+    paint.rezim   = paint.rezim != null ? paint.rezim : 4;     // VB6 default
+    paint.color   = paint.color || "#000000";
+    paint.width   = paint.width != null ? paint.width : 3;     // Label1(1)
+    paint.undo    = paint.undo || [];
+
+    // del[3] sets state.editor.grEditNew so we start blank instead of
+    // loading the selected picture. Mirrors VB6 Form_Load:
+    //   If New_Pic <> 1 Then Picture1.Picture = LoadPicture(Pics_F)
+    //                    Else Picture1.Picture = LoadPicture() (blank)
+    const newPicMode = !!state.editor.grEditNew;
+    function paintBackground() {
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, W, H);
+    }
+    function loadSource() {
+        if (newPicMode) { paintBackground(); return; }
+        const pic = (doc.pictures || [])[state.editor.selectedPicture || 0];
+        if (!pic) { paintBackground(); return; }
+        const url = kesemPictureUrl(state, pic.file);
+        if (!url)   { paintBackground(); return; }
+        const im = new Image();
+        im.crossOrigin = "anonymous";
+        im.onload  = function () { ctx.drawImage(im, 0, 0, W, H); };
+        im.onerror = paintBackground;
+        im.src = url;
+    }
+    loadSource();
+
+    function snapshot() {
+        try {
+            paint.undo.push(ctx.getImageData(0, 0, W, H));
+            if (paint.undo.length > 16) paint.undo.shift();
+        } catch (e) {}
+    }
+    function undo() {
+        const last = paint.undo.pop();
+        if (last) ctx.putImageData(last, 0, 0);
+    }
+    function localXY(e) {
+        const r = canvas.getBoundingClientRect();
+        return {
+            x: ((e.clientX - r.left) * W / r.width)  | 0,
+            y: ((e.clientY - r.top)  * H / r.height) | 0,
+        };
+    }
+
+    // === Tool dispatch (Rezim) ==========================================
+    // Rezim selector. cursor mapping mirrors butt_press_click Select Case:
+    //   4,11 → cur2 (pencil)   6 → cur11 (mag)   2 → cur4 (circle)
+    //   8,0  → cur3 (rect)     9 → cur6 (poly)   3 → cur5 (line)
+    //   10   → cur91 (spray)
+    const CURSORS = {
+        0: "crosshair", 2: "crosshair", 3: "crosshair", 4: "crosshair",
+        6: "zoom-in",   7: "text",      8: "crosshair", 9: "crosshair",
+        10: "cell",     11: "crosshair",
+    };
+    function setRezim(r) {
+        paint.rezim = r;
+        canvas.style.cursor = CURSORS[r] || "crosshair";
+    }
+
+    // === Drawing handlers ==============================================
+    let drag = null;       // {x0,y0, x,y} during stroke
+    let polyPrev = null;   // accumulator for Rezim=9 polyline
+    let dragImage = null;  // pre-stroke snapshot for shape preview
+
+    function strokePen(x0, y0, x1, y1) {
+        ctx.strokeStyle = paint.color;
+        ctx.lineWidth = paint.width;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.beginPath();
+        ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
+        ctx.stroke();
+    }
+    function strokeMirror(x0, y0, x1, y1) {
+        strokePen(x0, y0, x1, y1);
+        strokePen(W - x0, y0, W - x1, y1);   // VB6 Abs(Picture1.Width - x)
+    }
+    function restoreFromDragImage() {
+        if (dragImage) ctx.putImageData(dragImage, 0, 0);
+    }
+    function strokeLine(x0, y0, x1, y1) {
+        restoreFromDragImage();
+        ctx.strokeStyle = paint.color;
+        ctx.lineWidth = paint.width;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
+        ctx.stroke();
+    }
+    function strokeRect(x0, y0, x1, y1, filled) {
+        restoreFromDragImage();
+        const x = Math.min(x0, x1), y = Math.min(y0, y1);
+        const w = Math.abs(x1 - x0), h = Math.abs(y1 - y0);
+        ctx.lineWidth = paint.width;
+        if (filled) { ctx.fillStyle = paint.color; ctx.fillRect(x, y, w, h); }
+        else { ctx.strokeStyle = paint.color; ctx.strokeRect(x, y, w, h); }
+    }
+    function strokeEllipse(x0, y0, x1, y1) {
+        restoreFromDragImage();
+        const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+        const rx = Math.abs(x1 - x0) / 2, ry = Math.abs(y1 - y0) / 2;
+        ctx.strokeStyle = paint.color;
+        ctx.lineWidth = paint.width;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+    function strokeSpray(x, y) {
+        ctx.fillStyle = paint.color;
+        const r = paint.width * 3;
+        for (let i = 0; i < 24; i++) {
+            const a = Math.random() * Math.PI * 2;
+            const d = Math.random() * r;
+            ctx.fillRect((x + Math.cos(a) * d) | 0, (y + Math.sin(a) * d) | 0, 1, 1);
+        }
+    }
+
+    canvas.onmousedown = function (e) {
+        if (e.button !== 0) return;
+        const p = localXY(e);
+        snapshot();
+        try { dragImage = ctx.getImageData(0, 0, W, H); } catch (_) {}
+        if (paint.rezim === 4 || paint.rezim === 11) {           // pencil / mirror
+            drag = { x0: p.x, y0: p.y, x: p.x, y: p.y };
+        } else if (paint.rezim === 3) {                          // line
+            drag = { x0: p.x, y0: p.y, x: p.x, y: p.y, mode: "line" };
+        } else if (paint.rezim === 2) {                          // ellipse outline
+            drag = { x0: p.x, y0: p.y, x: p.x, y: p.y, mode: "ellipse" };
+        } else if (paint.rezim === 8 || paint.rezim === 0) {     // rect (filled / outline-select)
+            drag = { x0: p.x, y0: p.y, x: p.x, y: p.y, mode: paint.rezim === 8 ? "rectFill" : "rectOutline" };
+        } else if (paint.rezim === 9) {                          // polyline
+            if (polyPrev) {
+                strokePen(polyPrev.x, polyPrev.y, p.x, p.y);
+                polyPrev = p;
+            } else {
+                polyPrev = p;
+            }
+        } else if (paint.rezim === 10) {                         // spray
+            strokeSpray(p.x, p.y);
+            drag = { x0: p.x, y0: p.y, x: p.x, y: p.y, mode: "spray" };
+        } else if (paint.rezim === 6) {                          // zoom
+            // VB6 zo toggle: 0→1 sets a selection shape; 1→0 stretches
+            // back. Web approximation: 4× CSS scale on/off.
+            paint.zoom = !paint.zoom;
+            canvas.style.transform = paint.zoom ? "scale(2)" : "scale(1)";
+            canvas.style.transformOrigin = "top left";
+        }
+    };
+    canvas.onmousemove = function (e) {
+        if (!drag) return;
+        const p = localXY(e);
+        if (paint.rezim === 4) { strokePen(drag.x, drag.y, p.x, p.y); drag.x = p.x; drag.y = p.y; }
+        else if (paint.rezim === 11) { strokeMirror(drag.x, drag.y, p.x, p.y); drag.x = p.x; drag.y = p.y; }
+        else if (drag.mode === "line") { strokeLine(drag.x0, drag.y0, p.x, p.y); drag.x = p.x; drag.y = p.y; }
+        else if (drag.mode === "ellipse") { strokeEllipse(drag.x0, drag.y0, p.x, p.y); }
+        else if (drag.mode === "rectFill") { strokeRect(drag.x0, drag.y0, p.x, p.y, true); }
+        else if (drag.mode === "rectOutline") { strokeRect(drag.x0, drag.y0, p.x, p.y, false); }
+        else if (drag.mode === "spray") { strokeSpray(p.x, p.y); }
+    };
+    window.addEventListener("mouseup", function () { drag = null; dragImage = null; });
+
+    canvas.onclick = function (e) {
+        // Right-click on polyline ends the chain; left-click in fill mode
+        // is implicit when butt_press(7) is wired to text. Our butt_press(7)
+        // also opens the text-string prompt. For "fill" we don't have a
+        // dedicated VB6 Rezim — Color_f.frm's "מילוי" is its own form.
+        // Left this hook in case fill mode is added later.
+    };
+    canvas.oncontextmenu = function (e) {
+        if (paint.rezim === 9 && polyPrev) {
+            e.preventDefault();
+            polyPrev = null;   // end polyline (VB6 Button=2 → paam=0)
+        }
+    };
+
+    // === Tool sprite strip (magash.png 523×104 = 6 cols × 2 rows) =======
+    // PicClip1.GraphicCell(Index) maps Index 0..11 → cells in row-major
+    // order: row 0 = 0..5, row 1 = 6..11. Each cell is ~87×52 px. Apply
+    // as background-image with background-position on each butt_press div.
+    const SPRITE_URL = "assets/Kesem/menu/magash.png";
+    const CELL_W = Math.floor(523 / 6);   // 87
+    const CELL_H = Math.floor(104 / 2);   // 52
+    for (let i = 0; i < 12; i++) {
+        const btn = stage.querySelector('.frm-ctrl--butt_press[data-index="' + i + '"]');
+        if (!btn) continue;
+        const col = i % 6, row = (i / 6) | 0;
+        Object.assign(btn.style, {
+            backgroundImage: "url('" + SPRITE_URL + "')",
+            backgroundPosition: `-${col * CELL_W}px -${row * CELL_H}px`,
+            backgroundSize: `${523}px ${104}px`,
+            backgroundRepeat: "no-repeat",
+            cursor: "pointer",
+            pointerEvents: "auto",
+        });
+        // butt_press[5] is at x=648, past the 640-wide gr_edit.png
+        // background — hide it in our 640-design canvas (VB6 ran wider).
+        if (i === 5) { btn.style.display = "none"; continue; }
+        // Click handler — set Rezim per index. butt_press(1) and (7) are
+        // special: they open child forms (Small_Pic / Words). On web we
+        // mirror (1) as a non-destructive preview and (7) as inline text.
+        if (btn._kesemWired) continue;
+        btn._kesemWired = true;
+        btn.addEventListener("click", function () {
+            console.log("[kesem] gr_edit tool butt_press[" + i + "]");
+            if (i === 1) {            // Small_Pic.Show — preview only, NO save
+                // Original VB6:
+                //   SavePicture Picture1.Image, AppPath & "\tem.bmp"  ← undo buf
+                //   und.Enabled = True
+                //   Small_Pic.Picture1.Picture = Picture1.Image
+                //   Small_Pic.Show 1                                  ← modal preview
+                // Nothing is persisted. Push an undo snapshot, then show
+                // a scaled preview overlay the user dismisses.
+                snapshot();
+                grEditPreviewModal(canvas);
+                return;
+            }
+            if (i === 7) {            // words.Show — add text overlay
+                kesemPromptString({ title: "טקסט להוסיף:", value: paint.textStr || "" }, function (val) {
+                    if (val == null || !val.length) return;
+                    paint.textStr = val;
+                    snapshot();
+                    ctx.fillStyle = paint.color;
+                    ctx.font = "bold " + (paint.width * 6 + 14) + "px David, Arial, sans-serif";
+                    ctx.textBaseline = "top";
+                    ctx.direction = "rtl";
+                    ctx.fillText(val, W / 2 - 80, 20);
+                });
+                return;
+            }
+            if (i === 10) {           // stamps — open Edstamps form
+                state.editor.stampIdx = 0;
+                setScreen(state, "edstamps");
+                return;
+            }
+            setRezim(i);
+        });
+    }
+
+    // === menu_gr(0/1/5) ================================================
+    // Map index → behavior per VB6 menu_gr_Click.
+    [0, 1, 5].forEach(function (i) {
+        const m = stage.querySelector('.frm-ctrl--menu_gr[data-index="' + i + '"]');
+        if (!m) return;
+        m.style.pointerEvents = "auto";
+        m.style.cursor = "pointer";
+        if (m._kesemWired) return;
+        m._kesemWired = true;
+        m.addEventListener("click", function () {
+            console.log("[kesem] gr_edit menu_gr[" + i + "]");
+            if (i === 0) {
+                // New page — confirm + blank canvas + rename current
+                // picture. Mirrors VB6 Shoila(TMsg(12)) confirmation.
+                if (!window.confirm("ליצור תמונה חדשה?")) return;
+                snapshot();
+                paintBackground();
+                const cap = stage.querySelector('.frm-ctrl--N_Bmp[data-index="0"]');
+                if (cap) cap.textContent = "תמונה חדשה";
+                const tz = stage.querySelector(".frm-ctrl--TxtZman");
+                if (tz) tz.textContent = "תמונה חדשה";
+            } else if (i === 1) {
+                // Save & exit. Original VB6 menu_gr_Click Index=1:
+                //   If Shoila1(TMsg(13), ii) = 1 Then       ← yes/no/cancel
+                //     If Tek_Nom <= Kol_Pics_CD Then
+                //       NewTmn = True
+                //     Else
+                //       If Shoila("Save AS NEW picture?") Then NewTmn = True
+                //     SavePicture Picture1.Image, Pics_F
+                //   ElseIf ii = 2 Then: Exit Sub
+                //   Knica = 1
+                //   Unload Gr_Edit
+                // So saving is ALWAYS gated on Shoila1 confirmation.
+                // ii == 1: save, ii == 0: exit without saving, ii == 2: cancel.
+                if (newPicMode) {
+                    // New-picture flow — Shoila1 → EditString prompt → save.
+                    // grEditCommit already runs an EditString name prompt
+                    // and treats an empty/cancelled name as "exit without save".
+                    grEditCommit(state, doc, canvas, newPicMode);
+                    return;
+                }
+                const ans = grEditAskSave();    // 1=save, 0=discard, -1=cancel
+                if (ans === -1) return;          // cancel — stay in editor
+                if (ans === 0) {                 // discard — back to main, no save
+                    state.editor.knica = 1;
+                    setScreen(state, "main");
+                    return;
+                }
+                grEditCommit(state, doc, canvas, newPicMode);
+            } else if (i === 5) {
+                // Color_f.frm — palette picker. Web equivalent: native
+                // <input type=color>. Replaces VB6 Color_f.Show 1.
+                kesemPromptColor(paint.color, function (v) {
+                    if (!v) return;
+                    paint.color = v;
+                });
+            }
+        });
+    });
+
+    // === Import =========================================================
+    const importBtn = stage.querySelector(".frm-ctrl--Import");
+    if (importBtn && !importBtn._kesemWired) {
+        importBtn._kesemWired = true;
+        importBtn.style.cursor = "pointer";
+        importBtn.addEventListener("click", function () {
+            const inp = document.createElement("input");
+            inp.type = "file";
+            inp.accept = "image/*";
+            inp.onchange = function () {
+                const f = inp.files && inp.files[0];
+                if (!f) return;
+                const reader = new FileReader();
+                reader.onload = function () {
+                    const im = new Image();
+                    im.onload = function () {
+                        snapshot();
+                        ctx.drawImage(im, 0, 0, W, H);
+                        setRezim(4);
+                    };
+                    im.src = reader.result;
+                };
+                reader.readAsDataURL(f);
+            };
+            inp.click();
+        });
+    }
+
+    // === und (undo) =====================================================
+    const undBtn = stage.querySelector(".frm-ctrl--und");
+    if (undBtn && !undBtn._kesemWired) {
+        undBtn._kesemWired = true;
+        undBtn.style.cursor = "pointer";
+        undBtn.addEventListener("click", function () { undo(); });
+    }
+
+    // === endof ("x" close) ==============================================
+    // The renderer maps endof → action "kesem:back" which already pops to
+    // main. Just make sure new-picture state is cleared first.
+    const endof = stage.querySelector(".frm-ctrl--endof");
+    if (endof && !endof._kesemGrWired) {
+        endof._kesemGrWired = true;
+        // The renderer's click runs first (kesem:back). Use capture to
+        // pre-empt and clear the editor flag.
+        endof.addEventListener("click", function () {
+            state.editor.grEditNew = false;
+            state.editor.newPic = 0;
+        }, true);
+    }
+
+    // === lbHelp =========================================================
+    // VB6: VideoFile = "\_hlpdrw.avi"; VideoBox.Show 1. We don't yet ship
+    // the AVI files; log and (if the asset is present) open in a popup.
+    const help = stage.querySelector(".frm-ctrl--lbHelp");
+    if (help && !help._kesemWired) {
+        help._kesemWired = true;
+        help.style.cursor = "pointer";
+        help.style.pointerEvents = "auto";
+        help.addEventListener("click", function () {
+            // VB6: VideoFile = PathFilm + "\_hlpdrw.avi"; VideoBox.Show 1.
+            // PathFilm resolves to AppPath + "\help", so the file lives
+            // under assets/Kesem/help/, NOT avi/.
+            playVideo("assets/Kesem/help/_hlpdrw.mp4");
+        });
+    }
+
+    // === Label1(0..2) line width selector + strelka arrow ===============
+    // VB6 widths: idx 0 → 8, idx 1 → 3, idx 2 → 2 (we use idx 1 as default).
+    const W_MAP = { 0: 8, 1: 3, 2: 2 };
+    const strelka = stage.querySelector(".frm-ctrl--strelka");
+    function moveStrelka(idx) {
+        if (!strelka) return;
+        const lab = stage.querySelector('.frm-ctrl--Label1[data-index="' + idx + '"]');
+        if (!lab) return;
+        // Match VB6 strelka.Left = Label1(Index).Left + N.
+        const labLeft = parseFloat(lab.style.left) || 0;
+        strelka.style.left = (labLeft + 3) + "px";
+        strelka.style.display = "";
+    }
+    [0, 1, 2].forEach(function (i) {
+        const lab = stage.querySelector('.frm-ctrl--Label1[data-index="' + i + '"]');
+        if (!lab) return;
+        lab.style.pointerEvents = "auto";
+        lab.style.cursor = "pointer";
+        if (lab._kesemWired) return;
+        lab._kesemWired = true;
+        lab.addEventListener("click", function () {
+            paint.width = W_MAP[i];
+            moveStrelka(i);
+        });
+    });
+    moveStrelka(paint.width === 8 ? 0 : paint.width === 2 ? 2 : 1);
+
+    // === Lupa (magnifier) ==============================================
+    const lupa = stage.querySelector(".frm-ctrl--Lupa");
+    if (lupa && !lupa._kesemWired) {
+        lupa._kesemWired = true;
+        lupa.style.cursor = "pointer";
+        lupa.style.pointerEvents = "auto";
+        lupa.addEventListener("click", function () { setRezim(6); });
+    }
+
+    // === N_Bmp(0) / N_Bmp(1) / TxtZman captions ========================
+    const nameLbl = stage.querySelector('.frm-ctrl--N_Bmp[data-index="0"]');
+    const titleLbl = stage.querySelector('.frm-ctrl--N_Bmp[data-index="1"]');
+    const tz = stage.querySelector(".frm-ctrl--TxtZman");
+    const curPic = (doc.pictures || [])[state.editor.selectedPicture || 0];
+    const curName = newPicMode ? "תמונה חדשה"
+                                : (curPic ? (curPic.name || curPic.file) : "תמונה");
+    if (nameLbl) {
+        nameLbl.textContent = curName;
+        Object.assign(nameLbl.style, {
+            color: "#ffff00", font: "bold 13px David, Arial, sans-serif",
+            textAlign: "center", lineHeight: "17px",
+        });
+    }
+    if (titleLbl) {
+        titleLbl.textContent = "עריכה גרפית - תפריט ראשי";
+        Object.assign(titleLbl.style, {
+            color: "#ffff00", font: "bold 13px David, Arial, sans-serif",
+            textAlign: "center", lineHeight: "17px",
+        });
+    }
+    if (tz) {
+        tz.textContent = curName;
+        Object.assign(tz.style, {
+            color: "#ffffff", background: "#800000",
+            font: "bold 14px FrankRuehl, David, Arial, sans-serif",
+            textAlign: "center", lineHeight: "19px",
+        });
+    }
+
+    // Default to Rezim=4 (pencil) on entry, mirroring Form_Load.
+    setRezim(paint.rezim);
+}
+
+// Save the canvas → either replace the current picture or, in new-picture
+// mode (del[3]), prompt for a Hebrew name and create a new doc.pictures
+// entry. Mirrors VB6 menu_gr_Click Index=1 (Shoila1 → EditString → SavePicture).
+function grEditCommit(state, doc, canvas, newPicMode) {
+    const dataUrl = canvas.toDataURL("image/png");
+    if (newPicMode) {
+        kesemPromptString({ title: "שם התמונה החדשה:", value: "" }, function (name) {
+            if (name == null || !name.trim()) {
+                state.editor.grEditNew = false;
+                state.editor.newPic = 0;
+                setScreen(state, "main");
+                return;
+            }
+            let max = 0;
+            (doc.pictures || []).forEach(function (p) {
+                const n = parseInt((p.file || "").replace(/\.[^.]+$/, ""), 10);
+                if (!isNaN(n) && n > max) max = n;
+            });
+            const newFile = (max + 1) + ".bmp";
+            doc.pictures = doc.pictures || [];
+            doc.pictures.push({ file: newFile, name: name.trim() });
+            doc.newAssets = doc.newAssets || { bmp: {}, wav: {} };
+            doc.newAssets.bmp = doc.newAssets.bmp || {};
+            kesemStoreAsset(doc.newAssets.bmp, newFile, dataUrl).then(function () {
+                doc.dirty = true;
+                kesemSaveDoc(doc);
+                state.editor.selectedPicture = doc.pictures.length - 1;
+                state.editor.grEditNew = false;
+                state.editor.newPic = 1;       // Form_Activate triggers album refresh
+                state.editor.knica = 1;        // VB6: Knica = 1 before Unload
+                klog("kesem: new picture saved → " + newFile + " (" + name + ")");
+                setScreen(state, "main");
+            });
+        });
+        return;
+    }
+    const pic = (doc.pictures || [])[state.editor.selectedPicture || 0];
+    if (!pic) { klog("kesem: gr_edit commit — no picture"); return; }
+    doc.newAssets = doc.newAssets || { bmp: {}, wav: {} };
+    doc.newAssets.bmp = doc.newAssets.bmp || {};
+    kesemStoreAsset(doc.newAssets.bmp, pic.file, dataUrl).then(function () {
+        if (state._idbCache) {
+            const v = doc.newAssets.bmp[pic.file];
+            if (v && v.idb) delete state._idbCache[v.idb];
+        }
+        doc.dirty = true;
+        kesemSaveDoc(doc);
+        state.editor.knica = 1;
+        klog("kesem: gr_edit save → " + pic.file + " (" + Math.round(dataUrl.length / 1024) + " kb)");
+        setScreen(state, "main");
+    });
+}
+
+// VB6 Shoila1(TMsg(13), ii) is a 3-button modal: ii=1 → "yes save",
+// ii=0 → "no, discard", ii=2 → "cancel, stay in editor". TMsg(13) reads
+// roughly: "שמור את התמונה?" (save the picture?). `window.confirm()` is
+// only 2-way, so we sequence two prompts: save? → if no, exit-no-save?
+//
+// Returns:  1  = save and exit
+//           0  = exit without saving
+//          -1  = cancel (stay in editor — Exit Sub)
+function grEditAskSave() {
+    if (window.confirm("האם לשמור את השינויים?")) return 1;
+    if (window.confirm("לצאת בלי לשמור?")) return 0;
+    return -1;
+}
+
+// Small_Pic.Show preview — a modal showing the canvas scaled small,
+// dismissed by click / Esc. Does NOT mutate doc / paint state. Mirrors
+// VB6 butt_press_click Index=1 (assignment to Small_Pic.Picture1.Picture
+// + Small_Pic.Show 1 — modal, no save side-effect).
+function grEditPreviewModal(canvas) {
+    const overlay = document.createElement("div");
+    Object.assign(overlay.style, {
+        position: "fixed", inset: "0", background: "rgba(0,0,0,.7)",
+        zIndex: "100000",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        cursor: "pointer",
+    });
+    const card = document.createElement("div");
+    Object.assign(card.style, {
+        background: "#C0C0C0", padding: "16px",
+        border: "2px outset #d4d4d4",
+        display: "flex", flexDirection: "column", alignItems: "center", gap: "10px",
+    });
+    const preview = document.createElement("canvas");
+    preview.width  = canvas.width;
+    preview.height = canvas.height;
+    Object.assign(preview.style, {
+        width: "320px", height: Math.round(320 * canvas.height / canvas.width) + "px",
+        background: "#fff", border: "1px inset #888",
+    });
+    preview.getContext("2d").drawImage(canvas, 0, 0);
+    card.appendChild(preview);
+    const hint = document.createElement("div");
+    hint.textContent = "תצוגה מקדימה — לחץ לסגירה";
+    Object.assign(hint.style, {
+        font: "bold 12px David, Arial, sans-serif", color: "#222",
+        direction: "rtl",
+    });
+    card.appendChild(hint);
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+
+    function dismiss() {
+        overlay.remove();
+        document.removeEventListener("keydown", onKey);
+    }
+    function onKey(e) {
+        if (e.key === "Escape" || e.key === "Enter") { e.preventDefault(); dismiss(); }
+    }
+    overlay.addEventListener("click", dismiss);
+    document.addEventListener("keydown", onKey);
+}
+
+// === Impo (import bundle) ================================================
+// 1:1 inverse of Expo. The original Impo.frm read a transmitted folder
+// (LLimoprt.lli manifest + BMP + RAS + WAV files) and copied into the
+// teacher's library. Web port: read a kesem-bundle.json (or any compatible
+// JSON file), merge pictures + rasb + maslul + newAssets into doc.
+function wireKesemImpo(state) {
+    const stage = state.stage;
+    if (!stage) return;
+    // Replace the (mostly empty) impo form layout with a minimal centered
+    // file-picker card. The original .frm is mostly chrome around a
+    // CMDialog file picker, which has no natural web equivalent.
+    stage.innerHTML = "";
+    const card = document.createElement("div");
+    Object.assign(card.style, {
+        position: "absolute", left: "50%", top: "50%",
+        transform: "translate(-50%, -50%)",
+        width: "420px", padding: "32px 28px",
+        background: "#e8e8e8", color: "#000",
+        border: "2px solid #444", borderRadius: "6px",
+        font: "13px David, Arial, sans-serif", direction: "rtl",
+        textAlign: "center",
+    });
+    card.innerHTML =
+        "<div style='font-weight:700;font-size:18px;margin-bottom:12px'>יבוא חבילה</div>" +
+        "<div style='margin-bottom:14px;color:#555;font-size:12px'>בחר קובץ <code>kesem-bundle.json</code> שיוצא מהעורך</div>" +
+        "<button id='kesem-impo-pick' style='padding:8px 16px;font-size:14px;cursor:pointer'>בחר קובץ</button>" +
+        "<div id='kesem-impo-status' style='margin-top:14px;color:#800;min-height:20px'></div>" +
+        "<div style='margin-top:18px'>" +
+            "<button id='kesem-impo-back' style='padding:6px 14px'>חזרה</button>" +
+        "</div>";
+    stage.appendChild(card);
+
+    const pick = card.querySelector("#kesem-impo-pick");
+    const status = card.querySelector("#kesem-impo-status");
+    const back = card.querySelector("#kesem-impo-back");
+    back.addEventListener("click", function () { setScreen(state, "start_maslul"); });
+
+    pick.addEventListener("click", function () {
+        const inp = document.createElement("input");
+        inp.type = "file";
+        inp.accept = "application/json,.json";
+        inp.style.display = "none";
+        document.body.appendChild(inp);
+        inp.addEventListener("change", function () {
+            const f = inp.files && inp.files[0];
+            inp.remove();
+            if (!f) return;
+            const r = new FileReader();
+            r.onload = function () {
+                try {
+                    const bundle = JSON.parse(r.result);
+                    kesemImpoMerge(state, bundle);
+                    status.style.color = "#080";
+                    status.textContent = "יובא בהצלחה — " +
+                        (bundle.lessons ? bundle.lessons.length : 0) + " מסלולים, " +
+                        (bundle.pictures ? bundle.pictures.length : 0) + " תמונות";
+                } catch (e) {
+                    status.style.color = "#800";
+                    status.textContent = "קובץ לא תקין: " + (e.message || e);
+                }
+            };
+            r.readAsText(f);
+        }, { once: true });
+        inp.click();
+    });
+}
+
+// Merge a kesem-bundle into the current doc. Mirrors the original Impo's
+// "copy from trans/ into the local library" loop:
+//   - pictures: appended if absent (by .file), otherwise updates name
+//   - rasb: overwrites the per-key hotspot list
+//   - maslul: replaces lessons that match by masFile, otherwise appends
+//   - newAssets.{bmp,wav,video}: merges into the local newAssets blob
+function kesemImpoMerge(state, bundle) {
+    if (!bundle || typeof bundle !== "object") throw new Error("missing bundle");
+    if (bundle.format && bundle.format.indexOf("kesem-bundle/") !== 0) {
+        throw new Error("unrecognized format: " + bundle.format);
+    }
+    const doc = kesemLoadDoc(state);
+    doc.pictures = doc.pictures || [];
+    doc.rasb     = doc.rasb     || {};
+    doc.maslul   = doc.maslul   || [];
+    doc.newAssets = doc.newAssets || { bmp: {}, wav: {} };
+
+    (bundle.pictures || []).forEach(function (p) {
+        const existing = doc.pictures.find(function (q) { return q.file === p.file; });
+        if (existing) existing.name = p.name || existing.name;
+        else          doc.pictures.push({ file: p.file, name: p.name || "" });
+    });
+    Object.keys(bundle.rasb || {}).forEach(function (k) {
+        doc.rasb[k] = bundle.rasb[k];
+    });
+    (bundle.lessons || []).forEach(function (l) {
+        const i = doc.maslul.findIndex(function (m) { return m.masFile === l.masFile; });
+        if (i >= 0) doc.maslul[i] = l;
+        else        doc.maslul.push(l);
+    });
+    const na = bundle.newAssets || {};
+    Object.keys(na.bmp || {}).forEach(function (k) { doc.newAssets.bmp[k] = na.bmp[k]; });
+    Object.keys(na.wav || {}).forEach(function (k) {
+        doc.newAssets.wav = doc.newAssets.wav || {};
+        doc.newAssets.wav[k] = na.wav[k];
+    });
+    if (na.video) {
+        doc.newAssets.video = doc.newAssets.video || {};
+        Object.keys(na.video).forEach(function (k) { doc.newAssets.video[k] = na.video[k]; });
+    }
+    doc.dirty = true;
+    kesemSaveDoc(doc);
+    klog("kesem: impo merged → " +
+         doc.pictures.length + " pictures, " +
+         Object.keys(doc.rasb).length + " rasb, " +
+         doc.maslul.length + " lessons");
+}
+
+// ── CP1255 (Windows-1255 Hebrew) encoder ─────────────────────────────────
+// Used by .MAS / .RAS / Spisok.dat writers — the original VB6 editor stored
+// these files in cp1255. We map U+05D0..U+05EA Hebrew letters back to their
+// cp1255 byte codes (0xE0..0xFA) and pass ASCII through unchanged. Anything
+// outside the table becomes "?" rather than blow up the byte stream.
+const KESEM_CP1255_HE_BASE = 0xE0;
+function kesemCp1255Encode(s) {
+    const out = [];
+    for (let i = 0; i < s.length; i++) {
+        const c = s.charCodeAt(i);
+        if (c < 0x80) { out.push(c); continue; }
+        if (c >= 0x05D0 && c <= 0x05EA) {
+            out.push(KESEM_CP1255_HE_BASE + (c - 0x05D0));
+            continue;
+        }
+        if (c === 0x20AA) { out.push(0xA4); continue; }   // ₪
+        if (c === 0x2026) { out.push(0x85); continue; }   // …
+        out.push(0x3F);   // ?
+    }
+    return new Uint8Array(out);
+}
+
+// ── .RAS writer: 68-byte FileStru records per hotspot ────────────────────
+// Layout (GLOBAL.BAS:73):
+//   Name_of_Rasb  As String * 30   (space-padded, cp1255)
+//   Xx, yy, Xx1, yy1   As Integer  (signed LE int16)
+//   WavFileName   As String * 30   (space-padded, cp1255)
+function kesemBuildRas(records) {
+    const buf = new Uint8Array(records.length * 68);
+    for (let i = 0; i < records.length; i++) {
+        const r = records[i];
+        const off = i * 68;
+        // name padded/truncated to 30 bytes cp1255 + spaces (0x20).
+        const name = kesemCp1255Encode(r.name || "");
+        for (let k = 0; k < 30; k++) buf[off + k] = k < name.length ? name[k] : 0x20;
+        // int16 LE writer
+        function w16(at, v) {
+            buf[off + at]     = v & 0xFF;
+            buf[off + at + 1] = (v >> 8) & 0xFF;
+        }
+        w16(30, r.x | 0);
+        w16(32, r.y | 0);
+        w16(34, r.w | 0);
+        w16(36, r.h | 0);
+        const wav = kesemCp1255Encode(r.wav || "");
+        for (let k = 0; k < 30; k++) buf[off + 38 + k] = k < wav.length ? wav[k] : 0x20;
+    }
+    return buf;
+}
+
+// ── .MAS writer: text format read by Maslul.frm.PutGameFile (line-based).
+//   line 0: Video_Start_Pr
+//   line 1: Video_End_Pr
+//   line 2: Video_Start    (intro AVI path or "")
+//   line 3: Video_End      (outro AVI path or "")
+//   line 4: TString        (path display name)
+//   line 5: <stage count>
+//   then triplets (pic, razNom, gameNumber) per stage.
+// VB6 `Print #1` writes lines with CRLF + cp1255 encoding.
+function kesemBuildMas(lesson) {
+    const h = lesson.header || {};
+    const lines = [
+        h.videoStartPr || "0",
+        h.videoEndPr   || "0",
+        h.introVideo   || "",
+        h.mashalVideo  || "",
+        h.pathName     || lesson.name || "",
+        String((lesson.stages || []).length),
+    ];
+    (lesson.stages || []).forEach(function (s) {
+        lines.push(s.pic || "");
+        lines.push(s.razNom || "");
+        lines.push(String(s.gameNumber == null ? 0 : s.gameNumber));
+    });
+    return kesemCp1255Encode(lines.join("\r\n") + "\r\n");
+}
+
+// ── Spisok.dat writer: alternating filename / Hebrew description lines.
+function kesemBuildSpisok(pictures) {
+    const lines = [];
+    (pictures || []).forEach(function (p) {
+        lines.push(p.file || "");
+        lines.push(p.name || "");
+    });
+    return kesemCp1255Encode(lines.join("\r\n") + "\r\n");
+}
+
+// ── Minimal STORED-only ZIP writer (no compression, no JSZip dep). ───────
+// Writes each entry uncompressed; CRC32 computed for completeness. Suits
+// our needs since most entries are already compressed (PNG, MP4) and the
+// .MAS/.RAS are small.
+const KESEM_CRC32_TABLE = (function () {
+    const t = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+        let c = n;
+        for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+        t[n] = c >>> 0;
+    }
+    return t;
+})();
+function kesemCrc32(bytes) {
+    let crc = 0xFFFFFFFF;
+    for (let i = 0; i < bytes.length; i++) {
+        crc = KESEM_CRC32_TABLE[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8);
+    }
+    return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+function kesemBuildZip(entries) {
+    // Each entry: { name: string, data: Uint8Array }
+    const localChunks = [];
+    const centralChunks = [];
+    let offset = 0;
+    const enc = new TextEncoder();
+    entries.forEach(function (e) {
+        const nameBytes = enc.encode(e.name);
+        const crc = kesemCrc32(e.data);
+        const size = e.data.length;
+        // Local file header — 30 bytes
+        const lhdr = new Uint8Array(30 + nameBytes.length);
+        const lv = new DataView(lhdr.buffer);
+        lv.setUint32(0,  0x04034b50, true);   // signature
+        lv.setUint16(4,  20, true);           // version needed
+        lv.setUint16(6,  0, true);            // flags
+        lv.setUint16(8,  0, true);            // method 0 = STORED
+        lv.setUint16(10, 0, true);            // mod time
+        lv.setUint16(12, 0, true);            // mod date
+        lv.setUint32(14, crc, true);
+        lv.setUint32(18, size, true);
+        lv.setUint32(22, size, true);
+        lv.setUint16(26, nameBytes.length, true);
+        lv.setUint16(28, 0, true);            // extra
+        lhdr.set(nameBytes, 30);
+        localChunks.push(lhdr, e.data);
+
+        // Central directory header — 46 bytes
+        const chdr = new Uint8Array(46 + nameBytes.length);
+        const cv = new DataView(chdr.buffer);
+        cv.setUint32(0,  0x02014b50, true);
+        cv.setUint16(4,  20, true);
+        cv.setUint16(6,  20, true);
+        cv.setUint16(8,  0, true);
+        cv.setUint16(10, 0, true);
+        cv.setUint16(12, 0, true);
+        cv.setUint16(14, 0, true);
+        cv.setUint32(16, crc, true);
+        cv.setUint32(20, size, true);
+        cv.setUint32(24, size, true);
+        cv.setUint16(28, nameBytes.length, true);
+        cv.setUint16(30, 0, true);
+        cv.setUint16(32, 0, true);
+        cv.setUint16(34, 0, true);
+        cv.setUint16(36, 0, true);
+        cv.setUint32(38, 0, true);
+        cv.setUint32(42, offset, true);
+        chdr.set(nameBytes, 46);
+        centralChunks.push(chdr);
+        offset += lhdr.length + e.data.length;
+    });
+    const centralSize = centralChunks.reduce(function (n, c) { return n + c.length; }, 0);
+    const centralStart = offset;
+    // End-of-central-directory — 22 bytes
+    const end = new Uint8Array(22);
+    const ev = new DataView(end.buffer);
+    ev.setUint32(0,  0x06054b50, true);
+    ev.setUint16(4,  0, true);
+    ev.setUint16(6,  0, true);
+    ev.setUint16(8,  entries.length, true);
+    ev.setUint16(10, entries.length, true);
+    ev.setUint32(12, centralSize, true);
+    ev.setUint32(16, centralStart, true);
+    ev.setUint16(20, 0, true);
+    // Concatenate.
+    const total = offset + centralSize + 22;
+    const out = new Uint8Array(total);
+    let pos = 0;
+    localChunks.forEach(function (c) { out.set(c, pos); pos += c.length; });
+    centralChunks.forEach(function (c) { out.set(c, pos); pos += c.length; });
+    out.set(end, pos);
+    return out;
+}
+
+// Decode a data: URL into raw bytes (for embedding newAssets into the ZIP).
+function kesemDataUrlToBytes(url) {
+    const i = url.indexOf(",");
+    if (i < 0) return new Uint8Array(0);
+    const base64 = url.substring(i + 1);
+    const bin = atob(base64);
+    const out = new Uint8Array(bin.length);
+    for (let k = 0; k < bin.length; k++) out[k] = bin.charCodeAt(k);
+    return out;
+}
+
+// Walk a newAssets map (bmp/wav/video) and resolve every {idb:<key>}
+// entry to its real data URL. Returns a Promise of a plain object with
+// resolved data URLs only — usable by the synchronous bundle packer.
+function kesemResolveAssetMap(map) {
+    map = map || {};
+    const keys = Object.keys(map);
+    return Promise.all(keys.map(function (k) {
+        return kesemResolveAsset(map[k]).then(function (url) { return [k, url]; });
+    })).then(function (pairs) {
+        const out = {};
+        pairs.forEach(function (p) { if (p[1]) out[p[0]] = p[1]; });
+        return out;
+    });
+}
+
 // transmit_Click — build the publish payload. Mirrors the original which
 // wrote the chosen subset into trans/. Here we serialize a JSON bundle
 // (doc subset + newAssets) and trigger a download.
@@ -3231,50 +5195,145 @@ function kesemExpoTransmit(state) {
     const picturesSubset = (doc.pictures || []).filter(function (p) {
         return picSet.has(p.file);
     });
+    // Resolve any IDB-stored blobs to data URLs first so the rest of the
+    // pack pipeline is synchronous.
+    const na = doc.newAssets || {};
+    Promise.all([
+        kesemResolveAssetMap(na.bmp),
+        kesemResolveAssetMap(na.wav),
+        kesemResolveAssetMap(na.video),
+    ]).then(function (resolved) {
+        const resBmp = resolved[0], resWav = resolved[1], resVid = resolved[2];
+        kesemExpoBuildAndDownload(state, lessons, rasbSubset, picturesSubset,
+                                  picSet, rasSet, resBmp, resWav, resVid);
+    });
+}
+
+function kesemExpoBuildAndDownload(state, lessons, rasbSubset, picturesSubset,
+                                   picSet, rasSet, resBmp, resWav, resVid) {
     const bundle = {
         format: "kesem-bundle/v1",
-        when: (state._stamp || ""),  // filled in below; can't use Date here
         lessons: lessons,
         rasb: rasbSubset,
         pictures: picturesSubset,
-        // Include any author-supplied asset blobs that map onto referenced
-        // pictures or wavs.
-        newAssets: {
-            bmp: {}, wav: {},
-        },
+        newAssets: { bmp: {}, wav: {}, video: {} },
     };
-    const newBmp = (doc.newAssets && doc.newAssets.bmp) || {};
-    Object.keys(newBmp).forEach(function (file) {
-        if (picSet.has(file)) bundle.newAssets.bmp[file] = newBmp[file];
+    Object.keys(resBmp).forEach(function (file) {
+        if (picSet.has(file)) bundle.newAssets.bmp[file] = resBmp[file];
     });
-    const newWav = (doc.newAssets && doc.newAssets.wav) || {};
-    Object.keys(newWav).forEach(function (key) {
-        // Wav keys are "<pic>_<i>_<g>" or "<pic>_<i>/<n>" — heuristically
-        // include any key that starts with a selected ras prefix.
-        const owner = (key.split("/")[0] || "").split("_").slice(0, 2).join("_");
-        if (rasSet.has(owner)) bundle.newAssets.wav[key] = newWav[key];
+    Object.keys(resWav).forEach(function (key) {
+        // wav key shape: "wav/<ras>/<n>.wav" or "wav/<ras>/<n>_2.wav"
+        const owner = (key.split("/")[1] || "");
+        if (rasSet.has(owner)) bundle.newAssets.wav[key] = resWav[key];
     });
+    Object.keys(resVid).forEach(function (k) {
+        bundle.newAssets.video[k] = resVid[k];
+    });
+    const doc = state.editor.doc;
+    // === JSON bundle (round-trip via Impo) ===========================
     const text = JSON.stringify(bundle, null, 2);
-    const blob = new Blob([text], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "kesem-bundle.json";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(a.href);
+    function downloadBlob(blob, fname) {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = fname;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+    }
+    downloadBlob(new Blob([text], { type: "application/json" }), "kesem-bundle.json");
+
+    // === Binary ZIP (round-trip with kesem.exe) =====================
+    // Reproduces Expo.frm.transmit_Click's file layout:
+    //   trans/LLimoprt.lli         manifest of (pic, ras) pairs
+    //   trans/bmp/<pic>            raw BMPs (decoded from newAssets if
+    //                              authored in-browser, else picked up
+    //                              from assets/Kesem/bmp/ — only the
+    //                              newAssets ones can be packed since
+    //                              the static PNGs aren't accessible
+    //                              from JS at file:// origin)
+    //   trans/rasb/<ras>.ras       68-byte FileStru records
+    //   trans/maslul/<NN>.MAS      cp1255 text per kesemBuildMas
+    //   trans/spisok.dat           cp1255 alternating filename/desc
+    const enc = new TextEncoder();
+    const entries = [];
+    // Manifest (LLimoprt.lli) — picture/ras pair count + the pairs.
+    const manifest = [String(lessons.length)];
+    lessons.forEach(function (m) {
+        (m.stages || []).forEach(function (s) {
+            const picStem = (s.pic || "").replace(/\.[^.]+$/, "");
+            const rasName = s.razNom || "";
+            manifest.push(picStem); manifest.push(rasName);
+            manifest.push(m.masFile || "");
+            manifest.push(m.name || "");
+        });
+    });
+    entries.push({ name: "trans/LLimoprt.lli", data: kesemCp1255Encode(manifest.join("\r\n") + "\r\n") });
+    // Maslul .MAS files.
+    lessons.forEach(function (m) {
+        const fname = m.masFile || "00.MAS";
+        entries.push({ name: "trans/maslul/" + fname, data: kesemBuildMas(m) });
+    });
+    // RAS binary files.
+    Object.keys(rasbSubset).forEach(function (k) {
+        entries.push({ name: "trans/rasb/" + k + ".ras", data: kesemBuildRas(rasbSubset[k] || []) });
+    });
+    // Spisok.dat for the picture subset.
+    entries.push({ name: "trans/bmp/spisok.dat", data: kesemBuildSpisok(picturesSubset) });
+    // Author-supplied BMP / WAV blobs (only the ones the teacher added —
+    // we can't pack static assets/ files from JS file:// without fetch).
+    // Use the already-resolved asset maps (resBmp/resWav) so IDB-stored
+    // blobs are inlined. Skip {idb:...} placeholders — they'd never
+    // decode since they're not data URLs.
+    Object.keys(resBmp).forEach(function (file) {
+        if (!picSet.has(file)) return;
+        const v = resBmp[file];
+        if (typeof v !== "string") return;
+        entries.push({ name: "trans/bmp/" + file, data: kesemDataUrlToBytes(v) });
+    });
+    Object.keys(resWav).forEach(function (key) {
+        const owner = (key.split("/")[1] || "");
+        if (!rasSet.has(owner)) return;
+        const v = resWav[key];
+        if (typeof v !== "string") return;
+        entries.push({ name: "trans/" + key, data: kesemDataUrlToBytes(v) });
+    });
+    const zip = kesemBuildZip(entries);
+    downloadBlob(new Blob([zip], { type: "application/zip" }), "kesem-trans.zip");
+
     klog("kesem: expo transmit (" + lessons.length + " lessons, " +
-         picSet.size + " pictures, " + rasSet.size + " ras)");
+         picSet.size + " pictures, " + rasSet.size + " ras)" +
+         " — JSON + ZIP (" + entries.length + " files)");
 }
 
 // Gzira keyboard: Delete removes the selected rect (Label1_KeyUp Case
 // vbKeyDelete). 1:1 with the original — except the original also offered
-// rect renumbering and WAV rename on delete; we just splice.
+// rect renumbering and WAV rename on delete; we just splice. Esc is
+// handled by the generic handleKey (KESEM_ESC_BACK) so we don't double-
+// fire here.
 function installKesemGziraKeys(state) {
     if (state._gziraKeysInstalled) return;
     state._gziraKeysInstalled = true;
     document.addEventListener("keydown", function (e) {
         if (state.currentScreen !== "gzira") return;
+        if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+        // Ctrl alone → hide the selected rect (Gzira.frm Label1_KeyUp
+        // Case vbKeyControl: Label1(Rasb_Nom).Visible=False; CmdShow.
+        // Visible=True). Ignore Ctrl+<modifier-combo> chords so this
+        // doesn't fire on Ctrl+R / Ctrl+S etc.
+        if ((e.key === "Control" || e.code === "ControlLeft" || e.code === "ControlRight")
+            && !e.shiftKey && !e.altKey && !e.metaKey) {
+            const sel = state.editor.gziraSelected;
+            if (sel == null) return;
+            e.preventDefault();
+            state.editor.gziraHidden = state.editor.gziraHidden || {};
+            state.editor.gziraHidden[sel] = true;
+            state.editor.gziraSelected = null;
+            kesemGziraRepaintRects(state);
+            const cmdShow = state.stage.querySelector(".frm-ctrl--CmdShow");
+            if (cmdShow) cmdShow.style.display = "";
+            return;
+        }
         if (e.key === "Delete" || e.key === "Backspace") {
             const i = state.editor.gziraSelected;
             if (i == null) return;
@@ -3286,9 +5345,25 @@ function installKesemGziraKeys(state) {
             kesemGziraSetRects(state, rects);
             state.editor.gziraSelected = null;
             kesemGziraRepaintRects(state);
-        } else if (e.key === "Escape") {
-            // Form_Unload — return to caller (Chgames or Main).
-            setScreen(state, state.editor.gziraReturnTo || "main");
+        } else if (e.key === "ArrowUp" || e.key === "ArrowDown" ||
+                   e.key === "ArrowLeft" || e.key === "ArrowRight") {
+            // Nudge selected rect by 1px (Shift = 10px). Not in the
+            // original .frm — VB6 had only Shift-drag-to-resize — but
+            // keyboard nudging is a natural extension for users without
+            // pixel-perfect mouse control.
+            const i = state.editor.gziraSelected;
+            if (i == null) return;
+            e.preventDefault();
+            const rects = kesemGziraGetRects(state);
+            const r = rects[i];
+            if (!r) return;
+            const step = e.shiftKey ? 10 : 1;
+            const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
+            const dy = e.key === "ArrowUp"   ? -step : e.key === "ArrowDown"  ? step : 0;
+            r.x = Math.max(0, Math.min(r.x + dx, KESEM_GZIRA_PICTURE_PX.w - r.w));
+            r.y = Math.max(0, Math.min(r.y + dy, KESEM_GZIRA_PICTURE_PX.h - r.h));
+            kesemGziraSetRects(state, rects);
+            kesemGziraRepaintRects(state);
         }
     });
 }
@@ -4193,6 +6268,10 @@ function handleAction(appId, action /*, ctrl */) {
             if (screen === "main")    target = "sst";
             if (screen === "chgames") target = "main";
             if (screen === "gzira") {
+                // endof on Gzira = Ezia (immediate exit, no SavePuzzle).
+                // Original discards in-memory rect edits — drop the draft.
+                // Save path is Label4_Click → kesem:gzira:save-exit.
+                kesemGziraDiscardDraft(currentSession);
                 target = currentSession.editor && currentSession.editor.gziraReturnTo || "main";
             }
             if (screen === "maslul")       target = "sst";
@@ -4202,7 +6281,42 @@ function handleAction(appId, action /*, ctrl */) {
             return;
         }
         if (action === "kesem:help") {
-            klog("kesem: help (not implemented)");
+            // lbHelp_Click — each editor form points at its own help AVI
+            // (PathFilm + "\<name>.avi"). Paths lifted from the .frm sources:
+            //   Main         → _tafrosh.avi
+            //   Chgames      → _tafgzir.avi
+            //   Gzira        → _gzira.avi
+            //   Maslul       → _mas_nos.avi
+            //   Start_Maslul → _mas_niv.avi
+            // Expo has no lbHelp_Click. We resolve via the shared video
+            // pipeline; missing files log "video missing" and are no-ops.
+            if (!currentSession) return;
+            const screen = currentSession.currentScreen;
+            // Main.frm lbHelp_Click branches on Panel3D1.Visible:
+            //   visible (album mode, Knica=0) → \help\_albom.avi
+            //   hidden  (menu mode,  Knica=1) → \help\_tafrosh.avi
+            let HELP_AVI;
+            if (screen === "main") {
+                const knica = (currentSession.editor.knica | 0);
+                HELP_AVI = knica === 0 ? "\\help\\_albom.avi" : "\\help\\_tafrosh.avi";
+            } else {
+                HELP_AVI = {
+                    "chgames":      "\\help\\_tafgzir.avi",
+                    "gzira":        "\\help\\_gzira.avi",
+                    "maslul":       "\\help\\_mas_nos.avi",
+                    "start_maslul": "\\help\\_mas_niv.avi",
+                    // Gr_Edit.lbHelp_Click → "\_hlpdrw.avi" — but
+                    // PathFilm = AppPath + "\help", so it lives under help/.
+                    "gr_edit":      "\\help\\_hlpdrw.avi",
+                    "edstamps":     "\\help\\_hotamot.avi",
+                    "words":        "\\help\\_typing.avi",
+                    "color_f":      "\\help\\_color.avi",
+                }[screen];
+            }
+            if (!HELP_AVI) { klog("kesem: help on " + screen + " — no AVI mapped"); return; }
+            const rel = resolveVideoPath(currentSession, HELP_AVI);
+            if (rel) playVideo(currentSession.config.assetsRoot + "/" + rel);
+            else klog("kesem: help video missing (" + HELP_AVI + ")");
             return;
         }
         if (action && action.indexOf("kesem:menu:") === 0) {
@@ -4230,11 +6344,12 @@ function handleAction(appId, action /*, ctrl */) {
                 return;
             }
             if (idx === 2) {
-                // Main.menu(2) → Gr_Edit (paint editor). No web equivalent
-                // — the original uses BitBltControl + Picture1.PSet pixel
-                // ops which we can't faithfully port without recreating a
-                // full paint UI. Log and skip.
-                klog("kesem: menu 2 (Gr_Edit paint — not ported)");
+                // Main.menu(2) → Gr_Edit. Canvas-based paint editor on
+                // the currently-selected picture. Matches the original's
+                // intent (pixel painting) via HTML <canvas>, not a 1:1
+                // tool palette (the original's BitBltControl + per-pixel
+                // PSet doesn't map cleanly).
+                if (currentSession) setScreen(currentSession, "gr_edit");
                 return;
             }
             if (idx === 3) {
@@ -4260,19 +6375,66 @@ function handleAction(appId, action /*, ctrl */) {
             klog("kesem: menu " + idx + " (not implemented yet)");
             return;
         }
+        if (action === "kesem:gzira:save-exit") {
+            // Gzira.Label4_Click — save & exit. Original VB6:
+            //   If Shoila1(TMsg(2), ii) = 1 Then
+            //     SavePuzzle                          ← finalize RAS file
+            //     If TString = "" Then Exit Sub
+            //   ElseIf ii = 2 Then: Exit Sub
+            //   ElseIf My_Edit_Num <> 0 Then          ← user said "no"
+            //     RDir AppPath + "\WAV\" + Tmp_S + "\" ' clean recorded WAVs
+            //   End If
+            //   Unload Gzira
+            //
+            // Our port autosaves every rect mutation into doc.rasb via
+            // kesemGziraWriteRects → kesemSaveDoc (build_bundle.py:2872),
+            // so SavePuzzle has no extra work to do. The 3-way prompt
+            // still asks save / discard / cancel because the user's
+            // "discard" branch should undo any in-session changes — but
+            // we don't snapshot pre-edit state right now, so for now
+            // "no" still leaves the changes (matches the original's
+            // behavior when no Wav recording was done).
+            if (!currentSession) return;
+            if (window.confirm("האם לשמור את הגזירה?")) {
+                kesemGziraCommitDraft(currentSession);
+                setScreen(currentSession, "main");
+                return;
+            }
+            if (window.confirm("לצאת בלי לשמור?")) {
+                kesemGziraDiscardDraft(currentSession);
+                setScreen(currentSession, "main");
+                return;
+            }
+            return;   // cancel — stay
+        }
         if (action === "kesem:gzira:show-all") {
-            // CmdShow_Click in Gzira.frm — re-show all rectangles that
-            // Label1_KeyUp(Ctrl) had hidden. Our port doesn't yet support
-            // hide-on-Ctrl; this is a no-op repaint.
-            if (currentSession) kesemGziraRepaintRects(currentSession);
+            // CmdShow_Click — re-show every rectangle that Ctrl-key had
+            // hidden. 1:1 with Gzira.frm Label1_KeyUp Case vbKeyControl
+            // (`Label1(Rasb_Nom).Visible = False; CmdShow.Visible = True`)
+            // and CmdShow_Click that restores all Label1 visibility.
+            if (!currentSession) return;
+            currentSession.editor.gziraHidden = {};
+            kesemGziraRepaintRects(currentSession);
+            const cmdShow = currentSession.stage.querySelector(".frm-ctrl--CmdShow");
+            if (cmdShow) cmdShow.style.display = "none";
             return;
         }
         if (action && action.indexOf("kesem:gzira:wav:") === 0) {
-            // btnED_Click — record Wav1 (prompt) or Wav2 (affirmation) for
-            // the selected rect via Wave subform. Browser equivalent =
-            // MediaRecorder; not yet wired.
+            // Gzira.btnED_Click(Index): records the prompt (wav1) or
+            // affirmation (wav2) for the currently-selected rect.
+            // Original opens a Rec_W/Wave subform with MCI recording;
+            // we use MediaRecorder + doc.newAssets.wav. Storage path:
+            //   doc.newAssets.wav["wav/<ras>/<rectN>"]          ← wav1 (prompt)
+            //   doc.newAssets.wav["wav/<ras>/<rectN>_2"]        ← wav2 (after-correct)
+            if (!currentSession) return;
             const idx = parseInt(action.split(":")[3], 10);
-            klog("kesem: gzira record wav" + (idx + 1) + " (not implemented)");
+            const sel = currentSession.editor.gziraSelected;
+            if (sel == null) {
+                window.alert("בחר גזירה תחילה");
+                return;
+            }
+            kesemRecordWav(currentSession,
+                "wav/" + currentSession.editor.gziraKey + "/" + (sel + 1) + (idx === 0 ? "" : "_2") + ".wav");
             return;
         }
         // === Maslul actions =============================================
@@ -4314,24 +6476,31 @@ function handleAction(appId, action /*, ctrl */) {
             return;
         }
         if (action && action.indexOf("kesem:maslul:video:") === 0) {
-            // video_Click(Index) — original opened OpenDlg/CMDialog1 to
-            // browse AVI files. On web, prompt for a filename string
-            // (we don't have a filesystem picker for the editor's AVIs).
+            // Maslul.video_Click(Index) — opened OpenDlg/CMDialog1 to browse
+            // AVI files. Web: <input type=file accept=video/*>; on select,
+            // store the blob as a data URL in doc.newAssets.video[<name>]
+            // and stamp the lesson's videoStart/End fields.
             if (!currentSession) return;
             const idx = parseInt(action.split(":")[3], 10);
-            const lesson = kesemMaslulEnsureLesson(currentSession);
-            const cur = idx === 0 ? lesson.videoStart : lesson.videoEnd;
-            const name = window.prompt("שם הסרט (e.g. start.avi):", cur || "");
-            if (name == null) return;
-            if (idx === 0) { lesson.videoStart = name; lesson.videoStartPr = "0"; }
-            else           { lesson.videoEnd   = name; lesson.videoEndPr   = "0"; }
-            wireKesemMaslul(currentSession);
+            kesemMaslulPickVideo(currentSession, idx);
             return;
         }
         if (action && action.indexOf("kesem:maslul:seret:") === 0) {
-            // btnSeret_Click(Index) — toggles VideoStartEnd flag (run
-            // inline vs. popup). Skip: treat as a no-op label.
-            klog("kesem: maslul seret toggle (not implemented)");
+            // Maslul.btnSeret_Click(Index): toggles the Video_Start_Pr /
+            // Video_End_Pr flag from 0 (run as a popup) to 1 (run inline
+            // via VideoStartEnd). Original rotates the lesson's video
+            // playback mode each click.
+            if (!currentSession) return;
+            const idx = parseInt(action.split(":")[3], 10);
+            const lesson = kesemMaslulEnsureLesson(currentSession);
+            if (idx === 0) {
+                lesson.videoStartPr = lesson.videoStartPr === "1" ? "0" : "1";
+                klog("kesem: maslul seret(0) → mode " + lesson.videoStartPr);
+            } else {
+                lesson.videoEndPr = lesson.videoEndPr === "1" ? "0" : "1";
+                klog("kesem: maslul seret(1) → mode " + lesson.videoEndPr);
+            }
+            wireKesemMaslul(currentSession);
             return;
         }
         if (action && action.indexOf("kesem:maslul:expo:") === 0) {
@@ -4415,6 +6584,36 @@ function handleAction(appId, action /*, ctrl */) {
             }
             return;
         }
+        if (action === "kesem:smaslul:play") {
+            // Start_Maslul.lbl_OK_Click: StartGames d(List1.ListIndex + 1).
+            // Plays the selected lesson directly without re-entering Maslul
+            // editor. currentRamaSlots returns doc.maslul for Kesem so
+            // pathIdx = lesson index.
+            if (!currentSession) return;
+            const sel = currentSession.editor.smaslulIdx;
+            if (sel == null) { klog("kesem: smaslul play — no lesson selected"); return; }
+            const doc = currentSession.editor.doc;
+            const lesson = (doc.maslul || [])[sel];
+            if (!lesson || !lesson.stages || !lesson.stages.length) {
+                klog("kesem: smaslul play — lesson empty");
+                return;
+            }
+            currentSession._activeSlotOverride = null;
+            startPath(currentSession, sel);
+            return;
+        }
+        if (action === "kesem:smaslul:clear-favs") {
+            // Start_Maslul.SSCommand1_Click: TMsg(10) confirm → wipe all
+            // ChBox favorites. MSG.TXT line 10 = "?למחוק רשימת מסלולים נבחרים".
+            if (!currentSession) return;
+            if (!window.confirm("?למחוק רשימת מסלולים נבחרים")) return;
+            const doc = currentSession.editor.doc;
+            doc.favorites = [null, null, null, null, null, null];
+            doc.dirty = true;
+            kesemSaveDoc(doc);
+            wireKesemStartMaslul(currentSession);
+            return;
+        }
         if (action && action.indexOf("kesem:smaslul:fav:") === 0) {
             // ChBox / Label4 click — open the favorite-pinned lesson.
             if (!currentSession) return;
@@ -4430,20 +6629,31 @@ function handleAction(appId, action /*, ctrl */) {
         }
         // === Expo actions ===============================================
         if (action === "kesem:expo:add") {
-            // Command1_Click — original moves List1 selection into the
-            // gamor "selected for export" list. Our List1 click toggles
-            // selection directly; this button is a no-op (kept for
-            // parity, would otherwise dupe-select).
-            klog("kesem: expo add (click rows in List1 to toggle)");
+            // Command1_Click — add ALL lessons to the export set (one
+            // shortcut button beats clicking each row). Mirrors the
+            // original "add all selected via gamor" but with a more
+            // direct semantic for the web.
+            if (!currentSession) return;
+            const doc = kesemLoadDoc(currentSession);
+            currentSession.editor.expoSel = currentSession.editor.expoSel || new Set();
+            (doc.maslul || []).forEach(function (m) {
+                const stem = (m.masFile || "").replace(/\.[^.]+$/, "");
+                currentSession.editor.expoSel.add(stem);
+            });
+            wireKesemExpo(currentSession);
             return;
         }
         if (action === "kesem:expo:clear-sel") {
+            // Command3_Click — remove the most-recently-toggled lesson
+            // from the export set. expoLast tracks the last row touched
+            // (set in wireKesemExpo's List1 click handler).
             if (!currentSession) return;
-            // Remove only the row currently highlighted in gamor — we
-            // don't track that separately yet, so clear all selections
-            // matching the currently-focused row (gamor focus not wired).
-            // Simplest 1:1 behavior: no-op with hint.
-            klog("kesem: expo clear-sel (highlight a row in List1 to toggle)");
+            const last = currentSession.editor.expoLast;
+            if (last && currentSession.editor.expoSel) {
+                currentSession.editor.expoSel.delete(last);
+                currentSession.editor.expoLast = null;
+                wireKesemExpo(currentSession);
+            }
             return;
         }
         if (action === "kesem:expo:clear-all") {
@@ -4488,7 +6698,27 @@ function handleAction(appId, action /*, ctrl */) {
                 return;
             }
             if (idx === 1) {
-                klog("kesem: edb rename (not implemented)");
+                // Chgames.Butt_list_Click(-1) → rewritefile(NR(idx)).
+                // Original prompts EditString for the new TString and
+                // rewrites FF(i).Name_of_Rasb for every record in the RAS.
+                // Web equivalent: prompt + update each hotspot's `name`.
+                const key = currentSession.editor.currentRazNom;
+                if (!key) {
+                    klog("kesem: edb rename — no RAS selected");
+                    return;
+                }
+                const doc = currentSession.editor.doc;
+                const recs = doc.rasb[key] || [];
+                const old = (recs[0] && recs[0].name) || key;
+                const n = window.prompt("שם הגזירה:", old);
+                if (n == null) return;
+                const name = n.trim();
+                if (!name) return;
+                recs.forEach(function (r) { r.name = name; });
+                doc.dirty = true;
+                kesemSaveDoc(doc);
+                klog("kesem: rename ras " + key + " → " + name);
+                wireKesemChgames(currentSession);
                 return;
             }
             if (idx === 2) {
@@ -4521,10 +6751,72 @@ function handleAction(appId, action /*, ctrl */) {
         }
         if (action && action.indexOf("kesem:del:") === 0) {
             // kesem/Main.frm del_Click(Index): picture-row actions on the
-            // album list. Index meaning per the original:
-            //   0 = list selector  1 = rename  2 = accept  3 = delete
+            // album list. Per the original .frm ToolTipText settings:
+            //   del[0] = "לקבלת דף נקי"   (new picture — savepics)
+            //   del[1] = "אשר בחירה"       (accept selection — N_Bmp = list1.text)
+            //   del[2] = "שנה שם"          (rename — EditString → rewritefile)
+            //   del[3] = "מחק תמונה"       (delete picture from album)
+            // (Index 0..3 layout differs from menu[]; cross-check the .frm)
+            if (!currentSession) return;
             const idx = parseInt(action.split(":")[2], 10);
-            klog("kesem: del " + idx + " (not implemented yet)");
+            const doc = kesemLoadDoc(currentSession);
+            const pics = doc.pictures || [];
+            const sel = currentSession.editor.selectedPicture || 0;
+            const pic = pics[sel];
+            if (idx === 0) {
+                // del[0] = delete picture (Main.Del_Click Index=0).
+                // Mirrors: Shoila(TMsg(7)) confirm → Del_All List1.ListIndex+1.
+                if (!pic) return;
+                if (!window.confirm("?למחוק את התמונה")) return;
+                pics.splice(sel, 1);
+                const stem = pic.file.replace(/\.[^.]+$/, "");
+                Object.keys(doc.rasb).forEach(function (k) {
+                    if (k.indexOf(stem + "_") === 0) delete doc.rasb[k];
+                });
+                if (doc.newAssets && doc.newAssets.bmp) delete doc.newAssets.bmp[pic.file];
+                doc.dirty = true;
+                kesemSaveDoc(doc);
+                if (currentSession.editor.selectedPicture >= pics.length) {
+                    currentSession.editor.selectedPicture = Math.max(0, pics.length - 1);
+                }
+                klog("kesem: deleted picture " + pic.file);
+                wireKesemMain(currentSession);
+                return;
+            }
+            if (idx === 1) {
+                // del[1] = "אשר בחירה" accept. 1:1 with Main.Del_Click(1):
+                // hide Panel3D1/List1, set Knica=1, switch to menu mode.
+                // The original then shows the picture in Spic1 large and
+                // exposes menu[0..3] for ChGames/Gzira/Gr_Edit/Print.
+                if (!pic) return;
+                kesemMainSetMode(currentSession, 1);
+                return;
+            }
+            if (idx === 2) {
+                // del[2] = rename picture description.
+                if (!pic) return;
+                const n = window.prompt("שם התמונה:", pic.name || "");
+                if (n == null) return;
+                pic.name = n.trim();
+                doc.dirty = true;
+                kesemSaveDoc(doc);
+                wireKesemMain(currentSession);
+                return;
+            }
+            if (idx === 3) {
+                // del[3] = NEW PICTURE. Main.Del_Click(3):
+                //   New_Pic = 1
+                //   Gr_Edit.N_Bmp(0).Caption = "תמונה חדשה"
+                //   Gr_Edit.Show
+                // Opens the graphic editor on a blank canvas; on return
+                // Form_Activate notices New_Pic and re-renders the album.
+                // This is the visual "clipboard with paper" icon on
+                // bett.png's left — the user's "new paint" target.
+                currentSession.editor.newPic = 1;
+                currentSession.editor.grEditNew = true;
+                setScreen(currentSession, "gr_edit");
+                return;
+            }
             return;
         }
         if (action === "kesem:import") {
@@ -5521,9 +7813,16 @@ function enterStage(state) {
     }
     const gameId = "game" + stage.gameNumber;
     // gameNumber 6 reuses game3 per Sst.frm Select Case in other apps too.
-    const useId = state.config.screens[gameId]
+    // For Kesem editor lessons: Gnu in 21..40 are GamePazel variants
+    // (auto-puzzle and custom puzzles), Gnu=66 is GamePaint, both routed
+    // to game22 / game66 player stubs.
+    let useId = state.config.screens[gameId]
         ? gameId
         : (stage.gameNumber === 6 ? "game3" : "game1");
+    if (appId === "Kesem") {
+        if (stage.gameNumber >= 21 && stage.gameNumber <= 40) useId = "game22";
+        else if (stage.gameNumber === 66) useId = "game66";
+    }
     setScreen(state, useId);
     // After setScreen has built the stage DOM, install the gameplay.
     initGameTurn(state, stage);
@@ -7827,11 +10126,91 @@ function showNikod(state, slot, onClose) {
 //   Esc        → exit current screen (Sst → confirm exit, game → picexi/back)
 //   Space      → replay stage audio (= act1(1) in Games.frm)
 //   Enter      → first-time hotspot replay = same as Space
+// Kesem editor screens that should NOT trigger the "?לצאת מהמסלול" game
+// back-out confirm on Esc — they're authoring views, not gameplay. Maps
+// each editor screen to the form it should return to. Mirrors the original
+// Unload chains: Chgames.endof → Main (Butt_list_Click 3 with NameRasb=""),
+// Gzira.Form_Unload → Main.Prov, Main.endof → Sst, etc.
+const KESEM_ESC_BACK = {
+    "main":          "sst",
+    "chgames":       "main",
+    "maslul":        "sst",
+    "start_maslul":  "main",
+    "expo":          "start_maslul",
+    "impo":          "start_maslul",
+    "gr_edit":       "main",
+    "edstamps":      "main",
+    "words":         "main",
+    // gzira: returnTo is stored on state.editor.gziraReturnTo (set by the
+    // caller — main.menu(1) → main, Chgames.Ed_But(0) → chgames). Handled
+    // specially below.
+};
+
+// Chgames Form_KeyDown — keyboard shortcuts on the cutout-list view.
+// kesem/Chgames.frm:669:
+//   115 (F4)   → Butt_list_Click(-1)  ' rewritefile  / rename
+//    27 (Esc)  → Butt_list_Click(3)   ' cancel + back to Main
+//    46 (Del)  → Butt_list_Click(1)   ' Dele
+//    69 (E)    → Butt_list_Click(0)   ' My_Edit_Num=0 + Gzira.Show
+function kesemChgamesKey(e) {
+    if (!currentSession || currentSession.currentScreen !== "chgames") return false;
+    if (e.key === "F4") {
+        e.preventDefault();
+        handleAction("Kesem", "kesem:edb:1", null);
+        return true;
+    }
+    if (e.key === "Delete" || e.key === "Backspace") {
+        e.preventDefault();
+        handleAction("Kesem", "kesem:edb:2", null);
+        return true;
+    }
+    if (e.key === "e" || e.key === "E") {
+        // Don't steal "e" from text inputs.
+        if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return false;
+        e.preventDefault();
+        handleAction("Kesem", "kesem:edb:0", null);
+        return true;
+    }
+    return false;
+}
+
 function handleKey(e) {
     // Don't interfere when a modal is open or focus is in an input.
     if (document.querySelector(".exit-modal")) return;
     if (!currentSession) return;
     const screen = currentSession.currentScreen;
+    const isKesem = currentSession.config.id === "Kesem";
+
+    // Kesem editor shortcuts — checked BEFORE the generic Esc/Space/Enter
+    // handlers so screen-specific keys take precedence.
+    if (isKesem) {
+        // Sst Ctrl+Shift+R → mahak (ResetKlali). Original Sst.frm:1442
+        // Form_KeyDown checks Shift=6 (Ctrl+Shift) but doesn't gate on a
+        // key, so any Ctrl+Shift triggers the reset dialog. We require R
+        // too so users don't wipe scores accidentally.
+        if (screen === "sst" && e.ctrlKey && e.shiftKey &&
+            (e.key === "R" || e.key === "r")) {
+            e.preventDefault();
+            handleAction("Kesem", "reset", null);
+            return;
+        }
+        if (kesemChgamesKey(e)) return;
+        // Esc on any editor screen: navigate back per KESEM_ESC_BACK
+        // without the game-screen "leave the path?" confirm. Gzira routes
+        // to its caller (chgames or main).
+        if (e.key === "Escape") {
+            const target = (screen === "gzira")
+                ? (currentSession.editor && currentSession.editor.gziraReturnTo) || "main"
+                : KESEM_ESC_BACK[screen];
+            if (target) {
+                e.preventDefault();
+                setScreen(currentSession, target);
+                return;
+            }
+            // Falls through for screens not in the map (sst, game*).
+        }
+    }
+
     if (e.key === "Escape") {
         e.preventDefault();
         if (screen === "sst" || screen === "frmSel") {

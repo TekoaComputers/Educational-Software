@@ -49,6 +49,17 @@ APPS = {
         ("Dvash/dapey_ke/AVI",     "avi"),
         ("Dvash/dapey_ke/Catalog", "catalog"),
     ],
+    # Kesem master library — referenced by the .MAS lesson headers
+    # (introVideo / mashalVideo) and by the editor help buttons.
+    #   AVI/<name>.AVI    → game intro / mashal videos
+    #   help/<name>.avi   → editor walkthrough (_albom, _hlpdrw, _gzira,
+    #                       _hotamot, _zoom, _color, _record, _typing,
+    #                       _instruc, _mas_nos, _mas_niv, _tafnew,
+    #                       _tafrosh, _tafgzir)
+    "Kesem": [
+        ("Kesem/dapey_ke/AVI",   "avi"),
+        ("Kesem/dapey_ke/help",  "help"),
+    ],
 }
 
 

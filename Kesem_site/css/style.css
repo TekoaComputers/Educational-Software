@@ -216,6 +216,20 @@ h1 {
     cursor: pointer;
     color: transparent;
     font: inherit;
+    /* Strip every default <button> chrome the user-agent stylesheet adds.
+       Without `appearance: none`, Chromium on Linux still draws a faint
+       grey raised border + 1px outline shift, which was visible at the
+       Main.endof top-right "x" position. */
+    appearance: none;
+    -webkit-appearance: none;
+    outline: none;
+    box-shadow: none;
+    text-shadow: none;
+}
+.frm-hotspot:focus,
+.frm-hotspot:focus-visible {
+    outline: none;
+    box-shadow: none;
 }
 
 .frm-hotspot:hover {

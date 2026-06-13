@@ -25,7 +25,7 @@ function el(tag, attrs = {}, children = []) {
 // Map a parsed control to its semantic action. `appId` is passed so we can
 // honor per-app quirks — e.g., Yeled has NO CmdExit; its btnSeret(Index=2)
 // fires Ezia (the exit routine) per Yeled/Sst.frm btnSeret_Click.
-function actionFor(ctrl, appId) {
+function actionFor(ctrl, appId, screenId) {
     const name = ctrl.name;
     const idx = ctrl.props.Index;
     // btnIcon = start the activity (Sst.btnIcon_Click → PutGFile + StartGames).
@@ -168,9 +168,21 @@ function actionFor(ctrl, appId) {
         // Start_ma.frm controls — Command2(0..5) per Command2_Click:
         //   0=Edit  1=New  2=Delete  3=Rename  4=(unused)  5=Return
         // Label4(0..5) and ChBox(0..5) are the 6 favorite slots.
+        // BUT Gzira.frm ALSO has a Label4 control — there it's the
+        // "save puzzle & exit" hotspot (Label4_Click → Shoila1 +
+        // SavePuzzle + Unload). Scope by screenId so the click routes
+        // to the right handler.
         if (name === "Command2")   return `kesem:smaslul:cmd:${idx}`;
-        if (name === "Label4")     return `kesem:smaslul:fav:${idx}`;
+        if (name === "Label4") {
+            if (screenId === "gzira") return "kesem:gzira:save-exit";
+            return `kesem:smaslul:fav:${idx}`;
+        }
         if (name === "ChBox")      return `kesem:smaslul:fav:${idx}`;
+        // Start_Maslul extras — lbl_OK = play big button, lbl_Out = exit,
+        // SSCommand1 = "clear all favorites" (TMsg(10) confirm).
+        if (name === "lbl_OK")     return "kesem:smaslul:play";
+        if (name === "lbl_Out")    return "kesem:back";
+        if (name === "SSCommand1") return "kesem:smaslul:clear-favs";
         // Expo.frm — publish/export controls.
         //   Command1 = "הוסף" (add selected RAS to export set)
         //   Command3 = "נקה נבחר" (clear selected)
@@ -180,6 +192,8 @@ function actionFor(ctrl, appId) {
         if (name === "Command3")   return "kesem:expo:clear-sel";
         if (name === "nikoy")      return "kesem:expo:clear-all";
         if (name === "transmit")   return "kesem:expo:transmit";
+        // Expo.Label3_Click → Unload Me (= back to caller, Maslul).
+        if (name === "Label3")     return "kesem:back";
         if (name === "btnBitul")   return "kesem:maslul:bitul";
         if (name === "btnReturn")  return "kesem:maslul:return";
         if (name === "btnDelFilm") return `kesem:maslul:delfilm:${idx}`;
@@ -281,7 +295,7 @@ function lookupConfImage(ctrl, screenConf, key, state) {
 }
 
 function buildSubtree(ctrl, scale, state, screenConf) {
-    const action = actionFor(ctrl, state.config.id);
+    const action = actionFor(ctrl, state.config.id, state.currentScreen);
     const isHotspot = action != null;
     const isTip = ctrl.name === "lbtip";
     const hasKids = isContainer(ctrl);

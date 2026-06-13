@@ -139,6 +139,47 @@ export default {
             background: "assets/Kesem/menu/export.png",
             designSize: [640, 480],
         },
+        // Import (kesem/impo.frm) — the inverse of Expo. Reads a
+        // kesem-bundle.json (the file Expo's transmit writes) and merges
+        // its lessons + pictures + ras into the local doc. ClientWidth/
+        // Height aren't material since we render a minimal pick-and-go
+        // overlay; keep designSize at the runtime 640×480.
+        impo: {
+            layoutFile: "data/layout/Kesem/impo.json",
+            background: null,
+            designSize: [640, 480],
+        },
+        // Graphic editor (kesem/GR_EDIT.FRM) — Main.menu(2) entry point.
+        // Paint tools (pencil/fill/eraser/text/color/undo/save) over the
+        // currently-selected picture from doc.pictures. Saves the edited
+        // pixels into doc.newAssets.bmp[<picFile>] (replaces the in-memory
+        // asset, doesn't touch the static asset/ files).
+        gr_edit: {
+            layoutFile: "data/layout/Kesem/gr_edit.json",
+            background: "assets/Kesem/menu/gr_edit.png",
+            designSize: [640, 480],
+            images: {
+                Import: "assets/Kesem/menu/im.png",
+                und:    "assets/Kesem/menu/un.png",
+            },
+        },
+        // Stamp editor (kesem/Edstamps.frm) — creates small stamp BMPs
+        // referenced by Games 3 / Games 4 (Picture1 stamps placed by
+        // hotspot click). Same paint shell as gr_edit but on a smaller
+        // 80×80 canvas.
+        edstamps: {
+            layoutFile: "data/layout/Kesem/edstamps.json",
+            background: null,
+            designSize: [640, 480],
+        },
+        // Words (kesem/Words.frm) — text-on-picture editor for the
+        // in-game word/sentence drills. Renders Hebrew/English text on
+        // top of the picture in styled fonts; saves the composed PNG.
+        words: {
+            layoutFile: "data/layout/Kesem/words.json",
+            background: null,
+            designSize: [640, 480],
+        },
         // Lesson loader (kesem/Start_ma.frm). Opens from Sst.activ(4).
         // List1 = all .MAS files. Command2(0)=Edit, (1)=New, (2)=Delete,
         // (3)=Rename, (5)=Return. ChBox(0..5) hold favorite-slot bindings.
@@ -208,6 +249,15 @@ export default {
         // engine can dispatch to it if a stage requests, but it'll show
         // a transparent bg until the user wires a mashal.png.
         mashal: { layoutFile: "data/layout/_shared/mashal.json", background: null, designSize: [640, 480] },
+        // Player-side game modes that the editor's Option1(5/6) lessons
+        // create (Gnu=22 "פאזל אוטומטי" and Gnu=66 "צביעה"). The original
+        // GamePazel.frm / GamePaint.frm shows the picture cut into pieces
+        // (puzzle) or as a paint surface (paint). Our minimal ports just
+        // render the picture + a "המשך" button so the lesson player can
+        // walk through these stages instead of crashing — full game
+        // mechanics are a separate task.
+        game22: { layoutFile: "data/layout/Kesem/gamepazel.json", background: null, designSize: [640, 480] },
+        game66: { layoutFile: "data/layout/Kesem/gamepaint.json", background: null, designSize: [640, 480] },
     },
     // Game-form act1 button sprites (per Games.frm Form_Load + act1_MouseMove).
     // 1:1 with the player apps' Brahot.config.js act1Images table — the
