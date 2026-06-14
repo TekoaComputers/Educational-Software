@@ -89,8 +89,13 @@
                     // with BackColor showing around. The .frm sets
                     // BackColor=&H00FFC0C0 → VB OLE_COLOR 00BBGGRR →
                     // rgb(192,192,255) (a light lavender). Native start
-                    // image is 138×30; button slot 161×41.
+                    // image is 138×30; button slot 161×41 from the .frm.
+                    // We override width/height here (smaller than .frm —
+                    // user-tuned in ui_editor) so this survives any
+                    // re-parse of PROBA.FRM into proba.json.
                     return refs[key] = mkBtn(style, "menu/start.png", btnKnisa_Click, "כניסה", {
+                        width:  "144px",
+                        height: "36px",
                         backgroundColor: "rgb(192, 192, 255)",
                         backgroundPosition: "center center",
                         backgroundSize: "auto",
@@ -111,10 +116,37 @@
         if (refs.btnStart_0) setBtnImage(refs.btnStart_0, "menu/kat1.png", true);
         if (refs.btnStart_1) setBtnImage(refs.btnStart_1, "menu/mafsik1.png", false);
 
-        // Form_Activate: GameNomer=0; btnStart_Click(0) → autoplay.
+        // PROBA.FRM Form_Activate sets GameNomer=0 then btnStart_Click(0).
         // Browsers gate autoplay-with-sound on user interaction; we got
         // a click on the launcher tile to get here, so this is usually
         // honored. If sound is muted, the user can click the play btn.
+        //
+        // Azaga mode: KIVUN.modiin_Click (line ~1275) sets `Azaga=True;
+        // TekFilm=1; ShmVideo="Video\1.avi"` and Unloads maslul, which
+        // returns to PROBA and re-Activates it. Form_Activate calls
+        // btnStart_Click(0) which opens ShmVideo. We mirror by reading
+        // sessionStorage flags written by kivun.js's modiin handler.
+        const azaga = sessionStorage.getItem("mikraot:azaga") === "1";
+        if (azaga) {
+            state.azaga = true;
+            state.tekFilm = +(sessionStorage.getItem("mikraot:tekFilm") || "1");
+            state.shmVideo = sessionStorage.getItem("mikraot:shmVideo") || "video/cred.mp4";
+        }
+        // Read ArrAzaga from Tozaot (Inst_Misp in KIVUN): ArrAzaga(k)=1
+        // iff any maslul on song k+1 is .done. Used by the Timer1_Timer
+        // fallback to decide whether to play the next AVI or just the
+        // wav fallback.
+        state.arrAzaga = [];
+        try {
+            const t = JSON.parse(localStorage.getItem("mikraot:tozaot") || "{}");
+            for (let k = 0; k < 10; k++) {
+                const songData = t[k + 1] || {};
+                state.arrAzaga[k] = [0,1,2].some(function (i) {
+                    return ((songData[i] || {}).done) === 1;
+                }) ? 1 : 0;
+            }
+        } catch (e) { for (let k = 0; k < 10; k++) state.arrAzaga[k] = 0; }
+
         // Defer one tick so the DOM has settled.
         setTimeout(function () { btnStart_Click(0); }, 0);
 
@@ -125,7 +157,10 @@
                 setBtnImage(refs.btnStart_0, "menu/kat2.png",    false);  // active
                 setBtnImage(refs.btnStart_1, "menu/mafsik1.png", true);   // idle, enabled
                 state.play_a = true;
-                open_video(refs.Picture1, "video/cred.mp4");
+                // ShmVideo defaults to cred.mp4 (the intro). In Azaga
+                // mode KIVUN sets it to "Video\<n>.avi" — we honor it
+                // via sessionStorage above.
+                open_video(refs.Picture1, state.shmVideo || "video/cred.mp4");
                 btnStop_Click();
             } else if (idx === 1) {
                 setBtnImage(refs.btnStart_0, "menu/kat1.png",    true);   // idle, enabled
@@ -148,9 +183,12 @@
             document.body.style.cursor = "wait";
             Timer1_Enabled(false);
             Close_Video();
-            // Original: Do: maslul.Show 1 Loop Until Afsaka=False;
-            //          btnStart_Click(0)
-            // KIVUN.FRM (VB_Name="maslul") is the song + maslul picker.
+            // PROBA.btnKnisa_Click 1:1: Close + Loop maslul.Show. We
+            // also clear the Azaga session flags so the next visit to
+            // PROBA (e.g. via direct URL) reverts to the cred intro.
+            sessionStorage.removeItem("mikraot:azaga");
+            sessionStorage.removeItem("mikraot:tekFilm");
+            sessionStorage.removeItem("mikraot:shmVideo");
             document.body.style.cursor = "";
             location.hash = "#/maslul";
         }
@@ -160,14 +198,38 @@
             MK.play("mik_siha/aastop.wav").catch(function () {});
             window.location.href = "../index.html";
         }
-        function Timer1_Tick() {
-            // Original: If MMControl1.Mode = 525 (MCI_MODE_STOP) — i.e.
-            // video ended. We hook the <video>.ended event directly
-            // instead of polling at 200 ms.
-            // TekFilm/Azaga/ArrAzaga is the multi-clip notification path
-            // (kolnoa.wav + next AVI). For the cred-only entry screen
-            // this never triggers; we just fall through to btnKnisa_Click.
-            btnKnisa_Click();
+        async function Timer1_Tick() {
+            // PROBA.FRM Timer1_Timer 1:1:
+            //   If MMControl1.Mode = 525 (MCI_MODE_STOP — video ended):
+            //     If TekFilm >= 10 → Close + btnKnisa_Click + Exit.
+            //     TFilm = TekFilm + 1
+            //     If Azaga=True AND ArrAzaga(TekFilm)=1:
+            //       ShmVideo = "Video\<TFilm>.avi"; TekFilm++; restart playback.
+            //     Else:
+            //       If Azaga=True: PlayZad("Mik_Siha\kolnoa.wav")
+            //                       + PlayZad("wav\<TFilm>_1\<TFilm>L1.wav")
+            //       btnKnisa_Click
+            // We hook <video>.ended directly instead of polling at 200ms.
+            if (!state.azaga) { btnKnisa_Click(); return; }
+            if (state.tekFilm >= 10) { Close_Video(); btnKnisa_Click(); return; }
+            const tFilm = state.tekFilm + 1;
+            Timer1_Enabled(false);
+            if (state.arrAzaga[state.tekFilm] === 1) {
+                // Next song's celebration video is available — load + play.
+                state.shmVideo = "video/" + tFilm + ".mp4";
+                state.tekFilm = tFilm;
+                sessionStorage.setItem("mikraot:tekFilm", String(tFilm));
+                sessionStorage.setItem("mikraot:shmVideo", state.shmVideo);
+                Close_Video();
+                btnStart_Click(0);
+            } else {
+                // Fallback path: announce + play the song's L1 audio,
+                // then exit Azaga. With per-song .avi files un-transcoded
+                // this is the path most Azaga ticks take.
+                await MK.playSync("mik_siha/kolnoa.wav");
+                await MK.playSync("wav/" + tFilm + "_1/" + tFilm + "l1.wav");
+                btnKnisa_Click();
+            }
         }
 
         // ---- MCI shim (HTML5 <video>) ---------------------------------

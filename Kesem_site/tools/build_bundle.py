@@ -7369,7 +7369,10 @@ const VBX_CLOSE_LABEL1  = { x: 0,  y: 0,  w: 51, h: 51 };  // 12 standard apps
 const VBX_CLOSE_BTNSTOP = { x: 10, y: 10, w: 61, h: 56 };  // 4 video-above apps + Kesem editor
 const VBX_LAYOUTS = {
     // --- Standard 12 apps: Pic1 right-of-MCI/re ---
-    Brahot:   { default: { pic:[155,192,321,241], mci:[264,104,101,33], re:[152,160,322,19] },
+    // Brahot/Hagim/Shabat default: user-tuned via ui_editor — bigger pic
+    // window + MCI bar lifted above re bar so all three sit closer to
+    // the top of the frame and the video has more room.
+    Brahot:   { default: { pic:[143,177,351,246], mci:[268,44,101,33],  re:[143,155,355,19] },
                 alt:     { pic:[60,112,520,325],  mci:[264,43,101,33],  re:[80,95,480,19]   }, close: VBX_CLOSE_LABEL1 },
     EnglishA: { default: { pic:[155,192,321,241], mci:[264,104,101,33], re:[152,160,322,19] },
                 alt:     { pic:[60,112,520,325],  mci:[264,43,101,33],  re:[80,95,480,19]   }, close: VBX_CLOSE_LABEL1 },
@@ -7377,11 +7380,11 @@ const VBX_LAYOUTS = {
                 alt:     { pic:[60,112,520,325],  mci:[264,43,101,33],  re:[80,95,480,19]   }, close: VBX_CLOSE_LABEL1 },
     EnglishC: { default: { pic:[155,192,321,241], mci:[264,104,101,33], re:[152,160,322,19] },
                 alt:     { pic:[60,112,520,325],  mci:[264,43,101,33],  re:[80,95,480,19]   }, close: VBX_CLOSE_LABEL1 },
-    Hagim:    { default: { pic:[155,192,321,241], mci:[264,104,101,33], re:[152,160,322,19] },
+    Hagim:    { default: { pic:[143,177,351,246], mci:[268,44,101,33],  re:[143,155,355,19] },
                 alt:     { pic:[60,112,520,325],  mci:[264,43,101,33],  re:[80,95,480,19]   }, close: VBX_CLOSE_LABEL1 },
     Heshbon:  { default: { pic:[155,192,321,241], mci:[264,104,101,33], re:[152,160,322,19] },
                 alt:     { pic:[60,112,520,325],  mci:[264,43,101,33],  re:[80,95,480,19]   }, close: VBX_CLOSE_LABEL1 },
-    Shabat:   { default: { pic:[155,192,321,241], mci:[264,104,101,33], re:[152,160,322,19] },
+    Shabat:   { default: { pic:[143,177,351,246], mci:[268,44,101,33],  re:[143,155,355,19] },
                 alt:     { pic:[60,112,520,325],  mci:[264,43,101,33],  re:[80,95,480,19]   }, close: VBX_CLOSE_LABEL1 },
     Yeled:    { default: { pic:[155,192,321,241], mci:[264,104,101,33], re:[152,160,322,19] },
                 alt:     { pic:[60,112,520,325],  mci:[264,43,101,33],  re:[80,95,480,19]   }, close: VBX_CLOSE_LABEL1 },
@@ -7501,7 +7504,10 @@ function playVideo(url, opts) {
     // pixel with no scaling, so video plays at native resolution. We use
     // object-fit:contain so wider clips letterbox cleanly inside the cutout.
     Object.assign(vid.style, place(pic[0], pic[1], pic[2], pic[3]), {
-        background: "#000",
+        // Transparent letterbox — when the video's aspect ratio doesn't
+        // match the slot, the ser1/ser2.png frame shows through instead
+        // of black bars.
+        background: "transparent",
         objectFit: "contain",
         cursor: "pointer",       // Picture1_Click toggles play/pause in VB6
     });
