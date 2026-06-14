@@ -103,7 +103,8 @@ HND.playWave = function (url, onEnded) {
         if (onEnded) onEnded();
         return;
     }
-    HND.log("audio play", url);
+    // trace.js auto-logs `audio play <url>` via the wrapped Audio()
+    // loadstart handler — no explicit log needed here.
     if (!HND._audio) HND._audio = new Audio();
     try {
         HND._audio.pause();
@@ -175,13 +176,18 @@ HND.loadProgress = function (appId, unitId, gameId) {
         return raw ? JSON.parse(raw) : null;
     } catch (e) { return null; }
 };
-// Structured console logger. Every screen + interaction emits one of these
-// lines so the user can copy-paste the console history to report issues.
-// Output shape (matches Kesem_site's [kesem] CLICK pattern):
-//     [hnd] <kind> <app/unit/game> ...details
+// Structured console logger. All sites use the same trace.js prefix
+// so logs look uniform across the suite:
+//     [<app>/<screen>] <kind> ...details
+// HND.log is an alias kept for compatibility with existing call sites;
+// new code should call Tekoa.log directly.
 HND.log = function (kind /*, ...args */) {
-    const args = Array.prototype.slice.call(arguments, 1);
-    console.log.apply(console, ["[hnd]", kind].concat(args));
+    if (window.Tekoa && Tekoa.log) {
+        Tekoa.log.apply(null, arguments);
+    } else {
+        const args = Array.prototype.slice.call(arguments, 1);
+        console.log.apply(console, ["[hnd]", kind].concat(args));
+    }
 };
 
 // Global click logger — fires once per click on any clickable element so
@@ -240,6 +246,10 @@ HND.log = function (kind /*, ...args */) {
         const desc = title || txt || "";
         return classKey + (desc ? ":" + desc : "") + rowIndex;
     }
+    // We produce a richer label than trace.js's default (walks up the DOM
+    // to the nearest clickable, includes role + sibling index). Tell
+    // trace.js to skip its generic auto-click so we don't double-log.
+    if (window.Tekoa && Tekoa.disableAutoClick) Tekoa.disableAutoClick();
     document.addEventListener("click", function (ev) {
         let n = ev.target;
         while (n && n !== document.body) {

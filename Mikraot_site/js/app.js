@@ -152,6 +152,7 @@
         }
     }
 
+    if (window.Tekoa) Tekoa.setApp("Mikraot");
     window.addEventListener("hashchange", route);
     route();
 })();

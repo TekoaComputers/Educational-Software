@@ -2118,6 +2118,7 @@
         }
         if (wantApp !== appId || !allUnits) {
             appId = wantApp;
+            if (window.Tekoa) Tekoa.setApp(appId);
             HND.loadUnits(appId).then(function (units) {
                 allUnits = units;
                 continueRoute(m[2]);

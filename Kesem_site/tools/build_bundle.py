@@ -213,6 +213,7 @@ function exitToLauncher() {
 }
 
 function showSelector() {
+    if (window.Tekoa) Tekoa.setApp("selector");
     if (selector) selector.hidden = false;
     if (heading)  heading.hidden  = false;
     if (root) root.innerHTML = "";
@@ -238,6 +239,7 @@ for (const _app in VIDEO_FILES) {
 
 function showApp(appId) {
     if (!APPS.includes(appId)) { showSelector(); return; }
+    if (window.Tekoa) Tekoa.setApp(appId);
     klog("open app:", appId);
     selector.hidden = true;
     heading.hidden  = true;
@@ -7832,12 +7834,18 @@ function enterStage(state) {
 const KOL_LBL_TOZAOT = 9;
 
 // === Debug logging =========================================================
-// Prefix everything with [kesem] so you can copy-paste a console transcript
-// and we can see the exact trail: app → activity → stage → audio → click → ...
+// Uses the cross-site Tekoa logger so every line has the shared shape
+//     [<app>/<screen>] <verb> <details>
+// All apps in the suite use this, so a single grep finds an event across
+// hemed_nivim, Mikraot, Kesem, Tirgolit, makhela.
 function klog() {
-    const args = ["[kesem]"];
-    for (let i = 0; i < arguments.length; i++) args.push(arguments[i]);
-    if (typeof console !== "undefined" && console.log) console.log.apply(console, args);
+    if (window.Tekoa && Tekoa.log) {
+        Tekoa.log.apply(null, arguments);
+    } else {
+        const args = ["[kesem]"];
+        for (let i = 0; i < arguments.length; i++) args.push(arguments[i]);
+        if (typeof console !== "undefined" && console.log) console.log.apply(console, args);
+    }
 }
 function appTag(state) { return state && state.config ? state.config.id : "?"; }
 function stageTag(state) {

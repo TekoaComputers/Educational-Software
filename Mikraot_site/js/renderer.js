@@ -14,15 +14,15 @@
 (function () {
     const MK = (window.MK = window.MK || {});
 
-    // Debug log — captured by main_site_assets/feedback.js too, so users
-    // get a trail when they share a feedback issue.
+    // Debug log — uses the cross-site trace.js so every line has the
+    // shared `[<app>/<screen>] verb …` prefix. feedback.js captures it.
     MK.log = function () {
-        const args = ["[MK]"].concat(Array.prototype.slice.call(arguments));
-        try { console.log.apply(console, args); } catch (e) {}
+        if (window.Tekoa && Tekoa.log) Tekoa.log.apply(null, arguments);
+        else try { console.log.apply(console, ["[MK]"].concat([].slice.call(arguments))); } catch (e) {}
     };
     MK.warn = function () {
-        const args = ["[MK]"].concat(Array.prototype.slice.call(arguments));
-        try { console.warn.apply(console, args); } catch (e) {}
+        if (window.Tekoa && Tekoa.log) Tekoa.log.apply(null, ["WARN"].concat([].slice.call(arguments)));
+        else try { console.warn.apply(console, ["[MK]"].concat([].slice.call(arguments))); } catch (e) {}
     };
 
     MK.TWIPS_PER_PX = 15;
