@@ -38,13 +38,11 @@
                      : kolKolb === 3 ? [L1 + Pol, L2 + Pol, L3 + Pol]
                      :                 [L0, L1, L2, L3];
 
-        // Picture1 .frm dims: Width=1860 twips → 124 px, Height=780 →
-        // 52 px (twips/15). Top=2640 → 176 px. The .frm places them at
-        // x ∈ {1200,3000,4800,6600} twips matching L3/L2/L1/L0 — so
-        // KolKolb=4 lines up exactly with the .frm Picture1(0..3) Left
-        // values. The slotXs array now matches the dispatch table.
+        // Picture1 .frm dims: Width=1860 twips → 124 px, Height=765
+        // (Index 0; the rest are 735) → 51 px (twips/15). Earlier this
+        // hardcoded 780, off by one. Top=2640 → 176 px.
         const icoW = Math.round(1860 / 15);   // 124 px
-        const icoH = Math.round(780 / 15);    // 52 px
+        const icoH = Math.round(765 / 15);    // 51 px
         const icoY = px(2640);                 // 176 px (matches Picture1.Top)
         // slotXs entries are LEFT edges (matching the source's
         // Picture1.Left = L0/L1/L2/L3 assignments) — place as-is.

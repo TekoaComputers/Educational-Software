@@ -126,10 +126,17 @@
                 return;
             }
             if (ctrl.name === "PicFea") {
-                // PicFea_Click: feja-toggle.
-                // feja starts at 0 (Dim default). Click → feja=1, play
-                // kfp2.wav, animate 6 cells, then animate 12 cells.
-                // Next click (feja=1) → feja=0, play x2.wav, animate 12 cells.
+                // START.FRM PicFea_Click 1:1 (line ~383+):
+                //   If feja = 1 Then
+                //      sndPlaySound("x2.wav", 1) ; feja = 0
+                //      (no animation in this branch — original just
+                //       plays the wav and returns)
+                //   Else  ' feja = 0
+                //      sndPlaySound("kfp2.wav", 1)
+                //      For Y = 0 To 5 : PicFea.Picture = cell(Y) : Sleep(200)
+                //      feja = 1
+                //      For Y = 0 To 11 : PicFea.Picture = cell(Y) : Sleep(200)
+                // Each Sleep(200) matches Anim.PicClip's 200ms frame rate.
                 let feja = 0;
                 const node = MK.el("button", { class: "ctrl", style: style });
                 node.style.backgroundImage = bgImg("anim/pic_fea_0.png");
@@ -137,14 +144,13 @@
                     if (feja === 1) {
                         MK.play("mik_siha/x2.wav");
                         feja = 0;
-                        await animatePic(node, "pic_fea", 12, 80);
                     } else {
                         MK.play("mik_siha/kfp2.wav");
-                        await animatePic(node, "pic_fea", 6, 80);
+                        await animatePic(node, "pic_fea", 6, 200);
                         feja = 1;
-                        await animatePic(node, "pic_fea", 12, 80);
+                        await animatePic(node, "pic_fea", 12, 200);
+                        node.style.backgroundImage = bgImg("anim/pic_fea_0.png");
                     }
-                    node.style.backgroundImage = bgImg("anim/pic_fea_0.png");
                 });
                 stage.appendChild(node);
                 refs.PicFea = node;
@@ -152,7 +158,7 @@
             }
             if (ctrl.name === "PicBur") {
                 // PicBur_Click: Pin-toggle. Pin=1 → kp1.wav. Pin=0 → kpq.wav.
-                // Both branches do a 6-cell animation cycle.
+                // Both branches animate 6 cells at 200ms (Sleep(200)).
                 let Pin = 0;
                 const node = MK.el("button", { class: "ctrl", style: style });
                 node.style.backgroundImage = bgImg("anim/pic_bur_0.png");
@@ -164,7 +170,7 @@
                         MK.play("mik_siha/kpq.wav");
                         Pin = 1;
                     }
-                    await animatePic(node, "pic_bur", 6, 100);
+                    await animatePic(node, "pic_bur", 6, 200);
                     node.style.backgroundImage = bgImg("anim/pic_bur_0.png");
                 });
                 stage.appendChild(node);

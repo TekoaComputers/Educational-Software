@@ -36,6 +36,12 @@
         const scale  = MK.scaleFor(layout);
         const stage  = MK.makeStage(root, sz.w, sz.h);
         stage.style.background = "rgb(40, 80, 120)";
+        const myToken = MK.currentToken();
+        // OdPaam flag — likro.js / milon games set sessionStorage:odpaam
+        // when KolMonet < 5 (a low-score round). SOFER's SofSipur uses it
+        // to label the back button "try again" instead of "back to maslul".
+        const odPaam = sessionStorage.getItem("mikraot:odpaam") === "1";
+        sessionStorage.removeItem("mikraot:odpaam");
 
         const t = loadTozaot();
         const songData = (t[gameNomer] || {})[mispMasl] || {};
@@ -78,9 +84,19 @@
                 MK.play("mik_siha/aastop.wav");
                 window.location.href = "../index.html";
             }},
-            btnReturn: { img: "menu/back.png", title: "חזרה", onclick: function () {
-                location.hash = "#/maslul/" + gameNomer;
-            }},
+            // OdPaam=True → SofSipur swaps the back button label to
+            // "play again": clicking restarts the last maslul instead
+            // of returning to KIVUN's song picker.
+            btnReturn: { img: odPaam ? "menu/hemsheh.png" : "menu/back.png",
+                         title: odPaam ? "שוב" : "חזרה",
+                         onclick: function () {
+                             if (odPaam) {
+                                 // Restart the same maslul step chain.
+                                 location.hash = "#/agdara/" + (mispMasl + 1);
+                             } else {
+                                 location.hash = "#/maslul/" + gameNomer;
+                             }
+                         }},
             btnReset: { text: "איפוס", bg: "#c0c0c0", color: "#000",
                 onclick: function () {
                     if (confirm("?למחוק את התוצאות")) {
@@ -162,5 +178,27 @@
             }
         }));
         stage.appendChild(bar);
+
+        // SOFER.FRM Timer1_Timer (Interval=200) — once Form_Load paints,
+        // animates the running coin total: plays coincoun.wav once per
+        // coin (200ms beat), then plays fc<sum>.wav for the final talk.
+        // The numeric cue captures the total in voice ("you collected 7
+        // coins out of 19"). We mirror with a setTimeout chain, guarded
+        // by the render token so a screen swap mid-count bails out.
+        if (completed) {
+            (async function () {
+                for (let i = 0; i < sum && i < 50; i++) {
+                    if (MK.stale(myToken)) return;
+                    MK.play("mik_siha/coincoun.wav");
+                    await MK.sleep(200);
+                }
+                if (MK.stale(myToken)) return;
+                await MK.sleep(300);
+                if (MK.stale(myToken)) return;
+                if (sum >= 1 && sum <= 50) {
+                    MK.play("mik_siha/fc" + sum + ".wav");
+                }
+            })();
+        }
     };
 })();

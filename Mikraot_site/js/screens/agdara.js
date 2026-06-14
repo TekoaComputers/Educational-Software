@@ -48,6 +48,10 @@
         const values = (settings[maslIdx] || DEFAULTS[String(maslIdx)] || new Array(12).fill(0)).slice();
         const checkRefs = [];
         let shihzorBtn = null;
+        // AGDARA.FRM `Shinui` — Dim-default False, set True by
+        // Check1_Click / Picture1_Click / btnShihzor_Click. Gates the
+        // "save changes?" confirm in btnReturn_Click.
+        let changed = false;
 
         // AGDARA.FRM bdika() 1:1 — compare current Check1 values against
         // the maslul's defaults. Returns 1 if match (no need to restore),
@@ -77,8 +81,20 @@
         const bindings = {
             btnExit:    { img: "menu/stop.png", onclick: function () { window.location.href = "../index.html"; }},
             btnReturn:  { img: "menu/back.png", onclick: function () {
-                settings[maslIdx] = values;
-                saveSettings(settings);
+                // AGDARA.FRM btnReturn_Click 1:1 (line 831):
+                //   If Shinui=True: MsgBox " לשמור את השינוים " (Yes/No/Cancel
+                //     = 35); Yes (6) → Shmira; If Response<>2 (=Cancel)
+                //     Unload Agdara.
+                //   AGDARA's Label2 caption "מסלול מוגבל ל-4 פעילויות"
+                //   is informational; the original doesn't enforce a count
+                //   constraint at save time, so we don't either.
+                if (changed) {
+                    const ans = confirm("?לשמור את השינוים");
+                    if (ans) {
+                        settings[maslIdx] = values;
+                        saveSettings(settings);
+                    }
+                }
                 location.hash = "#/maslul";
             }},
             btnShihzor: { build: function (ctrl, sc, parent) {
@@ -95,6 +111,7 @@
                         values[i] = v;
                         if (checkRefs[i]) checkRefs[i].checked = !!v;
                     });
+                    changed = true;
                     refreshShihzor();
                 });
                 stage.appendChild(b);
@@ -121,6 +138,7 @@
                         node.addEventListener("click", function () {
                             values[idx] = values[idx] ? 0 : 1;
                             if (checkRefs[idx]) checkRefs[idx].checked = !!values[idx];
+                            changed = true;
                             refreshShihzor();
                         });
                         stage.appendChild(node);
@@ -146,6 +164,7 @@
                         cb.checked = !!values[idx];
                         cb.addEventListener("change", function () {
                             values[idx] = cb.checked ? 1 : 0;
+                            changed = true;
                             refreshShihzor();
                         });
                         wrap.appendChild(cb);

@@ -100,17 +100,18 @@
     }
 
     // GLOBAL.BAS Tov1(ShmFrm, k) — "good answer" feedback:
-    //   1. sndPlaySound("ranit/c<k>.wav", 1)  ' praise audio
-    //   2. PicFea cells 0..5 with 200ms steps
-    //   3. If Taut < 2: sleep 100 + "ranit/NOC<k>.wav" + PicBur cells 0..5
-    // k = Mahamaa (1..3) — randomized praise variant per round.
+    //   If Taut = 0: sndPlaySound("ranit/C<k>.wav", 1)   ' full praise
+    //   Else:        sndPlaySound("ranit/M<k>.wav", 1)   ' soft praise
+    //   PicFea cells 0..5 with 200ms steps
+    //   If Taut < 2: sleep 100 + sndPlaySound("ranit/NOC<k>.wav", 1)
+    //                            + PicBur cells 0..5
+    // k = Mahamaa (1..3) — randomized praise variant per round. Earlier
+    // versions of this port always used C<k> regardless of Taut, so a
+    // 2nd-try correct answer sounded the same as 1st-try.
     async function tov1(refs, picFeaNode, picBurNode, k, taut) {
         const ki = String(((k - 1) % 3) + 1);
-        // The praise wav and PicFea animation run concurrently — VB6's
-        // sndPlaySound is async-by-default (flag 1) and the For-loop
-        // animation reads on the same UI thread. We mirror by NOT
-        // awaiting the wav before starting the animation.
-        MK.play("milon/ranit/c" + ki + ".wav");
+        MK.play(taut === 0 ? ("milon/ranit/c" + ki + ".wav")
+                           : ("milon/ranit/m" + ki + ".wav"));
         await animSprite(picFeaNode, "pic_fea", 6, 200);
         if (taut < 2) {
             await MK.sleep(100);
@@ -169,13 +170,25 @@
         try { chain = JSON.parse(sessionStorage.getItem("mikraot:chain") || "null"); }
         catch (e) { chain = null; }
         if (!chain) { location.hash = "#/maslul"; return; }
+        const prevCode = chain.steps[chain.stepIdx];
         chain.stepIdx += 1;
         if (chain.stepIdx >= chain.steps.length) {
             markDone(chain.song, chain.masl);
             sessionStorage.removeItem("mikraot:chain");
+            // KIVUN.FRM Kivun() loop tail: at chain end, plays
+            // Mik_Siha\more7.wav before falling through to maslul.
+            // Also signals SipurMumlaz to play `Done.wav` next visit
+            // by setting povtorMumlaz (read by activateIntroAudio).
+            sessionStorage.setItem("mikraot:povtorMumlaz", "1");
+            MK.play("mik_siha/more7.wav");
             location.hash = "#/sofer/" + chain.song + "/" + chain.masl;
             return;
         }
+        // Between-step cue: KIVUN.FRM line ~1243 — `If NomerMasl > 2
+        // Then i = PlayZad(Cur_Dir$ & "Mik_Siha\more6.wav")` — plays
+        // when the JUST-completed step was a milon sub-game (codes
+        // 3..11), giving the user a beat before the next prompt.
+        if (prevCode > 2) MK.play("mik_siha/more6.wav");
         sessionStorage.setItem("mikraot:chain", JSON.stringify(chain));
         const code = chain.steps[chain.stepIdx];
         const base = "/" + chain.song + "/" + chain.masl + "?nomerMasl=" + code;
@@ -222,6 +235,24 @@
         });
     }
 
+    // Helper: wire PicFea_Click / PicBur_Click toggling between two
+    // audio cues + animating the sprite. 1:1 with the per-form .frm
+    // handlers — VB6 stores a boolean (FAQ / Nol / pinok) that flips
+    // each click, alternating between the "first reaction" and "second
+    // reaction" wav. The animation runs concurrently with the wav (VB6
+    // `sndPlaySound(..., 1)` = SND_ASYNC; the For Y=… loop reads on the
+    // same UI thread).
+    function wireSprite(node, label, cells, audios) {
+        if (!node) return;
+        let flip = 0;
+        node.addEventListener("click", function () {
+            const a = audios[flip % audios.length];
+            flip = (flip + 1) % audios.length;
+            if (a) MK.play(a);
+            animSprite(node, label, cells, 200);
+        });
+    }
+
     // Shared scaffolding for a sub-game. Renders the form 1:1, hooks
     // up Halon coins + PicFea/PicBur + Panel3D1 + btnExit/btnReturn.
     // Returns {refs, state} for the caller to wire game-specific UI.
@@ -259,12 +290,14 @@
             PicFea: { build: function (ctrl, sc) {
                 const node = MK.el("button", { class: "ctrl", style: MK.posStyle(ctrl, sc) });
                 node.style.backgroundImage = "url('assets/anim/pic_fea_0.png')";
+                node.style.cursor = "pointer";
                 stage.appendChild(node);
                 return node;
             }},
             PicBur: { build: function (ctrl, sc) {
                 const node = MK.el("button", { class: "ctrl", style: MK.posStyle(ctrl, sc) });
                 node.style.backgroundImage = "url('assets/anim/pic_bur_0.png')";
+                node.style.cursor = "pointer";
                 stage.appendChild(node);
                 return node;
             }},
@@ -382,6 +415,20 @@
         const titles = { "1": "?איפה זה כתוב", "2": "? מה נשמע", "4": "? במה זה מתחיל" };
         const sc = buildScaffold(root, ctx, "wav", titles[mishak] || "מילון");
 
+        // PicFea_Click / PicBur_Click per Mishak (WAV.FRM lines ~620-700).
+        // The reactions cycle two audio cues each — first/second click flip
+        // the FAQ / Nol toggles.
+        if (mishak === 1) {
+            wireSprite(sc.refs.PicFea, "pic_fea", 12, ["mik_siha/bb009.wav", "mik_siha/bb005.wav"]);
+            wireSprite(sc.refs.PicBur, "pic_bur", 12, ["mik_siha/more4.wav", "mik_siha/more5.wav"]);
+        } else if (mishak === 2) {
+            wireSprite(sc.refs.PicFea, "pic_fea", 6,  ["mik_siha/bb009.wav", "mik_siha/bb005.wav"]);
+            wireSprite(sc.refs.PicBur, "pic_bur", 7,  ["mik_siha/aa012.wav", "mik_siha/aa011.wav"]);
+        } else {  // mishak 4
+            wireSprite(sc.refs.PicFea, "pic_fea", 12, ["mik_siha/bb009.wav", "mik_siha/bb010.wav"]);
+            wireSprite(sc.refs.PicBur, "pic_bur", 9,  ["mik_siha/aa015.wav", "mik_siha/aa014.wav"]);
+        }
+
         // WAV.FRM Timer4_Timer (Enabled=False design-time, set True at the
         // end of Form_Load with Interval=1500) — auto-fires once 1.5s
         // after the form paints. Mishak-specific intro:
@@ -395,11 +442,38 @@
             }
         }, 1500);
 
+        // WAV.FRM Timer2_Timer (Interval=60000, Enabled=False, set True
+        // by Timer4 after intro for Mishak 1/4 only) — 60s idle nag.
+        // Each fire: toggles kkk; plays aa022/aa023 + PicBur cycle;
+        // then sleeps 500 + plays correct word + PicFea cycle. Resets
+        // on each setupRound (= new round) and on every onAnswer.
+        const myToken = MK.currentToken();
+        const nagState = { kkk: 0, current: null, timer: null };
+        function clearNag() {
+            if (nagState.timer) { clearInterval(nagState.timer); nagState.timer = null; }
+        }
+        function resetNag() {
+            clearNag();
+            if (mishak === 2) return;   // audio-only mode, no nag
+            nagState.timer = setInterval(async function () {
+                if (MK.stale(myToken)) { clearNag(); return; }
+                MK.play(nagState.kkk === 0 ? "mik_siha/aa022.wav" : "mik_siha/aa023.wav");
+                nagState.kkk = nagState.kkk === 0 ? 1 : 0;
+                await animSprite(sc.refs.PicBur, "pic_bur", 6, 200);
+                if (MK.stale(myToken)) return;
+                await MK.sleep(500);
+                if (MK.stale(myToken)) return;
+                if (nagState.current) MK.play(milonWavUrl(nagState.current));
+                await animSprite(sc.refs.PicFea, "pic_fea", 6, 200);
+            }, 60000);
+        }
         // Style answer rows: use the form's own btnMila / btnOt / btnOtvet
         // / btnTmuna positions exactly (from renderForm).
         runQuiz(sc, {
             choices: 4,
             setupRound: function (correct, choices, eval_) {
+                nagState.current = correct;
+                resetNag();
                 // Picture display:
                 //   Mishak 1/4 → btnTmuna shows correct entry's picture
                 //   Mishak 2   → btnTmuna shows milon/BMP/arcade.bmp
@@ -423,7 +497,24 @@
                     MK.play(milonWavUrl(correct));
                 }
                 // Answer buttons: Mishak 4 uses btnOt (picture letters);
-                // others use btnMila (text labels).
+                // others use btnMila (text labels). 1:1 with WAV.FRM:
+                //   btnMila_Click(i)  → PlayZad(Gde(i+1).wav) if Mishak≠2
+                //                       (HINT — plays that slot's word; no
+                //                       commit). Mishak=2 leaves btnMila
+                //                       mute on click (audio is the only
+                //                       cue).
+                //   btnOt_Click(i)    → same hint role for syllable mode.
+                //   btnOtvet_Click(i) → sets nn=i + Timer1.Enabled = True;
+                //                       Timer1_Timer runs Matbeot/Tov1 +
+                //                       face icon swap. THIS is the commit.
+                // The port previously routed btnMila/btnOt clicks straight
+                // through `eval_` — which made every label/icon click a
+                // commit and skipped the hint role entirely.
+                const hintFor = function (entry) {
+                    return function () {
+                        if (entry) MK.play(milonWavUrl(entry));
+                    };
+                };
                 for (let i = 0; i < 4; i++) {
                     const btnMila = sc.refs["btnMila_" + i];
                     const btnOt   = sc.refs["btnOt_" + i];
@@ -441,15 +532,12 @@
                             btnMila.style.cursor = "pointer";
                             btnMila.style.direction = "rtl";
                             btnMila.style.textAlign = "center";
-                            btnMila.onclick = function () { eval_(choice, choices); };
+                            btnMila.onclick = mishak === 2 ? null : hintFor(choice);
                         }
                     }
                     if (btnOt) {
                         btnOt.style.display = mishak === 4 ? "" : "none";
                         if (mishak === 4 && choice) {
-                            // 1:1 with print_l: btnOt(w).Picture =
-                            // LoadPicture(Dirs$ & "Avara.bmp\a" & Slg(0) & ".bmp")
-                            // — the per-syllable letter graphic.
                             const slg = (choice.slg[0] || "").trim();
                             const url = slg ? "assets/milon/avara.bmp/A" + slg + ".png" : "";
                             btnOt.textContent = "";
@@ -460,20 +548,34 @@
                             btnOt.style.backgroundColor = "#fffae0";
                             btnOt.style.border = "2px outset #d4d0c8";
                             btnOt.style.cursor = "pointer";
-                            btnOt.onclick = function () { eval_(choice, choices); };
+                            // HINT: play the (syllable's) audio. The syllable
+                            // file isn't tracked per-choice yet, so reuse the
+                            // word audio as a placeholder hint.
+                            btnOt.onclick = hintFor(choice);
                         }
                     }
                     if (btnOtvet) {
+                        // btnOtvet is the COMMIT. Renders the face-icon
+                        // state per Timer1 logic (face02 neutral → face03
+                        // smile on correct, face01 frown on wrong) — we
+                        // swap on click via a tiny inline timer to mirror
+                        // the original 300ms beat before Matbeot fires.
                         btnOtvet.textContent = FACE.neutral.emoji;
                         btnOtvet.style.background = FACE.neutral.bg;
                         btnOtvet.style.border = "2px solid #888";
                         btnOtvet.style.borderRadius = "50%";
                         btnOtvet.style.fontSize = "24px";
                         btnOtvet.style.color = "#000";
-                        btnOtvet.style.cursor = "default";
-                        btnOtvet.onclick = function () {
-                            if (choices[i]) eval_(choices[i], choices);
-                        };
+                        btnOtvet.style.cursor = "pointer";
+                        (function (slot, entry) {
+                            btnOtvet.onclick = function () {
+                                if (!entry) return;
+                                const isRight = entry === correct;
+                                btnOtvet.textContent = isRight ? FACE.right.emoji : FACE.wrong.emoji;
+                                btnOtvet.style.background = isRight ? FACE.right.bg : FACE.wrong.bg;
+                                eval_(entry, choices);
+                            };
+                        })(i, choice);
                     }
                 }
             },
@@ -498,6 +600,10 @@
     // User clicks the slot whose picture doesn't match its label.
     MK.renderGame2 = function (root, ctx) {
         const sc = buildScaffold(root, ctx, "wav1", "? מה הטעות");
+        // PicFea_Click / PicBur_Click (WAV1.FRM lines ~553-589). pinok
+        // cycles 3 cues: aa008/aa006/aa007; bb003/BB33 toggle.
+        wireSprite(sc.refs.PicFea, "pic_fea", 11, ["mik_siha/bb003.wav", "mik_siha/bb33.wav"]);
+        wireSprite(sc.refs.PicBur, "pic_bur", 10, ["mik_siha/aa008.wav", "mik_siha/aa006.wav", "mik_siha/aa007.wav"]);
         const entries = getEntries(sc.song);
         if (entries.length < 4) {
             sc.stage.appendChild(MK.el("div", { style: {
@@ -553,19 +659,43 @@
                     lbl.onclick = (function (e) { return function () { MK.play(milonWavUrl(e)); }; })(labelEntry);
                 }
                 if (otv) {
+                    otv.textContent = FACE.neutral.emoji;
                     otv.style.background = FACE.neutral.bg;
                     otv.style.border = "2px solid #888";
                     otv.style.borderRadius = "50%";
                     otv.style.cursor = "pointer";
-                    otv.onclick = (function (slot) { return function () { onAnswer(slot); }; })(s);
+                    // WAV1.FRM btnOtvet_Click face icon swap (face01
+                    // frown / face03 smile) — port shows emoji.
+                    otv.onclick = (function (slot) {
+                        return function () {
+                            const isRight = slot === state.mistakeSlot;
+                            otv.textContent = isRight ? FACE.right.emoji : FACE.wrong.emoji;
+                            otv.style.background = isRight ? FACE.right.bg : FACE.wrong.bg;
+                            onAnswer(slot);
+                        };
+                    })(s);
                 }
             }
         }
+        async function flashSlot(slot, color, ms) {
+            const pic = sc.refs["Picture1_" + slot];
+            if (!pic) return;
+            const prevShadow = pic.style.boxShadow;
+            const prevBorder = pic.style.outline;
+            pic.style.outline = "4px solid " + color;
+            pic.style.boxShadow = "0 0 0 9999px transparent";
+            await MK.sleep(ms);
+            pic.style.outline = prevBorder;
+            pic.style.boxShadow = prevShadow;
+        }
         async function onAnswer(slot) {
             if (slot === state.mistakeSlot) {
+                // WAV1.FRM line ~391: Shape1(pr_Nomer-1).BackColor =
+                // &H00FF00FF& (magenta) on correct — celebrate the find.
                 const coin = awardCoin(state.attempts);
                 state.totalCoins += coin.value;
                 sc.setHalon(state.round - 1, state.attempts === 0 ? "right" : "part");
+                flashSlot(slot, "#ff00ff", 800);   // magenta flash, fire-and-forget
                 if (coin.wav) await MK.playSync(coin.wav);
                 await tov1(sc.refs, sc.refs.PicFea, sc.refs.PicBur,
                            1 + ((state.round - 1) % 3), state.attempts);
@@ -573,7 +703,10 @@
             } else {
                 state.attempts += 1;
                 if (state.attempts > 2) {
+                    // WAV1.FRM line ~498: Shape1(pr_Nomer-1).BackColor =
+                    // &HFF& (red) — reveals the actual mistake slot.
                     sc.setHalon(state.round - 1, "wrong");
+                    await flashSlot(state.mistakeSlot, "#ff0000", 1200);
                     await MK.playSync("wav/tautg3.wav");
                     setup();
                 } else {
@@ -603,12 +736,20 @@
     //   Form_Load plays Mik_Siha/BB004.wav as intro.
     MK.renderGame5 = function (root, ctx) {
         const sc = buildScaffold(root, ctx, "game5", "? מה התמונה");
+        // PicFea_Click / PicBur_Click (GAME5.FRM lines ~462-496):
+        //   PicFea toggles bb004/x8 + 12-cell anim
+        //   PicBur toggles aa009/aa010 + 7-cell anim
+        wireSprite(sc.refs.PicFea, "pic_fea", 12, ["mik_siha/bb004.wav", "mik_siha/x8.wav"]);
+        wireSprite(sc.refs.PicBur, "pic_bur", 7,  ["mik_siha/aa009.wav", "mik_siha/aa010.wav"]);
         runQuiz(sc, {
             choices: 3,
             setupRound: function (correct, choices, eval_) {
                 if (sc.refs.btnSlovo) {
                     sc.refs.btnSlovo.textContent = correct.mila;
-                    sc.refs.btnSlovo.style.background = "rgb(255,255,224)";
+                    // GAME5.FRM btnSlovo BackColor = &H80000005& (system
+                    // button face = gray). Port previously used light
+                    // yellow which mismatched the form's chrome.
+                    sc.refs.btnSlovo.style.background = "#c0c0c0";
                     sc.refs.btnSlovo.style.color = "#000";
                     sc.refs.btnSlovo.style.fontSize = "32px";
                     sc.refs.btnSlovo.style.fontFamily = "David, serif";
@@ -643,10 +784,17 @@
                         o.style.borderRadius = "50%";
                         o.style.cursor = "pointer";
                         o.textContent = FACE.neutral.emoji;
-                        // btnOtvet_Click: COMMIT this slot as the answer.
-                        o.onclick = (function (entry) { return function () {
-                            eval_(entry, choices);
-                        }; })(c);
+                        // btnOtvet_Click: COMMIT + face icon swap (face01
+                        // frown / face03 smile) — same pattern as game1.
+                        (function (entry) {
+                            o.onclick = function () {
+                                if (!entry) return;
+                                const isRight = entry === correct;
+                                o.textContent = isRight ? FACE.right.emoji : FACE.wrong.emoji;
+                                o.style.background = isRight ? FACE.right.bg : FACE.wrong.bg;
+                                eval_(entry, choices);
+                            };
+                        })(c);
                     }
                 }
             },
@@ -672,6 +820,10 @@
     //   Wrong → Kishalon (Taut++) + wrong.wav; >2 → Kishal_3 + reveal.
     MK.renderSlog = function (root, ctx) {
         const sc = buildScaffold(root, ctx, "slog", "משחק הברות");
+        // PicFea_Click / PicBur_Click (SLOG.FRM): no explicit audio in
+        // source — sprites animate on click but stay silent.
+        wireSprite(sc.refs.PicFea, "pic_fea", 6, []);
+        wireSprite(sc.refs.PicBur, "pic_bur", 6, []);
         const entries = getEntries(sc.song);
         if (entries.length === 0) {
             sc.stage.appendChild(MK.el("div", { style: { color: "#fff", padding: "40px" }}, ["אין נתונים"]));
@@ -743,9 +895,13 @@
                     bOt.style.border = code ? "2px outset #d4d0c8" : "1px solid transparent";
                     bOt.textContent = "";
                     bOt.style.cursor = code ? "pointer" : "default";
-                    // btnOt_Click in source: Zvuk(uu(Index)) — play that
-                    // syllable's audio.
-                    bOt.onclick = function () { /* Zvuk hint TBD */ };
+                    // SLOG.FRM btnOt_Click(Index): plays Zvuk(uu(Index))
+                    // = the syllable audio under milon/avara.wav/a<code>.wav.
+                    bOt.onclick = (function (c) {
+                        return function () {
+                            if (c) MK.play("milon/avara.wav/a" + c + ".wav");
+                        };
+                    })(code);
                 }
                 if (bOtv) {
                     bOtv.style.background = FACE.neutral.bg;
@@ -789,6 +945,17 @@
                 state.attempts += 1;
                 if (state.attempts > 2) {
                     sc.setHalon(state.round - 1, "wrong");
+                    // SLOG.FRM Kishal_3 [line 460]:
+                    //   Shape1(pr_Nomer).BackColor = &HFF& (red) — reveals
+                    //   which btnOt holds the correct syllable for the
+                    //   current slot. Then plays Zvuk(uu(pr_Nomer)) for the
+                    //   right syllable.
+                    const correctBtnOt = sc.refs["btnOt_" + expected];
+                    if (correctBtnOt) {
+                        const prevBorder = correctBtnOt.style.border;
+                        correctBtnOt.style.border = "3px solid #ff0000";
+                        setTimeout(function () { correctBtnOt.style.border = prevBorder; }, 1500);
+                    }
                     await MK.playSync("milon/ranit/kish3.wav");
                     setup();
                 } else {
@@ -796,7 +963,14 @@
                 }
             }
         }
-        setup();
+        // SLOG.FRM Timer1_Timer (Enabled=True in Form_Load, fires once
+        // 200ms after paint): plays Mik_Siha\BB002.wav as the intro
+        // cue, then the word audio (setup() handles the word).
+        (async function () {
+            await MK.sleep(200);
+            await MK.playSync("mik_siha/bb002.wav");
+            setup();
+        })();
     };
 
     // ---- gam_3 / GM3A.FRM — syllable-spelling game --------------------
@@ -830,6 +1004,11 @@
 
     MK.renderGam3 = function (root, ctx) {
         const sc = buildScaffold(root, ctx, "gm3a", "כתיבת מלה");
+        // PicFea_Click / PicBur_Click (GM3A.FRM lines ~1284-1320):
+        //   PicFea plays x10.wav + 12-cell anim ×3 (last 300ms)
+        //   PicBur cycles aa001/aa002/aa003 + 6-cell anim
+        wireSprite(sc.refs.PicFea, "pic_fea", 6, ["mik_siha/x10.wav"]);
+        wireSprite(sc.refs.PicBur, "pic_bur", 6, ["mik_siha/aa001.wav", "mik_siha/aa002.wav", "mik_siha/aa003.wav"]);
         const entries = getEntries(sc.song);
         if (entries.length === 0) {
             sc.stage.appendChild(MK.el("div", { style: { color: "#fff", padding: "40px" }}, ["אין נתונים"]));
@@ -945,7 +1124,20 @@
                 sc.refs.btnTmuna.style.backgroundRepeat = "no-repeat";
                 sc.refs.btnTmuna.style.backgroundPosition = "center";
                 sc.refs.btnTmuna.style.cursor = "pointer";
-                sc.refs.btnTmuna.onclick = function () { MK.play(milonWavUrl(state.current)); };
+                // GM3A.FRM btnTmuna_Click [line 1304-1320]: plays the
+                // word pronunciation cycling 3 hint audios via `pinok`
+                // counter — first click = aa001 + word, second = aa002 +
+                // word, third = aa003 + word, then wraps. Port plays the
+                // word alone — now it cycles the same way so repeated
+                // hints feel less identical.
+                let pinok = 0;
+                sc.refs.btnTmuna.onclick = function () {
+                    MK.play("mik_siha/aa00" + (1 + pinok % 3) + ".wav");
+                    pinok = (pinok + 1) % 3;
+                    setTimeout(function () {
+                        MK.play(milonWavUrl(state.current));
+                    }, 700);
+                };
             }
             // Play the word audio as opening cue.
             MK.play(milonWavUrl(state.current));

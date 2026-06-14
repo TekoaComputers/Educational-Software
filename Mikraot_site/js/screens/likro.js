@@ -121,6 +121,10 @@
             btnShmaNodes: [],
             picture1Node: null,
             picture2Node: null,
+            // GAMES1.FRM Form_Load: `KFP = 1` — toggle flag used by
+            // TGUVA + Pic{Fea,Bur}_Click to alternate between two cues
+            // per tirgul.
+            kfp: 1,
             // Q&A state (tirgul 4/5). Mirrors GAMES1.FRM module-level Dim's:
             //   N_V        current question index (1-based)
             //   otvet      count of correct answers in this round
@@ -132,7 +136,11 @@
             //   KolMonet   total coins this round
             // Must be initialized BEFORE startQA() fires (called below at
             // tirgul=4/5 path before this block used to run).
-            qa: { N_V: 0, otvet: 0, Taut: 0, Mis_Tsuva: 1, Mahamaa: 1,
+            // GAMES1.FRM Form_Load: `Mahamaa = Int(3 * Rnd + 1)` —
+            // random 1..3 so the praise-audio variant (C<k>.wav) isn't
+            // identical every game.
+            qa: { N_V: 0, otvet: 0, Taut: 0, Mis_Tsuva: 1,
+                  Mahamaa: 1 + Math.floor(Math.random() * 3),
                   Vprs: [], SahAkol: 0, KolMonet: 0 },
         };
 
@@ -151,21 +159,27 @@
                 // btnReturn_Click → Unload Form1 → returns to caller. In
                 // free play (no maslul chain) → START. In a chain, the
                 // original Form1 unloads back to maslul.Kivun() which
-                // advances to the next step. We mirror that by checking
-                // sessionStorage for an active chain.
-                case "btnReturn": return mkBtn(ctrl, "menu/hazor.png", function () {
-                    const chain = sessionStorage.getItem("mikraot:chain");
-                    if (chain) {
-                        // Need MK.renderForm + advanceChain from milon_games.js.
-                        // Inline a minimal advance call.
-                        if (typeof MK.advanceMaslulChain === "function") MK.advanceMaslulChain();
-                        else location.hash = "#/maslul/" + (JSON.parse(chain).song || "1");
-                    } else {
-                        location.hash = "#/start";
-                    }
-                }, "חזרה");
-                case "PicFea":    return mkSprite(ctrl, "pic_fea", 6, ["mik_siha/x2.wav", "mik_siha/kfp2.wav"], function (n) { state.picFeaNode = n; });
-                case "PicBur":    return mkSprite(ctrl, "pic_bur", 6, ["mik_siha/kpq.wav", "mik_siha/kp1.wav"], function (n) { state.picBurNode = n; });
+                // advances to the next step. GAMES1.FRM Form_Load swaps
+                // the button picture: NomerMasl=-1 → hazor.bmp (back),
+                // NomerMasl>=0 in a read-mode (tirgul<4) → hemsheh.bmp
+                // (= "continue") since the back-action progresses the
+                // chain rather than returning. Q&A modes always show
+                // hazor regardless (per the `If tirgul > 3 ... Else`).
+                case "btnReturn": {
+                    const inChain = !!sessionStorage.getItem("mikraot:chain");
+                    const useHemsheh = inChain && tirgulInit < 4;
+                    return mkBtn(ctrl, useHemsheh ? "menu/hemsheh.png" : "menu/hazor.png", function () {
+                        const chain = sessionStorage.getItem("mikraot:chain");
+                        if (chain) {
+                            if (typeof MK.advanceMaslulChain === "function") MK.advanceMaslulChain();
+                            else location.hash = "#/maslul/" + (JSON.parse(chain).song || "1");
+                        } else {
+                            location.hash = "#/start";
+                        }
+                    }, "חזרה");
+                }
+                case "PicFea":    return mkPicFea(ctrl);
+                case "PicBur":    return mkPicBur(ctrl);
                 case "Picture1":  return mkPicture1(ctrl, style);
                 case "Picture2":  return mkPicture2(ctrl, style);
                 case "Panel3D1":  return mkPanel(ctrl, style);
@@ -225,6 +239,70 @@
             btn.addEventListener("click", onclick);
             stageEl.appendChild(btn);
             return btn;
+        }
+        // GAMES1.FRM PicFea_Click 1:1 — toggles between two cues per
+        // tirgul via the global KFP flag (initialized to 1 in Form_Load),
+        // then animates 0..11 TWICE. State.kfp persists across clicks.
+        function mkPicFea(ctrl) {
+            const node = MK.el("button", { class: "ctrl", style: MK.posStyle(ctrl, scale) });
+            node.style.backgroundImage = bgImg("anim/pic_fea_0.png");
+            node.addEventListener("click", async function () {
+                const t = state.tirgul;
+                const tguva = function (wav1, wav2) {
+                    MK.play(state.kfp === 1 ? wav1 : wav2);
+                    state.kfp = state.kfp === 1 ? 0 : 1;
+                };
+                if (t === 0) tguva("wav/kfp1.wav", "mik_siha/kfp2.wav");
+                else if (t === 1) tguva("mik_siha/kf3.wav", "mik_siha/kf4.wav");
+                else if (t === 2) tguva("mik_siha/kf2.wav", "mik_siha/kf4.wav");
+                else if (t === 3) tguva("mik_siha/kf1.wav", "mik_siha/kf4.wav");
+                else if (t === 4) {
+                    if (state.kfp === 1) { MK.play("mik_siha/x3.wav"); state.kfp = 0; }
+                    else {
+                        const list = stage.words;
+                        const e = list[state.qa.N_V - 1];
+                        if (e && e.wavQ) MK.play(toAsset(e.wavQ));
+                        state.kfp = 1;
+                    }
+                } else if (t === 5) {
+                    if (state.kfp === 1) { MK.play("mik_siha/x4.wav"); state.kfp = 0; }
+                    else {
+                        const list = stage.zones;
+                        const e = list[state.qa.N_V - 1];
+                        if (e && e.wavQ) MK.play(toAsset(e.wavQ));
+                        state.kfp = 1;
+                    }
+                }
+                await animateSprite(node, "pic_fea", 12, 200);
+                await animateSprite(node, "pic_fea", 12, 200);
+                node.style.backgroundImage = bgImg("anim/pic_fea_0.png");
+            });
+            stageEl.appendChild(node);
+            state.picFeaNode = node;
+            return node;
+        }
+        // GAMES1.FRM PicBur_Click 1:1 — per-tirgul KFP-toggled cue then
+        // a single 0..5 sprite cycle.
+        function mkPicBur(ctrl) {
+            const node = MK.el("button", { class: "ctrl", style: MK.posStyle(ctrl, scale) });
+            node.style.backgroundImage = bgImg("anim/pic_bur_0.png");
+            node.addEventListener("click", async function () {
+                const t = state.tirgul;
+                const tguva = function (wav1, wav2) {
+                    MK.play(state.kfp === 1 ? wav1 : wav2);
+                    state.kfp = state.kfp === 1 ? 0 : 1;
+                };
+                if (t === 0) tguva("mik_siha/kp1.wav", "wav/kp2.wav");
+                else if (t === 1) tguva("wav/knok32.wav", "wav/knon31.wav");
+                else if (t === 2) tguva("wav/knok21.wav", "wav/knok22.wav");
+                else if (t === 3) tguva("wav/knok11.wav", "wav/knok12.wav");
+                else MK.play("mik_siha/kpq.wav");
+                await animateSprite(node, "pic_bur", 6, 200);
+                node.style.backgroundImage = bgImg("anim/pic_bur_0.png");
+            });
+            stageEl.appendChild(node);
+            state.picBurNode = node;
+            return node;
         }
         function mkSprite(ctrl, label, cells, audios, set) {
             const node = MK.el("button", { class: "ctrl", style: MK.posStyle(ctrl, scale) });
@@ -448,6 +526,12 @@
             // question text empty (no scoring loop yet).
             if (state.btnVoprosNode) {
                 state.btnVoprosNode.style.display = (state.tirgul === 4 || state.tirgul === 5) ? "" : "none";
+            }
+            // GAMES1.FRM Form_Load `Case 5  ' שאלות לתמונה : btnShma(1).Visible = True`
+            // — in pic-Q&A mode the "play question again" button is open
+            // from the start. (tirgul=4 leaves both hidden.)
+            if (state.tirgul === 5 && state.btnShmaNodes && state.btnShmaNodes[1]) {
+                state.btnShmaNodes[1].style.display = "";
             }
             // btnShma(0/1) only become visible after the user enters a
             // sub-mode by clicking btnStroka/Slog/Slovo. In Q&A modes the
@@ -739,18 +823,30 @@
             }
         }
         function onShmaClick(idx) {
-            // Index 1: read next line through ListenText. Index 0: cycle
-            // through zones (Mhika + Shape2 highlight).
+            // GAMES1.FRM btnShma_Click(Index) 1:1 (line 508):
+            //   Index=1 → Makom = Index_T; If Makom > Kol_t Then Makom=1;
+            //             ListenText(Makom); Makom++; Index_T = Makom
+            //   Index=0 → Mhika; MakomP++; If MakomP > Kol_P Then MakomP=1
+            //             Shape2 frame around Pic_Zone(MakomP); If tirgul=
+            //             1|3 → play WavFileNameP(MakomP); If tirgul=2 →
+            //             play SWavFilenameP(MakomP).
+            // In tirgul=5 Picture2 renders blank (BliZeva) so we have no
+            // slovoNodes to flash — guard the highlight and still play.
+            // Same in tirgul=4 for the zone-side btnShma(0).
             if (idx === 1) {
+                if (!stage.words || stage.words.length === 0) return;
                 if (state.indexT > stage.words.length) state.indexT = 1;
                 const i = state.indexT - 1;
-                flashHighlight(state.slovoNodes[i]);
+                const slovo = state.slovoNodes && state.slovoNodes[i];
+                if (slovo) flashHighlight(slovo);
                 playAwait(stage.words[i].wav);
                 state.indexT += 1;
             } else {
+                if (!stage.zones || stage.zones.length === 0) return;
                 state.makomP = (state.makomP % stage.zones.length) + 1;
                 const i = state.makomP - 1;
-                flashHighlight(state.zoneNodes[i]);
+                const zone = state.zoneNodes && state.zoneNodes[i];
+                if (zone) flashHighlight(zone);
                 if (state.tirgul === 1 || state.tirgul === 3) {
                     play(stage.zones[i].wav);
                 } else if (state.tirgul === 2) {

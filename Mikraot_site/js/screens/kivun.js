@@ -237,15 +237,19 @@
             // Pick maslul `idx` (0..2). 1:1 with KIVUN.btnMsl1_Click:
             //   PlayZad(MIK_SIHA\I<idx+3>.wav)   ' SYNC blocks
             //   If completed (Tozaot.Masl(idx,12)=1) → sofer.Show
-            //   Else → Kivun(idx) walker
-            // PlayZad is SYNC so the navigation that follows starts
-            // only after the I-cue finishes. Mirror with await.
+            //   Else → bdika (first-pick cue) + Kivun(idx) walker
             if (gameNomer === 0) return;
-            // Same reason as btnShir_Click — cancel any in-flight
-            // activateIntroAudio chain so its sleep-tail doesn't
-            // interrupt our I-cue (the I2 vs I3 collision).
             MK.bumpToken();
             await MK.playSync("mik_siha/i" + (idx + 3) + ".wav");
+            // KIVUN.FRM bdika [line ~831]: Rishona flag (per-song, per-
+            // session) gates a one-time "first pick" cue — plays
+            // Mik_Siha\more10.wav before the walker starts. Once any
+            // maslul on this song has been picked, the cue is suppressed.
+            const rishonaKey = "mikraot:rishona:" + gameNomer;
+            if (!sessionStorage.getItem(rishonaKey)) {
+                sessionStorage.setItem(rishonaKey, "1");
+                await MK.playSync("mik_siha/more10.wav");
+            }
             if (maslulCompleted(gameNomer, idx)) {
                 location.hash = "#/sofer/" + gameNomer + "/" + idx;
                 return;
@@ -417,10 +421,14 @@
                 const song1 = t["1"] || {};
                 const song1Done = [0,1,2].some(function (i) { return ((song1[i] || {}).done) === 1; });
                 if (song1Done) {
-                    // Azaga cycle — the per-song .avi celebration videos
-                    // aren't transcoded. Hop to PROBA so the user at
-                    // least sees the entry video (cred.avi).
-                    MK.log("modiin: Azaga cycle starts (song 1 completed)");
+                    // KIVUN.modiin_Click 1:1 (line ~1275):
+                    //   Azaga = True
+                    //   TekFilm = 1
+                    //   ShmVideo = Cur_Dir$ & "Video\1.avi"
+                    //   Unload maslul          (returns to PROBA)
+                    sessionStorage.setItem("mikraot:azaga", "1");
+                    sessionStorage.setItem("mikraot:tekFilm", "1");
+                    sessionStorage.setItem("mikraot:shmVideo", "video/1.mp4");
                     location.hash = "#/";
                 } else {
                     MK.play("mik_siha/i9.wav");
@@ -542,13 +550,27 @@
             return true;
         }
         function showMaslulUI(gn) {
-            // Bdikat_Masl: show 3 maslul buttons (each = masl<i+1>b.bmp
-            // if completed, masl<i+1>.bmp otherwise), hide lblAgdara on
-            // completed slots, show btnHofshi.
+            // Bdikat_Masl: show 3 maslul buttons. KIVUN.FRM uses three
+            // picture variants per slot:
+            //   masl<N>.bmp   — fresh / untouched
+            //   masl<N>a.bmp  — in-progress (some steps scored, not yet
+            //                   marked .done). The original Timer1_Timer
+            //                   line ~1348 drafts this lookup; we honor
+            //                   it whenever Tozaot has any non-zero
+            //                   step score for the maslul.
+            //   masl<N>b.bmp  — completed (.done == 1)
             const t = loadTozaot();
             for (let i = 0; i < 3; i++) {
-                const done = ((t[gn] || {})[i] || {}).done === 1;
-                const img = "menu/masl" + (i + 1) + (done ? "b" : "") + ".png";
+                const songData = t[gn] || {};
+                const maslData = songData[i] || {};
+                const done = maslData.done === 1;
+                // "In-progress" = any step has a recorded coin score but
+                // the maslul itself isn't marked done yet.
+                const inProgress = !done && Object.keys(maslData).some(function (k) {
+                    return k !== "done" && +maslData[k] > 0;
+                });
+                const suffix = done ? "b" : inProgress ? "a" : "";
+                const img = "menu/masl" + (i + 1) + suffix + ".png";
                 if (refs.btnMsl1[i]) {
                     refs.btnMsl1[i].style.backgroundImage = bgImg(img);
                     refs.btnMsl1[i].style.display = "";
