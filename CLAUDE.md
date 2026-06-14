@@ -34,6 +34,15 @@ load source JS directly — no build step.
   to MP3 (cleaned via noisereduce + DFN + VAD + makeup gain), console
   toggle back to WAV via `setAudioFormat('wav')`. Details and re-run
   instructions: [docs/audio.md](docs/audio.md).
+- `main_site_assets/trace.js` — shared logger. Every site emits
+  `[<app>/<screen>] <verb> <details>`; auto-instruments clicks, keys,
+  audio playback, hash changes. Wired into every site before
+  feedback.js so logs end up in shared issues. Details:
+  [docs/trace.md](docs/trace.md).
+- `main_site_assets/ui_editor.js` — dormant UI tweaker. Activate from
+  the browser console with `loadUiEditor()`; drag the red dot to
+  move, the blue square to resize, then `copyUiEditorDiff()`. Paste
+  the diff to me. Details: [docs/ui-editor.md](docs/ui-editor.md).
 - `tools/asset_diff/` — original-vs-ported side-by-side asset browser
   (images / audio / video). Details: [docs/asset-diff.md](docs/asset-diff.md).
 - `Kesem_site/` — bundled SPA covering Brahot, Hagim, Yeled, Dvash,
