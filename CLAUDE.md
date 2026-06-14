@@ -30,6 +30,12 @@ load source JS directly — no build step.
 - `main_site_assets/feedback.js` — floating "משוב" widget; captures
   `console.*` + opens a prefilled GitHub issue. Wired into every subsite's
   `index.html`. Earlier feedback bodies live on the issues themselves.
+- `main_site_assets/audio_format.js` + `tools/wav_to_mp3*` — apps default
+  to MP3 (cleaned via noisereduce + DFN + VAD + makeup gain), console
+  toggle back to WAV via `setAudioFormat('wav')`. Details and re-run
+  instructions: [docs/audio.md](docs/audio.md).
+- `tools/asset_diff/` — original-vs-ported side-by-side asset browser
+  (images / audio / video). Details: [docs/asset-diff.md](docs/asset-diff.md).
 - `Kesem_site/` — bundled SPA covering Brahot, Hagim, Yeled, Dvash,
   Heshbon, Ivrit, Shabat, Shirim, Shirim&Meshalim, KolKoreA–D, EnglishA–C.
   - `index.html` ↔ shell
