@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="he" dir="ltr">
+<head>
+<meta charset="utf-8">
+<title>Asset Diff — Tekoa Computers</title>
+<style>
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; font: 13px/1.4 "Inter", "Segoe UI", system-ui, sans-serif;
+             color: #1a2230; background: #f5f7fb; }
+.app { display: grid; grid-template-columns: 240px 1fr; height: 100%; }
+aside { background: #1f2937; color: #e5e7eb; overflow-y: auto; }
+aside h1 { font-size: 13px; padding: 12px 14px; margin: 0; color: #93c5fd;
+           border-bottom: 1px solid #374151; letter-spacing: 0.5px; }
+.app-row { padding: 8px 14px; cursor: pointer; border-bottom: 1px solid #28354a;
+           font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+.app-row:hover { background: #28354a; }
+.app-row.sel { background: #3b82f6; color: #fff; }
+.app-row .badge { background: rgba(0,0,0,0.25); padding: 1px 6px; border-radius: 999px;
+                  font-size: 11px; font-variant-numeric: tabular-nums; }
+.app-row .label { direction: rtl; text-align: right; flex: 1; padding-left: 8px; }
+.app-row .id { color: #9ca3af; font-size: 11px; margin-right: 6px; }
+.app-row.sel .id { color: #dbeafe; }
+
+main { overflow-y: auto; padding: 14px 18px 40px; }
+.toolbar { position: sticky; top: 0; background: #f5f7fb; padding: 8px 0 14px;
+           display: flex; flex-wrap: wrap; gap: 10px; align-items: center; z-index: 10;
+           border-bottom: 1px solid #e5e7eb; margin-bottom: 14px; }
+.toolbar select, .toolbar input { padding: 5px 8px; font: inherit; border: 1px solid #d1d5db;
+                                  border-radius: 5px; background: #fff; }
+.toolbar input[type="search"] { width: 240px; }
+.toolbar .stats { margin-left: auto; color: #6b7280; font-size: 12px; font-variant-numeric: tabular-nums; }
+
+.pairs { display: grid; gap: 12px; }
+.pair { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 12px;
+        display: grid; grid-template-columns: 28px 1fr; gap: 12px; align-items: start; }
+.pair.miss-orig   { border-left: 4px solid #f59e0b; }
+.pair.miss-ported { border-left: 4px solid #ef4444; }
+.pair.ok          { border-left: 4px solid #10b981; }
+.status { font-size: 18px; text-align: center; padding-top: 6px; }
+.status.ok      { color: #10b981; }
+.status.warn    { color: #f59e0b; }
+.status.miss    { color: #ef4444; }
+.pair .body { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.pair .head { grid-column: 1 / -1; display: flex; gap: 10px; align-items: baseline; }
+.pair .name { font-weight: 600; }
+.pair .cat  { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;
+              padding: 1px 6px; border-radius: 999px; background: #eef2f7; }
+.pair .ext-tag { font-size: 11px; color: #6b7280; font-family: ui-monospace, "JetBrains Mono", monospace; }
+
+.side { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.side h4 { margin: 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;
+           color: #6b7280; font-weight: 600; }
+.side .path { font-family: ui-monospace, "JetBrains Mono", monospace; font-size: 11px;
+              color: #4b5563; word-break: break-all; }
+.side .size { font-size: 11px; color: #6b7280; font-variant-numeric: tabular-nums; }
+.side .empty { color: #ef4444; font-style: italic; font-size: 12px; padding: 18px 0; }
+.side img { max-width: 100%; max-height: 320px; background: #eef2f7; border-radius: 4px;
+            object-fit: contain; align-self: flex-start; }
+.side audio, .side video { width: 100%; }
+.side video { max-height: 320px; background: #000; }
+
+.empty-state { color: #6b7280; padding: 40px 0; text-align: center; }
+.loading { padding: 40px; text-align: center; color: #6b7280; }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <h1>ASSET DIFF</h1>
+    <div id="apps"></div>
+  </aside>
+  <main>
+    <div class="toolbar">
+      <select id="cat">
+        <option value="">All categories</option>
+        <option value="image">Images</option>
+        <option value="audio">Audio</option>
+        <option value="video">Video</option>
+      </select>
+      <select id="status">
+        <option value="">All statuses</option>
+        <option value="matched">Matched (both sides)</option>
+        <option value="orig_only">Original only</option>
+        <option value="ported_only">Ported only</option>
+        <option value="size_diff">Size differs (matched)</option>
+      </select>
+      <input id="search" type="search" placeholder="Filter by name…">
+      <label style="font-size:12px;color:#6b7280;display:flex;gap:5px;align-items:center;">
+        <input id="lazy" type="checkbox" checked>
+        Lazy-load media
+      </label>
+      <span class="stats" id="stats"></span>
+    </div>
+    <div id="pairs" class="pairs">
+      <div class="loading">Loading manifest.json…</div>
+    </div>
+  </main>
+</div>
+
+<script>
+const FILE_ROOT = "../../";   // tools/asset_diff/  →  repo root
+let MANIFEST = null;
+let CUR_APP_ID = null;
+
+const els = {
+  apps:   document.getElementById("apps"),
+  pairs:  document.getElementById("pairs"),
+  cat:    document.getElementById("cat"),
+  status: document.getElementById("status"),
+  search: document.getElementById("search"),
+  lazy:   document.getElementById("lazy"),
+  stats:  document.getElementById("stats"),
+};
+
+function fmtSize(b) {
+  if (b == null) return "";
+  if (b < 1024) return b + " B";
+  if (b < 1024 * 1024) return (b / 1024).toFixed(1) + " KB";
+  return (b / (1024 * 1024)).toFixed(2) + " MB";
+}
+
+function pathToUrl(p) {
+  if (!p) return "";
+  return FILE_ROOT + p.split("/").map(encodeURIComponent).join("/");
+}
+
+function sideHTML(file, cat, lazy) {
+  if (!file) return '<div class="empty">— missing —</div>';
+  const url = pathToUrl(file.path);
+  const size = fmtSize(file.size) + " · " + file.ext;
+  let media = "";
+  const loadAttr = lazy ? 'loading="lazy"' : "";
+  if (cat === "image") {
+    media = `<img src="${url}" alt="" ${loadAttr}>`;
+  } else if (cat === "audio") {
+    const preload = lazy ? "none" : "metadata";
+    media = `<audio controls preload="${preload}" src="${url}"></audio>`;
+  } else if (cat === "video") {
+    const preload = lazy ? "none" : "metadata";
+    media = `<video controls preload="${preload}" src="${url}"></video>`;
+  }
+  return `
+    <div class="path">${file.path}</div>
+    <div class="size">${size}</div>
+    ${media}
+  `;
+}
+
+function renderApps() {
+  els.apps.innerHTML = MANIFEST.apps.map(a => {
+    const s = a.stats;
+    return `<div class="app-row" data-app="${a.id}">
+      <span class="id">${a.id}</span>
+      <span class="label">${a.label}</span>
+      <span class="badge">${s.total}</span>
+    </div>`;
+  }).join("");
+  els.apps.querySelectorAll(".app-row").forEach(row => {
+    row.addEventListener("click", () => selectApp(row.dataset.app));
+  });
+}
+
+function selectApp(id) {
+  CUR_APP_ID = id;
+  els.apps.querySelectorAll(".app-row").forEach(r => {
+    r.classList.toggle("sel", r.dataset.app === id);
+  });
+  renderPairs();
+}
+
+function renderPairs() {
+  const app = MANIFEST.apps.find(a => a.id === CUR_APP_ID);
+  if (!app) {
+    els.pairs.innerHTML = '<div class="empty-state">Pick an app from the sidebar.</div>';
+    els.stats.textContent = "";
+    return;
+  }
+  const catF = els.cat.value;
+  const statF = els.status.value;
+  const q = els.search.value.trim().toLowerCase();
+  const lazy = els.lazy.checked;
+
+  let shown = 0;
+  const html = [];
+  for (const p of app.pairs) {
+    if (catF && p.cat !== catF) continue;
+    const matched = p.orig && p.ported;
+    const sizeDiff = matched && p.orig.size !== p.ported.size;
+    if (statF === "matched" && !matched) continue;
+    if (statF === "orig_only" && !(p.orig && !p.ported)) continue;
+    if (statF === "ported_only" && !(p.ported && !p.orig)) continue;
+    if (statF === "size_diff" && !sizeDiff) continue;
+    if (q && !p.name.includes(q)) continue;
+
+    let cls = "ok", icon = "✓";
+    if (!p.orig)   { cls = "miss"; icon = "✗"; }
+    else if (!p.ported) { cls = "miss"; icon = "✗"; }
+    else if (sizeDiff) { cls = "warn"; icon = "≈"; }
+
+    const pairCls = "pair " + (
+      !p.orig   ? "miss-orig" :
+      !p.ported ? "miss-ported" :
+      "ok"
+    );
+
+    html.push(`
+      <div class="${pairCls}">
+        <div class="status ${cls}">${icon}</div>
+        <div class="body">
+          <div class="head">
+            <span class="name">${p.name}</span>
+            <span class="cat">${p.cat}</span>
+            ${p.orig ? `<span class="ext-tag">orig${p.orig.ext}</span>` : ""}
+            ${p.ported ? `<span class="ext-tag">port${p.ported.ext}</span>` : ""}
+          </div>
+          <div class="side">
+            <h4>Original</h4>
+            ${sideHTML(p.orig, p.cat, lazy)}
+          </div>
+          <div class="side">
+            <h4>Ported</h4>
+            ${sideHTML(p.ported, p.cat, lazy)}
+          </div>
+        </div>
+      </div>
+    `);
+    shown++;
+  }
+  els.pairs.innerHTML = html.length ? html.join("") :
+    '<div class="empty-state">No pairs match the current filters.</div>';
+  const s = app.stats;
+  els.stats.textContent = `${shown} / ${s.total} shown   ·   ` +
+    `${s.matched} matched, ${s.orig_only} orig-only, ${s.ported_only} ported-only`;
+}
+
+els.cat.addEventListener("change", renderPairs);
+els.status.addEventListener("change", renderPairs);
+els.search.addEventListener("input", renderPairs);
+els.lazy.addEventListener("change", renderPairs);
+
+fetch("manifest.json")
+  .then(r => {
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return r.json();
+  })
+  .then(m => {
+    MANIFEST = m;
+    renderApps();
+    if (m.apps.length) selectApp(m.apps[0].id);
+  })
+  .catch(err => {
+    els.pairs.innerHTML =
+      '<div class="empty-state">' +
+      'Could not load <code>manifest.json</code> — run ' +
+      '<code>python3 tools/asset_diff/build_manifest.py</code> from the repo ' +
+      'root, then serve via <code>python3 -m http.server</code> (browsers block ' +
+      'file:// cross-directory loads).<br><br>Error: ' + err.message +
+      '</div>';
+  });
+</script>
+</body>
+</html>
