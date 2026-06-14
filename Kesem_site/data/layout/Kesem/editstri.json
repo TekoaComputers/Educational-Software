@@ -1,0 +1,78 @@
+{
+  "type": "VB.Form",
+  "name": "EditString",
+  "props": {
+    "BackColor": 12632256,
+    "BorderStyle": 3,
+    "Caption": "Edit String",
+    "ClientHeight": 1488,
+    "ClientLeft": 1992,
+    "ClientTop": 3132,
+    "ClientWidth": 6504,
+    "ScaleHeight": 1488,
+    "ScaleWidth": 6504
+  },
+  "children": [
+    {
+      "type": "VB.CommandButton",
+      "name": "Command1",
+      "props": {
+        "Caption": "no",
+        "Height": 495,
+        "Index": 1,
+        "Left": 3120,
+        "Top": 840,
+        "Width": 855
+      },
+      "children": [],
+      "px": {
+        "x": 208.2,
+        "y": 55.9,
+        "w": 57.1,
+        "h": 32.9
+      }
+    },
+    {
+      "type": "VB.CommandButton",
+      "name": "Command1",
+      "props": {
+        "Caption": "ok",
+        "Height": 495,
+        "Index": 0,
+        "Left": 1680,
+        "Top": 840,
+        "Width": 855
+      },
+      "children": [],
+      "px": {
+        "x": 112.1,
+        "y": 55.9,
+        "w": 57.1,
+        "h": 32.9
+      }
+    },
+    {
+      "type": "VB.TextBox",
+      "name": "Text1",
+      "props": {
+        "Height": 525,
+        "Left": 60,
+        "Top": 150,
+        "Width": 6375
+      },
+      "children": [],
+      "px": {
+        "x": 4.0,
+        "y": 10.0,
+        "w": 425.4,
+        "h": 34.9
+      }
+    }
+  ],
+  "design": {
+    "width": 434,
+    "height": 99,
+    "client_w_twips": 6504,
+    "client_h_twips": 1488
+  }
+}

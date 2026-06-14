@@ -1,0 +1,211 @@
+{
+  "type": "VB.Form",
+  "name": "EditTXT",
+  "props": {
+    "BorderStyle": 3,
+    "Caption": "Edit text entry",
+    "ClientHeight": 3924,
+    "ClientLeft": 1668,
+    "ClientTop": 1896,
+    "ClientWidth": 7164,
+    "ScaleHeight": 3924,
+    "ScaleWidth": 7164
+  },
+  "children": [
+    {
+      "type": "VB.CommandButton",
+      "name": "Command3D1",
+      "props": {
+        "Caption": "no",
+        "Height": 975,
+        "Index": 1,
+        "Left": 3120,
+        "Top": 2640,
+        "Width": 1455
+      },
+      "children": [],
+      "px": {
+        "x": 208.2,
+        "y": 176.3,
+        "w": 97.1,
+        "h": 65.1
+      }
+    },
+    {
+      "type": "VB.CommandButton",
+      "name": "GroupPush3D3",
+      "props": {
+        "Caption": "U",
+        "Height": 375,
+        "Index": 2,
+        "Left": 6120,
+        "Top": 600,
+        "Width": 375
+      },
+      "children": [],
+      "px": {
+        "x": 408.3,
+        "y": 40.1,
+        "w": 25.0,
+        "h": 25.0
+      }
+    },
+    {
+      "type": "VB.CommandButton",
+      "name": "GroupPush3D3",
+      "props": {
+        "Caption": "B",
+        "Height": 375,
+        "Index": 1,
+        "Left": 5760,
+        "Top": 600,
+        "Width": 375
+      },
+      "children": [],
+      "px": {
+        "x": 384.3,
+        "y": 40.1,
+        "w": 25.0,
+        "h": 25.0
+      }
+    },
+    {
+      "type": "VB.CommandButton",
+      "name": "GroupPush3D3",
+      "props": {
+        "Caption": "I",
+        "Height": 375,
+        "Index": 0,
+        "Left": 5400,
+        "Top": 600,
+        "Width": 375
+      },
+      "children": [],
+      "px": {
+        "x": 360.3,
+        "y": 40.1,
+        "w": 25.0,
+        "h": 25.0
+      }
+    },
+    {
+      "type": "VB.TextBox",
+      "name": "Text1",
+      "props": {
+        "Height": 855,
+        "Left": 120,
+        "Top": 1200,
+        "Width": 6675
+      },
+      "children": [],
+      "px": {
+        "x": 8.0,
+        "y": 80.1,
+        "w": 445.4,
+        "h": 57.1
+      }
+    },
+    {
+      "type": "VB.ComboBox",
+      "name": "FntSize",
+      "props": {
+        "BackColor": 12632256,
+        "Height": 315,
+        "Left": 3720,
+        "Top": 600,
+        "Width": 1305
+      },
+      "children": [],
+      "px": {
+        "x": 248.2,
+        "y": 40.1,
+        "w": 87.1,
+        "h": 21.0
+      }
+    },
+    {
+      "type": "VB.ComboBox",
+      "name": "FntName",
+      "props": {
+        "BackColor": 12632256,
+        "ForeColor": 0,
+        "Height": 315,
+        "Left": 1080,
+        "Top": 600,
+        "Width": 2145
+      },
+      "children": [],
+      "px": {
+        "x": 72.1,
+        "y": 40.1,
+        "w": 143.1,
+        "h": 21.0
+      }
+    },
+    {
+      "type": "VB.CommandButton",
+      "name": "Command3D1",
+      "props": {
+        "Caption": "ok",
+        "Height": 975,
+        "Index": 0,
+        "Left": 1320,
+        "Top": 2640,
+        "Width": 1455
+      },
+      "children": [],
+      "px": {
+        "x": 88.1,
+        "y": 176.3,
+        "w": 97.1,
+        "h": 65.1
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Label1",
+      "props": {
+        "AutoSize": -1,
+        "Caption": "Font Name",
+        "Height": 210,
+        "Index": 0,
+        "Left": 1680,
+        "Top": 240,
+        "Width": 960
+      },
+      "children": [],
+      "px": {
+        "x": 112.1,
+        "y": 16.0,
+        "w": 64.1,
+        "h": 14.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Label1",
+      "props": {
+        "AutoSize": -1,
+        "Caption": "Font Size",
+        "Height": 210,
+        "Index": 1,
+        "Left": 3870,
+        "Top": 240,
+        "Width": 1320
+      },
+      "children": [],
+      "px": {
+        "x": 258.2,
+        "y": 16.0,
+        "w": 88.1,
+        "h": 14.0
+      }
+    }
+  ],
+  "design": {
+    "width": 478,
+    "height": 262,
+    "client_w_twips": 7164,
+    "client_h_twips": 3924
+  }
+}

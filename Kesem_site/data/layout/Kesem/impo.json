@@ -1,0 +1,510 @@
+{
+  "type": "VB.Form",
+  "name": "impo",
+  "props": {
+    "Caption": "יבוא",
+    "ClientHeight": 7200,
+    "ClientLeft": 60,
+    "ClientTop": 348,
+    "ClientWidth": 10560,
+    "ScaleHeight": 600,
+    "ScaleMode": 3,
+    "ScaleWidth": 880
+  },
+  "children": [
+    {
+      "type": "VB.CommandButton",
+      "name": "Command1",
+      "props": {
+        "BackColor": 16761024,
+        "Caption": "שמור",
+        "Height": 315,
+        "Left": 3900,
+        "Top": 3675,
+        "Visible": 0,
+        "Width": 840
+      },
+      "children": [],
+      "px": {
+        "x": 325.0,
+        "y": 306.2,
+        "w": 70.0,
+        "h": 26.2
+      }
+    },
+    {
+      "type": "VB.ListBox",
+      "name": "bra",
+      "props": {
+        "BackColor": 16692415,
+        "ForeColor": 4194304,
+        "Height": 1968,
+        "Left": 1875,
+        "Top": 1650,
+        "Visible": 0,
+        "Width": 5145
+      },
+      "children": [],
+      "px": {
+        "x": 156.2,
+        "y": 137.5,
+        "w": 428.8,
+        "h": 164.0
+      }
+    },
+    {
+      "type": "VB.CommandButton",
+      "name": "Command3",
+      "props": {
+        "Caption": "מחק תמונה",
+        "Height": 315,
+        "Left": 9075,
+        "Top": 3975,
+        "Visible": 0,
+        "Width": 1215
+      },
+      "children": [],
+      "px": {
+        "x": 756.2,
+        "y": 331.2,
+        "w": 101.2,
+        "h": 26.2
+      }
+    },
+    {
+      "type": "VB.ListBox",
+      "name": "olis2",
+      "props": {
+        "BackColor": 16692415,
+        "ForeColor": 4194304,
+        "Height": 3120,
+        "Index": 1,
+        "Left": 8475,
+        "Top": 750,
+        "Visible": 0,
+        "Width": 2220
+      },
+      "children": [],
+      "px": {
+        "x": 706.2,
+        "y": 62.5,
+        "w": 185.0,
+        "h": 260.0
+      }
+    },
+    {
+      "type": "MSComDlg.CommonDialog",
+      "name": "CommonDialog1",
+      "props": {
+        "Left": 7200,
+        "Top": 825
+      },
+      "children": []
+    },
+    {
+      "type": "VB.CommandButton",
+      "name": "yba",
+      "props": {
+        "BackColor": 16761024,
+        "Caption": " פתח קובץ יבוא",
+        "Height": 1140,
+        "Left": 3375,
+        "Top": 375,
+        "Width": 2115
+      },
+      "children": [],
+      "px": {
+        "x": 281.2,
+        "y": 31.2,
+        "w": 176.2,
+        "h": 95.0
+      }
+    },
+    {
+      "type": "VB.ListBox",
+      "name": "olis2",
+      "props": {
+        "BackColor": 16692415,
+        "ForeColor": 4194304,
+        "Height": 3120,
+        "Index": 0,
+        "Left": 10650,
+        "Top": 750,
+        "Visible": 0,
+        "Width": 1920
+      },
+      "children": [],
+      "px": {
+        "x": 887.5,
+        "y": 62.5,
+        "w": 160.0,
+        "h": 260.0
+      }
+    },
+    {
+      "type": "VB.ListBox",
+      "name": "olis",
+      "props": {
+        "BackColor": 16692415,
+        "ForeColor": 4194304,
+        "Height": 3120,
+        "Index": 0,
+        "Left": 8400,
+        "Top": 5625,
+        "Visible": 0,
+        "Width": 1995
+      },
+      "children": [],
+      "px": {
+        "x": 700.0,
+        "y": 468.8,
+        "w": 166.2,
+        "h": 260.0
+      }
+    },
+    {
+      "type": "VB.ListBox",
+      "name": "olis",
+      "props": {
+        "BackColor": 16692415,
+        "ForeColor": 4194304,
+        "Height": 3120,
+        "Index": 1,
+        "Left": 10350,
+        "Top": 5625,
+        "Visible": 0,
+        "Width": 2295
+      },
+      "children": [],
+      "px": {
+        "x": 862.5,
+        "y": 468.8,
+        "w": 191.2,
+        "h": 260.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Label5",
+      "props": {
+        "ForeColor": 16777215,
+        "Height": 690,
+        "Left": 0,
+        "MouseIcon": "impo.frx",
+        "Top": 0,
+        "Width": 765
+      },
+      "children": [],
+      "px": {
+        "x": 0.0,
+        "y": 0.0,
+        "w": 63.8,
+        "h": 57.5
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Label2",
+      "props": {
+        "Caption": "\"report\"",
+        "Height": 315,
+        "Index": 7,
+        "Left": 3900,
+        "Top": 6525,
+        "Visible": 0,
+        "Width": 915
+      },
+      "children": [],
+      "px": {
+        "x": 325.0,
+        "y": 543.8,
+        "w": 76.2,
+        "h": 26.2
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Label2",
+      "props": {
+        "Caption": "לשמירת הדוח יש ללחות על הכפתור שיופיע מתחת לדוח והדוח ישמר כקובץ טקסט בשם",
+        "Height": 615,
+        "Index": 6,
+        "Left": 1350,
+        "Top": 6300,
+        "Visible": 0,
+        "Width": 5790
+      },
+      "children": [],
+      "px": {
+        "x": 112.5,
+        "y": 525.0,
+        "w": 482.5,
+        "h": 51.2
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Label2",
+      "props": {
+        "Caption": " כעת כל מה שנותר הוא ללחוץ על הכפתור פתיחה ובסיום הפעולה תיפתח הודעה שתמסור את השינויים שחלו במספור התמונות",
+        "Height": 615,
+        "Index": 5,
+        "Left": 1275,
+        "Top": 5700,
+        "Visible": 0,
+        "Width": 5790
+      },
+      "children": [],
+      "px": {
+        "x": 106.2,
+        "y": 475.0,
+        "w": 482.5,
+        "h": 51.2
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Label2",
+      "props": {
+        "Caption": "trans",
+        "Height": 315,
+        "Index": 4,
+        "Left": 2025,
+        "Top": 5325,
+        "Visible": 0,
+        "Width": 615
+      },
+      "children": [],
+      "px": {
+        "x": 168.8,
+        "y": 443.8,
+        "w": 51.2,
+        "h": 26.2
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Label2",
+      "props": {
+        "Caption": "\"LLimoprt.lli\"",
+        "Height": 315,
+        "Index": 3,
+        "Left": 1275,
+        "Top": 5100,
+        "Visible": 0,
+        "Width": 1590
+      },
+      "children": [],
+      "px": {
+        "x": 106.2,
+        "y": 425.0,
+        "w": 132.5,
+        "h": 26.2
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Label2",
+      "props": {
+        "Caption": " שלב ב בתיבת הדו שיח לחפש את קובץ היבוא בתיקייה המבוקשת הקובץ כרגיל נמצא בתיקייה",
+        "Height": 615,
+        "Index": 2,
+        "Left": 2850,
+        "Top": 5100,
+        "Visible": 0,
+        "Width": 4215
+      },
+      "children": [],
+      "px": {
+        "x": 237.5,
+        "y": 425.0,
+        "w": 351.2,
+        "h": 51.2
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Label2",
+      "props": {
+        "Caption": "שלב א   ללחוץ על הכפתור \"פתח קובץ יבוא\"  כעת תיפתח תיבת דו שיח של קבצים",
+        "Height": 540,
+        "Index": 1,
+        "Left": 1800,
+        "Top": 4500,
+        "Visible": 0,
+        "Width": 5265
+      },
+      "children": [],
+      "px": {
+        "x": 150.0,
+        "y": 375.0,
+        "w": 438.8,
+        "h": 45.0
+      }
+    },
+    {
+      "type": "VB.Shape",
+      "name": "Shape1",
+      "props": {
+        "Height": 2565,
+        "Left": 1200,
+        "Top": 4350,
+        "Visible": 0,
+        "Width": 6000
+      },
+      "children": [],
+      "px": {
+        "x": 100.0,
+        "y": 362.5,
+        "w": 500.0,
+        "h": 213.8
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Label1",
+      "props": {
+        "Caption": "שם  הגזירה",
+        "Height": 240,
+        "Index": 3,
+        "Left": 11250,
+        "Top": 450,
+        "Visible": 0,
+        "Width": 1065
+      },
+      "children": [],
+      "px": {
+        "x": 937.5,
+        "y": 37.5,
+        "w": 88.8,
+        "h": 20.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Label1",
+      "props": {
+        "Caption": "שם  הגזירה",
+        "Height": 240,
+        "Index": 2,
+        "Left": 8850,
+        "Top": 5325,
+        "Visible": 0,
+        "Width": 1065
+      },
+      "children": [],
+      "px": {
+        "x": 737.5,
+        "y": 443.8,
+        "w": 88.8,
+        "h": 20.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Label1",
+      "props": {
+        "Caption": "שם התמונה",
+        "Height": 240,
+        "Index": 1,
+        "Left": 9150,
+        "Top": 450,
+        "Visible": 0,
+        "Width": 1065
+      },
+      "children": [],
+      "px": {
+        "x": 762.5,
+        "y": 37.5,
+        "w": 88.8,
+        "h": 20.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Label4",
+      "props": {
+        "Caption": "רשימת גזירות קיימות",
+        "Height": 315,
+        "Left": 9600,
+        "Top": 0,
+        "Visible": 0,
+        "Width": 1740
+      },
+      "children": [],
+      "px": {
+        "x": 800.0,
+        "y": 0.0,
+        "w": 145.0,
+        "h": 26.2
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Label3",
+      "props": {
+        "Caption": "רשימת גזירות הייבוא",
+        "Height": 315,
+        "Left": 9675,
+        "Top": 4875,
+        "Visible": 0,
+        "Width": 1740
+      },
+      "children": [],
+      "px": {
+        "x": 806.2,
+        "y": 406.2,
+        "w": 145.0,
+        "h": 26.2
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Label1",
+      "props": {
+        "Caption": "שם התמונה",
+        "Height": 240,
+        "Index": 0,
+        "Left": 11025,
+        "Top": 5325,
+        "Visible": 0,
+        "Width": 1065
+      },
+      "children": [],
+      "px": {
+        "x": 918.8,
+        "y": 443.8,
+        "w": 88.8,
+        "h": 20.0
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "Label2",
+      "props": {
+        "BackColor": 16699351,
+        "BorderStyle": 1,
+        "Caption": "הוראות יבוא",
+        "ForeColor": 4194304,
+        "Height": 315,
+        "Index": 0,
+        "Left": 3600,
+        "Top": 4050,
+        "Width": 1440
+      },
+      "children": [],
+      "px": {
+        "x": 300.0,
+        "y": 337.5,
+        "w": 120.0,
+        "h": 26.2
+      }
+    }
+  ],
+  "design": {
+    "width": 880,
+    "height": 600,
+    "client_w_twips": 10560,
+    "client_h_twips": 7200
+  }
+}

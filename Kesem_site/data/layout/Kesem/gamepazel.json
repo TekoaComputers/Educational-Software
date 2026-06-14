@@ -1,0 +1,306 @@
+{
+  "type": "VB.Form",
+  "name": "GamePazel",
+  "props": {
+    "BackColor": 12632256,
+    "BorderStyle": 0,
+    "Caption": "Form1",
+    "ClientHeight": 7200,
+    "ClientLeft": 0,
+    "ClientTop": 0,
+    "ClientWidth": 9612,
+    "ScaleHeight": 600,
+    "ScaleMode": 3,
+    "ScaleWidth": 801
+  },
+  "children": [
+    {
+      "type": "VB.Timer",
+      "name": "Sof",
+      "props": {
+        "Left": 4200,
+        "Top": 3360
+      },
+      "children": []
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "NextGame",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 840,
+        "Left": 0,
+        "ScaleHeight": 840,
+        "ScaleWidth": 972,
+        "Top": 5880,
+        "Width": 975
+      },
+      "children": [],
+      "px": {
+        "x": 0.0,
+        "y": 490.0,
+        "w": 81.2,
+        "h": 70.0
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "CmdSel",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 12648384,
+        "BorderStyle": 0,
+        "Height": 615,
+        "Index": 2,
+        "Left": 1800,
+        "ScaleHeight": 51,
+        "ScaleMode": 3,
+        "ScaleWidth": 61,
+        "Top": 5640,
+        "Width": 735
+      },
+      "children": [],
+      "px": {
+        "x": 150.0,
+        "y": 470.0,
+        "w": 61.2,
+        "h": 51.2
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "CmdSel",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 12648384,
+        "BorderStyle": 0,
+        "Height": 615,
+        "Index": 0,
+        "Left": 1800,
+        "ScaleHeight": 51,
+        "ScaleMode": 3,
+        "ScaleWidth": 61,
+        "Top": 6360,
+        "Width": 735
+      },
+      "children": [],
+      "px": {
+        "x": 150.0,
+        "y": 530.0,
+        "w": 61.2,
+        "h": 51.2
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "CmdExit",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 315,
+        "Left": 9210,
+        "ScaleHeight": 312,
+        "ScaleWidth": 312,
+        "Top": 0,
+        "Width": 315
+      },
+      "children": [],
+      "px": {
+        "x": 767.5,
+        "y": 0.0,
+        "w": 26.2,
+        "h": 26.2
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "picexi",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 2147483653,
+        "BorderStyle": 0,
+        "ForeColor": 2147483656,
+        "Height": 765,
+        "Left": 90,
+        "ScaleHeight": 768,
+        "ScaleWidth": 840,
+        "Top": 150,
+        "Width": 840
+      },
+      "children": [],
+      "px": {
+        "x": 7.5,
+        "y": 12.5,
+        "w": 70.0,
+        "h": 63.8
+      }
+    },
+    {
+      "type": "VB.PictureBox",
+      "name": "PicPaz",
+      "props": {
+        "AutoSize": -1,
+        "BackColor": 16777215,
+        "BorderStyle": 0,
+        "ForeColor": 0,
+        "Height": 5085,
+        "Left": 1275,
+        "ScaleHeight": 424,
+        "ScaleMode": 3,
+        "ScaleWidth": 675,
+        "Top": 300,
+        "Width": 8100
+      },
+      "children": [
+        {
+          "type": "VB.PictureBox",
+          "name": "Picture3",
+          "props": {
+            "AutoSize": -1,
+            "BackColor": 2147483653,
+            "ForeColor": 2147483656,
+            "Height": 0,
+            "Left": 5700,
+            "ScaleHeight": 0,
+            "ScaleMode": 3,
+            "ScaleWidth": 0,
+            "Top": 1725,
+            "Width": 15
+          },
+          "children": [],
+          "px": {
+            "x": 475.0,
+            "y": 143.8,
+            "w": 1.2,
+            "h": 0.0
+          }
+        }
+      ],
+      "px": {
+        "x": 106.2,
+        "y": 25.0,
+        "w": 675.0,
+        "h": 423.8
+      }
+    },
+    {
+      "type": "MCI.MMControl",
+      "name": "Zad",
+      "props": {
+        "Height": 435,
+        "Left": 5280,
+        "Top": 6960,
+        "Visible": 0,
+        "Width": 420
+      },
+      "children": [],
+      "px": {
+        "x": 440.0,
+        "y": 580.0,
+        "w": 35.0,
+        "h": 36.2
+      }
+    },
+    {
+      "type": "VB.Shape",
+      "name": "Shape1",
+      "props": {
+        "BackColor": 15492177,
+        "Height": 1455,
+        "Left": 2880,
+        "Top": 5640,
+        "Width": 1500
+      },
+      "children": [],
+      "px": {
+        "x": 240.0,
+        "y": 470.0,
+        "w": 125.0,
+        "h": 121.2
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "ShowParts",
+      "props": {
+        "Height": 1305,
+        "Index": 0,
+        "Left": 3000,
+        "Top": 5760,
+        "Width": 1305
+      },
+      "children": [],
+      "px": {
+        "x": 250.0,
+        "y": 480.0,
+        "w": 108.8,
+        "h": 108.8
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "ShowParts",
+      "props": {
+        "Height": 1305,
+        "Index": 3,
+        "Left": 7680,
+        "Top": 5760,
+        "Width": 1305
+      },
+      "children": [],
+      "px": {
+        "x": 640.0,
+        "y": 480.0,
+        "w": 108.8,
+        "h": 108.8
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "ShowParts",
+      "props": {
+        "Height": 1305,
+        "Index": 2,
+        "Left": 6120,
+        "Top": 5760,
+        "Width": 1305
+      },
+      "children": [],
+      "px": {
+        "x": 510.0,
+        "y": 480.0,
+        "w": 108.8,
+        "h": 108.8
+      }
+    },
+    {
+      "type": "VB.Label",
+      "name": "ShowParts",
+      "props": {
+        "Height": 1305,
+        "Index": 1,
+        "Left": 4560,
+        "Top": 5760,
+        "Width": 1305
+      },
+      "children": [],
+      "px": {
+        "x": 380.0,
+        "y": 480.0,
+        "w": 108.8,
+        "h": 108.8
+      }
+    }
+  ],
+  "design": {
+    "width": 801,
+    "height": 600,
+    "client_w_twips": 9612,
+    "client_h_twips": 7200
+  }
+}
