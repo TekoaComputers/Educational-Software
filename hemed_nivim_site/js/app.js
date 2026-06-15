@@ -1191,6 +1191,11 @@
         const fn = starters[gameId];
         if (fn) fn(gameRoot, app, unit);
         else gameRoot.innerHTML = '<div class="error">משחק לא ידוע</div>';
+        // ---- progress tracking: opening a game counts as visited ----
+        if (window.Tekoa && window.Tekoa.Progress && fn) {
+            window.Tekoa.Progress.markVisited(appId, unit.id + "/" + gameId);
+            if (HND.publishProgressTotal) HND.publishProgressTotal(appId);
+        }
 
         // F-keys per the original Form_KeyUp handlers (every game.frm has
         // these): Esc exits to the GameMenu, F1 toggles a help overlay.

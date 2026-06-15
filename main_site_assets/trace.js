@@ -133,7 +133,10 @@
     if (location.hash) SCREEN = screenFromHash();
 
     // ---------- Public API ----------
-    window.Tekoa = {
+    // Merge into any existing window.Tekoa namespace (progress.js puts
+    // Tekoa.Progress there; a blanket assignment would wipe it).
+    window.Tekoa = window.Tekoa || {};
+    Object.assign(window.Tekoa, {
         setApp:    function (name) { APP = name || "app"; log("boot", "app=" + APP); },
         setScreen: function (name) {
             SCREEN = name || "?";
@@ -147,5 +150,5 @@
         // the DOM to the nearest clickable). Avoids double-logging.
         disableAutoClick: function () { _autoClickEnabled = false; },
         elLabel:   elLabel,
-    };
+    });
 })();

@@ -61,6 +61,34 @@ const Users = (() => {
     data[user].scores[key] = Math.max(data[user].scores[key] ?? 0, score);
     data[user].scores[unitId] = Math.max(data[user].scores[unitId] ?? 0, score);
     save(data);
+    // ---- bridge to Tekoa.Progress ----
+    pushToTekoa(user);
+  }
+
+  // Push the current user's scores into the cross-app Tekoa.Progress
+  // store so the root catalog battery + progress.html see Tirgolit too.
+  // Best-effort: silent if the helper isn't loaded.
+  function pushToTekoa(user) {
+    const P = window.Tekoa && window.Tekoa.Progress;
+    if (!P || !user) return;
+    const data = load();
+    const scores = (data[user] && data[user].scores) || {};
+    let visited = 0;
+    for (const k in scores) {
+      // Only count slot-level scores (unit_sN). Unit aggregates would
+      // double-count.
+      if (!/_s\d+$/.test(k)) continue;
+      if ((scores[k] || 0) > 0) {
+        visited++;
+        P.setScore("Tirgolit", k, scores[k]);
+      }
+    }
+    // Total is unknown until the game data is loaded. Best effort: use
+    // the count of distinct units × 7 slots. window.UNITS / window.data
+    // varies by page; if either is present, use it.
+    const units = (window.UNITS && window.UNITS.length)
+        || (window.DATA && window.DATA.length) || 0;
+    if (units > 0) P.setTotal("Tirgolit", units * 7);
   }
 
   function getAverageScore(user) {

@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>תקוע מחשבים — התקדמות</title>
+    <link rel="icon" href="data:,">
+    <style>
+        :root {
+            --bg:        #0f1117;
+            --panel:     #1a1d27;
+            --text:      #e6e6e6;
+            --muted:     #8a8f9a;
+            --accent:    #4a90e2;
+            --good:      #5cb85c;
+            --warn:      #f0ad4e;
+            --bad:       #d9534f;
+            --row:       #232733;
+            --row-hi:    #2a2f3d;
+        }
+        html, body {
+            margin: 0; padding: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Heebo', 'Segoe UI', sans-serif;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 24px;
+            background: var(--panel);
+            border-bottom: 1px solid #2a2f3d;
+        }
+        header h1 { margin: 0; font-size: 18px; font-weight: 600; }
+        header h1 a { color: var(--text); }
+        .auth-row { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+        .auth-row button {
+            background: var(--accent); color: #fff;
+            border: 0; padding: 7px 14px; border-radius: 6px;
+            font-size: 13px; cursor: pointer;
+        }
+        .auth-row button:disabled { opacity: 0.4; cursor: not-allowed; }
+        .auth-row .signed-out { color: var(--muted); }
+        main {
+            max-width: 960px; margin: 0 auto; padding: 22px;
+        }
+        h2 { font-size: 22px; margin: 0 0 6px 0; }
+        .sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+        .bar-wrap {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 24px;
+        }
+        .bar {
+            flex: 1; height: 14px;
+            background: #2a2f3d; border-radius: 7px; overflow: hidden;
+        }
+        .bar-fill { height: 100%; background: var(--good); transition: width 0.4s ease; }
+        .bar-pct { font-weight: 600; min-width: 48px; text-align: left; }
+        table {
+            width: 100%; border-collapse: collapse;
+            background: var(--panel); border-radius: 8px; overflow: hidden;
+        }
+        thead th {
+            text-align: right; font-weight: 600; font-size: 13px;
+            padding: 10px 14px; background: #1f2330;
+            border-bottom: 1px solid #2a2f3d;
+            color: var(--muted);
+        }
+        tbody td { padding: 10px 14px; border-bottom: 1px solid #20232e; font-size: 14px; }
+        tbody tr:nth-child(even) { background: var(--row-hi); }
+        tbody tr.unvisited td { color: var(--muted); }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+        .b-good { background: rgba(92,184,92,0.18); color: var(--good); }
+        .b-warn { background: rgba(240,173,78,0.18); color: var(--warn); }
+        .b-bad  { background: rgba(217,83,79,0.18); color: var(--bad); }
+        .b-none { background: #2a2f3d; color: var(--muted); }
+        .score-cell { display: inline-flex; gap: 6px; }
+        .empty {
+            text-align: center; padding: 40px 20px;
+            color: var(--muted); font-size: 14px;
+        }
+        .actions {
+            display: flex; justify-content: flex-end;
+            margin-top: 16px;
+        }
+        .actions button {
+            background: transparent; color: var(--muted);
+            border: 1px solid #2a2f3d;
+            padding: 6px 12px; border-radius: 6px;
+            font-size: 12px; cursor: pointer;
+        }
+        .actions button:hover { color: var(--bad); border-color: var(--bad); }
+        .grid-summary {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 14px;
+        }
+        .summary-card {
+            background: var(--panel); padding: 14px;
+            border-radius: 8px; cursor: pointer;
+            transition: transform 0.15s ease;
+            text-decoration: none; color: var(--text);
+            display: block;
+        }
+        .summary-card:hover { transform: translateY(-2px); }
+        .summary-card .name { font-weight: 600; margin-bottom: 8px; }
+        .summary-card .bar { height: 10px; margin-bottom: 6px; }
+        .summary-card .pct { font-size: 12px; color: var(--muted); }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1><a href="index.html">← תקוע מחשבים</a></h1>
+    <div class="auth-row">
+        <span id="user-info" class="signed-out">לא מחובר</span>
+        <button id="sign-in-btn" disabled>התחבר עם גוגל</button>
+        <button id="sign-out-btn" style="display:none">התנתק</button>
+    </div>
+</header>
+
+<main id="root">
+    <p class="empty">טוען…</p>
+</main>
+
+<script src="main_site_assets/progress.js"></script>
+<script>
+(function () {
+    const APP_TITLES = {
+        Brahot: "ברכות", Hagim: "חגי ישראל", Yeled: "ילד יהודי", Dvash: "מן הפרח אל הדבש",
+        Shabat: "שבת", Heshbon: "חשבון 1+", Ivrit: "עברית", EnglishA: "English-A",
+        EnglishB: "English-B", EnglishC: "English-C", KolKoreA: "קול קורא-א",
+        KolKoreB: "קול קורא-ב", KolKoreC: "קול קורא-ג", KolKoreD: "קול קורא-ד",
+        Shirim: "שירים", "Shirim&Meshalim": "שירים ומשלים", Kesem: "קסם",
+        Hemed: "צמד חמד", Nivim: "ניבים ופתגמים", Makhela: "מקהלה", Mikraot: "מקראות",
+        Tirgolit: "תרגולית", Tirgolit2: "תרגולית 2",
+    };
+    const APP_HREFS = {
+        Brahot:   "Kesem_site/index.html#/Brahot",
+        Hagim:    "Kesem_site/index.html#/Hagim",
+        Yeled:    "Kesem_site/index.html#/Yeled",
+        Dvash:    "Kesem_site/index.html#/Dvash",
+        Shabat:   "Kesem_site/index.html#/Shabat",
+        Heshbon:  "Kesem_site/index.html#/Heshbon",
+        Ivrit:    "Kesem_site/index.html#/Ivrit",
+        EnglishA: "Kesem_site/index.html#/EnglishA",
+        EnglishB: "Kesem_site/index.html#/EnglishB",
+        EnglishC: "Kesem_site/index.html#/EnglishC",
+        KolKoreA: "Kesem_site/index.html#/KolKoreA",
+        KolKoreB: "Kesem_site/index.html#/KolKoreB",
+        KolKoreC: "Kesem_site/index.html#/KolKoreC",
+        KolKoreD: "Kesem_site/index.html#/KolKoreD",
+        Shirim:   "Kesem_site/index.html#/Shirim",
+        "Shirim&Meshalim": "Kesem_site/index.html#/Shirim&Meshalim",
+        Kesem:    "Kesem_site/index.html#/Kesem",
+        Hemed:    "hemed_nivim_site/index.html#/Hemed",
+        Nivim:    "hemed_nivim_site/index.html#/Nivim",
+        Makhela:  "makhela_site/index.html",
+        Mikraot:  "Mikraot_site/index.html",
+        Tirgolit: "Tirgolit_site/index.html",
+        Tirgolit2:"Tirgolit_site/index.html",
+    };
+
+    const params = new URLSearchParams(location.search);
+    const target = params.get("app");
+    const root = document.getElementById("root");
+    const P = window.Tekoa && window.Tekoa.Progress;
+
+    function fmtScore(score) {
+        if (!score) return '<span class="badge b-none">—</span>';
+        if (typeof score === "object" && ("g" in score || "y" in score || "r" in score)) {
+            // Kesem-style nikod: green / yellow / red marker counts.
+            const g = score.g || 0, y = score.y || 0, r = score.r || 0;
+            return `<span class="score-cell">
+                <span class="badge b-good">${g}</span>
+                <span class="badge b-warn">${y}</span>
+                <span class="badge b-bad">${r}</span>
+            </span>`;
+        }
+        if (typeof score === "object" && "correct" in score && "total" in score) {
+            const pct = score.total ? Math.round(score.correct / score.total * 100) : 0;
+            const cls = pct >= 80 ? "b-good" : pct >= 50 ? "b-warn" : "b-bad";
+            return `<span class="badge ${cls}">${score.correct}/${score.total}</span>`;
+        }
+        if (typeof score === "number") {
+            return `<span class="badge b-good">${score}</span>`;
+        }
+        return `<span class="badge b-none">${escapeHtml(JSON.stringify(score))}</span>`;
+    }
+    function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, c =>
+            ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+
+    function renderApp(appId) {
+        const data = P.getApp(appId);
+        const pct  = P.getPercent(appId);
+        const title = APP_TITLES[appId] || appId;
+        const visited = Object.values(data.activities).filter(a => a.visited).length;
+
+        const rows = Object.keys(data.activities).sort().map(id => {
+            const a = data.activities[id];
+            const dispScore = (appId === "Makhela") ? "" : fmtScore(a.score);
+            const visitedCell = a.visited
+                ? `<span class="badge b-good">בוצע</span>`
+                : `<span class="badge b-none">לא בוצע</span>`;
+            return `<tr class="${a.visited ? '' : 'unvisited'}">
+                <td>${escapeHtml(id)}</td>
+                <td>${visitedCell}</td>
+                ${appId === "Makhela" ? "" : `<td>${dispScore}</td>`}
+            </tr>`;
+        }).join("");
+        const tableHead = appId === "Makhela"
+            ? `<tr><th>פעילות</th><th>סטטוס</th></tr>`
+            : `<tr><th>פעילות</th><th>סטטוס</th><th>ציון</th></tr>`;
+
+        root.innerHTML = `
+            <h2>${escapeHtml(title)}</h2>
+            <div class="sub">
+                <a href="${APP_HREFS[appId] || 'index.html'}">פתח לומדה ↗</a>
+                · ${visited} מתוך ${data.total || "?"} פעילויות
+            </div>
+            <div class="bar-wrap">
+                <div class="bar"><div class="bar-fill" style="width:${pct}%"></div></div>
+                <div class="bar-pct">${pct}%</div>
+            </div>
+            ${rows ? `<table><thead>${tableHead}</thead><tbody>${rows}</tbody></table>`
+                   : `<p class="empty">עדיין אין פעילויות שהתחילת. פתח את הלומדה כדי שההתקדמות תתחיל להירשם.</p>`}
+            <div class="actions">
+                <button onclick="if(confirm('למחוק את ההתקדמות של ${escapeHtml(title)}?')){Tekoa.Progress.reset('${appId}');location.reload();}">אפס נתוני לומדה</button>
+            </div>
+        `;
+    }
+
+    function renderSummary() {
+        const all = P.getAll();
+        const apps = Object.keys(APP_TITLES);
+        const cards = apps.map(appId => {
+            const pct = P.getPercent(appId);
+            const data = all[appId] || { total: 0 };
+            const visited = data.activities ? Object.values(data.activities).filter(a => a.visited).length : 0;
+            return `<a class="summary-card" href="progress.html?app=${encodeURIComponent(appId)}">
+                <div class="name">${escapeHtml(APP_TITLES[appId])}</div>
+                <div class="bar"><div class="bar-fill" style="width:${pct}%"></div></div>
+                <div class="pct">${pct}% — ${visited}/${data.total || "?"} פעילויות</div>
+            </a>`;
+        }).join("");
+        root.innerHTML = `
+            <h2>סיכום התקדמות</h2>
+            <div class="sub">לחץ על לומדה כדי לראות פירוט פעילויות וציונים.</div>
+            <div class="grid-summary">${cards}</div>
+        `;
+    }
+
+    function render() {
+        if (target) renderApp(target);
+        else renderSummary();
+        renderAuth();
+    }
+
+    function renderAuth() {
+        const user = P.getUser();
+        const info = document.getElementById("user-info");
+        const inBtn = document.getElementById("sign-in-btn");
+        const outBtn = document.getElementById("sign-out-btn");
+        if (P.isCloudEnabled()) {
+            inBtn.disabled = false;
+            inBtn.title = "סנכרון בין מכשירים דרך Google Drive";
+        } else {
+            inBtn.disabled = true;
+            inBtn.title = "סנכרון לענן לא הוגדר (יש להגדיר Google OAuth Client ID ב-progress.js)";
+        }
+        if (user) {
+            info.textContent = "מחובר: " + (user.email || user.name || "משתמש");
+            info.classList.remove("signed-out");
+            inBtn.style.display  = "none";
+            outBtn.style.display = "";
+        } else {
+            info.textContent = "לא מחובר";
+            info.classList.add("signed-out");
+            inBtn.style.display  = "";
+            outBtn.style.display = "none";
+        }
+    }
+
+    document.getElementById("sign-in-btn").addEventListener("click", async () => {
+        try { await P.signIn(); }
+        catch (e) { alert("שגיאת התחברות: " + (e.message || e)); }
+        render();
+    });
+    document.getElementById("sign-out-btn").addEventListener("click", () => {
+        P.signOut();
+        render();
+    });
+
+    window.addEventListener("tekoa-progress-change", render);
+    render();
+})();
+</script>
+</body>
+</html>

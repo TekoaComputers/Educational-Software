@@ -176,10 +176,63 @@
             object-fit: contain;
             background: #fff;
         }
+        /* === Progress battery (populated by progress.js) ============= */
+        .progress-battery {
+            display: flex; align-items: center; gap: 5px;
+            margin-top: 6px; font-size: 0.72rem; color: #4a5d72;
+        }
+        .progress-battery.empty { opacity: 0.45; }
+        .battery-shell {
+            position: relative;
+            width: 34px; height: 13px;
+            border: 1.5px solid #4a90c2;
+            border-radius: 2px;
+            background: rgba(255,255,255,0.6);
+            box-sizing: border-box;
+        }
+        .battery-shell::after {
+            content: ""; position: absolute;
+            right: -3px; top: 3px;
+            width: 2px; height: 5px;
+            background: #4a90c2; border-radius: 0 1px 1px 0;
+        }
+        .battery-fill {
+            height: 100%; background: #5cb85c;
+            transition: width 0.3s ease;
+        }
+        .battery-fill.lo  { background: #d9534f; }
+        .battery-fill.mid { background: #f0ad4e; }
+        .battery-pct { font-weight: 600; min-width: 28px; }
+        .progress-details-link {
+            display: block;
+            margin-top: 1.2rem; text-align: center;
+            color: #4a90c2; font-size: 0.9rem; font-weight: 600;
+            text-decoration: none;
+        }
+        .progress-details-link:hover { text-decoration: underline; }
+        /* Sign-in pill in the corner. */
+        .auth-pill {
+            position: fixed; top: 12px; left: 12px; z-index: 1000;
+            background: rgba(255,255,255,0.85); border-radius: 18px;
+            padding: 6px 12px; font-size: 12px;
+            display: flex; align-items: center; gap: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+        }
+        .auth-pill button {
+            border: 0; background: #4a90c2; color: #fff;
+            border-radius: 12px; padding: 3px 10px;
+            font-size: 11px; cursor: pointer;
+        }
+        .auth-pill button:disabled { opacity: 0.4; cursor: not-allowed; }
     </style>
+    <script src="main_site_assets/progress.js"></script>
     <script src="main_site_assets/feedback.js"></script>
 </head>
 <body>
+    <div class="auth-pill" id="auth-pill">
+        <span id="auth-info">לא מחובר</span>
+        <button id="auth-btn" disabled>התחבר</button>
+    </div>
     <div class="banner-row">
         <h2>קטלוג לומדות תקוע מחשבים</h2>
         <a class="banner-link" href="https://he.wikipedia.org/wiki/%D7%AA%D7%A7%D7%95%D7%A2_%D7%9E%D7%97%D7%A9%D7%91%D7%99%D7%9D">
@@ -189,99 +242,154 @@
 
     <main>
         <div class="grid">
-            <a class="card" href="Tirgolit_site/index.html">
+            <a class="card" href="Tirgolit_site/index.html" data-app-id="Tirgolit">
                 <img class="card-icon" src="main_site_assets/Tirgolit.gif" alt="">
                 <div class="card-title">תרגולית עם תרנגול</div>
             </a>
-            <a class="card" href="https://www.old-games.org/misc/peledor/">
+            <a class="card" href="https://www.old-games.org/misc/peledor/" data-app-id="Peledor">
                 <img class="card-icon" src="main_site_assets/Peledor.gif" alt="">
                 <div class="card-title">פלא-דור</div>
             </a>
-            <a class="card" href="Kesem_site/index.html#/Brahot">
+            <a class="card" href="Kesem_site/index.html#/Brahot" data-app-id="Brahot">
                 <img class="card-icon" src="main_site_assets/Brahot.jpg" alt="">
                 <div class="card-title">ברכות</div>
             </a>
-            <a class="card" href="Kesem_site/index.html#/Hagim">
+            <a class="card" href="Kesem_site/index.html#/Hagim" data-app-id="Hagim">
                 <img class="card-icon" src="main_site_assets/Hagim.jpg" alt="">
                 <div class="card-title">חגי ישראל</div>
             </a>
-            <a class="card" href="Kesem_site/index.html#/Yeled">
+            <a class="card" href="Kesem_site/index.html#/Yeled" data-app-id="Yeled">
                 <img class="card-icon" src="main_site_assets/Yeled.jpg" alt="">
                 <div class="card-title">עולם הילד</div>
             </a>
-            <a class="card" href="Kesem_site/index.html#/Dvash">
+            <a class="card" href="Kesem_site/index.html#/Dvash" data-app-id="Dvash">
                 <img class="card-icon" src="main_site_assets/Dvash.jpg" alt="">
                 <div class="card-title">מן הפרח אל הדבש</div>
             </a>
-            <a class="card" href="Kesem_site/index.html#/Shabat">
+            <a class="card" href="Kesem_site/index.html#/Shabat" data-app-id="Shabat">
                 <img class="card-icon" src="main_site_assets/Shabat.jpg" alt="">
                 <div class="card-title">שבת</div>
             </a>
-            <a class="card" href="Kesem_site/index.html#/Heshbon">
+            <a class="card" href="Kesem_site/index.html#/Heshbon" data-app-id="Heshbon">
                 <img class="card-icon" src="main_site_assets/Heshbon.jpg" alt="">
                 <div class="card-title">ארמון החשבון</div>
             </a>
-            <a class="card" href="Kesem_site/index.html#/Ivrit">
+            <a class="card" href="Kesem_site/index.html#/Ivrit" data-app-id="Ivrit">
                 <img class="card-icon" src="main_site_assets/Ivrit.jpg" alt="">
                 <div class="card-title">עברית מבית טוב</div>
             </a>
-            <a class="card" href="Kesem_site/index.html#/EnglishA">
+            <a class="card" href="Kesem_site/index.html#/EnglishA" data-app-id="EnglishA">
                 <img class="card-icon" src="main_site_assets/EnglishA.jpg" alt="">
                 <div class="card-title">אנגלית בראשית א'</div>
             </a>
-            <a class="card" href="Kesem_site/index.html#/EnglishB">
+            <a class="card" href="Kesem_site/index.html#/EnglishB" data-app-id="EnglishB">
                 <img class="card-icon" src="main_site_assets/EnglishB.jpg" alt="">
                 <div class="card-title">אנגלית בראשית ב'</div>
             </a>
-            <a class="card" href="Kesem_site/index.html#/EnglishC">
+            <a class="card" href="Kesem_site/index.html#/EnglishC" data-app-id="EnglishC">
                 <img class="card-icon" src="main_site_assets/EnglishC.jpg" alt="">
                 <div class="card-title">אנגלית בראשית ג'</div>
             </a>
-            <a class="card" href="Kesem_site/index.html#/KolKoreA">
+            <a class="card" href="Kesem_site/index.html#/KolKoreA" data-app-id="KolKoreA">
                 <img class="card-icon" src="main_site_assets/KolKoreA.jpg" alt="">
                 <div class="card-title">קול קורא א'</div>
             </a>
-            <a class="card" href="Kesem_site/index.html#/KolKoreB">
+            <a class="card" href="Kesem_site/index.html#/KolKoreB" data-app-id="KolKoreB">
                 <img class="card-icon" src="main_site_assets/KolKoreB.jpg" alt="">
                 <div class="card-title">קול קורא ב'</div>
             </a>
-            <a class="card" href="Kesem_site/index.html#/KolKoreC">
+            <a class="card" href="Kesem_site/index.html#/KolKoreC" data-app-id="KolKoreC">
                 <img class="card-icon" src="main_site_assets/KolKoreC.jpg" alt="">
                 <div class="card-title">קול קורא ג'</div>
             </a>
-            <a class="card" href="Kesem_site/index.html#/KolKoreD">
+            <a class="card" href="Kesem_site/index.html#/KolKoreD" data-app-id="KolKoreD">
                 <img class="card-icon" src="main_site_assets/KolKoreD.jpg" alt="">
                 <div class="card-title">קול קורא ד'</div>
             </a>
-            <a class="card" href="Kesem_site/index.html#/Shirim">
+            <a class="card" href="Kesem_site/index.html#/Shirim" data-app-id="Shirim">
                 <img class="card-icon" src="main_site_assets/Shirim.jpg" alt="">
                 <div class="card-title">שירי ילדים</div>
             </a>
-            <a class="card" href="Kesem_site/index.html#/Shirim&Meshalim">
+            <a class="card" href="Kesem_site/index.html#/Shirim&Meshalim" data-app-id="Shirim&Meshalim">
                 <img class="card-icon" src="main_site_assets/Shirim&Meshalim.jpg" alt="">
                 <div class="card-title">שירים ומשלים</div>
             </a>
-            <a class="card" href="hemed_nivim_site/index.html#/Hemed">
+            <a class="card" href="hemed_nivim_site/index.html#/Hemed" data-app-id="Hemed">
                 <img class="card-icon" src="main_site_assets/Hemed.jpg" alt="">
                 <div class="card-title">צמד חמד</div>
             </a>
-            <a class="card" href="hemed_nivim_site/index.html#/Nivim">
+            <a class="card" href="hemed_nivim_site/index.html#/Nivim" data-app-id="Nivim">
                 <img class="card-icon" src="main_site_assets/Nivim.jpg" alt="">
                 <div class="card-title">ניבים ופתגמים</div>
             </a>
-            <a class="card" href="makhela_site/index.html">
+            <a class="card" href="makhela_site/index.html" data-app-id="Makhela">
                 <img class="card-icon" src="main_site_assets/Makhela.jpg" alt="">
                 <div class="card-title">מקהלה עליזה</div>
             </a>
-            <a class="card" href="Mikraot_site/index.html">
+            <a class="card" href="Mikraot_site/index.html" data-app-id="Mikraot">
                 <img class="card-icon" src="main_site_assets/Mikraot.jpg" alt="">
                 <div class="card-title">מקראות אות ועוד...</div>
             </a>
-            <a class="card" href="Kesem_site/index.html#/Kesem">
+            <a class="card" href="Kesem_site/index.html#/Kesem" data-app-id="Kesem">
                 <img class="card-icon" src="main_site_assets/Kesem.jpg" alt="">
                 <div class="card-title">חלונות קסם</div>
             </a>
         </div>
+        <a class="progress-details-link" href="progress.html">צפייה בפירוט ההתקדמות והציונים →</a>
     </main>
+    <script>
+    (function () {
+        const P = window.Tekoa && window.Tekoa.Progress;
+        if (!P) return;
+        function paintBatteries() {
+            document.querySelectorAll(".card[data-app-id]").forEach(card => {
+                const appId = card.dataset.appId;
+                if (appId === "Peledor") return;            // external link, no tracking
+                const pct = P.getPercent(appId);
+                const data = P.getApp(appId);
+                const hasData = data.total > 0;
+                let bat = card.querySelector(".progress-battery");
+                if (!bat) {
+                    bat = document.createElement("div");
+                    bat.className = "progress-battery";
+                    bat.innerHTML = '<div class="battery-shell"><div class="battery-fill"></div></div><span class="battery-pct"></span>';
+                    card.appendChild(bat);
+                }
+                bat.classList.toggle("empty", !hasData);
+                const fill = bat.querySelector(".battery-fill");
+                fill.style.width = pct + "%";
+                fill.classList.toggle("lo",  pct < 30 && hasData);
+                fill.classList.toggle("mid", pct >= 30 && pct < 70);
+                bat.querySelector(".battery-pct").textContent = hasData ? (pct + "%") : "—";
+            });
+        }
+        function paintAuth() {
+            const info = document.getElementById("auth-info");
+            const btn  = document.getElementById("auth-btn");
+            const user = P.getUser();
+            if (P.isCloudEnabled()) {
+                btn.disabled = false;
+                btn.title = "סנכרון בין מכשירים דרך Google Drive";
+            } else {
+                btn.disabled = true;
+                btn.title = "סנכרון לענן לא הוגדר";
+            }
+            if (user) {
+                info.textContent = "👤 " + (user.email || user.name || "מחובר");
+                btn.textContent = "התנתק";
+                btn.onclick = () => { P.signOut(); paintAuth(); };
+            } else {
+                info.textContent = "לא מחובר";
+                btn.textContent = "התחבר";
+                btn.onclick = async () => {
+                    try { await P.signIn(); } catch (e) { alert("שגיאת התחברות: " + (e.message || e)); }
+                    paintAuth(); paintBatteries();
+                };
+            }
+        }
+        window.addEventListener("tekoa-progress-change", () => { paintBatteries(); paintAuth(); });
+        paintBatteries(); paintAuth();
+    })();
+    </script>
 </body>
 </html>

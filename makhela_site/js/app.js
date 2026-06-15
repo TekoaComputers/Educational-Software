@@ -97,11 +97,26 @@
     // Console debug logger (mirrors HND.log() in hemed_nivim_site).
     // Format: [makhela:category] arg1 arg2 …
     MKH.log = function (category /*, ...args */) {
+        // Side-effect: piggyback on "screen" log calls to mark progress.
+        // The screen list is closed (8 routable screens) so total = 8.
+        if (category === "screen" && window.Tekoa && window.Tekoa.Progress) {
+            const screenId = arguments[1];
+            if (screenId && MKH.PROGRESS_SCREENS.indexOf(screenId) !== -1) {
+                window.Tekoa.Progress.markVisited("Makhela", screenId);
+                window.Tekoa.Progress.setTotal("Makhela", MKH.PROGRESS_SCREENS.length);
+            }
+        }
         if (!MKH.debug) return;
         const args = Array.prototype.slice.call(arguments, 1);
         console.log("%c[makhela:" + category + "]",
             "color:#8ec5ff;font-weight:bold", ...args);
     };
+    // Screens worth tracking — internal transition screens (songPlay,
+    // comingSoon) excluded; they're sub-states of songs/hub.
+    MKH.PROGRESS_SCREENS = [
+        "hub", "songs", "credit", "instrumentPicker",
+        "notesPlay", "memoryGame", "settings", "gameShow",
+    ];
     // Toggle via console: MKH.debug = false  (default on, easy to silence)
     MKH.debug = true;
 })();

@@ -100,6 +100,47 @@
         return true;
     };
 
+    // Bridge to Tekoa.Progress (catalog battery + breakdown). The
+    // Mikraot screens write to localStorage["mikraot:tozaot"] from
+    // ~10 different call sites; rather than touch each, we sync the
+    // whole tree into Tekoa.Progress on a short poll.
+    //
+    // Activity = "<song>/<masl>/<step>". Score = the coin count for
+    // that step (0..2). "done" flag → step 12 with value 1.
+    // Total = 10 songs × 3 maslulim × 13 steps = 390.
+    MK.MIKRAOT_TOTAL = SONGS * MASLS * STEPS;
+    let _lastTozaotHash = "";
+    MK.syncTekoaProgress = function () {
+        const P = window.Tekoa && window.Tekoa.Progress;
+        if (!P) return;
+        const raw = localStorage.getItem(KEY) || "{}";
+        if (raw === _lastTozaotHash) return;
+        _lastTozaotHash = raw;
+        const t = JSON.parse(raw);
+        for (let song = 1; song <= SONGS; song++) {
+            const s = t[song] || {};
+            for (let masl = 0; masl < MASLS; masl++) {
+                const m = s[masl] || {};
+                for (let step = 0; step < STEPS; step++) {
+                    const v = step === 12 ? (m.done ? 1 : 0) : (+m[step] || 0);
+                    if (v > 0) {
+                        const id = song + "/" + masl + "/" + step;
+                        P.setScore("Mikraot", id, v);
+                    }
+                }
+            }
+        }
+        P.setTotal("Mikraot", MK.MIKRAOT_TOTAL);
+    };
+    // Initial sync on load + light polling for new writes from the
+    // various screen modules (they bypass tozaot_io's save()).
+    if (document.readyState === "complete" || document.readyState === "interactive") {
+        setTimeout(MK.syncTekoaProgress, 200);
+    } else {
+        document.addEventListener("DOMContentLoaded", MK.syncTekoaProgress);
+    }
+    setInterval(MK.syncTekoaProgress, 3000);
+
     // Browser-level upload: pop a file picker and load Tozaot.Dat.
     MK.uploadTozaotDat = function () {
         const inp = document.createElement("input");

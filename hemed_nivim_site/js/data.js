@@ -1270,6 +1270,17 @@ HND.deleteNewUnit = function (appId, unitId) {
     return true;
 };
 
+// Compute total = number of (unit × game) pairs once the units load, and
+// push it to Tekoa.Progress so the catalog battery has a denominator.
+// The 7 sub-games are fixed across all hemed_nivim units.
+HND.GAME_TYPES = ["american","apple","connect","hakira","haklada","hatamaplus","match"];
+HND.publishProgressTotal = function (appId) {
+    if (!window.Tekoa || !window.Tekoa.Progress) return;
+    const units = HND._loaded[appId];
+    if (!units || !units.length) return;
+    window.Tekoa.Progress.setTotal(appId, units.length * HND.GAME_TYPES.length);
+};
+
 HND.saveProgress = function (appId, unitId, gameId, score, errorsByQ) {
     try {
         const prev = HND.loadProgress(appId, unitId, gameId) || {best: 0, plays: 0};
@@ -1293,6 +1304,13 @@ HND.saveProgress = function (appId, unitId, gameId, score, errorsByQ) {
         HND.log("progress save", appId + "/" + unitId + "/" + gameId,
                 "score=" + score, "best=" + next.best, "plays=" + next.plays,
                 "errs=" + (next.errorsByQ.length));
+        // ---- bridge to Tekoa.Progress (catalog battery + breakdown) ----
+        if (window.Tekoa && window.Tekoa.Progress) {
+            const activityId = unitId + "/" + gameId;
+            window.Tekoa.Progress.setScore(appId, activityId,
+                { correct: next.best, total: 100, plays: next.plays });
+            HND.publishProgressTotal(appId);
+        }
         return next;
     } catch (e) {
         HND.log("progress fail", String(e));

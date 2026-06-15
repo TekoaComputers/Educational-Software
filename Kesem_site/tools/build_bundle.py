@@ -278,6 +278,17 @@ function showApp(appId) {
         if (state.config.id === "KolKoreD") applyKolKoreDRamaLayout(state);
     };
     onScreenChange(currentSession, currentSession.currentScreen);
+    // ---- progress total: count all (rama × path × stage) triples ----
+    if (window.Tekoa && window.Tekoa.Progress && paths && paths.ramas) {
+        let total = 0;
+        for (const r in paths.ramas) {
+            const slots = (paths.ramas[r] && paths.ramas[r].slots) || [];
+            for (const slot of slots) {
+                if (slot && slot.stages) total += slot.stages.length;
+            }
+        }
+        if (total > 0) window.Tekoa.Progress.setTotal(appId, total);
+    }
 }
 
 // === Screen post-process =================================================
@@ -7893,6 +7904,11 @@ function initGameTurn(state, stage) {
     const n = stage.hotspots ? stage.hotspots.length : 0;
     state.maxTurn = Math.min(n, KOL_LBL_TOZAOT);
     klog("enter stage:", stageTag(state), "hotspots=" + n, "maxTurn=" + state.maxTurn);
+    // ---- progress tracking ----
+    if (window.Tekoa && window.Tekoa.Progress) {
+        const activityId = state.rama + "/" + state.currentPath + "/" + state.currentStageIdx;
+        window.Tekoa.Progress.markVisited(state.config.id, activityId);
+    }
     paintStagePicture(state, stage);
     initStageIndicators(state);
 
@@ -9546,6 +9562,13 @@ function snapStageScore(state) {
         else                  state.pathScore[slotIdx].total = entry.total;  // alls always updated
     } else {
         state.pathScore[slotIdx] = entry;
+    }
+    // ---- progress tracking: push the snapshotted score upstream ----
+    if (window.Tekoa && window.Tekoa.Progress) {
+        const activityId = state.rama + "/" + state.currentPath + "/" + state.currentStageIdx;
+        window.Tekoa.Progress.setScore(state.config.id, activityId, {
+            g: entry.green, y: entry.yellow, r: entry.red, total: entry.total,
+        });
     }
 }
 
