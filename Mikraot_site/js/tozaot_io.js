@@ -100,15 +100,12 @@
         return true;
     };
 
-    // Bridge to Tekoa.Progress (catalog battery + breakdown). The
-    // Mikraot screens write to localStorage["mikraot:tozaot"] from
-    // ~10 different call sites; rather than touch each, we sync the
-    // whole tree into Tekoa.Progress on a short poll.
-    //
-    // Activity = "<song>/<masl>/<step>". Score = the coin count for
-    // that step (0..2). "done" flag → step 12 with value 1.
-    // Total = 10 songs × 3 maslulim × 13 steps = 390.
-    MK.MIKRAOT_TOTAL = SONGS * MASLS * STEPS;
+    // Bridge to Tekoa.Progress. One Tekoa activity per (song, masl)
+    // pair — there are 10 songs × 3 maslulim = 30 "lessons". A pair
+    // is marked complete when its `done` flag (step 12) is set OR any
+    // step in it has earned a coin. Score = sum of all step coins
+    // (0..24 per pair). Total = 30.
+    MK.MIKRAOT_TOTAL = SONGS * MASLS;
     let _lastTozaotHash = "";
     MK.syncTekoaProgress = function () {
         const P = window.Tekoa && window.Tekoa.Progress;
@@ -121,12 +118,12 @@
             const s = t[song] || {};
             for (let masl = 0; masl < MASLS; masl++) {
                 const m = s[masl] || {};
-                for (let step = 0; step < STEPS; step++) {
-                    const v = step === 12 ? (m.done ? 1 : 0) : (+m[step] || 0);
-                    if (v > 0) {
-                        const id = song + "/" + masl + "/" + step;
-                        P.setScore("Mikraot", id, v);
-                    }
+                let coins = 0;
+                for (let step = 0; step < STEPS - 1; step++) coins += +m[step] || 0;
+                const done = !!m.done;
+                if (coins > 0 || done) {
+                    const id = song + "/" + masl;
+                    P.setScore("Mikraot", id, { coins, done });
                 }
             }
         }

@@ -93,10 +93,11 @@ const Users = (() => {
     return Object.keys(d.units).length;
   }
 
-  // Push the current user's scores into Tekoa.Progress, split by sub-
-  // game: t1 → "Tirgolit", t2 → "Tirgolit2". Reads the product-
-  // namespaced keys written by setSlotScore so the two never overlap.
-  // Total per product = (unit count) × 7 slots.
+  // Push the user's progress into Tekoa.Progress, one activity per UNIT
+  // (lesson). A unit counts as "completed" once at least 2 of its 7
+  // slots have non-zero scores — matches the original IntUnScore which
+  // returns 0 unless 2+ slots have been played. Score = top-2 average
+  // (same metric the original surfaces).
   function pushToTekoa(user) {
     const P = window.Tekoa && window.Tekoa.Progress;
     if (!P || !user) return;
@@ -105,15 +106,24 @@ const Users = (() => {
     for (const product of ["t1", "t2"]) {
       const appId  = product === "t2" ? "Tirgolit2" : "Tirgolit";
       const prefix = product + "/";
+      // Group slot scores by unit id under this product.
+      const slotsByUnit = {};
       for (const k in scores) {
         if (!k.startsWith(prefix)) continue;
-        // Only the slot-level keys (product/unit_sN), not the unit
-        // aggregates (product/unit).
-        if (!/_s\d+$/.test(k)) continue;
+        const m = k.slice(prefix.length).match(/^(\d+)_s(\d+)$/);
+        if (!m) continue;
+        const unitId = m[1];
         const sc = scores[k] || 0;
-        if (sc > 0) P.setScore(appId, k.slice(prefix.length), sc);
+        if (sc <= 0) continue;
+        (slotsByUnit[unitId] = slotsByUnit[unitId] || []).push(sc);
       }
-      const total = unitCount(product) * 7;
+      for (const unitId in slotsByUnit) {
+        const played = slotsByUnit[unitId].slice().sort((a, b) => b - a);
+        if (played.length < 2) continue;     // matches IntUnScore threshold
+        const avg = Math.round((played[0] + played[1]) / 2);
+        P.setScore(appId, unitId, { correct: avg, total: 100, slotsPlayed: played.length });
+      }
+      const total = unitCount(product);
       if (total > 0) P.setTotal(appId, total);
     }
   }
@@ -144,5 +154,18 @@ const Users = (() => {
     if (data[name]) { data[name].scores = {}; save(data); }
   }
 
-  return { list, create, remove, getScore, setScore, getAverageScore, getSlotScore, setSlotScore, getTopTwoAvg, clearScores };
+  // Push totals (without scores) so the breakdown can show
+  // "0/N פעילויות" instead of "?". Called at module-load time so even
+  // a user who never finishes a slot has the denominators populated.
+  function publishTotals() {
+    const P = window.Tekoa && window.Tekoa.Progress;
+    if (!P) return;
+    const t1 = unitCount("t1");
+    const t2 = unitCount("t2");
+    if (t1 > 0) P.setTotal("Tirgolit",  t1);
+    if (t2 > 0) P.setTotal("Tirgolit2", t2);
+  }
+  publishTotals();
+
+  return { list, create, remove, getScore, setScore, getAverageScore, getSlotScore, setSlotScore, getTopTwoAvg, clearScores, publishTotals };
 })();

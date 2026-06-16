@@ -164,6 +164,16 @@
         });
         user.placeholder = "שם התלמיד";
         try { user.value = localStorage.getItem("hnd." + appId + ".user") || ""; } catch (e) {}
+        // Seed from the Google sign-in name if the slot is empty so
+        // the student doesn't have to type their name again.
+        if (!user.value) {
+            const gu = window.Tekoa && Tekoa.Progress && Tekoa.Progress.getUser && Tekoa.Progress.getUser();
+            const gname = gu && (gu.name || gu.email || "");
+            if (gname) {
+                user.value = gname;
+                try { localStorage.setItem("hnd." + appId + ".user", gname); } catch (e) {}
+            }
+        }
         user.addEventListener("input", function () {
             try { localStorage.setItem("hnd." + appId + ".user", user.value); } catch (e) {}
         });
@@ -1191,11 +1201,10 @@
         const fn = starters[gameId];
         if (fn) fn(gameRoot, app, unit);
         else gameRoot.innerHTML = '<div class="error">משחק לא ידוע</div>';
-        // ---- progress tracking: opening a game counts as visited ----
-        if (window.Tekoa && window.Tekoa.Progress && fn) {
-            window.Tekoa.Progress.markVisited(appId, unit.id + "/" + gameId);
-            if (HND.publishProgressTotal) HND.publishProgressTotal(appId);
-        }
+        // Progress is rolled up per unit (≥2 games scored) inside
+        // HND.saveProgress — see data.js. Opening the game alone
+        // doesn't bump the lesson count.
+        if (HND.publishProgressTotal) HND.publishProgressTotal(appId);
 
         // F-keys per the original Form_KeyUp handlers (every game.frm has
         // these): Esc exits to the GameMenu, F1 toggles a help overlay.

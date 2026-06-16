@@ -15,6 +15,9 @@ HND._loaded = {};
 HND.loadUnits = function (appId) {
     if (HND._loaded[appId]) {
         HND.log("data hit", appId, "units=" + HND._loaded[appId].length);
+        // Total may not be in Tekoa.Progress yet if this is the first
+        // page load of this session — push it on every cached hit too.
+        if (HND.publishProgressTotal) HND.publishProgressTotal(appId);
         return Promise.resolve(HND._applyUnitOverrides(appId, HND._loaded[appId]));
     }
     HND.log("data load", appId);
@@ -26,6 +29,7 @@ HND.loadUnits = function (appId) {
             if (!data) { reject(new Error("units.js לא טען " + appId)); return; }
             HND._loaded[appId] = data;
             HND.log("data ok", appId, "units=" + data.length);
+            if (HND.publishProgressTotal) HND.publishProgressTotal(appId);
             resolve(HND._applyUnitOverrides(appId, data));
         };
         s.onerror = function () {
@@ -1270,15 +1274,29 @@ HND.deleteNewUnit = function (appId, unitId) {
     return true;
 };
 
-// Compute total = number of (unit × game) pairs once the units load, and
-// push it to Tekoa.Progress so the catalog battery has a denominator.
-// The 7 sub-games are fixed across all hemed_nivim units.
+// One Tekoa activity per UNIT (lesson), not per sub-game. A unit is
+// considered "completed" once at least 2 of its 7 sub-games have been
+// scored (mirrors how the original treats a lesson as graded).
 HND.GAME_TYPES = ["american","apple","connect","hakira","haklada","hatamaplus","match"];
+HND.MIN_GAMES_FOR_COMPLETION = 2;
+
 HND.publishProgressTotal = function (appId) {
     if (!window.Tekoa || !window.Tekoa.Progress) return;
     const units = HND._loaded[appId];
     if (!units || !units.length) return;
-    window.Tekoa.Progress.setTotal(appId, units.length * HND.GAME_TYPES.length);
+    window.Tekoa.Progress.setTotal(appId, units.length);
+};
+
+// Roll up all per-game scores in a unit. Returns { played, avg } where
+// `played` is the number of sub-games with best > 0 and `avg` is the
+// mean best score across them. Used to drive markVisited + setScore.
+HND.unitProgress = function (appId, unitId) {
+    let played = 0, sum = 0;
+    for (const g of HND.GAME_TYPES) {
+        const p = HND.loadProgress(appId, unitId, g);
+        if (p && (p.best || 0) > 0) { played++; sum += p.best; }
+    }
+    return { played, avg: played ? Math.round(sum / played) : 0 };
 };
 
 HND.saveProgress = function (appId, unitId, gameId, score, errorsByQ) {
@@ -1305,10 +1323,14 @@ HND.saveProgress = function (appId, unitId, gameId, score, errorsByQ) {
                 "score=" + score, "best=" + next.best, "plays=" + next.plays,
                 "errs=" + (next.errorsByQ.length));
         // ---- bridge to Tekoa.Progress (catalog battery + breakdown) ----
+        // One activity per unit. Mark visited only after the threshold so
+        // the percent reflects actual lesson coverage, not random pokes.
         if (window.Tekoa && window.Tekoa.Progress) {
-            const activityId = unitId + "/" + gameId;
-            window.Tekoa.Progress.setScore(appId, activityId,
-                { correct: next.best, total: 100, plays: next.plays });
+            const up = HND.unitProgress(appId, unitId);
+            if (up.played >= HND.MIN_GAMES_FOR_COMPLETION) {
+                window.Tekoa.Progress.setScore(appId, String(unitId),
+                    { correct: up.avg, total: 100, gamesPlayed: up.played });
+            }
             HND.publishProgressTotal(appId);
         }
         return next;

@@ -278,14 +278,11 @@ function showApp(appId) {
         if (state.config.id === "KolKoreD") applyKolKoreDRamaLayout(state);
     };
     onScreenChange(currentSession, currentSession.currentScreen);
-    // ---- progress total: count all (rama × path × stage) triples ----
+    // ---- progress total: one entry per maslul (slot) across all ramas ----
     if (window.Tekoa && window.Tekoa.Progress && paths && paths.ramas) {
         let total = 0;
         for (const r in paths.ramas) {
-            const slots = (paths.ramas[r] && paths.ramas[r].slots) || [];
-            for (const slot of slots) {
-                if (slot && slot.stages) total += slot.stages.length;
-            }
+            total += ((paths.ramas[r] && paths.ramas[r].slots) || []).length;
         }
         if (total > 0) window.Tekoa.Progress.setTotal(appId, total);
     }
@@ -6095,6 +6092,19 @@ function markPathCompleted(state) {
 
     klog("path completed → unlock mashal[" + n + "] + saved " +
          (state.pathScore || []).length + " stage scores for rama " + r);
+
+    // ---- Tekoa.Progress: one activity per maslul (rama/path). Score is
+    // the aggregated nikod (sum of green/yellow/red across the stages).
+    if (window.Tekoa && window.Tekoa.Progress) {
+        let g = 0, y = 0, rd = 0, tot = 0;
+        for (const st of (state.pathScore || [])) {
+            g  += st.green  || 0;
+            y  += st.yellow || 0;
+            rd += st.red    || 0;
+            tot += st.total || 0;
+        }
+        window.Tekoa.Progress.setScore(appId, r + "/" + n, { g, y, r: rd, total: tot });
+    }
 }
 
 function handleAction(appId, action /*, ctrl */) {
@@ -7904,11 +7914,8 @@ function initGameTurn(state, stage) {
     const n = stage.hotspots ? stage.hotspots.length : 0;
     state.maxTurn = Math.min(n, KOL_LBL_TOZAOT);
     klog("enter stage:", stageTag(state), "hotspots=" + n, "maxTurn=" + state.maxTurn);
-    // ---- progress tracking ----
-    if (window.Tekoa && window.Tekoa.Progress) {
-        const activityId = state.rama + "/" + state.currentPath + "/" + state.currentStageIdx;
-        window.Tekoa.Progress.markVisited(state.config.id, activityId);
-    }
+    // Progress is tracked at the maslul (path) level via markPathCompleted,
+    // not per stage — see Tekoa.Progress call there.
     paintStagePicture(state, stage);
     initStageIndicators(state);
 
@@ -9563,13 +9570,8 @@ function snapStageScore(state) {
     } else {
         state.pathScore[slotIdx] = entry;
     }
-    // ---- progress tracking: push the snapshotted score upstream ----
-    if (window.Tekoa && window.Tekoa.Progress) {
-        const activityId = state.rama + "/" + state.currentPath + "/" + state.currentStageIdx;
-        window.Tekoa.Progress.setScore(state.config.id, activityId, {
-            g: entry.green, y: entry.yellow, r: entry.red, total: entry.total,
-        });
-    }
+    // Maslul-level Tekoa.Progress entry happens in markPathCompleted; per-stage
+    // scores are kept locally in state.pathScore for the nikod replay.
 }
 
 function advanceStage(state) {
@@ -10285,6 +10287,22 @@ function route() {
 
 window.addEventListener("hashchange", route);
 window.addEventListener("keydown", handleKey);
+
+// Publish maslul totals for every Kesem app upfront so the breakdown
+// shows "0/<N> פעילויות" for apps the user hasn't opened yet. One entry
+// per maslul (slot); stages within a maslul aren't counted separately.
+if (window.Tekoa && window.Tekoa.Progress) {
+    for (const appId of APPS) {
+        const paths = PATHS[appId];
+        if (!paths || !paths.ramas) continue;
+        let total = 0;
+        for (const r in paths.ramas) {
+            total += ((paths.ramas[r] && paths.ramas[r].slots) || []).length;
+        }
+        if (total > 0) window.Tekoa.Progress.setTotal(appId, total);
+    }
+}
+
 route();
 """)
     parts.append("})();")

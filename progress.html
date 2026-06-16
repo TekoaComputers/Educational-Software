@@ -209,14 +209,32 @@
 <script>window.Tekoa && Tekoa.setApp("index");</script>
 <script>
 (function () {
+    // Titles match the catalog cards in /index.html (kept in sync by hand
+    // — there are only ~23 of them and they change very rarely).
     const APP_TITLES = {
-        Brahot: "ברכות", Hagim: "חגי ישראל", Yeled: "ילד יהודי", Dvash: "מן הפרח אל הדבש",
-        Shabat: "שבת", Heshbon: "חשבון 1+", Ivrit: "עברית", EnglishA: "English-A",
-        EnglishB: "English-B", EnglishC: "English-C", KolKoreA: "קול קורא-א",
-        KolKoreB: "קול קורא-ב", KolKoreC: "קול קורא-ג", KolKoreD: "קול קורא-ד",
-        Shirim: "שירים", "Shirim&Meshalim": "שירים ומשלים", Kesem: "קסם",
-        Hemed: "צמד חמד", Nivim: "ניבים ופתגמים", Makhela: "מקהלה", Mikraot: "מקראות",
-        Tirgolit: "תרגולית", Tirgolit2: "תרגולית 2",
+        Brahot:   "ברכות",
+        Hagim:    "חגי ישראל",
+        Yeled:    "עולם הילד",
+        Dvash:    "מן הפרח אל הדבש",
+        Shabat:   "שבת",
+        Heshbon:  "ארמון החשבון",
+        Ivrit:    "עברית מבית טוב",
+        EnglishA: "אנגלית בראשית א'",
+        EnglishB: "אנגלית בראשית ב'",
+        EnglishC: "אנגלית בראשית ג'",
+        KolKoreA: "קול קורא א'",
+        KolKoreB: "קול קורא ב'",
+        KolKoreC: "קול קורא ג'",
+        KolKoreD: "קול קורא ד'",
+        Shirim:   "שירי ילדים",
+        "Shirim&Meshalim": "שירים ומשלים",
+        Hemed:    "צמד חמד",
+        Nivim:    "ניבים ופתגמים",
+        Makhela:  "מקהלה עליזה",
+        Mikraot:  "מקראות אות ועוד...",
+        Kesem:    "חלונות קסם",
+        Tirgolit: "תרגולית עם תרנגול",
+        Tirgolit2:"תרגולית 2",
     };
     const APP_HREFS = {
         Brahot:   "Kesem_site/index.html#/Brahot",

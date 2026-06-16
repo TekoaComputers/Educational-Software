@@ -38,8 +38,28 @@ const App = (() => {
     resizeViewports();
     initLoginScreen();
     initScrollbarDrag();
+    // If there are no local users yet AND the Tekoa Google sign-in
+    // returned a name/email, auto-create that user so the student
+    // doesn't have to type their name again. Falls back to the normal
+    // login screen if no Google account is bound.
+    autoCreateGoogleUserIfNeeded();
     showScreen('login');
     renderLogin();
+  }
+
+  function autoCreateGoogleUserIfNeeded() {
+    const u = window.Tekoa && Tekoa.Progress && Tekoa.Progress.getUser && Tekoa.Progress.getUser();
+    if (!u) return;
+    const name = (u.name || u.email || "").trim();
+    if (!name) return;
+    // Add the Google-signed-in name as a local user if it isn't one
+    // already, and seed the login input so a single Enter logs them in.
+    // Existing users aren't disturbed.
+    if (!Users.list().includes(name)) {
+      try { Users.create(name); } catch (e) { /* invalid — ignore */ }
+    }
+    const inp = document.getElementById('login-input');
+    if (inp) inp.value = name;
   }
 
   function initLoginScreen() {

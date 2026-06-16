@@ -51,7 +51,10 @@
     "use strict";
 
     const STORAGE_KEY     = "tekoa:progress";
-    const SCHEMA_VERSION  = 1;
+    // v2: activity grain changed from per-stage/per-game to per-maslul /
+    // per-unit. Loading a v1 tree returns emptyTree() → data is reset on
+    // first load with new code so the breakdown isn't a mix of grains.
+    const SCHEMA_VERSION  = 2;
     const CLOUD_FILENAME  = "tekoa-progress.json";
     const SYNC_DEBOUNCE   = 2000;
 
@@ -442,4 +445,33 @@
         getUser, signIn, signOut, sync, isCloudEnabled,
         STORAGE_KEY, SCHEMA_VERSION,
     };
+
+    // === Seed totals ====================================================
+    // Activity grain matches what the original apps treat as a "completed
+    // lesson":
+    //   - Kesem apps:   one maslul (path) across all ramas.
+    //   - Hemed/Nivim:  one unit (lesson). Marked complete when at least
+    //                   2 of its 7 sub-games have been scored.
+    //   - Tirgolit:     one unit (lesson). Marked complete when at least
+    //                   2 of its 7 slots have non-zero scores (matches
+    //                   the original IntUnScore = top-2 avg).
+    //   - Makhela:      8 routable screens (no scores).
+    //   - Mikraot:      10 songs × 3 maslulim = 30 lessons.
+    // Live setTotal calls from each subsite still override these if data
+    // changes (e.g. a unit added).
+    const DEFAULT_TOTALS = {
+        Brahot: 24, Dvash: 25, EnglishA: 24, EnglishB: 18, EnglishC: 44,
+        Hagim: 24, Heshbon: 24, Ivrit: 24, KolKoreA: 27, KolKoreB: 40,
+        KolKoreC: 28, KolKoreD: 36, Shabat: 24, Shirim: 26,
+        "Shirim&Meshalim": 39, Yeled: 18,
+        Hemed: 10, Nivim: 31,
+        Tirgolit: 106, Tirgolit2: 90,
+        Makhela: 8, Mikraot: 30,
+    };
+    for (const app in DEFAULT_TOTALS) {
+        // Only seed when the app has no live total yet (or has zero) —
+        // don't downgrade a higher live count to the baked-in one.
+        const cur = (load().apps[app] || {}).total || 0;
+        if (cur < DEFAULT_TOTALS[app]) setTotal(app, DEFAULT_TOTALS[app]);
+    }
 })();

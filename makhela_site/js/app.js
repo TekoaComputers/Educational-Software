@@ -117,6 +117,11 @@
         "hub", "songs", "credit", "instrumentPicker",
         "notesPlay", "memoryGame", "settings", "gameShow",
     ];
+    // Set the total now so the breakdown shows "0/8 פעילויות"
+    // immediately, not "?" until the user first interacts.
+    if (window.Tekoa && window.Tekoa.Progress) {
+        window.Tekoa.Progress.setTotal("Makhela", MKH.PROGRESS_SCREENS.length);
+    }
     // Toggle via console: MKH.debug = false  (default on, easy to silence)
     MKH.debug = true;
 })();
