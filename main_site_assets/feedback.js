@@ -27,8 +27,75 @@
     var URL_MAX = 7500;          // GitHub URL soft limit; stay well under 8KB
     var TAIL_FOR_URL = 30;       // recent log lines embedded in issue body
 
-    var buf = [];
+    // Persist the ring buffer across page navigations (catalog → Kesem
+    // app → catalog) so the user doesn't lose context when reporting an
+    // issue mid-flow. Uses localStorage rather than sessionStorage so
+    // the log survives across tab close/reopen and full-cache reloads.
+    // Auto-trims to MAX_ENTRIES and resets when it grows older than
+    // FEEDBACK_LOG_MAX_AGE_MS (defaults to 6h) so it doesn't grow
+    // unbounded over weeks of use.
+    // Manual reset from any page: localStorage.removeItem('tekoa:feedback-log').
+    var STORE_KEY = 'tekoa:feedback-log';
+    var MAX_AGE_MS = 6 * 60 * 60 * 1000;
+    // Detect how the user got here:
+    //   "reload"        — F5 / Ctrl+R → start fresh (user usually wants a clean slate)
+    //   "navigate"      — clicked a link / typed URL → keep prior log
+    //   "back_forward"  — browser back/forward → keep prior log
+    // The Navigation Timing API gives us this cleanly. Fall back to the
+    // legacy enum if needed.
+    var IS_RELOAD = false;
+    try {
+        var navEntry = (performance.getEntriesByType('navigation') || [])[0];
+        if (navEntry && navEntry.type) {
+            IS_RELOAD = navEntry.type === 'reload';
+        } else if (performance.navigation) {
+            IS_RELOAD = performance.navigation.type === 1;
+        }
+    } catch (_) {}
+
+    var buf;
+    if (IS_RELOAD) {
+        // Refresh — drop the prior log so the user starts clean.
+        buf = [];
+        try { localStorage.removeItem(STORE_KEY); } catch (_) {}
+    } else {
+        // Storage shape: { ts: <epoch ms>, lines: [...] }. Anything else
+        // gets treated as empty so we never crash on bad data, but we
+        // don't drop good data just because the timestamp slot is odd.
+        try {
+            var raw = localStorage.getItem(STORE_KEY);
+            if (raw) {
+                var d = JSON.parse(raw);
+                if (d && Array.isArray(d.lines)
+                        && typeof d.ts === 'number'
+                        && (Date.now() - d.ts) < MAX_AGE_MS) {
+                    buf = d.lines;
+                }
+            }
+        } catch (_) {}
+    }
+    if (!Array.isArray(buf)) buf = [];
     var startedAt = new Date().toISOString();
+    if (buf.length) {
+        buf.push('[' + startedAt.slice(11, 23) + '] NAV : --- ' + location.pathname + location.hash + ' ---');
+    }
+    function persist() {
+        try {
+            localStorage.setItem(STORE_KEY, JSON.stringify({
+                ts: Date.now(),
+                lines: buf,
+            }));
+        } catch (_) {}
+    }
+    // Manual clear hook from any page (a future "clear log" button can use it).
+    window.__tekoaFeedbackClear = function () {
+        buf.length = 0;
+        try { localStorage.removeItem(STORE_KEY); } catch (_) {}
+    };
+    // Save eagerly even before the first push, so that immediately
+    // navigating away (before any console activity) still seeds the
+    // store with this page's nav marker.
+    persist();
 
     function fmtArg(a) {
         try {
@@ -50,6 +117,7 @@
         }
         buf.push('[' + stamp + '] ' + level + ': ' + msg);
         if (buf.length > MAX_ENTRIES) buf.splice(0, buf.length - MAX_ENTRIES);
+        persist();
     }
 
     ['log', 'info', 'warn', 'error', 'debug'].forEach(function (level) {

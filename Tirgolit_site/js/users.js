@@ -57,38 +57,65 @@ const Users = (() => {
   function setSlotScore(user, unitId, slot, score) {
     const data = load();
     if (!data[user]) data[user] = { scores: {} };
-    const key = unitId + '_s' + slot;
-    data[user].scores[key] = Math.max(data[user].scores[key] ?? 0, score);
-    data[user].scores[unitId] = Math.max(data[user].scores[unitId] ?? 0, score);
+    const product = currentProduct(user);   // 't1' or 't2'
+    // Two-level storage: legacy keys (game UI reads these) + product-
+    // namespaced keys (Tekoa progress + this user's current sub-game
+    // get the de-mixed copy). Without the prefix, replaying unit 5 in
+    // T2 would clobber the T1 score for unit 5.
+    const key       = unitId + '_s' + slot;
+    const keyProd   = product + '/' + unitId + '_s' + slot;
+    const unitKey   = unitId;
+    const unitProd  = product + '/' + unitId;
+    data[user].scores[key]      = Math.max(data[user].scores[key]      ?? 0, score);
+    data[user].scores[unitKey]  = Math.max(data[user].scores[unitKey]  ?? 0, score);
+    data[user].scores[keyProd]  = Math.max(data[user].scores[keyProd]  ?? 0, score);
+    data[user].scores[unitProd] = Math.max(data[user].scores[unitProd] ?? 0, score);
     save(data);
     // ---- bridge to Tekoa.Progress ----
     pushToTekoa(user);
   }
 
-  // Push the current user's scores into the cross-app Tekoa.Progress
-  // store so the root catalog battery + progress.html see Tirgolit too.
-  // Best-effort: silent if the helper isn't loaded.
+  // Which sub-game is the user currently playing? app.js sets
+  // localStorage["tirgolit_product_<user>"] = "t1" | "t2" when the
+  // product is picked; default to t1.
+  function currentProduct(user) {
+    if (window.UNITS_DATA && typeof UNITS_DATA_T2 !== "undefined"
+        && window.UNITS_DATA === UNITS_DATA_T2) return "t2";
+    const v = localStorage.getItem("tirgolit_product_" + user);
+    return v === "t2" ? "t2" : "t1";
+  }
+
+  function unitCount(product) {
+    const d = product === "t2"
+      ? (typeof UNITS_DATA_T2 !== "undefined" ? UNITS_DATA_T2 : null)
+      : (typeof UNITS_DATA_T1 !== "undefined" ? UNITS_DATA_T1 : null);
+    if (!d || !d.units) return 0;
+    return Object.keys(d.units).length;
+  }
+
+  // Push the current user's scores into Tekoa.Progress, split by sub-
+  // game: t1 → "Tirgolit", t2 → "Tirgolit2". Reads the product-
+  // namespaced keys written by setSlotScore so the two never overlap.
+  // Total per product = (unit count) × 7 slots.
   function pushToTekoa(user) {
     const P = window.Tekoa && window.Tekoa.Progress;
     if (!P || !user) return;
-    const data = load();
+    const data   = load();
     const scores = (data[user] && data[user].scores) || {};
-    let visited = 0;
-    for (const k in scores) {
-      // Only count slot-level scores (unit_sN). Unit aggregates would
-      // double-count.
-      if (!/_s\d+$/.test(k)) continue;
-      if ((scores[k] || 0) > 0) {
-        visited++;
-        P.setScore("Tirgolit", k, scores[k]);
+    for (const product of ["t1", "t2"]) {
+      const appId  = product === "t2" ? "Tirgolit2" : "Tirgolit";
+      const prefix = product + "/";
+      for (const k in scores) {
+        if (!k.startsWith(prefix)) continue;
+        // Only the slot-level keys (product/unit_sN), not the unit
+        // aggregates (product/unit).
+        if (!/_s\d+$/.test(k)) continue;
+        const sc = scores[k] || 0;
+        if (sc > 0) P.setScore(appId, k.slice(prefix.length), sc);
       }
+      const total = unitCount(product) * 7;
+      if (total > 0) P.setTotal(appId, total);
     }
-    // Total is unknown until the game data is loaded. Best effort: use
-    // the count of distinct units × 7 slots. window.UNITS / window.data
-    // varies by page; if either is present, use it.
-    const units = (window.UNITS && window.UNITS.length)
-        || (window.DATA && window.DATA.length) || 0;
-    if (units > 0) P.setTotal("Tirgolit", units * 7);
   }
 
   function getAverageScore(user) {

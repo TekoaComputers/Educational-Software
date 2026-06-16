@@ -4,109 +4,188 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>תקוע מחשבים — התקדמות</title>
-    <link rel="icon" href="data:,">
+    <link rel="icon" type="image/svg+xml" href="main_site_assets/favicon.svg">
     <style>
         :root {
-            --bg:        #0f1117;
-            --panel:     #1a1d27;
-            --text:      #e6e6e6;
-            --muted:     #8a8f9a;
-            --accent:    #4a90e2;
-            --good:      #5cb85c;
-            --warn:      #f0ad4e;
-            --bad:       #d9534f;
-            --row:       #232733;
-            --row-hi:    #2a2f3d;
+            --good: #5cb85c;
+            --warn: #f0ad4e;
+            --bad:  #d9534f;
+            --accent: #4a90c2;
         }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         html, body {
             margin: 0; padding: 0;
-            background: var(--bg);
-            color: var(--text);
-            font-family: 'Heebo', 'Segoe UI', sans-serif;
+            background: linear-gradient(180deg, #E3EEF5 0%, #B2D8F2 45%, #82B7DC 100%);
+            background-attachment: fixed;
+            color: #1d3a52;
+            font-family: "Arial Hebrew", "Heebo", "Segoe UI", Arial, sans-serif;
             min-height: 100vh;
+            line-height: 1.4;
         }
         a { color: var(--accent); text-decoration: none; }
         a:hover { text-decoration: underline; }
         header {
             display: flex; align-items: center; justify-content: space-between;
             padding: 14px 24px;
-            background: var(--panel);
-            border-bottom: 1px solid #2a2f3d;
+            background: rgba(255, 255, 255, 0.6);
+            border-bottom: 1px solid rgba(74, 144, 194, 0.25);
+            backdrop-filter: blur(4px);
         }
-        header h1 { margin: 0; font-size: 18px; font-weight: 600; }
-        header h1 a { color: var(--text); }
+        header h1 { margin: 0; font-size: 20px; font-weight: 700; color: #1d3a52; }
+        header h1 a { color: inherit; text-decoration: none; }
         .auth-row { display: flex; align-items: center; gap: 10px; font-size: 13px; }
         .auth-row button {
             background: var(--accent); color: #fff;
-            border: 0; padding: 7px 14px; border-radius: 6px;
-            font-size: 13px; cursor: pointer;
+            border: 0; padding: 7px 14px; border-radius: 14px;
+            font-size: 13px; font-weight: 600; cursor: pointer;
         }
         .auth-row button:disabled { opacity: 0.4; cursor: not-allowed; }
-        .auth-row .signed-out { color: var(--muted); }
+        .auth-row .signed-out { color: #4a5d72; }
         main {
-            max-width: 960px; margin: 0 auto; padding: 22px;
+            max-width: 960px; margin: 0 auto; padding: 24px 22px 40px;
         }
-        h2 { font-size: 22px; margin: 0 0 6px 0; }
-        .sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+        h2 { font-size: 24px; font-weight: 700; margin: 0 0 6px 0; color: #1d3a52; }
+        .app-header {
+            display: flex; align-items: center; gap: 14px;
+            margin-bottom: 12px;
+        }
+        .app-header .icon {
+            width: 96px; height: 72px;
+            object-fit: cover; object-position: center;
+            border-radius: 10px;
+            box-shadow: 0 4px 14px rgba(21, 64, 105, 0.22);
+            background: #DBEFFB;
+            border: 1px solid rgba(74, 144, 194, 0.4);
+            flex: 0 0 auto;
+        }
+        .app-header h2 { margin: 0; }
+        .app-header .icon.icon-contain {
+            object-fit: contain;
+            background: #fff;
+        }
+        .sub {
+            color: #4a5d72; font-size: 13px; margin-bottom: 18px;
+        }
+        /* Same animated-gradient bar as the catalog. */
         .bar-wrap {
-            display: flex; align-items: center; gap: 12px;
-            margin-bottom: 24px;
+            position: relative;
+            width: 100%;
+            margin-bottom: 28px;
         }
         .bar {
-            flex: 1; height: 14px;
-            background: #2a2f3d; border-radius: 7px; overflow: hidden;
+            position: relative;
+            width: 100%;
+            height: 22px;
+            border-radius: 11px;
+            background: rgba(74, 144, 194, 0.18);
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.08);
+            overflow: hidden;
         }
-        .bar-fill { height: 100%; background: var(--good); transition: width 0.4s ease; }
-        .bar-pct { font-weight: 600; min-width: 48px; text-align: left; }
+        .bar-fill {
+            height: 100%; width: 0;
+            border-radius: 11px;
+            background: linear-gradient(100deg,
+                #5cb85c 0%, #7ed87e 25%, #4a90c2 50%, #7ed87e 75%, #5cb85c 100%);
+            background-size: 300% 100%;
+            animation: progress-shimmer 5s linear infinite;
+            transition: width 0.5s ease;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+        }
+        @keyframes progress-shimmer {
+            0%   { background-position:   0% 50%; }
+            100% { background-position: 300% 50%; }
+        }
+        .bar-pct {
+            position: absolute; inset: 0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.85rem; font-weight: 700; color: #1d3a52;
+            text-shadow: 0 1px 0 rgba(255,255,255,0.55);
+            pointer-events: none;
+        }
         table {
             width: 100%; border-collapse: collapse;
-            background: var(--panel); border-radius: 8px; overflow: hidden;
+            background: rgba(255, 255, 255, 0.85);
+            border-radius: 10px; overflow: hidden;
+            box-shadow: 0 2px 8px rgba(21, 64, 105, 0.12);
+            backdrop-filter: blur(2px);
         }
         thead th {
-            text-align: right; font-weight: 600; font-size: 13px;
-            padding: 10px 14px; background: #1f2330;
-            border-bottom: 1px solid #2a2f3d;
-            color: var(--muted);
+            text-align: right; font-weight: 700; font-size: 13px;
+            padding: 11px 14px; background: rgba(74, 144, 194, 0.18);
+            border-bottom: 1px solid rgba(74, 144, 194, 0.25);
+            color: #1d3a52;
         }
-        tbody td { padding: 10px 14px; border-bottom: 1px solid #20232e; font-size: 14px; }
-        tbody tr:nth-child(even) { background: var(--row-hi); }
-        tbody tr.unvisited td { color: var(--muted); }
-        .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
-        .b-good { background: rgba(92,184,92,0.18); color: var(--good); }
-        .b-warn { background: rgba(240,173,78,0.18); color: var(--warn); }
-        .b-bad  { background: rgba(217,83,79,0.18); color: var(--bad); }
-        .b-none { background: #2a2f3d; color: var(--muted); }
+        tbody td { padding: 10px 14px; border-bottom: 1px solid rgba(74, 144, 194, 0.18); font-size: 14px; }
+        tbody tr:nth-child(even) { background: rgba(74, 144, 194, 0.06); }
+        tbody tr.unvisited td { color: #6c8aa3; }
+        .badge { display: inline-block; padding: 3px 9px; border-radius: 12px; font-size: 11px; font-weight: 700; }
+        .b-good { background: rgba(92,184,92,0.25); color: #2c6a2c; }
+        .b-warn { background: rgba(240,173,78,0.25); color: #8a5a14; }
+        .b-bad  { background: rgba(217,83,79,0.25); color: #842422; }
+        .b-none { background: rgba(74, 144, 194, 0.15); color: #6c8aa3; }
         .score-cell { display: inline-flex; gap: 6px; }
         .empty {
             text-align: center; padding: 40px 20px;
-            color: var(--muted); font-size: 14px;
+            color: #4a5d72; font-size: 14px;
         }
         .actions {
             display: flex; justify-content: flex-end;
             margin-top: 16px;
         }
         .actions button {
-            background: transparent; color: var(--muted);
-            border: 1px solid #2a2f3d;
-            padding: 6px 12px; border-radius: 6px;
-            font-size: 12px; cursor: pointer;
+            background: rgba(255, 255, 255, 0.7);
+            color: #4a5d72;
+            border: 1px solid rgba(74, 144, 194, 0.4);
+            padding: 7px 14px; border-radius: 8px;
+            font-size: 12px; font-weight: 600; cursor: pointer;
         }
-        .actions button:hover { color: var(--bad); border-color: var(--bad); }
+        .actions button:hover {
+            color: var(--bad); border-color: var(--bad);
+            background: rgba(255,255,255,0.95);
+        }
         .grid-summary {
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-            gap: 14px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 16px;
         }
         .summary-card {
-            background: var(--panel); padding: 14px;
-            border-radius: 8px; cursor: pointer;
-            transition: transform 0.15s ease;
-            text-decoration: none; color: var(--text);
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(2px);
+            padding: 14px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(21, 64, 105, 0.12);
+            border: 2px solid transparent;
+            transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+            text-decoration: none; color: inherit;
             display: block;
         }
-        .summary-card:hover { transform: translateY(-2px); }
-        .summary-card .name { font-weight: 600; margin-bottom: 8px; }
-        .summary-card .bar { height: 10px; margin-bottom: 6px; }
-        .summary-card .pct { font-size: 12px; color: var(--muted); }
+        .summary-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(21, 64, 105, 0.22);
+            border-color: var(--accent);
+            background: #fff;
+        }
+        .summary-card .head {
+            display: flex; align-items: center; gap: 10px;
+            margin-bottom: 10px;
+        }
+        .summary-card .icon {
+            width: 56px; height: 42px;
+            object-fit: cover; object-position: center;
+            border-radius: 6px;
+            background: #DBEFFB;
+            border: 1px solid rgba(74, 144, 194, 0.3);
+            flex: 0 0 auto;
+        }
+        .summary-card .icon.icon-contain { object-fit: contain; background: #fff; }
+        .summary-card .name {
+            font-weight: 700; font-size: 0.98rem; color: #1d3a52;
+        }
+        .summary-card .bar { height: 16px; margin-bottom: 6px; border-radius: 8px; }
+        .summary-card .bar-fill { border-radius: 8px; }
+        .summary-card .pct {
+            font-size: 12px; color: #4a5d72; font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -125,6 +204,9 @@
 </main>
 
 <script src="main_site_assets/progress.js"></script>
+<script src="main_site_assets/feedback.js"></script>
+<script src="main_site_assets/trace.js"></script>
+<script>window.Tekoa && Tekoa.setApp("index");</script>
 <script>
 (function () {
     const APP_TITLES = {
@@ -161,6 +243,23 @@
         Tirgolit: "Tirgolit_site/index.html",
         Tirgolit2:"Tirgolit_site/index.html",
     };
+
+    // Icon filename per app — all live in main_site_assets/ at the repo root.
+    // Tirgolit is the only one that's a .gif; Tirgolit2 reuses the Tirgolit gif.
+    const APP_ICONS = {
+        Brahot:"Brahot.jpg", Hagim:"Hagim.jpg", Yeled:"Yeled.jpg", Dvash:"Dvash.jpg",
+        Shabat:"Shabat.jpg", Heshbon:"Heshbon.jpg", Ivrit:"Ivrit.jpg",
+        EnglishA:"EnglishA.jpg", EnglishB:"EnglishB.jpg", EnglishC:"EnglishC.jpg",
+        KolKoreA:"KolKoreA.jpg", KolKoreB:"KolKoreB.jpg", KolKoreC:"KolKoreC.jpg", KolKoreD:"KolKoreD.jpg",
+        Shirim:"Shirim.jpg", "Shirim&Meshalim":"Shirim&Meshalim.jpg", Kesem:"Kesem.jpg",
+        Hemed:"Hemed.jpg", Nivim:"Nivim.jpg", Makhela:"Makhela.jpg", Mikraot:"Mikraot.jpg",
+        Tirgolit:"Tirgolit.gif", Tirgolit2:"Tirgolit.gif",
+    };
+    function iconFor(appId) {
+        const f = APP_ICONS[appId];
+        if (!f) return null;
+        return { src: "main_site_assets/" + f, contain: f.endsWith(".gif") };
+    }
 
     const params = new URLSearchParams(location.search);
     const target = params.get("app");
@@ -215,15 +314,24 @@
             ? `<tr><th>פעילות</th><th>סטטוס</th></tr>`
             : `<tr><th>פעילות</th><th>סטטוס</th><th>ציון</th></tr>`;
 
+        const icon = iconFor(appId);
+        const iconHtml = icon
+            ? `<img class="icon ${icon.contain ? 'icon-contain' : ''}" src="${icon.src}" alt="">`
+            : "";
         root.innerHTML = `
-            <h2>${escapeHtml(title)}</h2>
+            <div class="app-header">
+                ${iconHtml}
+                <h2>${escapeHtml(title)}</h2>
+            </div>
             <div class="sub">
                 <a href="${APP_HREFS[appId] || 'index.html'}">פתח לומדה ↗</a>
                 · ${visited} מתוך ${data.total || "?"} פעילויות
             </div>
             <div class="bar-wrap">
-                <div class="bar"><div class="bar-fill" style="width:${pct}%"></div></div>
-                <div class="bar-pct">${pct}%</div>
+                <div class="bar">
+                    <div class="bar-fill" style="width:${pct}%"></div>
+                    <span class="bar-pct">${pct}%</span>
+                </div>
             </div>
             ${rows ? `<table><thead>${tableHead}</thead><tbody>${rows}</tbody></table>`
                    : `<p class="empty">עדיין אין פעילויות שהתחילת. פתח את הלומדה כדי שההתקדמות תתחיל להירשם.</p>`}
@@ -240,10 +348,20 @@
             const pct = P.getPercent(appId);
             const data = all[appId] || { total: 0 };
             const visited = data.activities ? Object.values(data.activities).filter(a => a.visited).length : 0;
+            const icon = iconFor(appId);
+            const iconHtml = icon
+                ? `<img class="icon ${icon.contain ? 'icon-contain' : ''}" src="${icon.src}" alt="">`
+                : "";
             return `<a class="summary-card" href="progress.html?app=${encodeURIComponent(appId)}">
-                <div class="name">${escapeHtml(APP_TITLES[appId])}</div>
-                <div class="bar"><div class="bar-fill" style="width:${pct}%"></div></div>
-                <div class="pct">${pct}% — ${visited}/${data.total || "?"} פעילויות</div>
+                <div class="head">
+                    ${iconHtml}
+                    <div class="name">${escapeHtml(APP_TITLES[appId])}</div>
+                </div>
+                <div class="bar">
+                    <div class="bar-fill" style="width:${pct}%"></div>
+                    <span class="bar-pct">${pct}%</span>
+                </div>
+                <div class="pct">${visited}/${data.total || "?"} פעילויות</div>
             </a>`;
         }).join("");
         root.innerHTML = `

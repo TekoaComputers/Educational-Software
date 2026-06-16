@@ -11,6 +11,7 @@
     <meta name="author" content="Tekoa Computers (Lev Levin port)">
     <meta name="robots" content="index, follow">
     <link rel="canonical" href="https://tekoacomputers.github.io/Educational-Software/">
+    <link rel="icon" type="image/svg+xml" href="main_site_assets/favicon.svg">
 
     <!-- Open Graph (Facebook, WhatsApp, LinkedIn previews) -->
     <meta property="og:type" content="website">
@@ -176,63 +177,128 @@
             object-fit: contain;
             background: #fff;
         }
-        /* === Progress battery (populated by progress.js) ============= */
-        .progress-battery {
-            display: flex; align-items: center; gap: 5px;
-            margin-top: 6px; font-size: 0.72rem; color: #4a5d72;
-        }
-        .progress-battery.empty { opacity: 0.45; }
-        .battery-shell {
+        /* === Progress bar (populated by progress.js) ================= */
+        /* Sits between the card icon and the title. Negative top margin
+           tightens the gap that the icon's mb-0.6rem otherwise leaves. */
+        .progress-bar {
             position: relative;
-            width: 34px; height: 13px;
-            border: 1.5px solid #4a90c2;
-            border-radius: 2px;
-            background: rgba(255,255,255,0.6);
+            width: 100%;
+            height: 18px;
+            margin: -2px 0 8px;
+            border-radius: 10px;
+            background: rgba(74, 144, 194, 0.18);
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.08);
+            overflow: hidden;
             box-sizing: border-box;
         }
-        .battery-shell::after {
-            content: ""; position: absolute;
-            right: -3px; top: 3px;
-            width: 2px; height: 5px;
-            background: #4a90c2; border-radius: 0 1px 1px 0;
+        .progress-bar.empty .progress-fill { background: rgba(74, 144, 194, 0.25); animation: none; }
+        .progress-fill {
+            height: 100%;
+            width: 0;
+            border-radius: 10px;
+            background: linear-gradient(
+                100deg,
+                #5cb85c 0%,
+                #7ed87e 25%,
+                #4a90c2 50%,
+                #7ed87e 75%,
+                #5cb85c 100%
+            );
+            background-size: 300% 100%;
+            animation: progress-shimmer 50s linear infinite;
+            transition: width 0.5s ease;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.15);
         }
-        .battery-fill {
-            height: 100%; background: #5cb85c;
-            transition: width 0.3s ease;
+        .progress-fill.lo {
+            background: linear-gradient(
+                100deg, #d9534f 0%, #f08c8a 25%, #d9534f 50%, #f08c8a 75%, #d9534f 100%);
+            background-size: 300% 100%;
         }
-        .battery-fill.lo  { background: #d9534f; }
-        .battery-fill.mid { background: #f0ad4e; }
-        .battery-pct { font-weight: 600; min-width: 28px; }
-        .progress-details-link {
-            display: block;
-            margin-top: 1.2rem; text-align: center;
-            color: #4a90c2; font-size: 0.9rem; font-weight: 600;
+        .progress-fill.mid {
+            background: linear-gradient(
+                100deg, #f0ad4e 0%, #ffd58a 25%, #f0ad4e 50%, #ffd58a 75%, #f0ad4e 100%);
+            background-size: 300% 100%;
+        }
+        @keyframes progress-shimmer {
+            0%   { background-position:   0% 50%; }
+            100% { background-position: 300% 50%; }
+        }
+        .progress-pct {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #1d3a52;
+            text-shadow: 0 1px 0 rgba(255,255,255,0.55);
+            pointer-events: none;
+        }
+        .progress-bar.empty .progress-pct { color: #6c8aa3; }
+        /* === Bottom bar: progress link + Google auth =================
+           Fixed footer that holds the "see breakdown" CTA on one side
+           and the cross-device sign-in pill on the other. Always visible
+           so the user can drill in or sign in without scrolling. */
+        body { padding-bottom: 96px; }            /* room for the fixed bar */
+        .bottom-bar {
+            position: fixed;
+            left: 0; right: 0; bottom: 0;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 18px;
+            padding: 12px 22px;
+            background: linear-gradient(180deg,
+                rgba(227, 238, 245, 0.0) 0%,
+                rgba(227, 238, 245, 0.82) 35%,
+                rgba(178, 216, 242, 0.95) 100%);
+            backdrop-filter: blur(8px);
+            border-top: 1px solid rgba(74, 144, 194, 0.25);
+        }
+        .breakdown-btn {
+            display: inline-flex; align-items: center; gap: 10px;
+            background: linear-gradient(135deg, #4a90c2 0%, #5cb85c 100%);
+            color: #fff;
             text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 24px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            box-shadow: 0 3px 10px rgba(74, 144, 194, 0.35);
+            transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
         }
-        .progress-details-link:hover { text-decoration: underline; }
-        /* Sign-in pill in the corner. */
+        .breakdown-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(74, 144, 194, 0.5);
+            filter: brightness(1.05);
+        }
+        .breakdown-btn svg {
+            width: 22px; height: 22px;
+            stroke: currentColor; stroke-width: 2;
+            fill: none; stroke-linecap: round; stroke-linejoin: round;
+        }
         .auth-pill {
-            position: fixed; top: 12px; left: 12px; z-index: 1000;
             background: rgba(255,255,255,0.85); border-radius: 18px;
-            padding: 6px 12px; font-size: 12px;
-            display: flex; align-items: center; gap: 8px;
+            padding: 7px 14px; font-size: 12px;
+            display: flex; align-items: center; gap: 10px;
             box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+            color: #1d3a52;
         }
         .auth-pill button {
             border: 0; background: #4a90c2; color: #fff;
-            border-radius: 12px; padding: 3px 10px;
-            font-size: 11px; cursor: pointer;
+            border-radius: 12px; padding: 4px 12px;
+            font-size: 11px; font-weight: 600; cursor: pointer;
         }
         .auth-pill button:disabled { opacity: 0.4; cursor: not-allowed; }
     </style>
     <script src="main_site_assets/progress.js"></script>
     <script src="main_site_assets/feedback.js"></script>
+    <script src="main_site_assets/trace.js"></script>
+    <script>window.Tekoa && Tekoa.setApp("index");</script>
 </head>
 <body>
-    <div class="auth-pill" id="auth-pill">
-        <span id="auth-info">לא מחובר</span>
-        <button id="auth-btn" disabled>התחבר</button>
-    </div>
     <div class="banner-row">
         <h2>קטלוג לומדות תקוע מחשבים</h2>
         <a class="banner-link" href="https://he.wikipedia.org/wiki/%D7%AA%D7%A7%D7%95%D7%A2_%D7%9E%D7%97%D7%A9%D7%91%D7%99%D7%9D">
@@ -335,32 +401,68 @@
                 <div class="card-title">חלונות קסם</div>
             </a>
         </div>
-        <a class="progress-details-link" href="progress.html">צפייה בפירוט ההתקדמות והציונים →</a>
     </main>
+    <div class="bottom-bar" id="bottom-bar">
+        <a class="breakdown-btn" href="progress.html">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M3 21h18"/>
+                <path d="M6 17V10"/>
+                <path d="M11 17V6"/>
+                <path d="M16 17v-9"/>
+                <path d="M21 17v-5"/>
+            </svg>
+            <span>פירוט ההתקדמות והציונים</span>
+        </a>
+        <div class="auth-pill" id="auth-pill">
+            <span id="auth-info">לא מחובר</span>
+            <button id="auth-btn" disabled>התחבר</button>
+        </div>
+    </div>
     <script>
     (function () {
         const P = window.Tekoa && window.Tekoa.Progress;
         if (!P) return;
+        // Some catalog cards aggregate multiple Tekoa.Progress namespaces
+        // (e.g. the Tirgolit tile sums T1 + T2 since both sub-games share
+        // one catalog entry).
+        const AGGREGATES = {
+            Tirgolit: ["Tirgolit", "Tirgolit2"],
+        };
+        function computeCardStats(appId) {
+            const keys = AGGREGATES[appId] || [appId];
+            let visited = 0, total = 0;
+            for (const k of keys) {
+                const d = P.getApp(k);
+                total += d.total || 0;
+                for (const id in d.activities) if (d.activities[id].visited) visited++;
+            }
+            const pct = total ? Math.round(visited / total * 100) : 0;
+            return { pct, total, visited, hasData: total > 0 };
+        }
         function paintBatteries() {
             document.querySelectorAll(".card[data-app-id]").forEach(card => {
                 const appId = card.dataset.appId;
                 if (appId === "Peledor") return;            // external link, no tracking
-                const pct = P.getPercent(appId);
-                const data = P.getApp(appId);
-                const hasData = data.total > 0;
-                let bat = card.querySelector(".progress-battery");
-                if (!bat) {
-                    bat = document.createElement("div");
-                    bat.className = "progress-battery";
-                    bat.innerHTML = '<div class="battery-shell"><div class="battery-fill"></div></div><span class="battery-pct"></span>';
-                    card.appendChild(bat);
+                const stats = computeCardStats(appId);
+                const pct     = stats.pct;
+                const hasData = stats.hasData;
+                let bar = card.querySelector(".progress-bar");
+                if (!bar) {
+                    bar = document.createElement("div");
+                    bar.className = "progress-bar";
+                    bar.innerHTML = '<div class="progress-fill"></div><span class="progress-pct"></span>';
+                    // Insert above the text label so the bar sits between
+                    // the icon and the title.
+                    const title = card.querySelector(".card-title");
+                    if (title) card.insertBefore(bar, title);
+                    else card.appendChild(bar);
                 }
-                bat.classList.toggle("empty", !hasData);
-                const fill = bat.querySelector(".battery-fill");
-                fill.style.width = pct + "%";
+                bar.classList.toggle("empty", !hasData);
+                const fill = bar.querySelector(".progress-fill");
+                fill.style.width = (hasData ? pct : 100) + "%";
                 fill.classList.toggle("lo",  pct < 30 && hasData);
                 fill.classList.toggle("mid", pct >= 30 && pct < 70);
-                bat.querySelector(".battery-pct").textContent = hasData ? (pct + "%") : "—";
+                bar.querySelector(".progress-pct").textContent = hasData ? (pct + "%") : "—";
             });
         }
         function paintAuth() {

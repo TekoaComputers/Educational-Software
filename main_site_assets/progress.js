@@ -161,12 +161,41 @@
 
     // ----- Google Identity / Drive AppData -------------------------------
 
+    // Cache the access token across page navigations so the auto-sync
+    // after each write doesn't try to pop a re-consent window from a
+    // non-gesture context (browsers block that). The token is short-
+    // lived (~60min) and same-origin only.
+    const TOKEN_STORE_KEY = "tekoa:gis-token";
+    function loadCachedToken() {
+        try {
+            const raw = localStorage.getItem(TOKEN_STORE_KEY);
+            if (!raw) return null;
+            const j = JSON.parse(raw);
+            if (j && j.token && typeof j.expiresAt === "number"
+                    && Date.now() < j.expiresAt) {
+                return j;
+            }
+        } catch (e) {}
+        return null;
+    }
+    function saveCachedToken(token, expiresAt) {
+        try { localStorage.setItem(TOKEN_STORE_KEY, JSON.stringify({ token, expiresAt })); } catch (e) {}
+    }
+    function clearCachedToken() {
+        try { localStorage.removeItem(TOKEN_STORE_KEY); } catch (e) {}
+    }
+
     let _tokenClient = null;
     let _accessToken = null;
     let _tokenExpiresAt = 0;
     let _syncTimer = null;
     let _syncing = false;
     const _idReady = TEKOA_GIS_CLIENT_ID && !TEKOA_GIS_CLIENT_ID.startsWith("REPLACE_");
+    // Rehydrate the in-memory token from the per-page cache.
+    (function rehydrateToken() {
+        const c = loadCachedToken();
+        if (c) { _accessToken = c.token; _tokenExpiresAt = c.expiresAt; }
+    })();
 
     function isCloudEnabled() { return _idReady; }
     function getUser() { return load().user; }
@@ -211,6 +240,7 @@
         });
         _accessToken = accessToken;
         _tokenExpiresAt = Date.now() + 50 * 60 * 1000;   // GIS tokens last ~60min
+        saveCachedToken(_accessToken, _tokenExpiresAt);
 
         // Pull profile via UserInfo for the email/name.
         let profile = {};
@@ -229,30 +259,23 @@
     function signOut() {
         _accessToken = null;
         _tokenExpiresAt = 0;
+        clearCachedToken();
         setUser(null);
     }
 
-    async function ensureToken() {
+    // Returns a usable access token if one is currently cached and not
+    // expired, otherwise null. Importantly: NEVER triggers a popup. GIS's
+    // implicit flow has no refresh token, so the only way to get a new
+    // token is a user-gesture sign-in click. Trying to silent-refresh
+    // outside a gesture context just opens a popup the browser blocks
+    // (`Failed to open popup window`) and looks broken to the user.
+    // When the token expires, sync silently skips until the user
+    // clicks the sign-in pill again.
+    function ensureToken() {
         if (_accessToken && Date.now() < _tokenExpiresAt) return _accessToken;
-        if (!_idReady || !getUser()) return null;
-        // Best-effort silent refresh — if it fails the caller falls back to local.
-        try {
-            await loadGisScript();
-            const t = await new Promise((resolve) => {
-                const client = window.google.accounts.oauth2.initTokenClient({
-                    client_id: TEKOA_GIS_CLIENT_ID,
-                    scope: SCOPE_APPDATA,
-                    prompt: "",
-                    callback: (resp) => resolve(resp && resp.access_token),
-                });
-                client.requestAccessToken({ prompt: "" });
-            });
-            if (t) {
-                _accessToken = t;
-                _tokenExpiresAt = Date.now() + 50 * 60 * 1000;
-            }
-        } catch (e) {}
-        return _accessToken;
+        const c = loadCachedToken();
+        if (c) { _accessToken = c.token; _tokenExpiresAt = c.expiresAt; return _accessToken; }
+        return null;
     }
 
     async function findCloudFile(token) {
