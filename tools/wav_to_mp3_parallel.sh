@@ -1,17 +1,15 @@
 #!/usr/bin/env bash
-# Launch N parallel shards of wav_to_mp3.py. Each worker loads its own
-# DFN + VAD into the GPU and chews on every N-th file from the scan.
+# Launch N parallel shards of wav_to_mp3.py. The pipeline is now pure
+# ffmpeg + numpy (no GPU, no models), so parallelism is bounded by CPU
+# cores. Each shard processes every N-th file from the scan.
 #
 # Usage:
 #     bash tools/wav_to_mp3_parallel.sh
-#     SHARDS=4 bash tools/wav_to_mp3_parallel.sh
+#     SHARDS=8 bash tools/wav_to_mp3_parallel.sh
 #     PYTHON=/path/to/python bash tools/wav_to_mp3_parallel.sh
-#
-# GPU memory cost: ~620 MB per shard. The default of 6 fits comfortably
-# in 8+ GB GPUs.
 set -euo pipefail
 
-SHARDS="${SHARDS:-6}"
+SHARDS="${SHARDS:-8}"
 PYTHON="${PYTHON:-/tmp/audioclean_venv/bin/python}"
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 SCRIPT="$REPO/tools/wav_to_mp3.py"
