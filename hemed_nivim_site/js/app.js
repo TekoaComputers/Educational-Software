@@ -780,7 +780,7 @@
                 cap.className = "unit-edit-cap";
                 cap.textContent = label;
                 btn.appendChild(cap);
-                btn.addEventListener("click", function () {
+                btn.addEventListener("click", async function () {
                     if (idx === 0) {                                 // new unit
                         const newId = HND.createNewUnit(appId);
                         HND.loadUnits(appId).then(function (u) {
@@ -809,7 +809,7 @@
                         // brand-new units outright.
                         if (!currentUnit) { alert("בחר יחידה תחילה."); return; }
                         const confirmMsg = HND.tip(appId, 61) || "האם למחוק את היחידה?";
-                        if (!confirm(confirmMsg + "\n\"" + currentUnit.name + "\"")) return;
+                        if (!(await HND.msg(appId, confirmMsg + "\n\"" + currentUnit.name + "\""))) return;
                         if (currentUnit._isNew) {
                             HND.deleteNewUnit(appId, currentUnit.id);
                         } else {
@@ -1079,10 +1079,12 @@
         // ("האם למחוק...") then wipes per-slot progress for this unit.
         if (playedSlots.length > 0) {
             const cleanBtn = el("button", { class: "ctrl game-menu-clean", title: "מחק ציונים" });
-            cleanBtn.addEventListener("click", function () {
+            cleanBtn.style.backgroundImage =
+                "url('" + picPath("GameMenu/delscore.png") + "')";
+            cleanBtn.addEventListener("click", async function () {
                 const msg = (HND.tip(appId, 163) || "האם למחוק את הציונים?") +
                             "\n" + unit.name;
-                if (!confirm(msg)) return;
+                if (!(await HND.msg(appId, msg))) return;
                 playedSlots.forEach(function (i) {
                     const slot = KORA_SLOTS[i];
                     const key = HND.gameKey(slot.game, i);
@@ -1105,6 +1107,10 @@
         const dafText = (unit && (unit.daf || (unit.data && unit.data.daf))) || "";
         if (dafText) {
             const dafBtn = el("button", { class: "ctrl game-menu-daf", title: "הסבר השיעור" });
+            dafBtn.style.setProperty("--idle",
+                "url('" + picPath("GameMenu/dafu.png") + "')");
+            dafBtn.style.setProperty("--hover",
+                "url('" + picPath("GameMenu/dafd.png") + "')");
             dafBtn.addEventListener("click", function () { alert(dafText); });
             stg.appendChild(dafBtn);
         }
@@ -1420,19 +1426,19 @@
             sel.delete(oldName); sel.add(next);
             rerender();
         });
-        mkCmd(2, 552, 264, 121, 46, "אפס ציונים", function () {           // studCmd2
+        mkCmd(2, 552, 264, 121, 46, "אפס ציונים", async function () {     // studCmd2
             if (!sel.size) { alert("יש לסמן תלמיד אחד או יותר."); return; }
             const names = Array.from(sel);
-            if (!confirm("לאפס את כל הציונים של " + names.length + " תלמיד(ים)?")) return;
+            if (!(await HND.msg(appId, "לאפס את כל הציונים של " + names.length + " תלמיד(ים)?"))) return;
             let total = 0;
             names.forEach(function (n) { total += HND.resetStudentScores(appId, n); });
             alert("נמחקו " + total + " רשומות ציון.");
             rerender();
         });
-        mkCmd(3, 552, 312, 121, 46, "מחק תלמיד", function () {            // studCmd3
+        mkCmd(3, 552, 312, 121, 46, "מחק תלמיד", async function () {      // studCmd3
             if (!sel.size) { alert("יש לסמן תלמיד אחד או יותר."); return; }
             const names = Array.from(sel);
-            if (!confirm("למחוק את " + names.length + " תלמיד(ים) לתמיד? הציונים יימחקו עם השמות.")) return;
+            if (!(await HND.msg(appId, "למחוק את " + names.length + " תלמיד(ים) לתמיד? הציונים יימחקו עם השמות."))) return;
             names.forEach(function (n) { HND.deleteStudent(appId, n); });
             sel.clear();
             rerender();
@@ -1494,8 +1500,8 @@
         // ===== Top icons =====
         stg.appendChild(el("button", {
             class: "ctrl calib-exit", title: "יציאה",
-            onclick: function () {
-                if (dirty && !confirm("שינויי כיול לא נשמרו. לצאת בכל זאת?")) return;
+            onclick: async function () {
+                if (dirty && !(await HND.msg(appId, "שינויי כיול לא נשמרו. לצאת בכל זאת?"))) return;
                 location.hash = "#/" + appId + "/lessons/" + unitId;
             },
         }));
@@ -1714,9 +1720,9 @@
         // ===== Top bar =====
         const exit = el("button", {
             class: "ctrl ued-exit", title: "יציאה",
-            onclick: function () {
+            onclick: async function () {
                 if (currentEdit && currentEdit.dirty &&
-                    !confirm("יש שינויים שלא נשמרו. לצאת בכל זאת?")) return;
+                    !(await HND.msg(appId, "יש שינויים שלא נשמרו. לצאת בכל זאת?"))) return;
                 location.hash = "#/" + appId;
             },
         });
@@ -1726,10 +1732,10 @@
         });
         const setDefaults = el("button", {
             class: "ctrl ued-defaults", title: "כיול משחקים",
-            onclick: function () {
+            onclick: async function () {
                 if (!currentEdit) { alert("טען יחידה תחילה."); return; }
                 if (currentEdit.dirty &&
-                    !confirm("יש שינויי תוכן שלא נשמרו. לעבור לכיול בכל זאת?")) return;
+                    !(await HND.msg(appId, "יש שינויי תוכן שלא נשמרו. לעבור לכיול בכל זאת?"))) return;
                 location.hash = "#/" + appId + "/calibration/" + currentEdit.id;
             },
         });
@@ -1761,9 +1767,9 @@
         // ✎ marks an existing JSON unit that has a saved overlay;
         // ✦ marks a brand-new (localStorage-only) unit).
         const unitPicker = el("select", { class: "ctrl ued-unit-picker" });
-        unitPicker.addEventListener("change", function () {
+        unitPicker.addEventListener("change", async function () {
             if (currentEdit && currentEdit.dirty &&
-                !confirm("יש שינויים שלא נשמרו. לעבור בכל זאת?")) {
+                !(await HND.msg(appId, "יש שינויים שלא נשמרו. לעבור בכל זאת?"))) {
                 unitPicker.value = String(currentEdit.id);
                 return;
             }
@@ -1837,11 +1843,11 @@
             rowOffset = Math.max(0, currentEdit.items.length - ROWS_VISIBLE);
             renderRows();
         });
-        mkToolBtn("ued-del",  752, 160, "מחק שורה",  function () {
+        mkToolBtn("ued-del",  752, 160, "מחק שורה",  async function () {
             if (!currentEdit) return;
             const r = currentEdit.selectedRow;
             if (r == null) { alert("בחר שורה תחילה (לחיצה על מספר השורה)."); return; }
-            if (!confirm("למחוק את שורה " + (r + 1) + "?")) return;
+            if (!(await HND.msg(appId, "למחוק את שורה " + (r + 1) + "?"))) return;
             currentEdit.items.splice(r, 1);
             currentEdit.dirty = true;
             currentEdit.selectedRow = null;

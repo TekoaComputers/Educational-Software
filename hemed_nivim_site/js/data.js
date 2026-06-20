@@ -140,6 +140,71 @@ HND.stopWave = function () {
     if (HND._audio) { HND._audio.onended = null; HND._audio.pause(); }
 };
 
+// ====== Styled yes/no popup — Hemed/MsgForm.frm port ===================
+// Original Msg(text, MsgYesNo) shows a 320×190 grey modal with back.jpg
+// painted across the body and yes.jpg/no.jpg image buttons. We mirror
+// that exactly using assets/<app>/pictures/Msg/*.png.
+//
+// Returns a Promise<boolean> — true for Yes/OK, false for No/Cancel.
+// `mode`: "yesno" (default) | "ok" | "okcancel".
+//
+// Button slots map to the original CmdMsg(index).Left in twips/15:
+//   slot-0:216  slot-1:112  slot-2:8  slot-4:176  slot-5:40
+//   slot-ok-only:8 (MsgOK moves CmdMsg(0) to Left=8 per :179)
+HND.msg = function (appId, text, mode) {
+    mode = mode || "yesno";
+    return new Promise(function (resolve) {
+        const root = "assets/" + (appId || "Hemed") + "/pictures/Msg/";
+        const backdrop = document.createElement("div");
+        backdrop.className = "msg-form-backdrop";
+        const form = document.createElement("div");
+        form.className = "msg-form";
+        form.style.backgroundImage = "url('" + root + "back.png')";
+        const lbl = document.createElement("div");
+        lbl.className = "msg-form-text";
+        lbl.textContent = text || "";
+        form.appendChild(lbl);
+        function makeBtn(kind, slot, decision) {
+            const b = document.createElement("button");
+            b.type = "button";
+            b.className = "msg-form-btn msg-form-slot-" + slot;
+            b.title = kind;
+            b.style.backgroundImage = "url('" + root + kind + ".png')";
+            b.addEventListener("click", function () {
+                if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
+                resolve(decision);
+            });
+            form.appendChild(b);
+            return b;
+        }
+        let firstBtn = null;
+        if (mode === "yesno") {
+            firstBtn = makeBtn("yes", "4", true);
+                       makeBtn("no",  "5", false);
+        } else if (mode === "okcancel") {
+            firstBtn = makeBtn("ok",     "4", true);
+                       makeBtn("cancel", "5", false);
+        } else if (mode === "ok") {
+            firstBtn = makeBtn("ok", "ok-only", true);
+        }
+        // Esc cancels (no/cancel = false). Enter accepts the default button.
+        function onKey(e) {
+            if (e.key === "Escape") {
+                document.removeEventListener("keydown", onKey, true);
+                if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
+                resolve(false);
+            } else if (e.key === "Enter" && firstBtn) {
+                document.removeEventListener("keydown", onKey, true);
+                firstBtn.click();
+            }
+        }
+        document.addEventListener("keydown", onKey, true);
+        backdrop.appendChild(form);
+        document.body.appendChild(backdrop);
+        if (firstBtn) firstBtn.focus();
+    });
+};
+
 // localStorage progress map. Per-user keying matches the original VB6
 // Allusers[CurrentUser].MaslulScores tree — each user has their own best/last
 // per (appId, unitId, gameId). userName comes from the main-screen input;

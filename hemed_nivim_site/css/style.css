@@ -437,38 +437,86 @@ body {
     pointer-events: none;
 }
 
-/* CleanScore button — orig at L=0 T=432 W=55 H=55 (off-screen-left).
-   Reuses the exit-style icon as a placeholder since orig had its own
-   asset we don't have. */
+/* CleanScore button — orig at L=0 T=432 W=55 H=55. Uses delscore.jpg
+   (no MovePic; the .frm doesn't define a hover variant). JS sets
+   background-image inline via the active app's picPath. */
 .game-menu-clean {
-    left: 5px; top: 432px; width: 55px; height: 55px;
-    background-color: rgba(120, 30, 30, 0.55);
-    border: 1px solid rgba(80, 20, 20, 0.6);
-    border-radius: 6px;
-    color: #fff8e8;
-    font: 700 0.85rem "David CLM", "Heebo", "Segoe UI", Arial, sans-serif;
+    left: 0; top: 432px; width: 55px; height: 55px;
+    background-color: transparent;
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    border: 0; padding: 0;
     cursor: pointer;
-    direction: rtl;
 }
-.game-menu-clean:hover  { filter: brightness(1.1); }
-.game-menu-clean:active { filter: brightness(0.9); }
-.game-menu-clean::before { content: "\05de\05d7\05e7"; }   /* "מחק" */
+.game-menu-clean:active { filter: brightness(0.92); }
 
-/* CmdDaf — orig at L=168 T=452 W=55 H=55, uses dafu.bmp/dafd.bmp.
-   Asset not shipped; render a styled "דף" button. */
+/* CmdDaf — orig at L=168 T=452 W=55 H=55. Picture=dafu.jpg (idle),
+   MovePic=dafd.jpg (hover/pressed). JS sets --idle and --hover custom
+   properties; CSS swaps them on hover. */
 .game-menu-daf {
     left: 168px; top: 452px; width: 55px; height: 55px;
-    background-color: rgba(160, 130, 70, 0.65);
-    border: 1px solid rgba(110, 80, 30, 0.7);
-    border-radius: 6px;
-    color: #fff8e8;
-    font: 700 1rem "David CLM", "Heebo", "Segoe UI", Arial, sans-serif;
+    background-color: transparent;
+    background-image: var(--idle);
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    border: 0; padding: 0;
     cursor: pointer;
-    direction: rtl;
 }
-.game-menu-daf:hover  { filter: brightness(1.1); }
-.game-menu-daf:active { filter: brightness(0.9); }
-.game-menu-daf::before { content: "\05d3\05e3";  }   /* "דף" */
+.game-menu-daf:hover  { background-image: var(--hover); }
+.game-menu-daf:active { filter: brightness(0.92); }
+
+/* MsgForm.frm port — styled in-game yes/no popup. Backdrop covers the
+   whole viewport (modal); centered 320×190 form mirrors the original
+   ScaleWidth/Height. JS sets background-image inline from picPath. */
+.msg-form-backdrop {
+    position: fixed; inset: 0;
+    z-index: 5000;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex; align-items: center; justify-content: center;
+}
+.msg-form {
+    position: relative;
+    width: 320px; height: 190px;
+    background-color: #E0E0E0;     /* matches Form.BackColor &H00E0E0E0& */
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+    direction: rtl;
+    color: rgb(40, 0, 0);
+}
+.msg-form-text {
+    position: absolute;
+    left: 8px; right: 8px; top: 16px;
+    text-align: center;
+    font: 700 24px "David CLM", "Heebo", "Segoe UI", Arial, sans-serif;
+    line-height: 1.15;
+    word-wrap: break-word;
+    white-space: pre-line;         /* preserve "\n" from the caller */
+}
+.msg-form-btn {
+    position: absolute;
+    top: 104px; width: 90px; height: 65px;       /* CmdMsg(*).Top=1560 = 104 px; size 1350×975 ÷ 15 */
+    background-color: transparent;
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    border: 0; padding: 0;
+    cursor: pointer;
+}
+.msg-form-btn:hover  { filter: brightness(1.05); }
+.msg-form-btn:active { filter: brightness(0.92); }
+/* CmdMsg(index).Left in twips → /15 = px:
+     0 → 3240/15 = 216    (yes in YesNoCancel)
+     1 → 1680/15 = 112    (no  in YesNoCancel)
+     2 →  120/15 =   8    (cancel in YesNoCancel)
+     4 → 2640/15 = 176    (yes / ok in YesNo / OkCancel)
+     5 →  600/15 =  40    (no  / cancel in YesNo / OkCancel)
+     ok-only — MsgOK moves CmdMsg(0) to Left=120/15 = 8. */
+.msg-form-slot-0       { left: 216px; }
+.msg-form-slot-1       { left: 112px; }
+.msg-form-slot-2       { left:   8px; }
+.msg-form-slot-4       { left: 176px; }
+.msg-form-slot-5       { left:  40px; }
+.msg-form-slot-ok-only { left:   8px; }
 
 /* MainForm running-goat strip (Hemed only). Container holds two
    absolute-positioned <div>s, each with stacked <img> frames at
