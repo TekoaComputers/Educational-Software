@@ -1630,6 +1630,11 @@ function kesemPictureUrl(state, fileName) {
                 state._onScreenChange(state.currentScreen);
             }
         });
+        // User-added picture (idb-backed). No static PNG exists; falling
+        // through to assetsRoot below would 404 and the <img> would
+        // render as a broken-image / black tile. Return null and let
+        // the async resolve above trigger a repaint.
+        return null;
     }
     const stem = fileName.replace(/\.[^.]+$/, "").toLowerCase();
     return state.config.assetsRoot + "/bmp/" + stem + ".png";
@@ -1903,10 +1908,20 @@ function wireKesemSst(state) {
         const im = pri.querySelector("img.kesem-preview");
         const firstPic = sel && sel.stages && sel.stages[0] && sel.stages[0].pic;
         if (firstPic) {
-            im.src = kesemPictureUrl(state, firstPic) || "";
-            im.style.opacity = im.src ? "1" : "0";
+            const newSrc = kesemPictureUrl(state, firstPic);
+            if (newSrc) {
+                if (im.getAttribute("src") !== newSrc) im.src = newSrc;
+                im.style.opacity = "1";
+            } else if (!im.complete || !im.naturalWidth) {
+                // No URL yet (async resolve pending) AND no usable
+                // prior image; hide rather than show a broken tile.
+                im.style.opacity = "0";
+            }
+            // else: keep the previously-loaded image visible until the
+            // async resolve completes and triggers a repaint.
         } else {
             im.removeAttribute("src");
+            im.style.opacity = "0";
         }
         pri.style.display = showSpG ? "none" : "";
     }
@@ -6745,9 +6760,17 @@ function handleAction(appId, action /*, ctrl */) {
                 return;
             }
             if (idx === 2) {
-                // Dele(NO): Kill RASB\NO.ras + remove WAV\NO\.
+                // Dele(NO): Kill AppPath\RASB\NO.ras + remove WAV\NO\.
+                // Original silently no-ops for CD-shipped RAS files because
+                // the Kill targets AppPath only (CD_Dir is read-only). The
+                // port has a single merged doc.rasb so we need an explicit
+                // gate matching Nom_Rasb_CD = 100 (GLOBAL.BAS:98).
                 const key = currentSession.editor.currentRazNom;
                 if (!key) return;
+                if (parseInt(key, 10) <= 100) {
+                    klog("kesem: ras delete denied — " + key + " is CD-shipped (<=100)");
+                    return;
+                }
                 const yes = window.confirm("?למחוק את הגזירה");
                 if (!yes) return;
                 const doc = currentSession.editor.doc;
@@ -6788,8 +6811,17 @@ function handleAction(appId, action /*, ctrl */) {
             const pic = pics[sel];
             if (idx === 0) {
                 // del[0] = delete picture (Main.Del_Click Index=0).
-                // Mirrors: Shoila(TMsg(7)) confirm → Del_All List1.ListIndex+1.
+                // Mirrors: If Val(FN(kk)) <= Kol_Pics_CD Then Exit Sub,
+                // then Shoila(TMsg(7)) confirm → Del_All List1.ListIndex+1.
+                // Kol_Pics_CD = 100 (kesem/GLOBAL.BAS:97): pictures 1..100
+                // are CD-shipped and immutable. Without this gate the web
+                // port deletes them from the in-memory doc, which is the
+                // bug from issue #39.
                 if (!pic) return;
+                if (parseInt(pic.file, 10) <= 100) {
+                    klog("kesem: delete denied — " + pic.file + " is CD-shipped (<=100)");
+                    return;
+                }
                 if (!window.confirm("?למחוק את התמונה")) return;
                 pics.splice(sel, 1);
                 const stem = pic.file.replace(/\.[^.]+$/, "");
@@ -7534,10 +7566,21 @@ function playVideo(url, opts) {
     });
     box.appendChild(vid);
 
+    // HTMLMediaElement.play() returns a Promise that rejects with
+    // AbortError if pause() is called before the load settles. Bare
+    // vid.play() leaves the rejection unhandled, after which the element
+    // ends up in a stuck "silent" state where subsequent play() calls
+    // silently no-op. We serialise play/pause through a shared pending
+    // chain and swallow the AbortError, so rapid toggling stays sane.
+    // (Issue #40: "magical windows audio not playing".)
+    let _vidPending = Promise.resolve();
+    function safePlay()  { _vidPending = _vidPending.then(function () { return vid.play(); }).catch(function () {}); }
+    function safePause() { _vidPending = _vidPending.then(function () { vid.pause(); }).catch(function () {}); }
+
     // Picture1_Click: pause⇆play toggle (Mode 526 = playing).
     vid.addEventListener("click", function () {
         klog("CLICK video Picture1 → " + (vid.paused ? "play" : "pause"));
-        if (vid.paused) vid.play(); else vid.pause();
+        if (vid.paused) safePlay(); else safePause();
     });
 
     // === MCI control bar — MCI32.OCX visual replica =====================
@@ -7600,9 +7643,9 @@ function playVideo(url, opts) {
     // StepVisible=RecordVisible=EjectVisible=0. Play/Pause/Stop default to
     // True. So MCI32.OCX renders THREE buttons in this configuration, each
     // ~33 px wide across the 101-px bar.
-    mci.appendChild(mciBtn("▶",   "נגן",     function () { klog("CLICK video MCI play");  vid.play(); }));
-    mci.appendChild(mciBtn("❚❚",  "השהיה",   function () { klog("CLICK video MCI pause"); vid.pause(); }));
-    mci.appendChild(mciBtn("■",   "עצור",    function () { klog("CLICK video MCI stop");  vid.pause(); vid.currentTime = 0; }));
+    mci.appendChild(mciBtn("▶",   "נגן",     function () { klog("CLICK video MCI play");  safePlay(); }));
+    mci.appendChild(mciBtn("❚❚",  "השהיה",   function () { klog("CLICK video MCI pause"); safePause(); }));
+    mci.appendChild(mciBtn("■",   "עצור",    function () { klog("CLICK video MCI stop");  safePause(); vid.currentTime = 0; }));
     box.appendChild(mci);
 
     // === Seek scrollbar `re` — classic Win9x HScrollBar replica =========

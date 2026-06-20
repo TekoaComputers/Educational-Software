@@ -270,17 +270,27 @@
             '</svg>' +
             '<span class="feedback-label">משוב</span>';
 
-        a.addEventListener('click', function () {
+        a.addEventListener('click', function (e) {
+            // Build the URL SYNCHRONOUSLY first so the popup opens inside
+            // the user-gesture window. The href was computed at fab build
+            // time (line above) and goes stale as logs accumulate; if we
+            // let the async clipboard work below run first, some browsers
+            // strip the user gesture and the target=_blank popup gets
+            // blocked — that's the "took multiple attempts" symptom in
+            // issue #38.
+            var url = buildIssueUrl(true);
+            if (url.length > URL_MAX) url = buildIssueUrl(false);
+            a.href = url;                 // keep accessible right-click "copy link" current
+            e.preventDefault();
+            window.open(url, '_blank', 'noopener');
+
+            // Clipboard copy is async and may take time; safe to start
+            // after the popup is on its way.
             var payload = buildPayload();
             copyToClipboard(payload).then(
                 function () { showToast('הלוג הועתק ללוח (' + buf.length + ' שורות)'); },
                 function () { showToast('לא הצלחתי להעתיק — נא להדביק ידנית מהקונסול'); }
             );
-
-            var url = buildIssueUrl(true);
-            if (url.length > URL_MAX) url = buildIssueUrl(false);
-            a.href = url;
-            // default navigation continues (target=_blank opens new tab)
         });
 
         document.body.appendChild(a);
