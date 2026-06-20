@@ -28,6 +28,9 @@ const Game = (() => {
   let keyFocusRow = 0;
   let keyHandler = null;
 
+  // Row the mouse is currently resting on (for re-lighting after a target switch)
+  let hoverRow = null;
+
   // Animation state
   let animInterval = null;
   let animFrame = 0;
@@ -150,6 +153,7 @@ const Game = (() => {
     rowPlanks = new Array(scenePairs.length).fill(null);
     wrongStreak = 0;
     keyFocusRow = 0;
+    hoverRow = null;
     if (elPlanks) elPlanks.innerHTML = '';
     clearHint();
     renderRows();
@@ -194,6 +198,8 @@ const Game = (() => {
     updateTargetDisplay();
     clearHint();
     keyFocusRow = -1;
+    // If the cursor is resting on a row, light it up for the new question now.
+    if (hoverRow != null && !matched[hoverRow]) handleRowHover(hoverRow, true);
   }
 
   // ─── Row Rendering ──────────────────────────────────────────────────────
@@ -291,6 +297,11 @@ const Game = (() => {
 
   function handleRowHover(rowIdx, entering) {
     if (matched[rowIdx]) return;
+    if (entering) hoverRow = rowIdx;
+    else if (hoverRow === rowIdx) hoverRow = null;
+    // During the post-answer transition (no active target) suppress the preview
+    // text and the plank/board until the next question is shown.
+    if (entering && !currentTarget) return;
     if (gameKind === 1) {
       // kind=1: preview answer in right span
       const ansEl = document.getElementById(`row-ans-${rowIdx}`);
@@ -373,6 +384,9 @@ const Game = (() => {
       } else {
         playCorrectAnim();
       }
+      // Invalidate the target immediately so a hover during the 400ms transition
+      // can't preview the just-answered question. pickNextTarget restores it.
+      currentTarget = null;
       setTimeout(pickNextTarget, 400);
     } else {
       penalty += Math.max(1, Math.round(5 - allPairs.length / 8));
@@ -440,10 +454,16 @@ const Game = (() => {
       if (matched[i]) continue;
       if (gameKind === 1) {
         const ansEl = document.getElementById(`row-ans-${i}`);
-        if (ansEl && !ansEl.classList.contains('preview')) ansEl.className = 'row-answer hidden';
+        if (!ansEl) continue;
+        // A row hovered during the target switch must refresh to the NEW target,
+        // not keep the stale value it previewed for the just-answered question.
+        if (ansEl.classList.contains('preview')) ansEl.textContent = currentTarget ? currentTarget.value : '';
+        else ansEl.className = 'row-answer hidden';
       } else {
         const exprEl = document.getElementById(`row-expr-${i}`);
-        if (exprEl && !exprEl.classList.contains('preview')) { exprEl.textContent = ''; exprEl.className = 'row-expr'; }
+        if (!exprEl) continue;
+        if (exprEl.classList.contains('preview')) exprEl.textContent = currentTarget ? currentTarget.value : '';
+        else { exprEl.textContent = ''; exprEl.className = 'row-expr'; }
       }
     }
   }
