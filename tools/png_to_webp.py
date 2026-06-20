@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""Walk a list of site roots, write a sibling .webp for every .png.
+"""Walk a list of site roots, write a sibling .webp for every .png and .bmp.
 
 Quality strategy (matches the recommendation from the analysis):
-  - src < 1 KB        → lossless WebP (lossy would inflate via overhead)
-  - 1 KB ≤ src < 10 KB → lossless WebP (preserve UI sprite pixel clarity)
-  - src ≥ 10 KB        → lossy WebP q=80 (best size on illustrations)
+  - src < 10 KB → lossless WebP (preserve UI sprite pixel clarity)
+  - src ≥ 10 KB → lossy WebP q=80 (best size on illustrations)
 
-Idempotent: if the .webp exists and is newer than the .png, skip.
+Idempotent: if the .webp exists and is newer than its source, skip.
 Originals are untouched. Phase-1 sibling approach — fully reversible by
 deleting the .webp files or `git clean -f -- '*.webp'`.
 
@@ -98,10 +97,10 @@ def main():
     print(f"Scanning {len(roots)} root(s)…", flush=True)
     files = []
     for r in roots:
-        files.extend(r.rglob("*.png"))
-        files.extend(r.rglob("*.PNG"))
+        for ext in ("png", "PNG", "bmp", "BMP"):
+            files.extend(r.rglob(f"*.{ext}"))
     files = sorted({str(p) for p in files})
-    print(f"  found {len(files)} png files", flush=True)
+    print(f"  found {len(files)} png/bmp files", flush=True)
     if not files:
         return
 
