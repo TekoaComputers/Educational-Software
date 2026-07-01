@@ -74,11 +74,11 @@ const App = (() => {
         staticImg.style.display = 'none';
         vid.style.display = 'block';
         vid.currentTime = 0;
-        vid.play();
+        vid.play().catch(() => {});
       });
       vid.addEventListener('click', () => {
         vid.currentTime = 0;
-        vid.play();
+        vid.play().catch(() => {});
       });
     }
 
