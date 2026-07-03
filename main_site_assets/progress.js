@@ -149,8 +149,25 @@
     }
     function reset(app) {
         const d = load();
-        if (app) delete d.apps[app];
-        else d.apps = {};
+        if (app) {
+            // Tombstone rather than raw delete. If we just `delete`d the
+            // key, the subsequent cloud sync would see L === undefined,
+            // fall into `if (!L) { out.apps[app] = R }` in mergeTrees,
+            // and silently resurrect the pre-reset data from the Drive
+            // copy. Setting resetAt lets mergeTrees prefer the local
+            // empty state when it's newer than the remote's last update.
+            // (Fix for #46 "reset progress button just fails.")
+            d.apps[app] = {
+                total: 0,
+                activities: {},
+                lastUpdated: nowSec(),
+                resetAt: nowSec(),
+            };
+        } else {
+            d.apps = {};
+            d.user = d.user || {};
+            d.user.resetAt = nowSec();
+        }
         save(d);
     }
 
@@ -347,11 +364,28 @@
             ...Object.keys(local.apps || {}),
             ...Object.keys(remote.apps || {}),
         ]);
+        // Global-reset guard: if the user did a "reset everything" AFTER
+        // the remote was last touched, drop every remote-only app.
+        const globalResetAt = (local.user && local.user.resetAt) || 0;
         for (const app of appIds) {
             const L = (local.apps  || {})[app];
             const R = (remote.apps || {})[app];
-            if (!L) { out.apps[app] = R; continue; }
+            if (!L) {
+                // Remote-only app. Keep it unless the user's global reset
+                // supersedes the remote's last-known write.
+                if (globalResetAt >= ((R && R.lastUpdated) || 0)) continue;
+                out.apps[app] = R;
+                continue;
+            }
             if (!R) { out.apps[app] = L; continue; }
+            // Per-app reset guard: an explicit reset() on this device wins
+            // over any remote copy that's older than the reset. Without
+            // this the remote's activities would repopulate our empty
+            // local set at merge time. (Fix for #46.)
+            if (L.resetAt && L.resetAt >= (R.lastUpdated || 0)) {
+                out.apps[app] = L;
+                continue;
+            }
             // Pick whichever app blob is newer; merge activities at finer
             // grain so a write on one device doesn't lose a write made
             // on the other within the sync window.

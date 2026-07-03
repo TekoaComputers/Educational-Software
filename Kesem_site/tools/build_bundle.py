@@ -7286,11 +7286,22 @@ function buildMisgerModal(opts) {
 
     function close() {
         overlay.remove();
-        document.removeEventListener("keydown", onKey);
+        document.removeEventListener("keydown", onKey, true);
     }
     function onKey(e) {
+        if (e.key !== "Escape" && e.key !== "Enter") return;
+        // Swallow the event so the page-level handleKey (registered on
+        // window) doesn't ALSO fire the underlying screen's Escape branch
+        // in the same tick — otherwise close() removes the overlay,
+        // handleKey then sees no modal in the DOM, and opens a fresh
+        // one on top of the just-closed one (visually: "modal didn't
+        // close"). preventDefault + stopImmediatePropagation is what's
+        // needed. Listener is now registered in the CAPTURE phase for
+        // the same reason (fires before any bubbling handleKey could).
+        e.preventDefault();
+        e.stopImmediatePropagation();
         if (e.key === "Escape") { close(); onNo(); }
-        if (e.key === "Enter")  { close(); onYes(); }
+        else                    { close(); onYes(); }
     }
 
     if (mode === "back") {
@@ -7350,7 +7361,10 @@ function buildMisgerModal(opts) {
     noArea.addEventListener("click", function () { klog("CLICK misger no (" + mode + ")"); close(); onNo(); });
     box.appendChild(noArea);
 
-    document.addEventListener("keydown", onKey);
+    // Capture-phase so the modal's key handler ALWAYS fires before
+    // window-bubble handleKey — otherwise handleKey's Escape branch
+    // opens a second modal on top of the one this handler just closed.
+    document.addEventListener("keydown", onKey, true);
     overlay.appendChild(box);
     document.body.appendChild(overlay);
     yesArea.focus();
@@ -10258,7 +10272,16 @@ function kesemChgamesKey(e) {
 
 function handleKey(e) {
     // Don't interfere when a modal is open or focus is in an input.
-    if (document.querySelector(".exit-modal")) return;
+    // The .exit-modal class is legacy (see css/style.css comment at
+    // "Legacy exit modal (now unused; left for compat)"); the current
+    // exit/back confirmation uses .misger-overlay. Both are checked
+    // so handleKey short-circuits either way — otherwise Escape while
+    // a modal is open fires *both* the modal's own key handler AND
+    // handleKey's Escape branch, opening a second modal or executing
+    // the underlying screen's Esc action (fix for #65.1 "in all the
+    // english games you can leave without confirming by pressing
+    // escape again").
+    if (document.querySelector(".exit-modal, .misger-overlay")) return;
     if (!currentSession) return;
     const screen = currentSession.currentScreen;
     const isKesem = currentSession.config.id === "Kesem";
