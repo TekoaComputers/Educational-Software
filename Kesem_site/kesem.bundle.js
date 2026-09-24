@@ -1748,8 +1748,10 @@ function actionFor(ctrl, appId, screenId) {
     // Heshbon Sst.Picture2_Click → start.Visible=True / Sst.Visible=False —
     // launches the Lmath ladybug-math mini-game (Lmath/start.frm). Scope to
     // Heshbon since Dvash/Ivrit also have a generic Picture2 control with
-    // unrelated semantics.
-    if (name === "Picture2" && appId === "Heshbon") return "lmath:start";
+    // unrelated semantics — and to the Sst screen: Games4/Games5 also have
+    // a Picture2 (the game4 piece canvas / game5 choice tiles), and without
+    // the screen check a click there tore the game down into Lmath.
+    if (name === "Picture2" && appId === "Heshbon" && screenId === "sst") return "lmath:start";
     // Sst.mahak_Click → MsgBox confirm → ResetKlali (wipe scores) → Lampas.
     // Visible only when Lampas finds at least one saved activity.
     if (name === "mahak")      return "reset";
