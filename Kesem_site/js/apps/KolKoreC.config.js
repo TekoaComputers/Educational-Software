@@ -59,6 +59,9 @@ export default {
     tafroshFile: "data/tafrosh/KolKoreC.json",
     defaultRama: 1,
     maxRama: 2,
+    // Catalog progress: the Sst reaches ramas 1–2 only (the data also
+    // carries ramas 3–4).
+    progressSlots: { "1": true, "2": true },
     bgRamaMax: 2,
     // Page-flip animation between rama 1 and rama 2 (Sst.FlipClock_Timer).
     // polaNum=8 in Form_Load → 8 frames Daf1..Daf8 painted at 70 ms each.

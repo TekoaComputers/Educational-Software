@@ -84,6 +84,9 @@ export default {
     tafroshFile: "data/tafrosh/KolKoreB.json",
     defaultRama: 2,
     maxRama: 2,
+    // Catalog progress: the Sst reaches ramas 1–2 only (the data also
+    // carries ramas 3–4).
+    progressSlots: { "1": true, "2": true },
     bgRamaMax: 2,
     act1Images: {
         default: {

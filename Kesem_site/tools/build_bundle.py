@@ -287,14 +287,37 @@ function showApp(appId) {
         if (state.config.id === "KolKoreD") applyKolKoreDRamaLayout(state);
     };
     onScreenChange(currentSession, currentSession.currentScreen);
-    // ---- progress total: one entry per maslul (slot) across all ramas ----
+    // ---- progress total: one entry per reachable maslul (see kesemProgressTotal) ----
     if (window.Tekoa && window.Tekoa.Progress && paths && paths.ramas) {
-        let total = 0;
-        for (const r in paths.ramas) {
-            total += ((paths.ramas[r] && paths.ramas[r].slots) || []).length;
-        }
+        const total = kesemProgressTotal(config, paths);
         if (total > 0) window.Tekoa.Progress.setTotal(appId, total);
     }
+}
+
+// Catalog progress denominator. By default every slot of every rama in the
+// .MAS/.RAS data counts — but some apps ship more than their Sst offers:
+// KolKoreB/C/D carry ramas 3–4 that no Icon_s reaches, KolKoreA rama 1
+// lists 15 paths behind five btnIcon (applyKolKoreARamaLayout), KolKoreD
+// rama 2 hides btnIcon 11. Counting those left the catalog below 100%
+// (KolKoreA 63%) after every path was finished. An app can declare
+// config.progressSlots = { rama: [slot indices] | true (every slot with
+// stages) }: only the listed ramas / slots count then. Keep
+// main_site_assets/progress.js DEFAULT_TOTALS in step (it seeds the
+// catalog before the Kesem bundle ever runs).
+function kesemProgressTotal(config, paths) {
+    let total = 0;
+    const only = config && config.progressSlots;
+    for (const r in paths.ramas) {
+        const slots = (paths.ramas[r] && paths.ramas[r].slots) || [];
+        if (!only) { total += slots.length; continue; }
+        if (!only[r]) continue;
+        slots.forEach(function (sl, i) {
+            if (!sl || !sl.stages || !sl.stages.length) return;
+            if (only[r] !== true && only[r].indexOf(i) < 0) return;
+            total++;
+        });
+    }
+    return total;
 }
 
 // === Screen post-process =================================================
@@ -10596,10 +10619,7 @@ if (window.Tekoa && window.Tekoa.Progress) {
     for (const appId of APPS) {
         const paths = PATHS[appId];
         if (!paths || !paths.ramas) continue;
-        let total = 0;
-        for (const r in paths.ramas) {
-            total += ((paths.ramas[r] && paths.ramas[r].slots) || []).length;
-        }
+        const total = kesemProgressTotal(CONFIGS[appId], paths);
         if (total > 0) window.Tekoa.Progress.setTotal(appId, total);
     }
 }
