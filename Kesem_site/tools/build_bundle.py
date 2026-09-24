@@ -3614,6 +3614,9 @@ function wireKesemStartMaslul(state) {
     // --- List1: all available .MAS lessons ------------------------------
     const list1 = stage.querySelector(".frm-ctrl--List1");
     if (list1) {
+        // Re-rendered on every click: keep the scroll position, or picking
+        // a row further down snaps the list back to the top.
+        const keepScroll = list1.scrollTop;
         list1.innerHTML = "";
         Object.assign(list1.style, {
             background: "rgba(255,255,255,.92)", overflow: "auto",
@@ -3621,6 +3624,15 @@ function wireKesemStartMaslul(state) {
             textAlign: "right", direction: "rtl", boxSizing: "border-box",
             padding: "4px", display: "block",
         });
+        // Start_ma.frm's List1 is 336 twips (22 px) tall at design time —
+        // one row, with the lesson list scrolled inside it; the first1.jpg
+        // panel it sits in runs down to the stage-detail box (SpG_l). Fill
+        // that panel so the lessons are actually browsable.
+        const spgBox = stage.querySelector(".frm-ctrl--SpG_l");
+        const top1 = parseFloat(list1.style.top) || 0;
+        const topS = spgBox ? parseFloat(spgBox.style.top) || 0 : 0;
+        if (topS - top1 > 60) list1.style.height = (topS - top1 - 8) + "px";
+
         const ul = document.createElement("ul");
         Object.assign(ul.style, { listStyle: "none", margin: 0, padding: 0 });
         (doc.maslul || []).forEach(function (m, i) {
@@ -3643,6 +3655,7 @@ function wireKesemStartMaslul(state) {
             ul.appendChild(li);
         });
         list1.appendChild(ul);
+        list1.scrollTop = keepScroll;
     }
 
     // --- SpG_l: stage preview of the selected lesson --------------------
