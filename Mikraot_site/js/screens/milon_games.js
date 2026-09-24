@@ -128,15 +128,22 @@
     //   3. sleep 1000
     //   4. sndPlaySound("ranit/NOk<k>.wav", 1)
     //   5. PicBur cells 0..5
-    async function kishalon(picFeaNode, picBurNode, k) {
+    async function kishalon(picFeaNode, picBurNode, k, tok) {
         const ki = String(Math.min(Math.max(k, 1), 3));
         MK.play("milon/ranit/kish" + ki + ".wav");
         await animSprite(picFeaNode, "pic_fea", 6, 200);
         await MK.sleep(1000);
+        if (tok != null && MK.stale(tok)) return;
         MK.play("milon/ranit/nok" + ki + ".wav");
         await animSprite(picBurNode, "pic_bur", 6, 200);
     }
+    // Only a maslul chain step records coins. Free play from the MILON
+    // popup routes with maslIdx 0, so saving there silently merged every
+    // free-play score into maslul 1's Tozaot record: SOFER then reported
+    // e.g. "אספת 71 מטבעות מתוך 79" for a maslul whose own steps earned 26,
+    // and KIVUN flagged maslul 1 as in-progress without it being played.
     function saveCoins(song, masl, code, coins) {
+        if (!sessionStorage.getItem("mikraot:chain")) return;
         try {
             const t = JSON.parse(localStorage.getItem("mikraot:tozaot") || "{}");
             t[song] = t[song] || {};
