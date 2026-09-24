@@ -6116,6 +6116,12 @@ function markPathCompleted(state) {
     if (window.Tekoa && window.Tekoa.Progress) {
         let g = 0, y = 0, rd = 0, tot = 0;
         for (const st of (state.pathScore || [])) {
+            // pathScore is SPARSE: snapStageScore never writes a slot for
+            // game3 (inspect) stages, and a misger jump can skip stages, so
+            // for…of yields `undefined` holes. Without this guard a path
+            // whose first stage is game3 threw here — before the outro video
+            // and nikod — and the player was left stuck on the last stage.
+            if (!st) continue;
             g  += st.green  || 0;
             y  += st.yellow || 0;
             rd += st.red    || 0;
