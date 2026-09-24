@@ -354,6 +354,25 @@ class Kesem {
     }, i, this.app);
   }
 
+  /** Every lamp (and the mahak eraser) must reflect the CURRENT rama's completions. */
+  async checkLamps(tag) {
+    const st = await this.eval(app => {
+      const s = window.__kesemSession;
+      const done = window.__km.ls(app).completed[String(s.rama)] || {};
+      const lamps = [...document.querySelectorAll('.frm-ctrl--btnLamp')].map(el => {
+        const im = el.querySelector('img');
+        const lit = getComputedStyle(el).display !== 'none' && !!im && /lamp2/i.test(im.getAttribute('src') || '');
+        return [+el.dataset.index, lit, !!done[el.dataset.index]];
+      });
+      const m = document.querySelector('.frm-ctrl--mahak');
+      return { rama: s.rama, lamps, mahak: m ? getComputedStyle(m).display !== 'none' : null, any: Object.keys(done).length > 0 };
+    }, this.app);
+    if (this.app === 'KolKoreB') return;              // lamps follow the selected activity, not the index
+    const bad = st.lamps.filter(([, lit, done]) => lit !== done);
+    this.ctx.check(!bad.length, 'Sst lamps show another rama\'s results', `${tag}: rama ${st.rama}, lamp(index, lit, completed): ${bad.map(b => b.join('/')).join(' ')}`);
+    if (st.mahak !== null) this.ctx.check(st.mahak === st.any, 'mahak eraser visibility does not match the rama', `${tag}: rama ${st.rama} completed=${st.any} mahak shown=${st.mahak}`, 'warn');
+  }
+
   // ----------------------------------------------------------------- play
   /**
    * Play the path currently loaded (screen already a game or its intro video). Returns
@@ -711,8 +730,23 @@ class Kesem {
     const before = await this.snap();
     const btnIdx = await this.eval(ix => [...document.querySelectorAll('.frm-ctrl--btnIcon')].findIndex(e => +e.dataset.index === ix), i);
     if (btnIdx < 0) { ctx.finding('error', 'no btnIcon for path', `${tag} (${name})`); return; }
-    await this.tap('.frm-ctrl--btnIcon', btnIdx, 400);
+    const n0 = ctx.traceLen();
+    if (i === 0) {
+      // #60 "clicking a button too fast just closes the animation": a
+      // double-click on the path icon must leave the intro video playing.
+      const p = await this.eval(ix => window.__km.point('.frm-ctrl--btnIcon', ix), btnIdx);
+      await ctx.click(p.x, p.y, 60);
+      await ctx.click(p.x, p.y, 400);
+    } else await this.tap('.frm-ctrl--btnIcon', btnIdx, 400);
     const started = await ctx.waitFor(() => { const s = window.__km.snap(); return s.ov === 'video' || /^game/.test(s.screen || ''); }, 8000);
+    if (i === 0 && started) {
+      const tr = ctx.traceSince(n0);
+      const hadVideo = tr.some(l => /video play: /.test(l));
+      const v = await this.eval(() => { const x = document.querySelector('.video-overlay video'); return x ? { paused: x.paused, ended: x.ended } : null; });
+      if (hadVideo) ctx.check(v && (!v.paused || v.ended) && !tr.some(l => /video (dimmer|close)|Picture1 → pause/.test(l)),
+        'double-click on a path icon stops its intro video', `${tag}: ${v ? 'video paused=' + v.paused : 'video gone'}\n${tr.slice(-6).join('\n')}`);
+      ctx.check(tr.filter(l => /startPath:/.test(l)).length === 1, 'double-click on a path icon started it twice', `${tag}\n${tr.slice(-8).join('\n')}`);
+    }
     if (!started) { ctx.finding('error', 'path did not start', `${tag} (${name}) screen=${(await this.snap()).screen}`); await ctx.shot(`${tag}-nostart`); return; }
     const res = await this.playPath(tag, { wrongs, chaos });
     if (!res) { this.cover(`${tag} ${name}: ABORTED`); return; }
@@ -1026,6 +1060,7 @@ async function runApp(ctx, app, overrides = {}) {
     await ctx.sleep(400);
     await ctx.checkImages();
     await ctx.shot(`sst-rama${r}`);
+    await k.checkLamps(`r${r}/sst`);
     const slots = await k.eval(() => { const s = window.__kesemSession; const sl = (s.paths.ramas[String(s.config.activityRamaPin || s.rama)] || {}).slots || []; return sl.map(x => ({ name: x.name || x.masFile, n: (x.stages || []).length })); });
     const nIcons = await k.eval(() => [...document.querySelectorAll('.frm-ctrl--btnIcon')].filter(e => getComputedStyle(e).display !== 'none').map(e => +e.dataset.index));
     let idx = o.slots ? o.slots(r, slots) : slots.map((_, i) => i).filter(i => slots[i].n > 0);
