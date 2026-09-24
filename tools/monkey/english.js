@@ -113,6 +113,41 @@ async function escapeGame(k) {
   ctx.check(!lamp.done || k._completed.has(`${(await k.snap()).rama}/${idx}`), 'Escape-aborted path marked completed', `path ${idx}`);
 }
 
+// #83: on a slow connection, flipping rama tabs faster than thumbnails
+// arrive must not keep aborting their downloads — after a burst (and a
+// short settle, still throttled) every rama's pictures must be ready the
+// moment its tab is clicked again. Runs first, while only rama 1 is cached.
+async function slowSwap(k) {
+  const ctx = k.ctx;
+  ctx.step('sst/slow-swap');
+  await k.waitScreen('sst');
+  const maxRama = (await k.cfg()).maxRama || 1;
+  if (maxRama < 2) return;
+  const cdp = await ctx.page.createCDPSession();
+  await cdp.send('Network.enable');
+  await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 300, downloadThroughput: 48 * 1024, uploadThroughput: 48 * 1024 });
+  const pts = [];
+  for (let r = 1; r <= maxRama; r++) pts.push(await k.eval(i => window.__km.point([...document.querySelectorAll('.frm-ctrl--Icon_s')].find(e => +e.dataset.index === i)), r - 1));
+  const seq = [];
+  for (let n = 0; n < 16; n++) seq.push(n % 2 ? 1 + (n >> 1) % maxRama : 1 + ((n >> 1) + 1) % maxRama);
+  for (const r of seq) if (pts[r - 1]) await ctx.click(pts[r - 1].x, pts[r - 1].y, 280);
+  await ctx.sleep(6000);
+  const stale = [];
+  for (let r = 1; r <= maxRama; r++) {
+    if (!pts[r - 1]) continue;
+    await ctx.click(pts[r - 1].x, pts[r - 1].y, 250);
+    const miss = await k.eval(() => [window.__kesemSession.bg, ...document.querySelectorAll('.frm-ctrl--btnIcon img')]
+      .filter(im => im && im.getAttribute('src') && getComputedStyle(im.closest('.frm-ctrl') || im).display !== 'none' && !(im.complete && im.naturalWidth))
+      .map(im => im.getAttribute('src').split('/').pop()));
+    if (miss.length) stale.push(`rama ${r}: ${miss.join(' ')}`);
+  }
+  await ctx.shot('slow-swap');
+  await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+  await cdp.detach().catch(() => {});
+  ctx.check(!stale.length, 'rama images still not loaded after fast tab switching on a slow network (#83)', stale.join('; '));
+  await k.selectRama(1);
+}
+
 async function extra(k) {
   if (!(await escapeSst(k))) return;
   await escapeGame(k);
@@ -121,6 +156,7 @@ async function extra(k) {
 async function run(ctx, app, over = {}) {
   const o = {
     exitSel: '.frm-ctrl--BtnExit',        // English Sst names its exit PictureBox BtnExit
+    entry: slowSwap,                      // initialScreen is sst; run the #83 check before anything is cached
     extra,
   };
   if (app === 'EnglishC') {

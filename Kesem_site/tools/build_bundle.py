@@ -275,6 +275,7 @@ function showApp(appId) {
         wireSstLamps(state);
         if (state.config.id === "EnglishC") applyEnglishCRamaLayout(state);
         if (state.config.id === "KolKoreA") applyKolKoreARamaLayout(state);
+        keepSstImagesLoading(state);
         if (state.config.id === "KolKoreB") {
             // refreshRamaImages wiped the temC selected sprite back to tem;
             // also the star previews need to reload (rama-specific maslul
@@ -369,6 +370,7 @@ function onScreenChange(state, screenId) {
         if (state.config.flipBook) wireFlipBookAnimation(state);
         if (state.config.id === "EnglishC") applyEnglishCRamaLayout(state);
         if (state.config.id === "KolKoreA") applyKolKoreARamaLayout(state);
+        keepSstImagesLoading(state);
         if (state.config.id === "KolKoreB") {
             wireKolKoreBRamaToggle(state);
             // Apply the initial KolKoreB selection (sticky across screen
@@ -807,6 +809,29 @@ function applyKolKoreARamaLayout(state) {
             lampEl.style.left = (ov.left + 5) + "px";
         }
     }
+}
+
+// Rama tabs swap every btnIcon/background <img>.src at once. Changing an
+// <img>'s src aborts its in-flight download, so on a slow connection a
+// user flipping tabs faster than the thumbnails arrive never lets any of
+// them finish — the old rama's pictures stay on screen and the tabs look
+// dead (#83 "when swapping too fast images stop swapping"). Mirror every
+// visible Sst image into a detached Image() that nothing ever re-points,
+// so each download runs to completion and the next visit is a cache hit.
+// Only URLs the screen is actually showing are mirrored (hidden slots such
+// as EnglishC btnIcon 4/9 have no src), so no extra requests or 404s.
+function keepSstImagesLoading(state) {
+    if (!state || !state.stage) return;
+    const keep = state._sstImgKeep || (state._sstImgKeep = new Map());
+    const imgs = [state.bg].concat([].slice.call(state.stage.querySelectorAll("img")));
+    imgs.forEach(function (img) {
+        if (!img || img.complete) return;
+        const src = img.getAttribute("src");
+        if (!src || keep.has(src)) return;
+        const pre = new Image();
+        pre.src = src;
+        keep.set(src, pre);
+    });
 }
 
 // EnglishC Sst.Icon_s_Click reshuffles the activity grid per rama:
