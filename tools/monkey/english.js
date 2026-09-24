@@ -216,7 +216,19 @@ async function game5Timeout(k) {
   await k.waitScreen('sst', 4000);
 }
 
+// Every reachable path has been completed by now (full run): the catalog's
+// progress battery for the app must read 100%, not a share of .MAS slots
+// the Sst never offers (extra ramas, EnglishC's hidden filler slots).
+async function catalogProgress(k) {
+  const ctx = k.ctx;
+  if (ctx.quick) return;
+  ctx.step('progress');
+  const p = await k.eval(a => { const P = window.Tekoa && window.Tekoa.Progress; return P && { pct: P.getPercent(a), total: P.getApp(a).total, done: Object.keys(P.getApp(a).activities).length }; }, k.app);
+  if (p) ctx.check(p.pct === 100, 'catalog progress not 100% after every path was completed', JSON.stringify(p));
+}
+
 async function extra(k) {
+  await catalogProgress(k);
   if (!(await escapeSst(k))) return;
   await escapeGame(k);
   await game5Timeout(k);
@@ -233,7 +245,15 @@ async function run(ctx, app, over = {}) {
     // path names of neighbouring slots) behind hidden btnIcons.
     o.slots = (r, slots) => slots.map((_, i) => i).filter(i => slots[i].n > 0 && (r === 3 || !HIDDEN_ENGLISHC.has(i)));
   }
-  return runApp(ctx, app, Object.assign(o, over));
+  const k = await runApp(ctx, app, Object.assign(o, over));
+  // Back on the catalog after the final exit: the app's battery must still
+  // read 100% (mahak only clears the app's own results, not the tracker).
+  if (!ctx.quick && await ctx.eval(() => !/Kesem_site/.test(location.pathname) && !!(window.Tekoa && window.Tekoa.Progress))) {
+    ctx.step('catalog');
+    const p = await ctx.eval(a => { const P = window.Tekoa.Progress; const c = document.querySelector(`.card[data-app-id="${a}"]`); return { pct: P.getPercent(a), total: P.getApp(a).total, card: c ? c.innerText.replace(/\s+/g, ' ') : null }; }, app);
+    ctx.check(p.pct === 100, 'catalog battery not 100% after every path was completed', JSON.stringify(p));
+  }
+  return k;
 }
 
 module.exports = { run };

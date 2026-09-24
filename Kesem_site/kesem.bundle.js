@@ -2391,14 +2391,36 @@ function showApp(appId) {
         if (state.config.id === "KolKoreD") applyKolKoreDRamaLayout(state);
     };
     onScreenChange(currentSession, currentSession.currentScreen);
-    // ---- progress total: one entry per maslul (slot) across all ramas ----
+    // ---- progress total: one entry per playable maslul ----
     if (window.Tekoa && window.Tekoa.Progress && paths && paths.ramas) {
-        let total = 0;
-        for (const r in paths.ramas) {
-            total += ((paths.ramas[r] && paths.ramas[r].slots) || []).length;
-        }
+        const total = progressTotal(appId, paths);
         if (total > 0) window.Tekoa.Progress.setTotal(appId, total);
     }
+}
+
+// Catalog progress denominator: the maslulim a user can actually finish.
+// .MAS data often carries ramas past the Sst's Icon_s tabs (EnglishA ships
+// rama 3/4 but Sst has 2 tabs; EnglishC rama 4 with 3 tabs) and empty
+// slots, and EnglishC hides the filler slots 4/9 on rama 1/2. Counting
+// those made the catalog top out at 50% (EnglishA) / 59% (EnglishC) after
+// every path was completed. Limited to the English apps for now (checked
+// by their monkey run end to end); the others keep the raw slot count,
+// which main_site_assets/progress.js DEFAULT_TOTALS mirrors.
+const PROGRESS_REACHABLE_ONLY = { EnglishA: 1, EnglishB: 1, EnglishC: 1 };
+function progressTotal(appId, paths) {
+    const cfg = CONFIGS[appId] || {};
+    let total = 0;
+    for (const r in paths.ramas) {
+        const slots = (paths.ramas[r] && paths.ramas[r].slots) || [];
+        if (!PROGRESS_REACHABLE_ONLY[appId]) { total += slots.length; continue; }
+        if (cfg.maxRama && +r > cfg.maxRama) continue;
+        slots.forEach(function (sl, i) {
+            if (!sl || !sl.stages || !sl.stages.length) return;
+            if (appId === "EnglishC" && (r === "1" || r === "2") && (i === 4 || i === 9)) return;
+            total++;
+        });
+    }
+    return total;
 }
 
 // === Screen post-process =================================================
@@ -12589,10 +12611,7 @@ if (window.Tekoa && window.Tekoa.Progress) {
     for (const appId of APPS) {
         const paths = PATHS[appId];
         if (!paths || !paths.ramas) continue;
-        let total = 0;
-        for (const r in paths.ramas) {
-            total += ((paths.ramas[r] && paths.ramas[r].slots) || []).length;
-        }
+        const total = progressTotal(appId, paths);
         if (total > 0) window.Tekoa.Progress.setTotal(appId, total);
     }
 }
