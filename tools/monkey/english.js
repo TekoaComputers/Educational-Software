@@ -195,6 +195,9 @@ async function game5Timeout(k) {
       ctx.check(x.score.green + x.score.yellow + x.score.red === 0, 'game5 restart kept the timed-out attempt\'s tally', `stage tally g/y/r ${x.score.green}/${x.score.yellow}/${x.score.red} after restart`);
       const lit = await k.eval(() => [...document.querySelectorAll('.frm-ctrl--lblToz img')].filter(i => /caft(gre|yel|red)/.test(i.src)).length);
       ctx.check(lit === 0, 'game5 restart kept lit score markers', `${lit} markers still lit`);
+      // Form_Load puts the plane back at the start and Timer1 runs again.
+      const plane = await k.eval(() => { const s = window.__kesemSession; const p = s._game5PicTime; return { left: p ? parseFloat(p.style.left) : null, start: p ? p._designLeft : null, timer: !!s._game5Timer }; });
+      ctx.check(plane.timer && plane.left != null && plane.left < plane.start + 20, 'game5 restart left the plane at the finish / timer stopped', JSON.stringify(plane));
       continue;
     }
     const r = await k.playTurn(tag, s, 0);

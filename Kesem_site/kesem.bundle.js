@@ -10850,6 +10850,10 @@ function restartGame5Stage(state) {
     state.Pobeda = 0;
     state.wrongCount = 0;
     state.Tek_N = 1;
+    // Form_Load also puts PicTime back at its design Left, resets the speed
+    // selector and starts Timer1 again. setupGame5AuxUI only does that on a
+    // fresh stage entry, so forget the stage to make the repaint count as one.
+    state._game5LastStage = null;
     paintHotspots(state, state.activeStage);
     playGame5Prompt(state);
 }
