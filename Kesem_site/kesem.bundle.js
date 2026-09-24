@@ -10813,6 +10813,11 @@ function restartGame5Stage(state) {
     snapStageScore(state);
     state._stageScore = { green: 0, yellow: 0, red: 0 };
     initStageIndicators(state);
+    // Fresh form ⇒ setupGame5AuxUI must take its freshStage branch: plane
+    // back at the start, speed back to nor1, Timer1 re-armed. Otherwise the
+    // plane stayed parked past the finish line with its timer stopped and
+    // the replayed stage had no time limit at all.
+    state._game5LastStage = null;
     state.Pobeda = 0;
     state.wrongCount = 0;
     state.Tek_N = 1;
