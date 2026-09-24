@@ -52,8 +52,8 @@ function actionFor(ctrl, appId, screenId) {
     if (appId === "KolKoreB" && name === "mini")    return "kkb:mini";
     if (name === "btnIcon")   return `maslul:${idx + 1}`;
     // Games3 hak inspect overlay (Picture22): wa[0..4] = audio/record buttons,
-    // dif[0/1] = prev/next hotspot navigation. wa[5] is a decorative warning
-    // indicator with no click handler in the original.
+    // dif[0/1] = prev/next hotspot navigation. wa[5] is the "?" help
+    // (tipl(8) "עזרה") — the bundle shows the panel's tipl captions for it.
     if (name === "wa")         return `wa:${idx}`;
     if (name === "dif")        return `dif:${idx}`;
     if (name === "btnHofshi") return "hofshi";
@@ -423,8 +423,12 @@ function buildSubtree(ctrl, scale, state, screenConf) {
             const img = el("img", { class: "frm-img act1-img", src: a1.idle, alt: "" });
             node.appendChild(img);
             if (a1.hover) {
-                node.addEventListener("mouseenter", function () { img.src = a1.hover; });
-                node.addEventListener("mouseleave", function () { img.src = a1.idle; });
+                // A gated act1 is Enabled=False while audio plays (the bundle
+                // shows its "_2" sprite) — a disabled VB6 control gets no
+                // MouseMove, so no hover swap then.
+                const off = () => node.dataset.busySprite === "1";
+                node.addEventListener("mouseenter", function () { if (!off()) img.src = a1.hover; });
+                node.addEventListener("mouseleave", function () { if (!off()) img.src = a1.idle; });
             }
         }
     }

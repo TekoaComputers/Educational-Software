@@ -61,6 +61,9 @@ export default {
     tafroshFile: "data/tafrosh/KolKoreA.json",
     defaultRama: 1,
     maxRama: 2,
+    // Rama 1 shows btnIcon 0..4 only (applyKolKoreARamaLayout); its .MAS
+    // lists 15 paths. Catalog progress counts the reachable ones.
+    progressSlots: { "1": [0, 1, 2, 3, 4], "2": true },
     bgRamaMax: 2,
     act1Images: {
         default: {
