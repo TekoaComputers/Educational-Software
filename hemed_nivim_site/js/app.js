@@ -1230,6 +1230,18 @@
             }
         };
         document.addEventListener("keyup", HND._fkeyHandler);
+        // Detach when the game stage is swapped out — otherwise the handler
+        // stays live on the game menu / unit list and Esc there bounces
+        // back to this game's menu, F1 toggles a help overlay on a
+        // detached stage.
+        const fk = HND._fkeyHandler;
+        const fkObs = new MutationObserver(function () {
+            if (stg.isConnected) return;
+            document.removeEventListener("keyup", fk);
+            if (HND._fkeyHandler === fk) HND._fkeyHandler = null;
+            fkObs.disconnect();
+        });
+        fkObs.observe(root, { childList: true });
     }
 
     // F1 help overlay — shows the calibration Instructions string for this

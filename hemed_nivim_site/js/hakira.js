@@ -492,12 +492,27 @@ HND.startHakira = function (root, app, unit, onComplete) {
     });
     // F-keys (orig Form_KeyUp:232-241): Space → advance, Esc → exit,
     // F1 → help. Esc is handled by app.js's outer F-key handler.
-    document.addEventListener("keyup", function hakKey(e) {
+    function hakKey(e) {
         if (state.ended) {
             document.removeEventListener("keyup", hakKey);
             return;
         }
         if (e.key === " " || e.code === "Space") userClick();
         else if (e.key === "F1") { e.preventDefault(); showHelpOverlay(); }
-    });
+    }
+    document.addEventListener("keyup", hakKey);
+    // Teardown on game leave. state.ended is only set by CmdNext; leaving
+    // via Esc / the exit icon left hakKey attached, so Space pressed in a
+    // later game (e.g. typing a space in Haklada) still stepped this dead
+    // scroll and played its waves over the new game's audio.
+    if (root.parentElement && root.parentElement.parentElement) {
+        const teardownObs = new MutationObserver(function () {
+            if (!root.isConnected) {
+                document.removeEventListener("keyup", hakKey);
+                teardownObs.disconnect();
+            }
+        });
+        teardownObs.observe(root.parentElement.parentElement,
+                            { childList: true, subtree: true });
+    }
 };

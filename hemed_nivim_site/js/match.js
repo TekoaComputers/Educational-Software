@@ -537,6 +537,23 @@ HND.startMatch = function (root, app, unit, onComplete) {
     }
     document.addEventListener("keydown", keyHandler);
 
+    // Teardown on game leave (same pattern as american/haklada/connect):
+    // without it the F1/F12 handler outlived the screen — F12 pressed in
+    // a LATER game (Haklada's skip key) ran this stale match's finishGame
+    // and saved a phantom score for the old unit.
+    let teardownObs = null;
+    if (root.parentElement && root.parentElement.parentElement) {
+        teardownObs = new MutationObserver(function () {
+            if (!root.isConnected) {
+                document.removeEventListener("keydown", keyHandler);
+                stopGoatCycle();
+                teardownObs.disconnect();
+            }
+        });
+        teardownObs.observe(root.parentElement.parentElement,
+                            { childList: true, subtree: true });
+    }
+
     // Original PlayGame ends with Me.Show 1 and lets WaveMe_Done (after the
     // help-audio plays) trigger the first NextQuestion. The user reaches
     // this game via a click on the GameMenu sign, so audio is already
