@@ -198,6 +198,9 @@ const heading = document.querySelector("h1");
 const root = document.getElementById("app-root");
 
 let currentSession = null;
+// Read-only test hook for tools/monkey: headless drivers read live game
+// state (current stage, hotspot rects) through this getter.
+Object.defineProperty(window, "__kesemSession", { get: function () { return currentSession; }, configurable: true });
 
 // Where to go when the user fully exits an app (picexi / Ezia / CmdExit).
 // `Kesem_site/index.html` sits one level below `Code/index.html` (the main

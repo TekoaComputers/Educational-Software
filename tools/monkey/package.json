@@ -1,0 +1,8 @@
+{
+  "name": "tekoa-monkey",
+  "private": true,
+  "description": "Headless-Chromium monkey testers for every Tekoa app",
+  "type": "commonjs",
+  "scripts": { "monkey": "node run.js" },
+  "dependencies": { "puppeteer-core": "^24.0.0" }
+}
