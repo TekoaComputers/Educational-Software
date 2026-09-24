@@ -5882,7 +5882,11 @@ function audioBusy(state) {
     // MMControl2.Mode = 526 would have caught).
     if (state._audioPlaying) return true;
     const a = state._audio;
-    return !!(a && a.src && !a.paused && !a.ended);
+    // A file that fails to decode (e.g. Kesem wav/50_32/7 — a 44-byte,
+    // header-only WAV and a garbage MP3) leaves the element with
+    // error set, paused === false and ended === false for good; without the
+    // error check every gated control stayed "busy" and the stage was dead.
+    return !!(a && a.src && !a.paused && !a.ended && !a.error);
 }
 
 // Add `data-audio-gated="1"` to the act1 controls the current screen
