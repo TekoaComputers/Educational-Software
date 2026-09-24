@@ -42,7 +42,10 @@ async function launch({ headed = false } = {}) {
     executablePath: process.env.CHROMIUM || '/usr/bin/chromium',
     headless: !headed,
     args: ['--autoplay-policy=no-user-gesture-required', '--mute-audio',
-           '--no-first-run', '--disable-gpu', '--window-size=1024,768'],
+           '--no-first-run', '--disable-gpu', '--window-size=1024,768',
+           // Fake mic/camera + auto-accept the permission prompt so
+           // getUserMedia record flows (Kesem Games3 hak) can be driven.
+           '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'],
   });
 }
 
