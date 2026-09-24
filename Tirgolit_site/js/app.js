@@ -539,6 +539,10 @@ const App = (() => {
     }
     clearTip();
     renderUnitList(tabIdx);
+    // A new level starts at its first unit (VB6 refills the ListBox, which
+    // resets TopIndex); the old tab's scroll offset hid rows 1..n.
+    const listEl = document.getElementById('u-list');
+    if (listEl) { listEl.scrollTop = 0; updateScrollThumb(); }
   }
 
   function renderUnitList(tabIdx) {
