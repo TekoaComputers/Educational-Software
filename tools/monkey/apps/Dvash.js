@@ -27,7 +27,10 @@ async function catalog(k) {
     ctx.step(`catalog/${tiles[i]}`);
     await k.tap('.catalog-tile', i, 700);
     const v = await k.eval(() => !!document.querySelector('.video-overlay'));
-    if (ctx.check(v, 'catalog tile plays no video', tiles[i])) await k.video(`cat${tiles[i]}`);
+    if (ctx.check(v, 'catalog tile plays no video', tiles[i])) {
+      if (i === 0) await k.scrub(`cat${tiles[i]}`);
+      await k.video(`cat${tiles[i]}`);
+    }
     ctx.check((await k.snap()).screen === 'catalog', 'left catalog after video', tiles[i]);
   }
   // Rapid double-clicks on two tiles must not stack two players (#16/#63 style).

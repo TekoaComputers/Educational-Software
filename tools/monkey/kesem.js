@@ -266,6 +266,53 @@ class Kesem {
     }
   }
 
+  /**
+   * Scrub the VideoBox seek bar hard (#60/#62: "slider stops moving / goes
+   * off screen / video freezes"): fast drag back and forth, release, then
+   * the thumb must sit inside its track and playback must resume.
+   */
+  async scrub(label) {
+    const ctx = this.ctx;
+    await ctx.waitFor(() => { const v = document.querySelector('.video-overlay video'); return v && v.readyState >= 2; }, 6000);
+    const g = await this.eval(() => {
+      const ov = document.querySelector('.video-overlay'); if (!ov) return null;
+      const v = ov.querySelector('video');
+      // reTrack = the flex:1 child between the two arrow buttons.
+      const tr = [...ov.querySelectorAll('div')].find(d => d.style.flex === '1' || d.style.flex === '1 1 0%');
+      if (!tr || !v) return null;
+      const r = tr.getBoundingClientRect();
+      return { x: r.left, y: r.top + r.height / 2, w: r.width, h: r.height, dur: v.duration };
+    });
+    if (!g || !g.dur || !isFinite(g.dur)) return;
+    const m = ctx.page.mouse;
+    await m.move(g.x + g.w * 0.1, g.y); await m.down();
+    for (let k = 0; k < 60; k++) { const f = 0.1 + 0.8 * Math.abs(Math.sin(k / 6)); await m.move(g.x + g.w * f, g.y + (k % 7) - 3); }
+    // Release off the frame, on the dimmer (still mid-track horizontally so
+    // the seek target is not the very end).
+    const vp = ctx.page.viewport();
+    await m.move(g.x + g.w * 0.5, vp.height - 3);
+    await m.up();
+    await ctx.sleep(300);
+    if (await this.eval(() => !document.querySelector('.video-overlay'))) {
+      ctx.finding('error', 'video closed by a seek drag', `${label}: dragging the seek thumb and releasing outside the video frame dismissed the player`);
+      return;
+    }
+    const t0 = await this.eval(() => { const v = document.querySelector('.video-overlay video'); return v ? v.currentTime : null; });
+    await ctx.sleep(900);
+    const st = await this.eval(() => {
+      const ov = document.querySelector('.video-overlay'); if (!ov) return { gone: true };
+      const v = ov.querySelector('video');
+      const tr = [...ov.querySelectorAll('div')].find(d => d.style.flex === '1' || d.style.flex === '1 1 0%');
+      const th = tr && tr.firstElementChild;
+      const a = tr.getBoundingClientRect(), b = th.getBoundingClientRect();
+      return { t: v.currentTime, paused: v.paused, ended: v.ended, seeking: v.seeking, inside: b.left >= a.left - 1 && b.right <= a.right + 1, thumb: [b.left | 0, b.right | 0], track: [a.left | 0, a.right | 0] };
+    });
+    if (st.gone) return;                                   // ended + auto-closed: fine
+    ctx.check(st.inside, 'video seek thumb outside its track', `${label}: thumb ${st.thumb} track ${st.track}`);
+    ctx.check(st.ended || (!st.paused && st.t > t0), 'video frozen after scrubbing', `${label}: currentTime ${t0} → ${st.t} paused=${st.paused} seeking=${st.seeking}`);
+    await ctx.shot(`scrub-${label}`);
+  }
+
   async misgerAnswer(yes) {
     const sel = yes ? '.misger-overlay button[title="אישור"]' : '.misger-overlay button[title="ביטול"]';
     await this.tap(sel, 0, 500);
@@ -358,6 +405,12 @@ class Kesem {
           exp[s.stageIdx] = 'chaos';
           continue;
         }
+      }
+      if (s.gn === 5 && !this._g5TimeoutDone && !chaos && s.maxTurn > 1 && exp[s.stageIdx] && s.Pobeda === 1) {
+        // Let the plane time out once mid-stage (Timer1 → matoss → restart).
+        this._g5TimeoutDone = true;
+        if (await this.game5Timeout(tag, s)) exp[s.stageIdx] = { green: 0, yellow: 0, red: 0, total: s.maxTurn };
+        continue;
       }
       const cur = exp[s.stageIdx];
       const plannedWrongs = (cur && cur !== 'chaos' && wrongDue.has(s.stageIdx)) ? wrongCycle[wrongN % 3] : 0;
@@ -550,6 +603,32 @@ class Kesem {
     await this.waitIdle();
   }
 
+  /**
+   * Games5 Timer1: when the plane (PicTime) crosses the strip the stage
+   * restarts (Unload + Show). Speed the plane up (Picture4 → spe 3), wait for
+   * the restart and check the round state + tally really start over — the
+   * replayed stage must not score more answers than it has questions.
+   */
+  async game5Timeout(tag, s) {
+    const ctx = this.ctx;
+    ctx.step(`${tag}/game5-timeout`);
+    await this.waitIdle();
+    await this.tap('.frm-ctrl--Picture4', 0, 150);
+    await this.tap('.frm-ctrl--Picture4', 0, 150);        // spe 1 → 2 → 3
+    const reset = await ctx.waitFor(() => { const x = window.__km.snap(); return x.Pobeda === 0; }, 60000);
+    if (!ctx.check(reset, 'game5 plane timeout never restarted the stage', `${tag}\n${await this.diag()}`)) return false;
+    await this.waitIdle();
+    const x = await this.snap();
+    ctx.check(x.Tek_N === 1 && x.wrong === 0, 'game5 restart left round state', JSON.stringify(x));
+    const plane = await this.eval(() => { const s = window.__kesemSession; const p = s._game5PicTime; return { left: p ? parseFloat(p.style.left) : null, design: p ? p._designLeft : null, timer: !!s._game5Timer }; });
+    ctx.check(plane.timer && plane.left != null && plane.left - plane.design < 20, 'game5 restart did not reset the plane timer',
+      `${tag}: after the restart PicTime.left=${plane.left} (start ${plane.design}), Timer1 running=${plane.timer}`);
+    ctx.check(x.score.green + x.score.yellow + x.score.red === 0, 'game5 restart kept the old answers in the stage tally',
+      `${tag}: after the timeout restart the stage tally is g/y/r ${x.score.green}/${x.score.yellow}/${x.score.red} before any new answer — replaying the stage will score more than ${x.maxTurn} answers`);
+    await ctx.shot(`${tag}-game5-timeout`);
+    return true;
+  }
+
   /** Random clicks inside the game screen; must not crash or stick. */
   async chaos(tag, s) {
     const ctx = this.ctx;
@@ -694,7 +773,10 @@ class Kesem {
       const idx = await this.eval((sel, ex, k) => { const all = [...document.querySelectorAll(sel)]; const el = all.filter(e => !e.matches(ex))[k]; return all.indexOf(el); }, this.o.seretSel, this.o.exitSel, i);
       if (!(await this.eval((sel, j) => window.__km.visible(sel, j), this.o.seretSel, idx))) continue;
       await this.tap(this.o.seretSel, idx, 600);
-      if (await this.eval(() => !!document.querySelector('.video-overlay'))) await this.video(`seret${i}`, { watch: this.o.videoWatchMs });
+      if (await this.eval(() => !!document.querySelector('.video-overlay'))) {
+        await this.scrub(`seret${i}`);
+        await this.video(`seret${i}`, { watch: this.o.videoWatchMs });
+      }
       else ctx.finding('info', 'btnSeret opened no video', `${this.o.seretSel}[${idx}]`);
       ctx.check((await this.snap()).screen === 'sst', 'not on Sst after seret video', '');
     }
