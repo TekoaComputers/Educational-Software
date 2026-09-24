@@ -107,10 +107,21 @@ h1 {
    Click handlers also short-circuit on audioBusy — the dim is purely the
    "you can see it" half of the original behaviour.  */
 .frm-stage.audio-busy [data-audio-gated="1"] {
-    opacity: 0.45;
     cursor: not-allowed;
+}
+/* Only dim when there is no "_2" disabled sprite to swap in. */
+.frm-stage.audio-busy [data-audio-gated="1"]:not([data-busy-sprite]) {
+    opacity: 0.45;
     filter: saturate(0.6);
     transition: opacity .08s ease, filter .08s ease;
+}
+/* Picture1 / Picture2 are Enabled=False too (Timer1) — every answer click
+   is ignored while audio plays, so don't offer the hand cursor. */
+.frm-stage.audio-busy .frm-ctrl--Picture1,
+.frm-stage.audio-busy .frm-ctrl--Picture1 *,
+.frm-stage.audio-busy .frm-ctrl--Picture2,
+.frm-stage.audio-busy .frm-ctrl--Picture2 * {
+    cursor: default !important;
 }
 
 .frm-bg {

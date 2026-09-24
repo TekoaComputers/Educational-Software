@@ -2072,8 +2072,12 @@ function buildSubtree(ctrl, scale, state, screenConf) {
             const img = el("img", { class: "frm-img act1-img", src: a1.idle, alt: "" });
             node.appendChild(img);
             if (a1.hover) {
-                node.addEventListener("mouseenter", function () { img.src = a1.hover; });
-                node.addEventListener("mouseleave", function () { img.src = a1.idle; });
+                // A gated act1 is Enabled=False while audio plays (the bundle
+                // shows its "_2" sprite) — a disabled VB6 control gets no
+                // MouseMove, so no hover swap then.
+                const off = () => node.dataset.busySprite === "1";
+                node.addEventListener("mouseenter", function () { if (!off()) img.src = a1.hover; });
+                node.addEventListener("mouseleave", function () { if (!off()) img.src = a1.idle; });
             }
         }
     }
@@ -7995,16 +7999,53 @@ function startAudioGateWatcher(state) {
             lastBusy = busy;
             state.stage.classList.toggle("audio-busy", busy);
         }
+        // Every tick, not just on transitions: a stage change rebuilds the
+        // act1 DOM while audio may already be (still) playing.
+        applyAct1BusySprites(state, busy);
     }
     tick();
     state._audioGateTimer = setInterval(tick, 100);
+}
+
+// Games*.frm Timer1/Timer2: a gated act1 gets `.Enabled = False` AND its
+// "_2" picture (sanb2 / sana2 / nex2 / sev2 — the flat, greyed variants)
+// while MMControl2 plays; a disabled VB6 control receives no MouseMove, so
+// its "_3" hover glow can't show either (the renderer's hover listeners
+// skip gated buttons while .audio-busy is set). Without the swap the
+// buttons kept their normal sprite and still lit up on hover, so they
+// looked clickable while every click was ignored (#50).
+function applyAct1BusySprites(state, busy) {
+    const cfg = state.config.act1Images;
+    if (!cfg || !state.stage) return;
+    const screen = state.currentScreen;
+    state.stage.querySelectorAll(".frm-ctrl--act1").forEach(function (el) {
+        const img = el.querySelector("img.act1-img");
+        if (!img) return;
+        const idx = el.dataset.index;
+        const a1 = (cfg[screen] && cfg[screen][idx]) || (cfg.default && cfg.default[idx]) || cfg[idx];
+        if (!a1 || !a1.idle) return;
+        if (busy && el.dataset.audioGated === "1") {
+            const off = a1.idle.replace(/1(\.[a-z]+)$/i, "2$1");
+            if (off === a1.idle) return;
+            el.dataset.busySprite = "1";
+            // image_format.js may have rewritten .png → .webp; compare stems.
+            const stem = function (u) { return String(u || "").replace(/\.[a-z]+$/i, ""); };
+            if (stem(img.getAttribute("src")) !== stem(off)) img.src = off;
+        } else if (el.dataset.busySprite) {
+            delete el.dataset.busySprite;
+            img.src = (a1.hover && el.matches(":hover")) ? a1.hover : a1.idle;
+        }
+    });
 }
 
 function stopAudioGateWatcher(state) {
     if (!state || !state._audioGateTimer) return;
     clearInterval(state._audioGateTimer);
     state._audioGateTimer = null;
-    if (state.stage) state.stage.classList.remove("audio-busy");
+    if (state.stage) {
+        state.stage.classList.remove("audio-busy");
+        applyAct1BusySprites(state, false);
+    }
 }
 
 // Several Sst controls are designtime Visible=0 and unhidden at runtime by

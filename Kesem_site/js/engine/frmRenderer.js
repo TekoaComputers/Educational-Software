@@ -423,8 +423,12 @@ function buildSubtree(ctrl, scale, state, screenConf) {
             const img = el("img", { class: "frm-img act1-img", src: a1.idle, alt: "" });
             node.appendChild(img);
             if (a1.hover) {
-                node.addEventListener("mouseenter", function () { img.src = a1.hover; });
-                node.addEventListener("mouseleave", function () { img.src = a1.idle; });
+                // A gated act1 is Enabled=False while audio plays (the bundle
+                // shows its "_2" sprite) — a disabled VB6 control gets no
+                // MouseMove, so no hover swap then.
+                const off = () => node.dataset.busySprite === "1";
+                node.addEventListener("mouseenter", function () { if (!off()) img.src = a1.hover; });
+                node.addEventListener("mouseleave", function () { if (!off()) img.src = a1.idle; });
             }
         }
     }
