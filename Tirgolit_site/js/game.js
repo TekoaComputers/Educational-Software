@@ -352,7 +352,7 @@ const Game = (() => {
   }
 
   function handleRowClick(rowIdx) {
-    if (!currentTarget || matched[rowIdx]) return;
+    if (!currentTarget || !scenePairs[rowIdx] || matched[rowIdx]) return;
     clearHint();
 
     const pair = scenePairs[rowIdx];
@@ -434,7 +434,8 @@ const Game = (() => {
       navigateRow(1);
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      handleRowClick(keyFocusRow);
+      // keyFocusRow is -1 until an arrow key picks a plank for this target.
+      if (keyFocusRow >= 0) handleRowClick(keyFocusRow);
     }
   }
 
