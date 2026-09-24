@@ -664,6 +664,13 @@
                     return;
                 }
             }
+            // Free route: SOFER has no maslul record to show (it rendered
+            // an empty board — issue #74), so hand it this round's coins.
+            try {
+                sessionStorage.setItem("mikraot:lastRound", JSON.stringify({
+                    song: +song, coins: state.qa.coinImgs || [],
+                    kol: state.qa.KolMonet, max: 9 }));
+            } catch (e) {}
             location.hash = "#/sofer/" + song + "/0";
         }
         async function awardCoin(misp) {
@@ -679,6 +686,7 @@
             if (state.halonNodes && state.halonNodes[misp]) {
                 state.halonNodes[misp].style.backgroundImage = bgImg(img);
             }
+            (state.qa.coinImgs = state.qa.coinImgs || [])[misp] = img;
             state.qa.KolMonet += value;
             if (wav) await MK.playSync(wav);   // SYNC (PlayZad) — must block.
         }
