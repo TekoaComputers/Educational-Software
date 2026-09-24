@@ -270,6 +270,12 @@ function showApp(appId) {
     // in frmRenderer calls state.onRamaChange after updating state.rama.
     currentSession.onRamaChange = function (state) {
         if (state.currentScreen !== "sst") return;
+        // Sst.Icon_s_Click ends with Lampas: the lamps (and their printed
+        // scores) must show the NEW rama's completions. The renderer's
+        // setRama path never re-ran it, so the previous rama's lit lamps
+        // stayed up (setRamaUtil already calls it; running it twice is
+        // idempotent).
+        wireSstLamps(state);
         if (state.config.id === "EnglishC") applyEnglishCRamaLayout(state);
         if (state.config.id === "KolKoreA") applyKolKoreARamaLayout(state);
         if (state.config.id === "KolKoreB") {
