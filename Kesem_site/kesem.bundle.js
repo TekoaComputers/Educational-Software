@@ -10443,6 +10443,13 @@ function paintHotspots(state, stage) {
             if (!state._cursorPiece) return;
             placeCursorPiece(state._cursorPiece, p);
         });
+        // The pointer left Picture1 (bottom bar, picexi, a misger overlay
+        // on top): its last position no longer says where the cursor is,
+        // so the next question's piece waits hidden for the next
+        // Picture1_MouseMove instead of popping up at a stale spot.
+        pic1.addEventListener("mouseleave", function () {
+            state._pic1Pointer = null;
+        });
     }
 
     if (stage.gameNumber === 5) {
