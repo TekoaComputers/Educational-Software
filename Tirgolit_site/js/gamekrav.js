@@ -548,7 +548,7 @@ function shelInit() {
   // ─── Input ───────────────────────────────────────────────────────────────────
   function handleKey(e) {
     if (!gameRunning || !showQ) return;
-    const ch = keyToChar(e.keyCode, e.shiftKey);
+    const ch = keyToChar(e);
     if (ch !== null) { e.preventDefault(); shelClick(ch); }
   }
 
@@ -581,7 +581,21 @@ function shelInit() {
     }
   }
 
-  function keyToChar(k, shift) {
+  // Prefer the character the keyboard actually produced (e.key): on a US
+  // layout "+", "*" and "(" are Shift+=, Shift+8, Shift+9, which the
+  // keyCode table below misreads as null / "8" / ")" — so answers such as
+  // "2+2" or "3(1)" could never be typed. Keys that don't produce one of
+  // the answer characters (e.g. the Hebrew layout's "ץ" on the period key)
+  // fall back to the VB6 keyCode mapping.
+  function keyToChar(e) {
+    if (e.key && e.key.length === 1) {
+      if ('0123456789.-+*/()'.includes(e.key)) return e.key;
+      if (e.key === ',') return '.';
+    }
+    return keyCodeToChar(e.keyCode, e.shiftKey);
+  }
+
+  function keyCodeToChar(k, shift) {
     if (shift && k === 57) return ')';
     if (shift && k === 48) return '(';
     if (k >= 48 && k <= 57)  return String.fromCharCode(k);
