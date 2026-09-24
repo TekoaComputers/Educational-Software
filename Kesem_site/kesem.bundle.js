@@ -518,6 +518,7 @@ const CONFIGS = {
     },
     tafroshFile: "data/tafrosh/Heshbon.json",
     defaultRama: 1,
+    progress: { ramas: [1, 2, 3] },   // rama 4 of CHBOX and the empty 6th slot are unreachable
     maxRama: 3,
     bgRamaMax: 3,
     act1Images: {
@@ -619,6 +620,7 @@ const CONFIGS = {
     // Ivrit's CHBOX1..4 mirror the standard rama 1..4 pattern, with rama 4
     // serving as the "free play" set (btnHofshi_Click).
     defaultRama: 4,
+    progress: { maslul: true },       // List1 lists every MASLUL/*.MAS
     maxRama: 4,
     bgRamaMax: 4,
     act1Images: {
@@ -2391,12 +2393,32 @@ function showApp(appId) {
     onScreenChange(currentSession, currentSession.currentScreen);
     // ---- progress total: one entry per maslul (slot) across all ramas ----
     if (window.Tekoa && window.Tekoa.Progress && paths && paths.ramas) {
-        let total = 0;
-        for (const r in paths.ramas) {
-            total += ((paths.ramas[r] && paths.ramas[r].slots) || []).length;
-        }
+        const total = progressTotalFor(appId);
         if (total > 0) window.Tekoa.Progress.setTotal(appId, total);
     }
+}
+
+// How many activities the catalog's "N%" for an app is out of. Default:
+// every slot of every rama in paths/<App>.json. Apps whose Sst can't reach
+// all of those set `progress` in their config:
+//   progress: { ramas: [1,2,3] } — only these ramas, and only slots that
+//                                   have stages (an empty slot can't be
+//                                   completed: startPath refuses it);
+//   progress: { maslul: true }   — one activity per MASLUL/*.MAS (Ivrit's
+//                                   List1 plays every .MAS, not CHBOX slots).
+function progressTotalFor(appId) {
+    const paths = PATHS[appId];
+    const prog = (CONFIGS[appId] && CONFIGS[appId].progress) || null;
+    if (!paths) return 0;
+    if (prog && prog.maslul) return (paths.maslul || []).length;
+    let total = 0;
+    for (const r in (paths.ramas || {})) {
+        const slots = (paths.ramas[r] && paths.ramas[r].slots) || [];
+        if (!prog || !prog.ramas) { total += slots.length; continue; }
+        if (prog.ramas.indexOf(parseInt(r, 10)) < 0) continue;
+        total += slots.filter(function (x) { return x && x.stages && x.stages.length; }).length;
+    }
+    return total;
 }
 
 // === Screen post-process =================================================
@@ -8251,7 +8273,12 @@ function markPathCompleted(state) {
             rd += st.red    || 0;
             tot += st.total || 0;
         }
-        window.Tekoa.Progress.setScore(appId, r + "/" + n, { g, y, r: rd, total: tot });
+        // Ivrit's List1 songs all run as path 0 of an override slot; key the
+        // activity by the .MAS so each song counts once (see progressTotalFor).
+        const ov = state._activeSlotOverride;
+        const pid = (ov && state.config.progress && state.config.progress.maslul && ov.masFile)
+            ? "mas/" + ov.masFile : r + "/" + n;
+        window.Tekoa.Progress.setScore(appId, pid, { g, y, r: rd, total: tot });
     }
 }
 
@@ -12534,10 +12561,7 @@ if (window.Tekoa && window.Tekoa.Progress) {
     for (const appId of APPS) {
         const paths = PATHS[appId];
         if (!paths || !paths.ramas) continue;
-        let total = 0;
-        for (const r in paths.ramas) {
-            total += ((paths.ramas[r] && paths.ramas[r].slots) || []).length;
-        }
+        const total = progressTotalFor(appId);
         if (total > 0) window.Tekoa.Progress.setTotal(appId, total);
     }
 }

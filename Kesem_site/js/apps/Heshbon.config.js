@@ -51,6 +51,7 @@ export default {
     },
     tafroshFile: "data/tafrosh/Heshbon.json",
     defaultRama: 1,
+    progress: { ramas: [1, 2, 3] },   // rama 4 of CHBOX and the empty 6th slot are unreachable
     maxRama: 3,
     bgRamaMax: 3,
     act1Images: {

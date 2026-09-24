@@ -495,7 +495,7 @@
     // changes (e.g. a unit added).
     const DEFAULT_TOTALS = {
         Brahot: 24, Dvash: 25, EnglishA: 24, EnglishB: 18, EnglishC: 44,
-        Hagim: 24, Heshbon: 24, Ivrit: 24, KolKoreA: 27, KolKoreB: 40,
+        Hagim: 24, Heshbon: 15, Ivrit: 44, KolKoreA: 27, KolKoreB: 40,
         KolKoreC: 28, KolKoreD: 36, Shabat: 24, Shirim: 26,
         "Shirim&Meshalim": 39, Yeled: 18,
         Hemed: 10, Nivim: 31,
