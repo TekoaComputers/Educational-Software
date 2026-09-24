@@ -237,9 +237,19 @@
         }
         (layout.children || []).forEach(function (c) { walk(c, 0, 0); });
         if (formW > 0 && formW < 500) {
-            return { w: Math.ceil(Math.max(formW, maxR)), h: Math.ceil(Math.max(formH, maxB)) };
+            const w = Math.ceil(Math.max(formW, maxR)), h = Math.ceil(Math.max(formH, maxB));
+            // SOFER's controls span the full screen (Form_Activate widens
+            // it to 640) — treat it like the full-screen forms below.
+            if (w < 600) return { w: w, h: h };
         }
-        return { w: Math.max(640, Math.ceil(maxR)), h: Math.max(480, Math.ceil(maxB)) };
+        // Full-screen forms: always the 640×480 ChangeScreenSettings
+        // canvas. A few controls poke 1-9 px past it (GAMES1 btnReturn
+        // ends at x=649, KIVUN modiin at y=489, sprites at y=481) — VB6
+        // clipped them at the screen edge. Growing the stage to fit them
+        // gave every form a slightly different size, so fitStage scaled
+        // and centred each screen differently and the whole picture
+        // jumped a few pixels on every screen change (issue #79).
+        return { w: 640, h: 480 };
     };
 
     window.addEventListener("resize", function () {
