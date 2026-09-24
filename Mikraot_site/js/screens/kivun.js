@@ -299,6 +299,13 @@
             //   If GameNomer>0: start.Show 1
             if (pickBusy) return;
             pickBusy = true;
+            // NomerMasl = -1: free play is never part of a maslul. A chain
+            // abandoned mid-way (stop button, browser back, a reload)
+            // left "mikraot:chain" in sessionStorage, so the next free
+            // Q&A / dictionary game saved its coins into that maslul and
+            // then "advanced" it — the kid finished a free text Q&A and
+            // was dropped into the old maslul's picture Q&A.
+            sessionStorage.removeItem("mikraot:chain");
             const t = loadTozaot();
             if (t[gameNomer]) {
                 [0,1,2].forEach(function (i) {
