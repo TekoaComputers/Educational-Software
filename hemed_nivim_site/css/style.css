@@ -1026,7 +1026,13 @@ body {
     background-image: url("../assets/Hemed/pictures/GameAmerican/framefocus.png");
 }
 .am-q-text { color: #2a1d0a; font-size: 1.3rem; font-weight: 700; text-align: center; flex: 1; }
-.am-q-text.am-pic-loaded { font-size: 0; }    /* hide text when picture loads */
+.am-q-text.am-pic-loaded {                      /* hide text when picture loads */
+    font-size: 0;
+    /* The picture is this span's background: with its text gone it would
+       collapse to 0 px tall in the row-flex frame (align-items:center),
+       leaving the by-picture question frame empty. Fill the frame. */
+    align-self: stretch;
+}
 
 /* ---- Option box (default = text-text vertical rows, orig:220-227) ---- */
 .am-option {
