@@ -148,9 +148,75 @@ async function slowSwap(k) {
   await k.selectRama(1);
 }
 
+// Games5 plane timer running out ("matoss" → Unload games5 : Show 1)
+// restarts the stage. Answers from the timed-out attempt must not be
+// tallied again on top of the new attempt: after one correct answer, a
+// forced timeout and a clean replay, the stage must still be N/N green
+// and the path board 100%.
+async function game5Timeout(k) {
+  const ctx = k.ctx;
+  const target = await k.eval(() => {
+    const s = window.__kesemSession;
+    for (let r = 1; r <= (s.config.maxRama || 1); r++) {
+      const sl = (s.paths.ramas[String(r)] || {}).slots || [];
+      for (let i = 0; i < sl.length; i++) {
+        const st = (sl[i] && sl[i].stages) || [];
+        const j = st.findIndex(x => x.gameNumber === 5 && x.hotspots && x.hotspots.length > 1);
+        if (j >= 0 && (s.config.id !== 'EnglishC' || r === 3 || (i !== 4 && i !== 9))) return { r, i, j, n: st.length };
+      }
+    }
+    return null;
+  });
+  if (!target) return;
+  const tag = `r${target.r}p${target.i + 1}-g5timeout`;
+  ctx.step(tag);
+  if (!(await k.selectRama(target.r))) return;
+  const btn = await k.eval(ix => [...document.querySelectorAll('.frm-ctrl--btnIcon')].findIndex(e => +e.dataset.index === ix), target.i);
+  await k.tap('.frm-ctrl--btnIcon', btn, 400);
+  let done = false, guard = 0;
+  while (guard++ < 300) {
+    const s = await k.snap();
+    if (s.ov === 'video') { await k.video(tag, { watch: 300 }); continue; }
+    if (s.ov === 'nikod') break;
+    if (s.ov === 'misger') { await k.misgerAnswer(false); continue; }
+    if (!/^game/.test(s.screen || '')) { await ctx.sleep(500); if (!/^game/.test((await k.snap()).screen || '') && !(await k.snap()).ov) break; continue; }
+    await k.waitStageReady(s);
+    if (s.gn === 5 && s.stageIdx === target.j && !done && s.Pobeda === 0) {
+      const r1 = await k.playTurn(tag, s, 0);
+      if (!r1 || !r1.bucket) { ctx.finding('error', 'game5 timeout scenario: first answer failed', JSON.stringify(await k.snap())); return; }
+      await k.waitIdle();
+      // Fly the plane to the finish line (Timer1 would take minutes).
+      await k.eval(() => { const s = window.__kesemSession; if (s._game5PicTime) s._game5PicTime.style.left = (s._game5TimeoutLeft - 0.1) + 'px'; });
+      const restarted = await ctx.waitFor(() => { const s = window.__kesemSession; return s.Pobeda === 0 && !s._audioPlaying; }, 20000);
+      done = true;
+      if (!ctx.check(restarted, 'game5 timeout did not restart the stage', JSON.stringify(await k.snap()))) return;
+      await ctx.shot(`${tag}-restarted`);
+      const x = await k.snap();
+      ctx.check(x.score.green + x.score.yellow + x.score.red === 0, 'game5 restart kept the timed-out attempt\'s tally', `stage tally g/y/r ${x.score.green}/${x.score.yellow}/${x.score.red} after restart`);
+      const lit = await k.eval(() => [...document.querySelectorAll('.frm-ctrl--lblToz img')].filter(i => /caft(gre|yel|red)/.test(i.src)).length);
+      ctx.check(lit === 0, 'game5 restart kept lit score markers', `${lit} markers still lit`);
+      continue;
+    }
+    const r = await k.playTurn(tag, s, 0);
+    if (r && r.stuck) { await k.bailOut(tag); return; }
+  }
+  const shown = await ctx.waitFor(() => !!document.querySelector('.nikod-overlay'), 10000);
+  if (!ctx.check(shown, 'game5 timeout scenario: no nikod', tag)) return;
+  await ctx.sleep(1700);
+  const b = await k.eval(() => window.__km.nikod());
+  await ctx.shot(`${tag}-nikod`);
+  const ls = await k.eval(a => window.__km.ls(a), k.app);
+  const st = (((ls.scores[String(target.r)] || {})[String(target.i)] || {}).stages || [])[target.j];
+  ctx.check(st && st.green === st.total && st.yellow === 0 && st.red === 0, 'game5 stage score wrong after a timeout + clean replay', JSON.stringify(st));
+  ctx.check(b && b.ltott === '100' && b.toch[1] === b.toch[0], 'board after game5 timeout + clean replay is not 100%', JSON.stringify(b));
+  await k.closeNikod();
+  await k.waitScreen('sst', 4000);
+}
+
 async function extra(k) {
   if (!(await escapeSst(k))) return;
   await escapeGame(k);
+  await game5Timeout(k);
 }
 
 async function run(ctx, app, over = {}) {

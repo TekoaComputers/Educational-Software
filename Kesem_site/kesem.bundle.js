@@ -10839,6 +10839,14 @@ function tickGame5Timer(state) {
 // paintHotspots → setupGame5AuxUI → fresh timer.
 function restartGame5Stage(state) {
     if (!state.activeStage) return;
+    // `Unload games5` runs Form_Unload → scorelev for the timed-out attempt
+    // (snapStageScore keeps the better of attempts); `games5.Show 1` then
+    // starts a fresh Form_Load with zeroed counters and dark lblToz. Without
+    // this reset the answers from before the timeout were tallied again on
+    // top of the new attempt (stage green > stage total, board > 100%).
+    snapStageScore(state);
+    state._stageScore = { green: 0, yellow: 0, red: 0 };
+    initStageIndicators(state);
     state.Pobeda = 0;
     state.wrongCount = 0;
     state.Tek_N = 1;
