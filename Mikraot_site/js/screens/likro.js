@@ -191,6 +191,15 @@
         //   FrmVisibl(0) → Halon hidden, btnSlog/Slovo/Stroka visible, btnShma hidden
         //   FrmVisibl(1) → reversed (Q&A modes)
         applyFrmVisibl(state.tirgul > 3 ? 1 : 0);
+        // btnSlog/Slovo/Stroka_Click swap the clicked button to its active
+        // picture (kl11/kl22/kl33) and it STAYS active while that mode
+        // runs — VB6 never reloads the form. Our mode switch re-renders
+        // via the URL, which painted all three idle again, so the pressed
+        // button seemed to vanish/revert (issue #78). Restore it.
+        const activeMode = state.tirgul === 1 ? state.btnStrokaNode :
+                           state.tirgul === 2 ? state.btnSlovoNode :
+                           state.tirgul === 3 ? state.btnSlogNode : null;
+        if (activeMode) activeMode.style.backgroundImage = bgImg(activeMode.dataset.active);
 
         // Form_Load tail — two branches per GAMES1.FRM:
         //   If NomerMasl = -1 (free play): play WAV\KFP1.wav (single cue).
