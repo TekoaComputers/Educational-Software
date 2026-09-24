@@ -64,6 +64,8 @@ const GameT3 = (() => {
     unit = unitData;
     onComplete = completeCb;
     penalty = 0;
+    timerVal = 0;      // the clock restarts at 0:00 every game (was carried over)
+    phase = 0;         // no clicking/typing target until startScene(0)
     eggs = Array(8).fill(-1);
 
     const qs = shuffle([...unitData.questions]);

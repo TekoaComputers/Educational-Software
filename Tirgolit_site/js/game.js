@@ -108,9 +108,11 @@ const Game = (() => {
     elEggs      = document.getElementById('game-eggs');
     charAnim    = document.getElementById('char-img');
 
+    currentTarget = null;   // nothing to answer until the intro ends
     renderEggs();
     updatePenalty();
     updateProgress();
+    if (elTimer) elTimer.textContent = '0:00';
 
     // Fit viewport to window
     window.addEventListener('resize', resizeViewport);

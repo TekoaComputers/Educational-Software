@@ -89,6 +89,7 @@ const GameT2 = (() => {
     renderEggs();
     updatePenalty();
     if (elTargetVal) elTargetVal.textContent = '';
+    if (elTimer) elTimer.textContent = '0:00';
 
     window.addEventListener('resize', resizeViewport);
     resizeViewport();
@@ -96,9 +97,15 @@ const GameT2 = (() => {
     keyHandler = e => handleKey(e);
     window.addEventListener('keydown', keyHandler);
 
+    // No typing target until the intro ends: without this a key pressed
+    // during the intro was checked against the previous game's last row
+    // and cost a penalty before the first question was even shown.
+    tshP = ''; typedCount = 0; blocked = true;
+
     startAnim('start');
     AudioMgr.playAnim(`Tirgol2Q${gameKind}.wav`);
     later(() => {
+      blocked = false;
       goToScene(0);
       startTimer();
     }, 1600);
@@ -402,6 +409,10 @@ const GameT2 = (() => {
 
   function endGame() {
     stopTimer();
+    // The score screen is up now: stop listening, or every key typed there
+    // counted as a wrong answer and played the "wrong" sound.
+    blocked = true;
+    if (keyHandler) { window.removeEventListener('keydown', keyHandler); keyHandler = null; }
     startChicksAnim();
     if (penalty < 30) AudioMgr.playAnim('soff.wav');
     const tov = eggs.filter(e => e === 0).length;
