@@ -137,6 +137,16 @@ const GameKrav = (() => {
     spritesReady = true;
   }
 
+
+  // Every destroy() starts a new session; callbacks scheduled by an older
+  // session (intro delay, post-answer / end-of-game delays) become no-ops, so
+  // leaving or restarting a game can't resurrect it on a hidden screen.
+  let session = 0;
+  function later(fn, ms) {
+    const my = session;
+    return setTimeout(() => { if (my === session) fn(); }, ms);
+  }
+
   // ─── Public API ──────────────────────────────────────────────────────────────
   function init(unitData, completeCb) {
     if (window.TDebug) TDebug.log('game', 'gamekrav init', { unit: unitData?.title, qCount: unitData?.questions?.length });
@@ -162,12 +172,14 @@ const GameKrav = (() => {
     ctx.textAlign = 'center';
     ctx.fillText('טוען...', 400, 300);
 
+    const my = session;
     loadAllSprites().then(() => {
-      if (!gameRunning) startNameEntry();
+      if (!gameRunning && my === session) startNameEntry();
     });
   }
 
   function destroy() {
+    session++;
     gameRunning      = false;
     animRunning      = false;
     ttVis            = false;
@@ -441,7 +453,7 @@ function shelInit() {
     loaHC = [6, 6];
 
     const gameOver = scoreT[0] >= 3 || scoreT[1] >= 3;
-    setTimeout(() => showScore(gameOver), 1500);
+    later(() => showScore(gameOver), 1500);
   }
 
   // ─── ShowScore overlay (VB6 ScoreQ / BackS.jpg panel) ───────────────────────

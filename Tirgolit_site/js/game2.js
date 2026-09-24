@@ -49,6 +49,16 @@ const GameT2 = (() => {
   };
   const TOV_VARIANTS = ['tov1','tov2','tov3'];
 
+
+  // Every destroy() starts a new session; callbacks scheduled by an older
+  // session (intro delay, post-answer / end-of-game delays) become no-ops, so
+  // leaving or restarting a game can't resurrect it on a hidden screen.
+  let session = 0;
+  function later(fn, ms) {
+    const my = session;
+    return setTimeout(() => { if (my === session) fn(); }, ms);
+  }
+
   // ─── Public API ──────────────────────────────────────────────────────────────
 
   function init(unitData, kind, completeCb) {
@@ -88,13 +98,14 @@ const GameT2 = (() => {
 
     startAnim('start');
     AudioMgr.playAnim(`Tirgol2Q${gameKind}.wav`);
-    setTimeout(() => {
+    later(() => {
       goToScene(0);
       startTimer();
     }, 1600);
   }
 
   function destroy() {
+    session++;
     stopTimer();
     stopAnim();
     stopChicksAnim();
@@ -371,7 +382,7 @@ const GameT2 = (() => {
       playCorrectAnim();
     }
 
-    setTimeout(() => {
+    later(() => {
       blocked = false;
       const nextRow = rowIdx + 1;
       if (nextRow < scenePairs.length) {

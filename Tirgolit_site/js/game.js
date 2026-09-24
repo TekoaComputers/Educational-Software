@@ -63,6 +63,16 @@ const Game = (() => {
   // col 0=unanswered, col 2=broken(bad), col 4=chick(0wrong), col 5=chick(1), col 6=chick(2)
   const EGG_BGX = { '-1': 0, '0': -156, '1': -117, '2': -117, 'bad': -78 };
 
+
+  // Every destroy() starts a new session; callbacks scheduled by an older
+  // session (intro delay, post-answer / end-of-game delays) become no-ops, so
+  // leaving or restarting a game can't resurrect it on a hidden screen.
+  let session = 0;
+  function later(fn, ms) {
+    const my = session;
+    return setTimeout(() => { if (my === session) fn(); }, ms);
+  }
+
   // ─── Public API ────────────────────────────────────────────────────────────
 
   function init(unitData, kind, completeCb) {
@@ -113,13 +123,14 @@ const Game = (() => {
     // Start intro animation then kick off scene
     startAnim('start');
     AudioMgr.playAnim(`Tirgol1Q${gameKind}.wav`);
-    setTimeout(() => {
+    later(() => {
       goToScene(0);
       startTimer();
     }, 1600);
   }
 
   function destroy() {
+    session++;
     stopTimer();
     stopAnim();
     stopChicksAnim();
@@ -168,13 +179,13 @@ const Game = (() => {
     if (unmatched.length === 0) {
       const totalScenes = Math.ceil(allPairs.length / 8);
       if (sceneIndex + 1 < totalScenes) {
-        setTimeout(() => goToScene(sceneIndex + 1), 500);
+        later(() => goToScene(sceneIndex + 1), 500);
       } else {
         stopTimer();
         stopAnim();
         startChicksAnim();
         if (penalty < 30) AudioMgr.playAnim('soff.wav');
-        setTimeout(() => {
+        later(() => {
           if (onComplete) {
             const tov = eggs.filter(e => e === 0).length;
             const be  = eggs.filter(e => e === 1 || e === 2).length;
@@ -387,7 +398,7 @@ const Game = (() => {
       // Invalidate the target immediately so a hover during the 400ms transition
       // can't preview the just-answered question. pickNextTarget restores it.
       currentTarget = null;
-      setTimeout(pickNextTarget, 400);
+      later(pickNextTarget, 400);
     } else {
       penalty += Math.max(1, Math.round(5 - allPairs.length / 8));
       if (penalty > 60) penalty = 60;

@@ -137,6 +137,16 @@ const GameWar = (() => {
     spritesReady = true;
   }
 
+
+  // Every destroy() starts a new session; callbacks scheduled by an older
+  // session (intro delay, post-answer / end-of-game delays) become no-ops, so
+  // leaving or restarting a game can't resurrect it on a hidden screen.
+  let session = 0;
+  function later(fn, ms) {
+    const my = session;
+    return setTimeout(() => { if (my === session) fn(); }, ms);
+  }
+
   // ─── Public API ──────────────────────────────────────────────────────────────
 
   function init(unitData, completeCb) {
@@ -162,12 +172,14 @@ const GameWar = (() => {
     ctx.textAlign = 'center';
     ctx.fillText('טוען...', 400, 300);
 
+    const my = session;
     loadAllSprites().then(() => {
-      if (!gameOver) restart();
+      if (!gameOver && my === session) restart();
     });
   }
 
   function destroy() {
+    session++;
     gameRunning = false;
     celebrating = false;
     dansTrans   = false;
@@ -510,7 +522,7 @@ const GameWar = (() => {
       }
     }
     AudioMgr.play('./assets/war/Victor.wav');
-    setTimeout(() => { celebrating = false; finish(); }, 2000);
+    later(() => { celebrating = false; finish(); }, 2000);
   }
 
   function triggerEndGame(lane) {

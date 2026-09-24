@@ -46,6 +46,16 @@ const GameT3 = (() => {
   const CHICK_BGX = [-156, -195, -234];
   let rowPlankEls = [];  // plank DOM element per row (0-3)
 
+
+  // Every destroy() starts a new session; callbacks scheduled by an older
+  // session (intro delay, post-answer / end-of-game delays) become no-ops, so
+  // leaving or restarting a game can't resurrect it on a hidden screen.
+  let session = 0;
+  function later(fn, ms) {
+    const my = session;
+    return setTimeout(() => { if (my === session) fn(); }, ms);
+  }
+
   // ─── Public API ─────────────────────────────────────────────────────────────
 
   function init(unitData, completeCb) {
@@ -78,13 +88,14 @@ const GameT3 = (() => {
     renderEggs();
     startAnim('start');
     AudioMgr.playAnim('Tirgol3Q99.wav');
-    setTimeout(() => {
+    later(() => {
       startScene(0);
       startTimer();
     }, 1600);
   }
 
   function destroy() {
+    session++;
     stopTimer();
     stopAnim();
     stopChicksAnim();
@@ -326,7 +337,7 @@ const GameT3 = (() => {
     } else {
       playCorrectAnim();
     }
-    setTimeout(() => {
+    later(() => {
       if (!isLast) {
         startScene(sceneIdx + 1);
       } else {
