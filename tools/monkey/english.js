@@ -104,7 +104,7 @@ async function escapeGame(k) {
     await esc(k, 1);
     ctx.check(await onApp(k), 'Escape on nikod left the app', '');
     const m = await hasMisger(k);
-    ctx.check(!m, 'Escape on nikod opened a misger on top of the board', `${m} overlays, screen ${(await k.snap()).screen}`, 'warn');
+    ctx.check(!m, 'Escape on nikod opened a misger on top of the board', `${m} overlays, screen ${(await k.snap()).screen}`);
     if (m) await k.misgerAnswer(false);
     if (await k.eval(() => !!document.querySelector('.nikod-overlay'))) await k.closeNikod();
   }

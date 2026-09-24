@@ -7807,7 +7807,14 @@ function playVideo(url, opts) {
         window.removeEventListener("resize", onResize);
         if (opts.onClose) opts.onClose();
     }
-    function onKey(e) { if (e.key === "Escape") dismiss(); }
+    function onKey(e) {
+        if (e.key !== "Escape") return;
+        // Consume it — see showNikod's onKey: otherwise handleKey also runs
+        // the underlying screen's Escape (exit confirm / picexi misger).
+        e.preventDefault();
+        e.stopPropagation();
+        dismiss();
+    }
 
     close.addEventListener("click", function () { klog("CLICK video close (Label1)"); dismiss(); });
     // GoMovie_Done in original: when video reaches end, btnStop_Click → Unload.
@@ -10244,7 +10251,15 @@ function showNikod(state, slot, onClose) {
         teardown();
         if (onClose) onClose();
     }
-    function onKey(e) { if (e.key === "Escape" || e.key === "Enter") dismiss(); }
+    function onKey(e) {
+        if (e.key !== "Escape" && e.key !== "Enter") return;
+        // Consume the key: dismiss() lands on Sst synchronously, and the
+        // window-level handleKey would otherwise see the same Escape on Sst
+        // and pop the exit confirm on top (one key = two actions).
+        e.preventDefault();
+        e.stopPropagation();
+        dismiss();
+    }
     cmd1.addEventListener("click", dismiss);
     document.addEventListener("keydown", onKey);
     // Expose the no-callback teardown so the Label2 column-header click
@@ -10323,7 +10338,8 @@ function handleKey(e) {
     // the underlying screen's Esc action (fix for #65.1 "in all the
     // english games you can leave without confirming by pressing
     // escape again").
-    if (document.querySelector(".exit-modal, .misger-overlay")) return;
+    if (e.defaultPrevented) return;
+    if (document.querySelector(".exit-modal, .misger-overlay, .nikod-overlay, .video-overlay")) return;
     if (!currentSession) return;
     const screen = currentSession.currentScreen;
     const isKesem = currentSession.config.id === "Kesem";
