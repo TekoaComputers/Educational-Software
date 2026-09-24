@@ -620,7 +620,14 @@ HND.startConnect = function (root, app, unit, onComplete) {
             if (Object.keys(state.matched).length === ROUND) onSetComplete();
         } else {
             HND.log("connect WRONG", "prev=" + prev.pairId, "now=" + b.pairId);
-            prev.errorCount = Math.min(3, prev.errorCount + 1);
+            // Charge the mistake to the first-picked box's PAIR, via its Q
+            // box: score (totalErrors) and the per-Q stars only read Q-box
+            // errorCounts, so charging an A box (A picked first) silently
+            // dropped the mistake and a wrong pairing still scored 100.
+            const errBox = prev.kind === "Q" ? prev : (boxes.find(function (x) {
+                return x.pairId === prev.pairId && x.kind === "Q";
+            }) || prev);
+            errBox.errorCount = Math.min(3, errBox.errorCount + 1);
             // Orig Form_MouseUp:541 — ra.wav only; no visual feedback.
             HND.playWave(sharedWave("ra.wav"));
             state.selected = null;
