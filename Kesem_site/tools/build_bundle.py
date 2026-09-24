@@ -7093,6 +7093,15 @@ function handleAction(appId, action /*, ctrl */) {
         if (!currentSession) return;
         const idx = parseInt(action.split(":")[1], 10);
         const nom = currentSession._hakNom || 1;
+        // The three "play" buttons wait for the current sound like every
+        // other Games3 control (Timer2 / MMControl2.Mode = 526): a click
+        // mid-word used to restart it from the top, and repeated clicks on
+        // play-recording stacked copies of the take (#67). Record (1) and
+        // close (4) stay live.
+        if ((idx === 0 || idx === 2 || idx === 3) && audioBusy(currentSession)) {
+            klog("hak wa(" + idx + ") click ignored — audio busy");
+            return;
+        }
         if (idx === 0)      playGame3HakName(currentSession, nom);    // playb
         else if (idx === 1) game3HakToggleRecord(currentSession);     // rec
         else if (idx === 2) game3HakPlayRecording(currentSession);    // playc
@@ -9159,6 +9168,12 @@ function openGame3HakZoom(state) {
     setWaEnabled(state, 3, true);
     setWaEnabled(state, 4, true);
     setWaEnabled(state, 5, false);
+    // Dim the play buttons while a sound is playing (see the wa dispatch
+    // gate) the same way act1 dims — .frm-stage.audio-busy CSS.
+    [0, 2, 3].forEach(function (i) {
+        const w = pic22.querySelector('.frm-ctrl--wa[data-index="' + i + '"]');
+        if (w) w.dataset.audioGated = "1";
+    });
     // wa(2) sprite: stays on playc1 if a recording from this hak session
     // already exists (e.g. user closed + reopened), else playc3 (dimmed)
     // to visually match Enabled=False.
@@ -9369,8 +9384,9 @@ function game3HakPlayRecording(state) {
         return;
     }
     klog("CLICK game3 wa(2) play-recording");
-    const a = new Audio(state._kkbRec.url);
-    a.play().catch(function () {});
+    // Through the shared session player (not a throwaway new Audio) so the
+    // take is tracked by audioBusy() and can't overlap itself or the words.
+    playAudio(state, state._kkbRec.url);
 }
 
 // Flash the current hotspot rect — Games3.startgame draws a grey-then-blue
