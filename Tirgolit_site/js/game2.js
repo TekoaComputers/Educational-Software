@@ -582,5 +582,12 @@ const GameT2 = (() => {
     return arr;
   }
 
-  return { init, destroy };
+  // Read-only snapshot for tools/monkey (headless test driver).
+  function peek() {
+    return { kind: gameKind, sceneIndex, total: allPairs.length, penalty, eggs: [...eggs], tshNom,
+      tshP, typedCount, staStr, blocked, matched: [...matched],
+      scene: scenePairs.map(p => ({ expr: p.expr, answer: p.answer })) };
+  }
+
+  return { init, destroy, peek };
 })();

@@ -629,5 +629,12 @@ const Game = (() => {
     return Math.max(0, 100 - penalty);
   }
 
-  return { init, destroy, getScore };
+  // Read-only snapshot for tools/monkey (headless test driver).
+  function peek() {
+    return { kind: gameKind, sceneIndex, total: allPairs.length, penalty, eggs: [...eggs],
+      matched: [...matched], target: currentTarget && { ...currentTarget },
+      scene: scenePairs.map(p => ({ expr: p.expr, answer: p.answer })), anim: !!animInterval };
+  }
+
+  return { init, destroy, getScore, peek };
 })();

@@ -877,5 +877,13 @@ const GameWar = (() => {
     return arr;
   }
 
-  return { init, destroy };
+  // Read-only snapshot for tools/monkey (headless test driver).
+  function peek() {
+    return { gameRunning, gameOver, celebrating, losing, spritesReady, shlav, rLane, rMachav, strAns, tshP,
+      pagazNum, warScore, tshNom, answered: answered && [...answered],
+      pair: allPairs && gameRunning ? allPairs[qi(rLane) - 1] : null,
+      creatures: creatures && [1, 2, 3, 4].map(i => ({ px: creatures[i].px, machav: creatures[i].machav })) };
+  }
+
+  return { init, destroy, peek };
 })();

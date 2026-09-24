@@ -1902,7 +1902,22 @@ const App = (() => {
     window[k] = wrapped;
   });
 
-  return { init };
+  // Read-only snapshot for tools/monkey (headless test driver).
+  function peek() {
+    const active = document.querySelector('.screen.active');
+    const glist = document.getElementById('glist-screen');
+    return { user: currentUser, product: currentProduct, unitId: currentUnitId, slot: currentSlot,
+      kind: gameKind, bg: gameBg, tab: selectedTabIndex, selectedUnitId,
+      screen: active ? active.id.replace('screen-', '') : null,
+      glist: !!(glist && glist.style.display !== 'none'), glistUnitId };
+  }
+
+  return { init, peek };
 })();
+window.__tirgolit = {
+  app: () => App.peek(),
+  game: () => Game.peek(), t2: () => GameT2.peek(), t3: () => GameT3.peek(),
+  war: () => GameWar.peek(), krav: () => GameKrav.peek(),
+};
 
 document.addEventListener('DOMContentLoaded', () => App.init());

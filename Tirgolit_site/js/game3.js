@@ -456,5 +456,11 @@ const GameT3 = (() => {
     return arr;
   }
 
-  return { init, destroy };
+  // Read-only snapshot for tools/monkey (headless test driver).
+  function peek() {
+    return { sceneIdx, phase, targetRow, realAnswer, fakeAnswer, typedSoFar, penalty, eggs: [...eggs],
+      scene: scenePairs.map(p => ({ expr: p.expr, answer: p.answer })), timerVal };
+  }
+
+  return { init, destroy, peek };
 })();

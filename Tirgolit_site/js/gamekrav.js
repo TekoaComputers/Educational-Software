@@ -725,5 +725,13 @@ function shelInit() {
     return arr;
   }
 
-  return { init, destroy };
+  // Read-only snapshot for tools/monkey (headless test driver).
+  function peek() {
+    const pair = allPairs && shela >= 1 && shela <= allPairs.length ? allPairs[shela - 1] : null;
+    return { spritesReady, gameRunning, animRunning, showQ, tor, strAns, tshP, shela, ttPosR,
+      scoreT: scoreT && [...scoreT], realScore: realScore && [...realScore], showScoreOverlay,
+      scoreOverlayGameOver, pair, tickRunning: !!tickId };
+  }
+
+  return { init, destroy, peek };
 })();
