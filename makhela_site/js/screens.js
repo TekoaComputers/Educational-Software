@@ -608,6 +608,9 @@
         // can still hit "preview song" / "exit" while the anim plays.
         function playClickAnimFor(h, after, opts) {
             opts = opts || {};
+            // Any other anim replaces (and silently stops) a running song
+            // intro, whose onEnd then never fires — so reset here.
+            introBusy = !!opts.intro;
             const arr = (h.clickAnims || []).filter(c => c && c.anim);
             const entry = arr[0]
                 || (h.clickAnim ? { anim: h.clickAnim, sound: h.clickSound || "" } : null);
@@ -630,6 +633,13 @@
 
         let clickPending = null;          // timer id for distinguishing dbl-click
         const DBLCLICK_MS = 250;
+        // True while the kid is announcing a song name (menu1 clip + the
+        // m_N_2 voice). Further song-line clicks are ignored until he is
+        // done, like the DOS original whose FLI playback blocked input —
+        // otherwise a second click cut him off mid-word and started the
+        // next song's intro (issue #47). Preview / kid-on-chair / exit /
+        // double-click stay live.
+        let introBusy = false;
 
         function addHotspots() {
             stage.querySelectorAll(".hotspot").forEach(b => b.remove());
@@ -665,6 +675,10 @@
                     if (!songKey) continue;
 
                     btn.onclick = () => {
+                        if (introBusy) {
+                            MKH.log("click", "song-line-ignored", num, songKey);
+                            return;
+                        }
                         // Select IMMEDIATELY so "preview song" is active in
                         // the same tick — no waiting for the dbl-click
                         // resolution window or the click anim to finish.
@@ -676,8 +690,8 @@
                             // Anim is clipped to kid box + ends with the voice
                             // intro. Hotspots stay clickable throughout so
                             // "preview song" can be hit any time.
-                            playClickAnimFor(h, () => {}, {
-                                clip: true, endWithSound: true, keepHotspots: true,
+                            playClickAnimFor(h, () => { introBusy = false; }, {
+                                clip: true, endWithSound: true, keepHotspots: true, intro: true,
                             });
                         }, DBLCLICK_MS);
                     };
@@ -702,6 +716,7 @@
                             const arr = (h.clickAnims || []).filter(c => c && c.anim);
                             const animUrl = (arr[0] && arr[0].anim) || h.clickAnim || "";
                             stage.querySelectorAll("video").forEach(v => { try { v.pause(); } catch (e) {} v.remove(); });
+                            introBusy = false;
                             playAnim(stage, animUrl, {
                                 sound:    sound,
                                 clipRect: kidClipRect,
