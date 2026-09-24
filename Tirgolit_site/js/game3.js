@@ -116,10 +116,26 @@ const GameT3 = (() => {
     transitionGazeTo(targetRow + 2);
   }
 
+  // Numeric value of an answer string ("3+3" → 6), or NaN for anything that
+  // isn't plain arithmetic (e.g. the remainder form "3(1)").
+  function answerValue(a) {
+    const s = String(a).replace(/\s+/g, '');
+    if (!/^[\d+\-*/.()]+$/.test(s) || /^\d+\(\d+\)$/.test(s)) return NaN;
+    try { const v = Function('"use strict";return (' + s + ')')(); return typeof v === 'number' ? v : NaN; }
+    catch { return NaN; }
+  }
+
   function pickFake(scene, allQs) {
     const sceneAnswers = new Set(scene.map(p => p.answer));
-    const pool = allQs.map(q => q.answer).filter(a => !sceneAnswers.has(a));
-    if (pool.length === 0) return allQs.find(q => q.answer !== realAnswer)?.answer || '?';
+    // The planted answer must really be wrong: in the multiplication-as-
+    // addition units another question's answer can be a different spelling of
+    // the same value ("3+3" for 2+2+2, whose answer is "3*2").
+    const realVal = answerValue(realAnswer);
+    const pool = allQs.map(q => q.answer).filter(a => !sceneAnswers.has(a) &&
+      !(Math.abs(answerValue(a) - realVal) < 1e-9));
+    if (pool.length === 0) {
+      return allQs.map(q => q.answer).find(a => a !== realAnswer && !(Math.abs(answerValue(a) - realVal) < 1e-9)) || '?';
+    }
     return pool[Math.floor(Math.random() * pool.length)];
   }
 
