@@ -10804,6 +10804,15 @@ function tickGame5Timer(state) {
 // paintHotspots → setupGame5AuxUI → fresh timer.
 function restartGame5Stage(state) {
     if (!state.activeStage) return;
+    // `Unload games5` runs Form_Unload → scorelev, which files the partial
+    // run into the stage's score slot (keeping the better of old/new), and
+    // `games5.Show 1` then starts a FRESH form: zeroed counters and all
+    // lblToz back to caftoff. Without the snapshot + reset the answers from
+    // before the timeout stayed in _stageScore and the replay added on top
+    // of them — a 4-question stage could score 5 answers (>100% board).
+    snapStageScore(state);
+    state._stageScore = { green: 0, yellow: 0, red: 0 };
+    initStageIndicators(state);
     state.Pobeda = 0;
     state.wrongCount = 0;
     state.Tek_N = 1;
