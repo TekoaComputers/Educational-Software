@@ -90,6 +90,8 @@ HND.startMatch = function (root, app, unit, onComplete) {
         completed: false,
     };
     HND.log("match start", app.id + "/" + unit.id, "rows=" + QCount);
+    HND._exposeTest("match", { state: state, idOrder: idOrder, items: items, cal: cal,
+                              QCount: QCount, askCol: askCol, ansCol: ansCol });
 
     // Pre-load all sprite-sheet frames so background-image swaps don't
     // flicker the first time each frame is needed. The row-paper composition

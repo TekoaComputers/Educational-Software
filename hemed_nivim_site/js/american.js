@@ -141,6 +141,9 @@ HND.startAmerican = function (root, app, unit, onComplete) {
         userInteracted: false,
     };
     HND.log("american start", app.id + "/" + unit.id, "items=" + items.length, "QCount=" + QCOUNT);
+    HND._exposeTest("american", { state: state, idOrder: idOrder, items: items, cal: cal,
+                                 QCount: QCOUNT, askCol: askCol, ansCol: ansCol,
+                                 layout: layout, modeSlot: modeSlot });
 
     // Help banner — Form_Paint draws CurrentCalibration.Instructions at
     // (400, 40) in RGB(40,80,190) centered. Read from this unit's cfg

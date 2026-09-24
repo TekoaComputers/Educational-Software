@@ -571,6 +571,16 @@ HND.fadeInOnReady = function (root, readyPromise, delayMs, transitionMs) {
     });
 };
 
+// Read-only test hook for tools/monkey (cf. Kesem's window.__kesemSession).
+// Each game runner registers its live state here on start so the headless
+// monkey can read the current question / answer / penalty without parsing
+// the DOM. Game code never reads it back.
+HND._exposeTest = function (game, api) {
+    // defineProperties (not Object.assign) so getters stay live.
+    window.__hndGame = Object.defineProperties({ game: game, startedAt: Date.now() },
+                                               Object.getOwnPropertyDescriptors(api));
+};
+
 HND._shuffle = function (arr) {
     const a = arr.slice();
     for (let i = a.length - 1; i > 0; i--) {

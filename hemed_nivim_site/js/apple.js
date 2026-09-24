@@ -133,6 +133,8 @@ HND.startApple = function (root, app, unit, onComplete) {
         state.basketStages.push(null);
     }
     HND.log("apple start", app.id + "/" + unit.id, "items=" + items.length, "QCOUNT=" + QCOUNT);
+    HND._exposeTest("apple", { state: state, idOrder: idOrder, items: items, cal: cal,
+                              QCount: QCOUNT, askCol: askCol, ansCol: ansCol });
 
     // Layers
     // Read unit.Middle (TheUnitFile(14)) and pre-compute the X positions

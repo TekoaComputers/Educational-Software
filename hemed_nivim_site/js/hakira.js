@@ -127,6 +127,8 @@ HND.startHakira = function (root, app, unit, onComplete) {
         ended: false,
         firstClick: false,
     };
+    HND._exposeTest("hakira", { state: state, items: items, cal: cal, askCol: askCol,
+                               ansCol: ansCol, hintCol: hintCol, linesIn: LINES_IN });
 
     function sharedWave(name) {
         return "assets/" + app.id + "/sounds/" + name;

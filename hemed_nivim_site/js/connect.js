@@ -922,6 +922,9 @@ HND.startConnect = function (root, app, unit, onComplete) {
                             { childList: true, subtree: true });
     }
 
+    HND._exposeTest("connect", { gameState: game, state: state, items: items, cal: cal,
+                                leftCol: leftCol, rightCol: rightCol,
+                                get boxes() { return boxes; } });
     HND.log("connect start", app.id + "/" + unit.id,
             "items=" + items.length,
             "sets=" + Math.ceil(items.length / MAX_LINES));

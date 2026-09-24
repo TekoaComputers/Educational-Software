@@ -186,6 +186,9 @@ HND.startHaklada = function (root, app, unit, onComplete) {
     };
     HND.log("haklada start", app.id + "/" + unit.id,
             "items=" + items.length, "QCOUNT=" + QCOUNT);
+    HND._exposeTest("haklada", { state: state, idOrder: idOrder, items: items,
+                                QCount: QCOUNT, askCol: askCol, ansCol: ansCol,
+                                dictation: DICTATION, whatToType: whatToType });
 
     // GetFlowerX/Y from the original: 33 positions, snaking three rows.
     function flowerX(i) {
