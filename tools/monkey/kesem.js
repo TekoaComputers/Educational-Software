@@ -359,7 +359,7 @@ class Kesem {
    * Play the path currently loaded (screen already a game or its intro video). Returns
    * { expected: [per-stage tally|null], board, chaos }.
    */
-  async playPath(tag, { wrongs = false, chaos = false } = {}) {
+  async playPath(tag, { wrongs = false, chaos = false, single = false } = {}) {
     const ctx = this.ctx;
     const exp = [];            // per stageIdx: {green,yellow,red,total} | null (game3) | 'chaos'
     let lastStage = null;
@@ -427,7 +427,7 @@ class Kesem {
     const board = await this.eval(() => window.__km.nikod());
     await ctx.checkImages();
     await ctx.shot(`${tag}-nikod`);
-    ctx.check(stageCount === slotLen || exp.length === slotLen, 'not every stage was visited', `${tag}: visited ${stageCount}/${slotLen}`);
+    if (!single) ctx.check(stageCount === slotLen || exp.length === slotLen, 'not every stage was visited', `${tag}: visited ${stageCount}/${slotLen}`);
     return { expected: exp, board, slotLen };
   }
 
@@ -549,6 +549,19 @@ class Kesem {
     }
     await this.waitIdle();
     await this.flushOverlaps();
+    // #63: hammering the same hotspot must not silence it for good.
+    const p1 = await this.eval(q => window.__km.point(q), '.stage-hotspot[data-idx="1"]');
+    if (p1 && p1.hit) {
+      for (let c = 0; c < 8; c++) await ctx.click(p1.x, p1.y, 30);
+      const idle = await this.waitIdle(20000);
+      ctx.check(idle, 'audio stuck busy after rapid clicks', `${tag} stage ${s.stageIdx + 1}\n${await this.diag()}`);
+      const n0 = ctx.traceLen();
+      await ctx.click(p1.x, p1.y, 400);
+      // The click must be accepted (not "ignored — audio busy") and reach audio.
+      const spoke = ctx.traceSince(n0).some(l => /CLICK game3 hotspot/.test(l));
+      ctx.check(spoke, 'hotspot silent after rapid clicks', `${tag} stage ${s.stageIdx + 1}: a normal click on hotspot 1 played nothing\n${await this.diag()}`);
+      await this.waitIdle();
+    }
     for (let i = 1; i <= s.nHot; i++) {
       await this.waitIdle();
       const before = (await this.snap()).inspect;
@@ -730,9 +743,41 @@ class Kesem {
         const b2 = await this.eval(() => window.__km.nikod());
         ctx.check(b2 && res.board && b2.ltott === res.board.ltott && b2.toch.join() === res.board.toch.join(),
           'lamp replay board differs', `${tag}: end ${res.board && res.board.ltott}% ${res.board && res.board.toch.join('/')} vs replay ${b2 && b2.ltott}% ${b2 && b2.toch.join('/')}`);
-        await this.closeNikod();
+        const j = res.expected.findIndex(e => e && e !== 'chaos');
+        if (i === 0 && !chaos && j >= 0) await this.stageReplay(tag, r, i, res, j, lsStages);
+        else await this.closeNikod();
       }
     }
+  }
+
+  /**
+   * nikod detail view (adv) → Label2(j) single-stage replay (StartGamesA with
+   * ShlavNahehi = nma): play stage j again all-correct, land back on Sst with
+   * the board re-opened, and the stage keeps its better score.
+   */
+  async stageReplay(tag, r, i, res, j, lsStages) {
+    const ctx = this.ctx;
+    ctx.step(`${tag}/replay-stage${j + 1}`);
+    await this.tap('.nikod-overlay button[title="החלף תצוגה"]', 0, 400);
+    await ctx.checkImages();
+    await ctx.shot(`${tag}-nikod-detail`);
+    const lbl = await this.eval(n => [...document.querySelectorAll('.nikod-overlay button')].findIndex(b => b.title === 'תרגיל חוזר לשלב ' + n), j + 1);
+    if (!ctx.check(lbl >= 0, 'nikod detail has no stage replay button', `${tag} stage ${j + 1}`)) { await this.closeNikod(); return; }
+    await this.tap('.nikod-overlay button', lbl, 600);
+    const s = await this.snap();
+    if (!ctx.check(/^game/.test(s.screen || '') && s.stageIdx === j, 'stage replay did not open the stage', `${tag}: ${JSON.stringify(s)}`)) { await this.bailOut(tag); return; }
+    const rep = await this.playPath(`${tag}-rp${j + 1}`, { single: true });
+    if (!rep) return;
+    const old = (lsStages || [])[j] || res.expected[j];
+    const neu = rep.expected[j] || { green: 0, yellow: 0, red: 0 };
+    const val = x => x.green * 5 + x.yellow * 2 + x.red;
+    const best = val(neu) > val(old) ? neu : old;
+    const stages = res.expected.map((e, k) => (k === j ? best : (e === 'chaos' ? (lsStages || [])[k] : e)));
+    const want = expectedBoard(stages);
+    ctx.check(rep.board && rep.board.ltott === String(want.mispar) && rep.board.toch.join() === want.toch.join(),
+      'board after single-stage replay', `${tag} stage ${j + 1}: expected ${want.mispar}% ${want.toch.join('/')} got ${rep.board && rep.board.ltott}% ${rep.board && rep.board.toch.join('/')}`);
+    await this.closeNikod();
+    ctx.check(await this.waitScreen('sst', 4000), 'not on Sst after stage replay', tag);
   }
 
   // --------------------------------------------------------- side screens
@@ -741,6 +786,7 @@ class Kesem {
     const n = await this.eval(() => document.querySelectorAll('.frm-ctrl--Icon_s').length);
     if (n < 2 || !(await this.eval(() => window.__km.visible('.frm-ctrl--Icon_s', 0)))) return;
     ctx.step('sst/rama-burst');
+    await this.ramaLatency(maxRama);
     const ref = {};
     for (let r = 1; r <= maxRama; r++) {
       await this.selectRama(r);
@@ -763,6 +809,39 @@ class Kesem {
     ctx.check(!bad.length, 'sst images wrong after fast rama switching', `rama ${s.rama}: ${bad.length} controls differ from a slow switch, e.g. ${bad.slice(0, 3).map(j => `${got[j]} vs ${ref[s.rama][j]}`).join(' ; ')}`);
     await ctx.checkImages();
     await ctx.shot('rama-burst');
+  }
+
+  /**
+   * #62 "3 second delay when swapping levels" / #57 #61 art missing or stale
+   * while swapping fast: on the live site a never-visited rama tab fetched its
+   * whole Sst background on click. Throttle the network like a slow school
+   * line, click a rama tab that hasn't been shown yet, and require its
+   * background to be on screen almost at once (i.e. it was preloaded while
+   * the user was looking at the Sst).
+   */
+  async ramaLatency(maxRama) {
+    const ctx = this.ctx;
+    const cur = (await this.snap()).rama;
+    const target = [maxRama, maxRama - 1, 1].find(r => r >= 1 && r !== cur);
+    if (!target) return;
+    await ctx.sleep(1500);                 // user reads the menu first
+    const cdp = await ctx.page.target().createCDPSession();
+    await cdp.send('Network.enable');
+    await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 600, downloadThroughput: 64 * 1024, uploadThroughput: 64 * 1024 });
+    try {
+      const i = await this.eval(ix => [...document.querySelectorAll('.frm-ctrl--Icon_s')].findIndex(e => +e.dataset.index === ix), target - 1);
+      const p = await this.eval(j => window.__km.point('.frm-ctrl--Icon_s', j), i);
+      if (!p) return;
+      await ctx.click(p.x, p.y, 0);
+      const t0 = Date.now();
+      const ok = await ctx.waitFor(() => { const b = window.__kesemSession.bg; return b && b.complete && b.naturalWidth > 0; }, 5000);
+      const ms = Date.now() - t0;
+      const src = await this.eval(() => { const b = window.__kesemSession.bg; return b && b.getAttribute('src'); });
+      ctx.check(ok && ms < 400, 'rama switch waits for the network', `Icon_s[${target - 1}] on a slow line: new Sst background (${src}) took ${ok ? ms + ' ms' : '>5 s'} to appear — not preloaded`);
+    } finally {
+      await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 }).catch(() => {});
+      await cdp.detach().catch(() => {});
+    }
   }
 
   async seret() {
@@ -980,4 +1059,4 @@ async function runApp(ctx, app, overrides = {}) {
   return k;
 }
 
-module.exports = { runApp, Kesem, DEFAULTS, expectedBoard };
+module.exports = { runApp, Kesem, DEFAULTS, expectedBoard, pageInit };
