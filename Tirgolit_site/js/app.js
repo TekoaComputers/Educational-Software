@@ -589,7 +589,7 @@ const App = (() => {
       row.addEventListener('click', () => {
         listEl.querySelectorAll('.u-row.u-row-sel').forEach(r => r.classList.remove('u-row-sel'));
         row.classList.add('u-row-sel');
-        selectedUnitId = uid;
+        selectedUnitId = String(uid);  // unit "0" exists (רמה ב) — keep ids truthy
         showTip(uid);
       });
 
@@ -1103,7 +1103,7 @@ const App = (() => {
     // Remove any stale keyboard handler from a previous call
     if (glistKeyHandler) { window.removeEventListener('keydown', glistKeyHandler); glistKeyHandler = null; }
 
-    glistUnitId   = uid;
+    glistUnitId   = String(uid);  // numeric 0 would fail the `glistUnitId &&` checks
     glistUnit     = unit;
     glistUnitName = unitName;
 
