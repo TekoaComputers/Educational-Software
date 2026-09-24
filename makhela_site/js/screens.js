@@ -1455,8 +1455,9 @@
     // Classic concentration / memory game on the igra2 screen — 12 cards
     // (3×4 grid) hiding 6 pairs of instrument icons cropped from
     // pan_inst.png. Card backs = the treble-clef pattern baked into
-    // igra2.png; flipping just overlays the face on top. da.mp4/net.mp4
-    // provide match/mismatch audio cues; konec.mp4 plays as a celebration
+    // igra2.png; flipping just overlays the face on top. (da.mp4/net.mp4
+    // are SILENT game-show kid clips, not audio cues — see onCardClick.)
+    // konec.mp4 plays as a celebration
     // when all pairs are found (and the "play video when game complete"
     // hotspot replays it on demand).
     function memoryGame({ makeStage }) {
@@ -1568,14 +1569,6 @@
             return wrap;
         }
 
-        function playClip(url) {
-            try {
-                const a = new Audio(url);
-                a.volume = vol("speech");
-                a.play().catch(() => {});
-            } catch (e) {}
-        }
-
         // Slot → instrument fx clip in assets/sfx/fx/. Each .ogg is a short
         // demo (1-3 s) of that instrument playing — gives the player an
         // audible cue of what the card is on top of the visual sprite.
@@ -1628,7 +1621,11 @@
             if (a.slot === b.slot) {
                 a.matched = true; b.matched = true;
                 matched += 1;
-                playClip("assets/animations/da.mp4");
+                // No match cue: da.mp4 / net.mp4 (formerly played here via
+                // new Audio) are 0.6 s video-only FLI conversions with no
+                // audio track — silent in Chrome, an "audio error" on every
+                // match in Firefox. The flipped card's own instrument clip
+                // is the audible feedback.
                 // Brief pause so the user reads the matching pair, THEN
                 // remove both cards to reveal the gramaf frame behind.
                 busy = true;
@@ -1642,7 +1639,6 @@
                 }, 500);
             } else {
                 busy = true;
-                playClip("assets/animations/net.mp4");
                 setTimeout(() => { flipDown(a); flipDown(b); busy = false; }, 900);
             }
         }
