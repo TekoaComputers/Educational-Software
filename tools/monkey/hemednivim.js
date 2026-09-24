@@ -508,6 +508,11 @@ class Driver {
         const qShown = document.querySelector('.am-q-text').textContent;
         return { idx, ask, ok: [...okTexts], opts, qShown, picLoaded: !!document.querySelector('.am-option-text.am-pic-loaded') };
       });
+      if (info.layout !== 'text-text') {
+        await this.sleep(300);
+        const vis = await this.ev(() => [...document.querySelectorAll('.am-pic-loaded')].map(e => { const r = e.getBoundingClientRect(); return Math.round(r.width) + 'x' + Math.round(r.height); }));
+        ctx.check(vis.length && vis.every(v => !/(^0x|x0$)/.test(v)), 'american picture not visible', `q${n + 1} ${info.layout}: loaded pictures sized ${vis.join(',') || 'none'}`);
+      }
       if (info.layout === 'text-text' && info.mode !== 2) ctx.check(q.qShown === (q.ask || ''), 'american question text ≠ data', `q${n + 1}: "${q.qShown}" vs "${q.ask}"`);
       const right = q.opts.findIndex(t => q.ok.includes(t));
       const wrong = q.opts.findIndex(t => !q.ok.includes(t));
@@ -774,7 +779,12 @@ class Driver {
   // ---------- HAKIRA (reading scroll) ----------
   async playHakira(u) {
     const { ctx } = this;
-    const info = await this.ev(() => ({ n: __hndGame.items.length, hint: !!__hndGame.hintCol, ask: __hndGame.cal.askSide, ans: __hndGame.cal.ansSide }));
+    const info = await this.ev(() => {
+      const g = __hndGame, c = g.cal;
+      return { n: g.items.length, hint: g.hasHintStep != null ? g.hasHintStep : !!g.hintCol, ask: c.askSide, ans: c.ansSide,
+        pics: [c.whatToAsk, c.whatToAnswer, c.whatToHint].filter(x => x === 3).length,
+        picItems: g.items.filter(it => it._hasPic).length };
+    });
     await ctx.waitFor(() => !__hndGame.state.animating, 8000);
     await this.sleep(300);
     await this.audioSince();
@@ -802,6 +812,10 @@ class Driver {
         return { ask: cells.includes(it[g.askCol] || ''), ans: cells.includes(it[g.ansCol] || '') };
       }, pos);
       ctx.check(shown.ask && shown.ans, 'hakira text missing', `item ${pos}: ask=${shown.ask} ans=${shown.ans}`);
+      if (pos === 0 && info.pics && info.picItems) {
+        const n = await this.ev(() => [...document.querySelectorAll('.hakira-pic')].filter(e => e.getBoundingClientRect().height > 10).length);
+        ctx.check(n >= info.pics, 'hakira picture missing', `unit ${u.id}: calibration asks for ${info.pics} picture side(s), ${n} drawn for item 0`);
+      }
       if (pos === 2) await ctx.shot(`u${u.id}-hakira-mid`);
     }
     await ctx.checkImages();
