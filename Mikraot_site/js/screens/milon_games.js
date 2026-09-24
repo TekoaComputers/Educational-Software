@@ -218,21 +218,7 @@
     // assets/anim/pic_<label>_<i>.png. Matches the For Y=0 To 5 loops
     // throughout the .frm source.
     function animSprite(node, label, cells, ms) {
-        if (!node) return Promise.resolve();
-        let i = 0;
-        return new Promise(function (resolve) {
-            const tick = function () {
-                if (i >= cells) {
-                    node.style.backgroundImage = "url('assets/anim/" + label + "_0.png')";
-                    resolve();
-                    return;
-                }
-                node.style.backgroundImage = "url('assets/anim/" + label + "_" + i + ".png')";
-                i += 1;
-                setTimeout(tick, ms);
-            };
-            tick();
-        });
+        return MK.animSprite(node, label, cells, ms);
     }
 
     // Helper: wire PicFea_Click / PicBur_Click toggling between two
@@ -246,6 +232,7 @@
         if (!node) return;
         let flip = 0;
         node.addEventListener("click", function () {
+            if (node.__animating) return;   // VB6: UI blocked mid-anim
             const a = audios[flip % audios.length];
             flip = (flip + 1) % audios.length;
             if (a) MK.play(a);

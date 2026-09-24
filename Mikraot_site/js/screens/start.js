@@ -47,16 +47,7 @@
         return m ? m[1] + "p.BMP" : name;
     }
     function animatePic(node, label, cells, intervalMs) {
-        let i = 0;
-        return new Promise(function (resolve) {
-            const tick = function () {
-                if (i >= cells) { resolve(); return; }
-                node.style.backgroundImage = bgImg("anim/" + label + "_" + i + ".png");
-                i += 1;
-                setTimeout(tick, intervalMs);
-            };
-            tick();
-        });
+        return MK.animSprite(node, label, cells, intervalMs);
     }
 
     MK.renderStart = function (root, ctx) {
@@ -141,6 +132,7 @@
                 const node = MK.el("button", { class: "ctrl", style: style });
                 node.style.backgroundImage = bgImg("anim/pic_fea_0.png");
                 node.addEventListener("click", async function () {
+                    if (node.__animating) return;   // VB6: UI blocked mid-anim
                     if (feja === 1) {
                         MK.play("mik_siha/x2.wav");
                         feja = 0;
@@ -149,7 +141,6 @@
                         await animatePic(node, "pic_fea", 6, 200);
                         feja = 1;
                         await animatePic(node, "pic_fea", 12, 200);
-                        node.style.backgroundImage = bgImg("anim/pic_fea_0.png");
                     }
                 });
                 stage.appendChild(node);
@@ -163,6 +154,7 @@
                 const node = MK.el("button", { class: "ctrl", style: style });
                 node.style.backgroundImage = bgImg("anim/pic_bur_0.png");
                 node.addEventListener("click", async function () {
+                    if (node.__animating) return;   // VB6: UI blocked mid-anim
                     if (Pin === 1) {
                         MK.play("mik_siha/kp1.wav");
                         Pin = 0;
@@ -171,7 +163,6 @@
                         Pin = 1;
                     }
                     await animatePic(node, "pic_bur", 6, 200);
-                    node.style.backgroundImage = bgImg("anim/pic_bur_0.png");
                 });
                 stage.appendChild(node);
                 refs.PicBur = node;

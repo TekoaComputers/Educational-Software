@@ -25,6 +25,61 @@
         else try { console.warn.apply(console, ["[MK]"].concat([].slice.call(arguments))); } catch (e) {}
     };
 
+    // PicFea / PicBur sprite animation (the Anim.PicClip1/2 cells that
+    // every form cycles with `For Y = 0 To n: Picture = GraphicCell(Y):
+    // Sleep …`). Shared by all screens so that:
+    //   * a newer animation on the same node supersedes an older one —
+    //     two loops writing alternate frames made the jester / Pinocchio
+    //     "glitch in and out of existence" and loop into themselves when
+    //     clicked repeatedly (issues #75, #76);
+    //   * node.__animating tells click handlers to ignore clicks while the
+    //     sprite is mid-animation (VB6 blocked the UI thread in Sleep);
+    //   * the node returns to cell 0 when the cycle finishes.
+    // Resolves when the cycle ends or is superseded (never hangs a caller).
+    MK.animSprite = function (node, label, cells, ms) {
+        if (!node) return Promise.resolve();
+        const tok = (node.__animTok = (node.__animTok || 0) + 1);
+        node.__animating = true;
+        let i = 0;
+        return new Promise(function (resolve) {
+            const tick = function () {
+                if (node.__animTok !== tok) { resolve(); return; }
+                if (i >= cells) {
+                    node.style.backgroundImage = "url('assets/anim/" + label + "_0.png')";
+                    node.__animating = false;
+                    resolve();
+                    return;
+                }
+                node.style.backgroundImage = "url('assets/anim/" + label + "_" + i + ".png')";
+                i += 1;
+                setTimeout(tick, ms);
+            };
+            tick();
+        });
+    };
+    // Warm the HTTP cache with every sprite cell once per page load. A
+    // cell swapped into style.backgroundImage before it has downloaded
+    // paints NOTHING until it arrives, so on a real network the sprite
+    // blinked out on every frame of its first cycle (#75/#76/#78). Uses
+    // CSS backgrounds (not new Image) so the URL is byte-identical to the
+    // one the animation sets — image_format.js rewrites Image.src to
+    // .webp but leaves inline styles alone.
+    MK.preloadSprites = function () {
+        if (MK._spritesPreloaded) return;
+        MK._spritesPreloaded = true;
+        const urls = [];
+        ["pic_fea", "pic_bur"].forEach(function (l) {
+            for (let i = 0; i < 12; i++) urls.push("url('assets/anim/" + l + "_" + i + ".png')");
+        });
+        // GAMES1 mode buttons' pressed pictures (swapped in on click).
+        ["kl11", "kl22", "kl33"].forEach(function (n) { urls.push("url('assets/menu/" + n + ".png')"); });
+        const d = document.createElement("div");
+        d.setAttribute("aria-hidden", "true");
+        d.style.cssText = "position:fixed;left:-10px;top:-10px;width:1px;height:1px;" +
+            "visibility:hidden;pointer-events:none;background-image:" + urls.join(",");
+        (document.body || document.documentElement).appendChild(d);
+    };
+
     MK.TWIPS_PER_PX = 15;
     MK.STAGE_W = 640;
     MK.STAGE_H = 480;
@@ -138,6 +193,7 @@
         stage.dataset.stageH = sh;
         root.replaceChildren(stage);
         MK.fitStage(stage);
+        MK.preloadSprites();
         MK.log("stage", sw + "x" + sh, "token=" + _renderToken);
         return stage;
     };

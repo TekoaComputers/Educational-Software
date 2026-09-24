@@ -51,16 +51,7 @@
     }
 
     function animateSprite(node, label, cells, intervalMs) {
-        let i = 0;
-        return new Promise(function (resolve) {
-            const tick = function () {
-                if (i >= cells) { resolve(); return; }
-                node.style.backgroundImage = bgImg("anim/" + label + "_" + i + ".png");
-                i += 1;
-                setTimeout(tick, intervalMs);
-            };
-            tick();
-        });
+        return MK.animSprite(node, label, cells, intervalMs);
     }
 
     function flashHighlight(node) {
@@ -247,6 +238,7 @@
             const node = MK.el("button", { class: "ctrl", style: MK.posStyle(ctrl, scale) });
             node.style.backgroundImage = bgImg("anim/pic_fea_0.png");
             node.addEventListener("click", async function () {
+                if (node.__animating) return;   // VB6: UI blocked mid-anim
                 const t = state.tirgul;
                 const tguva = function (wav1, wav2) {
                     MK.play(state.kfp === 1 ? wav1 : wav2);
@@ -275,7 +267,6 @@
                 }
                 await animateSprite(node, "pic_fea", 12, 200);
                 await animateSprite(node, "pic_fea", 12, 200);
-                node.style.backgroundImage = bgImg("anim/pic_fea_0.png");
             });
             stageEl.appendChild(node);
             state.picFeaNode = node;
@@ -287,6 +278,7 @@
             const node = MK.el("button", { class: "ctrl", style: MK.posStyle(ctrl, scale) });
             node.style.backgroundImage = bgImg("anim/pic_bur_0.png");
             node.addEventListener("click", async function () {
+                if (node.__animating) return;   // VB6: UI blocked mid-anim
                 const t = state.tirgul;
                 const tguva = function (wav1, wav2) {
                     MK.play(state.kfp === 1 ? wav1 : wav2);
@@ -298,7 +290,6 @@
                 else if (t === 3) tguva("wav/knok11.wav", "wav/knok12.wav");
                 else MK.play("mik_siha/kpq.wav");
                 await animateSprite(node, "pic_bur", 6, 200);
-                node.style.backgroundImage = bgImg("anim/pic_bur_0.png");
             });
             stageEl.appendChild(node);
             state.picBurNode = node;
@@ -308,11 +299,10 @@
             const node = MK.el("button", { class: "ctrl", style: MK.posStyle(ctrl, scale) });
             node.style.backgroundImage = bgImg("anim/" + label + "_0.png");
             node.addEventListener("click", function () {
+                if (node.__animating) return;
                 const a = audios[Math.floor(Math.random() * audios.length)];
                 MK.play(a);
-                animateSprite(node, label, cells, 100).then(function () {
-                    node.style.backgroundImage = bgImg("anim/" + label + "_0.png");
-                });
+                animateSprite(node, label, cells, 100);
             });
             stageEl.appendChild(node);
             set(node);

@@ -367,17 +367,10 @@
             node.style.backgroundImage = bgImg("anim/pic_fea_0.png");
             const leserugin = { value: 0 };
             const animCycle = function (cells) {
-                let j = 0;
-                return new Promise(function (resolve) {
-                    const tick = function () {
-                        if (j >= cells) { node.style.backgroundImage = bgImg("anim/pic_fea_0.png"); resolve(); return; }
-                        node.style.backgroundImage = bgImg("anim/pic_fea_" + j + ".png");
-                        j += 1; setTimeout(tick, 200);
-                    };
-                    tick();
-                });
+                return MK.animSprite(node, "pic_fea", cells, 200);
             };
             node.addEventListener("click", async function () {
+                if (node.__animating) return;   // VB6: UI blocked mid-anim
                 if (gameNomer > 0) {
                     MK.play("mik_siha/i8.wav");
                     await animCycle(12);
