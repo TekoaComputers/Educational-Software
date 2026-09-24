@@ -76,15 +76,22 @@
     // The previous impl built a 4-item shuffled array then `slice(0, n)`'d
     // it, which would drop `correct` ~(4-n)/4 of the time → in game5
     // (n=3) about 25% of rounds had no valid answer.
-    function pickN(pool, correct, n) {
+    //
+    // `keyFn` defines what must be distinct between the choices (default:
+    // the word). "במה זה מתחיל" (mishak 4) shows only each choice's FIRST
+    // SYLLABLE, so two words sharing it (song 1 חַיָּה/חַוָּה, song 10
+    // אֲבַטִּיחִים/אֲבַטִּיחַ, …) put two identical answer tiles on screen
+    // of which only one was accepted — keyFn dedupes on the syllable there.
+    function pickN(pool, correct, n, keyFn) {
+        const key = keyFn || function (e) { return e.mila; };
         const others = pool.filter(function (e) { return e !== correct; });
         const result = [correct];
-        const seen = new Set([correct.mila]);
+        const seen = new Set([key(correct)]);
         while (result.length < n && others.length) {
             const i = rng(others.length);
             const e = others.splice(i, 1)[0];
-            if (seen.has(e.mila)) continue;
-            seen.add(e.mila);
+            if (seen.has(key(e))) continue;
+            seen.add(key(e));
             result.push(e);
         }
         for (let i = result.length - 1; i > 0; i--) {
@@ -92,6 +99,16 @@
             [result[i], result[j]] = [result[j], result[i]];
         }
         return result;
+    }
+    // Distractor pool for a song: its own TEM subset, topped up with the
+    // rest of the dictionary when the subset is smaller than the game
+    // needs. Song 2's TEM lists only 2 words, so game1 (4 choices), game5
+    // (3) and game2 (4) showed "אין מספיק נתונים" — a dead end that also
+    // stalled every maslul chain of song 2 (all three contain one of those
+    // games). The ASKED word still always comes from the song itself.
+    function distractorPool(entries, need) {
+        if (entries.length >= need) return entries;
+        return entries.concat(window.MK_MILON.filter(function (e) { return e && entries.indexOf(e) < 0; }));
     }
     function awardCoin(taut) {
         if (taut === 0) return { img: "menu/matbea3.png", wav: "mik_siha/coin.wav",  value: 2 };
@@ -340,8 +357,10 @@
         // audio (ranit/c1|c2|c3.wav + noc1|noc2|noc3.wav).
         const state = { round: 0, totalCoins: 0, attempts: 0, current: null,
                         mahamaa: 1 + Math.floor(Math.random() * 3) };
+        MK._test = { screen: "quiz", state: state, refs: sc.refs };   // read-only hook for tools/monkey
         const entries = getEntries(sc.song);
-        if (entries.length < (opts.choices || 4)) {
+        const pool = distractorPool(entries, opts.choices || 4);
+        if (entries.length === 0) {
             sc.stage.appendChild(MK.el("div", { style: {
                 position: "absolute", inset: 0,
                 display: "flex", alignItems: "center", justifyContent: "center",
@@ -366,7 +385,8 @@
             // pickN guarantees `correct` is in the returned slice (and
             // shuffled among the rest). `pick4(...).slice(0, n)` did
             // not — it would drop `correct` ~(4-n)/4 of the time.
-            const choices = pickN(entries, correct, opts.choices || 4);
+            const choices = pickN(pool, correct, opts.choices || 4, opts.distinctKey);
+            state.choices = choices;
             opts.setupRound(correct, choices, onAnswer);
         }
         // Audio sequencing 1:1 with WAV.FRM btnOtvet_Click:
@@ -482,6 +502,7 @@
         // / btnTmuna positions exactly (from renderForm).
         runQuiz(sc, {
             choices: 4,
+            distinctKey: mishak === 4 ? function (e) { return (e.slg[0] || "").trim(); } : null,
             setupRound: function (correct, choices, eval_) {
                 nagState.current = correct;
                 resetNag();
@@ -616,7 +637,7 @@
         wireSprite(sc.refs.PicFea, "pic_fea", 11, ["mik_siha/bb003.wav", "mik_siha/bb33.wav"]);
         wireSprite(sc.refs.PicBur, "pic_bur", 10, ["mik_siha/aa008.wav", "mik_siha/aa006.wav", "mik_siha/aa007.wav"]);
         const entries = getEntries(sc.song);
-        if (entries.length < 4) {
+        if (entries.length === 0) {
             sc.stage.appendChild(MK.el("div", { style: {
                 position: "absolute", inset: "0",
                 display: "flex", alignItems: "center", justifyContent: "center",
@@ -638,12 +659,14 @@
             }
             state.round += 1;
             state.attempts = 0;
-            // 4 unique entries.
-            const pool = entries.slice();
+            // 4 unique entries — the 3 captions from the song first, the
+            // odd picture out topped up from the dictionary if needed.
+            const own = entries.slice(), extra = distractorPool(entries, 4).slice(entries.length);
             const uu = [];
-            for (let k = 0; k < 4 && pool.length > 0; k++) {
-                const i = rng(pool.length);
-                uu.push(pool.splice(i, 1)[0]);
+            for (let k = 0; k < 4 && (own.length || extra.length); k++) {
+                const src = own.length ? own : extra;
+                const i = rng(src.length);
+                uu.push(src.splice(i, 1)[0]);
             }
             // pr_Nomer = random slot 0..2 — this slot will host the
             // mismatched picture (uu[3]'s picture under uu[pr_Nomer]'s label).
