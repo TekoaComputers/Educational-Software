@@ -328,8 +328,9 @@ const App = (() => {
   }
 
   async function checkAdminPass() {
-    const stored = localStorage.getItem('tirgolit_admin_pass') ?? '777';
-    if (!stored) return true;
+    // A blank stored password (saved by older versions of 'שנה קוד מנהל')
+    // falls back to the default instead of switching the prompt off.
+    const stored = (localStorage.getItem('tirgolit_admin_pass') || '').trim() || '777';
     const entered = await showTInput('הכנס סיסמת מורה', '');
     if (entered === null) return false;
     if (entered.trim() !== stored) { await showTMsg('סיסמא שגויה'); return false; }
@@ -431,6 +432,7 @@ const App = (() => {
   async function appUserMgmt_changePass() {
     const newPass = await showTInput('הכנס סיסמה חדשה', '');
     if (newPass === null) return;
+    if (!newPass.trim()) { await showTMsg('הסיסמה לא יכולה להיות ריקה'); return; }
     localStorage.setItem('tirgolit_admin_pass', newPass.trim());
     await showTMsg('הסיסמה עודכנה');
   }
