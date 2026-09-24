@@ -206,11 +206,28 @@ async function hakPanelChecks(k, tag) {
   ctx.check(/מיקרופון/.test(msg), 'refused microphone gives no feedback', `${tag}: after wa[1] with getUserMedia rejected, visible text: "${msg}"`);
   await ctx.shot(`${tag}-hak-nomic`);
   await k.eval(() => { navigator.mediaDevices.getUserMedia = window.__kmGum; });
-  for (const [n, i] of [['dif', 1], ['wa', 0], ['wa', 4]]) {
+  for (const [n, i] of [['dif', 0], ['dif', 1], ['wa', 0], ['wa', 4]]) {
     const p = await k.eval((a, b) => window.__km.point(`.frm-ctrl--${a}[data-index="${b}"]`), n, i);
     ctx.check(p && p.hit, 'hak control not clickable after mic refusal', `${tag}: ${n}[${i}]`);
   }
+  // …and they must DO something, not just be top-most: prev/next item
+  // (dif), hear the word (wa[0]), leave the panel (wa[4]).
+  const nom = () => k.eval(() => window.__kesemSession._hakNom);
+  await k.waitIdle();
+  const n0 = await nom();
+  await k.tap('.frm-ctrl--dif[data-index="1"]', 0, 300);
+  const n1 = await nom();
+  ctx.check(n1 !== n0, 'hak next-item (dif[1]) does nothing', `${tag}: item ${n0} → ${n1}`);
+  await k.waitIdle();
+  await k.tap('.frm-ctrl--dif[data-index="0"]', 0, 300);
+  ctx.check((await nom()) === n0, 'hak prev-item (dif[0]) does not go back', `${tag}: item ${n1} → ${await nom()} (want ${n0})`);
+  await k.waitIdle();
+  const t0 = ctx.traceLen();
+  await k.tap('.frm-ctrl--wa[data-index="0"]', 0, 300);
+  ctx.check(ctx.traceSince(t0).some(l => /audio (play|skip)/.test(l)), 'hak hear-word (wa[0]) does nothing', `${tag}: no audio after wa[0]`);
+  await k.waitIdle();
   await k.tap('.frm-ctrl--wa[data-index="4"]', 0, 500);
+  ctx.check(!(await vis('.frm-ctrl--Picture22')), 'hak exit (wa[4]) does not close the panel', tag);
   await k.waitIdle();
 }
 
@@ -229,6 +246,53 @@ async function cursorPieceCheck(k, tag, s) {
   });
   if (!st || !st.inside || !st.vis) return;
   k.ctx.check(Math.abs(st.dx) <= 4 && Math.abs(st.dy) <= 4, 'cursor piece not on the cursor', `${tag} stage ${s.stageIdx + 1} game${s.gn}: piece centre is ${st.dx},${st.dy} px from the mouse (piece at ${st.at} in Picture1)`);
+}
+
+// Full run: every path the Sst exposes has been completed, so the catalog's
+// progress battery (Tekoa.Progress, visited maslulim / total) must be 100%
+// and its denominator must equal the number of reachable paths.
+async function catalogProgressCheck(k) {
+  const p = await k.eval(a => { const P = window.Tekoa && window.Tekoa.Progress; if (!P) return null; const x = P.getApp(a);
+    return { total: x.total, visited: Object.values(x.activities || {}).filter(v => v.visited).length, pct: P.getPercent(a) }; }, k.app);
+  if (!p) return;
+  const n = k._completed.size;
+  k.ctx.check(p.total === n && p.pct === 100, 'catalog progress wrong after every path', `${k.app}: ${n} reachable paths completed → Tekoa.Progress total=${p.total} visited=${p.visited} → ${p.pct}%`);
+}
+
+// Interrupting a correct answer's Tguva → affirmation → mus chain:
+//   picexi → "no" in the misger (the answer is already scored, so the game
+//     must move on — not leave the same question live to be scored again);
+//   Space (keyboard replay of the question, act1(0)'s twin) — must be
+//     ignored while audio plays like act1(0), not strand the chain.
+// Once per mode × game type 1/2/5, on a clean (no-wrongs) question.
+// Returns a playTurn result, or null when skipped.
+async function midChain(k, tag, s) {
+  const { ctx } = k;
+  k._midChain = k._midChain || new Set();
+  if (![1, 2, 5].includes(s.gn) || !s.nHot) return null;
+  const mode = ['picexi', 'space'].find(m => !k._midChain.has(m + s.gn));
+  if (!mode) return null;
+  await k.waitIdle();
+  const pre = await k.snap();
+  if (pre.stageIdx !== s.stageIdx || pre.razNom !== s.razNom || pre.ov || pre.wrong) return null;
+  if (s.gn === 5 && !(await ctx.waitFor(() => !!document.querySelector('.stage-game5-choice'), 5000))) return null;
+  k._midChain.add(mode + s.gn);
+  const before = await k.key();
+  const sum = x => x.score.green + x.score.yellow + x.score.red;
+  if (s.gn === 1) await k.tap(`.stage-hotspot[data-idx="${pre.target}"]`, 0, 60);
+  else if (s.gn === 2) await k.tap(`.stage-cover[data-idx="${pre.Gg_N}"]`, 0, 60);
+  else await k.tap('.frm-ctrl--Picture2', pre.Pr_N - 1, 60);
+  if (!(await k.eval(() => window.__km.snap().busy))) return null;          // chain already over (missing wavs)
+  if (mode === 'picexi') { await k.tap('.frm-ctrl--picexi', 0, 300); await k.misgerAnswer(false); }
+  else { await k.eval(() => document.activeElement && document.activeElement.blur()); await ctx.page.keyboard.press('Space'); }
+  const moved = await k.waitKeyChange(before, 15000);
+  const post = await k.snap();
+  await ctx.shot(`${tag}-midchain-${mode}-g${s.gn}`);
+  const what = mode === 'picexi' ? 'picexi → "no"' : 'Space (replay)';
+  ctx.check(moved, `answer lost after ${what} mid-chain`, `${tag} stage ${s.stageIdx + 1} game${s.gn}: the correct answer's chain was cut by ${what}; the same question stayed live (target ${pre.target}/${post.target}, Pobeda ${pre.Pobeda}/${post.Pobeda}, Tek_N ${pre.Tek_N}/${post.Tek_N}, busy ${post.busy})`);
+  if (moved && post.stageIdx === pre.stageIdx && post.razNom === pre.razNom && !post.ov)
+    ctx.check(sum(post) === sum(pre) + 1, `${what} mid-chain answer scored ≠ once`, `${tag} game${s.gn}: tally ${JSON.stringify(pre.score)} → ${JSON.stringify(post.score)}`);
+  return moved ? { bucket: 'green' } : { stuck: true };
 }
 
 // Rapid Icon_s toggling (odd number of clicks, some during the page flip):
@@ -267,6 +331,7 @@ function kolkore(app, extraOpts = {}) {
       const turn0 = k.playTurn.bind(k);
       k.playTurn = async (tag, s, wrongs) => {
         if (s.gn === 2 || s.gn === 4) { await k.waitIdle(); await cursorPieceCheck(k, tag, s); }
+        if (!wrongs) { const r = await midChain(k, tag, s); if (r) return r; }
         return turn0(tag, s, wrongs);
       };
       const ready0 = k.waitStageReady.bind(k);
@@ -274,12 +339,23 @@ function kolkore(app, extraOpts = {}) {
       if (extraOpts.patch) extraOpts.patch(k);
     },
     async extra(k) {
+      if (!k.ctx.quick) await catalogProgressCheck(k);
       if (app !== 'KolKoreA') await toggleBurst(k);
       if (extraOpts.extra) await extraOpts.extra(k);
     },
   };
   const o = Object.assign({}, extraOpts, base);
-  return { run: ctx => runApp(ctx, app, o) };
+  return {
+    async run(ctx) {
+      const k = await runApp(ctx, app, o);
+      // finalExit lands on the launcher catalog, which re-seeds totals from
+      // progress.js DEFAULT_TOTALS: the battery must still read 100%.
+      if (!ctx.quick && k._completed && k._completed.size && !/Kesem_site/.test(await ctx.eval(() => location.pathname))) {
+        const p = await ctx.eval(a => window.Tekoa && window.Tekoa.Progress ? { total: window.Tekoa.Progress.getApp(a).total, pct: window.Tekoa.Progress.getPercent(a) } : null, app);
+        if (p) ctx.check(p.pct === 100 && p.total === k._completed.size, 'catalog battery wrong after every path', `${app}: launcher shows ${p.pct}% (total ${p.total}, ${k._completed.size} paths completed)`);
+      }
+    },
+  };
 }
 
 module.exports = { kolkore, sstState, toggleRama, checkSstConsistent, checkLampScores };

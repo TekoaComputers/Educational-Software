@@ -508,6 +508,12 @@ class Kesem {
     // #63: several hotspots clicked in quick succession must not talk over
     // each other (checked by the overlapping-audio tracker).
     await this.waitIdle();
+    // A chaos burst that spilled into this stage may have left the hak
+    // panel (Picture22) open over the hotspots — close it like a user would.
+    if (await this.eval(() => window.__km.visible('.frm-ctrl--Picture22'))) {
+      await this.tap('.frm-ctrl--wa[data-index="4"]', 0, 400);
+      await this.waitIdle();
+    }
     for (let i = 1; i <= Math.min(3, s.nHot); i++) {
       const p = await this.eval(q => window.__km.point(q), `.stage-hotspot[data-idx="${i}"]`);
       if (p && p.hit) await ctx.click(p.x, p.y, 40);
@@ -614,7 +620,13 @@ class Kesem {
     if (lsStages) {
       expected.forEach((e, i) => {
         const got = lsStages[i];
-        if (e === 'chaos') return;
+        if (e === 'chaos') {
+          // Random clicks may answer any way, but never more questions than the stage has.
+          const g = lsStages[i];
+          if (g) ctx.check((g.green || 0) + (g.yellow || 0) + (g.red || 0) <= (g.total || 0), 'stage scored more answers than questions',
+            `${tag} stage ${i + 1} (chaos): ${JSON.stringify(g)}`);
+          return;
+        }
         if (e === null) { ctx.check(!got, 'game3 stage stored a score', `${tag} stage ${i + 1}: ${JSON.stringify(got)}`); return; }
         if (!e) return;
         const g = got || {};
@@ -623,6 +635,7 @@ class Kesem {
       });
     }
     if (!board) return want;
+    ctx.check(!(+board.ltott > 100), 'nikod score above 100%', `${tag}: board shows ${board.ltott}%${hasChaos ? ' (chaos path)' : ''}`);
     ctx.check(String(want.mispar) === board.ltott, 'wrong score on nikod', `${tag}: expected ${want.mispar}% got ${board.ltott}${hasChaos ? ' (chaos path)' : ''}`);
     ctx.check(want.verdict === board.catov, 'wrong verdict on nikod', `${tag}: expected ${want.verdict} got ${board.catov}`);
     ctx.check(want.toch.join() === board.toch.join(), 'wrong counters on nikod', `${tag}: expected total/g/y/r/none ${want.toch.join('/')} got ${board.toch.join('/')}`);
