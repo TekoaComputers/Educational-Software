@@ -130,10 +130,17 @@
             // GAMES1.FRM Form_Load: `Mahamaa = Int(3 * Rnd + 1)` —
             // random 1..3 so the praise-audio variant (C<k>.wav) isn't
             // identical every game.
-            qa: { N_V: 0, otvet: 0, Taut: 0, Mis_Tsuva: 1,
+            // busy: an answer's feedback sequence (coin → praise → answer
+            // audio, or the wrong-answer cue chain) is still running.
+            // VB6 ran those synchronously (PlayZad/Sleep block the UI
+            // thread), so no second answer could be registered mid-way.
+            qa: { N_V: 0, otvet: 0, Taut: 0, Mis_Tsuva: 1, busy: false,
                   Mahamaa: 1 + Math.floor(Math.random() * 3),
                   Vprs: [], SahAkol: 0, KolMonet: 0 },
         };
+
+        // Read-only test hook for tools/monkey (closure state is private).
+        MK._test = { screen: "likro", state: state, stage: stage };
 
         // Render controls in original Z-order (.frm earlier-first = on top
         // in VB; reverse for DOM where later = on top).
@@ -689,8 +696,26 @@
             await animateSprite(state.picFeaNode, "pic_fea", 6, 200);
             if (taut < 2) {
                 await MK.sleep(100);
+                if (MK.stale(myToken)) return;
                 MK.play("milon/ranit/noc" + ki + ".wav");
                 await animateSprite(state.picBurNode, "pic_bur", 6, 200);
+            }
+        }
+        // Answer dispatch for tirgul 4/5. Ignores clicks before the first
+        // question is asked (N_V=0 during the BB007/BB008 intro — those
+        // used to count as wrong answers) and while a previous answer's
+        // feedback is still playing: a double-click on the right answer
+        // ran onCorrect twice, counting it as two correct answers (3
+        // "correct" after two questions) and leaving a stray praise/coin
+        // chain that talked over SOFER after the round ended (issue #73).
+        async function answerQA(isRight) {
+            if (state.qa.busy || state.qa.N_V === 0) return;
+            state.qa.busy = true;
+            try {
+                if (isRight) await onCorrect();
+                else await onWrong();
+            } finally {
+                state.qa.busy = false;
             }
         }
         async function onCorrect() {
@@ -708,15 +733,19 @@
             state.qa.otvet += 1;
             const tautAtAnswer = state.qa.Taut;
             await awardCoin(state.qa.otvet - 1);     // SYNC coin
+            if (MK.stale(myToken)) return;
             await tov1Likro(state.qa.Mahamaa, tautAtAnswer);  // praise + anim
+            if (MK.stale(myToken)) return;
             state.qa.Taut = 0;
             state.qa.Mahamaa = (state.qa.Mahamaa % 3) + 1;   // 1→2→3→1
             const list = state.tirgul === 4 ? stage.words : stage.zones;
             const e = list[state.qa.N_V - 1];
             if (e && e.wavA) await playAwait(e.wavA);   // answer wav SYNC
+            if (MK.stale(myToken)) return;
             if (state.btnVoprosNode) state.btnVoprosNode.style.display = "none";
             MK.play("mik_siha/newchim.wav");           // async confirm
             await MK.sleep(1500);
+            if (MK.stale(myToken)) return;
             if (state.qa.otvet >= 3 || state.qa.Vprs.length === 0) {
                 finishQA();
                 return;
@@ -759,11 +788,14 @@
                       : mt === 2 ? "wav/tautik2.wav"
                                  : tautG;
             await MK.playSync(cue);
+            if (MK.stale(myToken)) return;
             // For Mis_Tsuva 1/2: replay the question. For 3: play the
             // answer + a confirm jingle + flash the correct word/zone.
             if (mt === 3) {
                 if (e && e.wavA) await playAwait(e.wavA);
+                if (MK.stale(myToken)) return;
                 await MK.playSync("mik_siha/newchim.wav");
+                if (MK.stale(myToken)) return;
                 state.qa.Mis_Tsuva = 1;
                 // Three quick flashes of the correct overlay (zone for
                 // tirgul=5, word for tirgul=4).
@@ -796,12 +828,9 @@
             // Original: `Timer3.Enabled = False ; Timer3.Enabled = True`
             // at the top of Slovo_Click — push the nag-replay forward.
             resetQaNag();
-            if ((i + 1) === state.qa.N_V) {
-                flashHighlight(state.slovoNodes[i]);
-                onCorrect();
-            } else {
-                onWrong();
-            }
+            if (state.qa.busy || state.qa.N_V === 0) return;
+            if ((i + 1) === state.qa.N_V) flashHighlight(state.slovoNodes[i]);
+            answerQA((i + 1) === state.qa.N_V);
         }
         function onPicZoneClick(i) {
             // Pic_Zone_Click 1:1 with GAMES1.FRM:
@@ -814,12 +843,9 @@
             if (state.tirgul === 2) { play(z.sWav); return; }
             if (state.tirgul !== 5) return;
             resetQaNag();   // same as Slovo_Click — Timer3 reset
-            if ((i + 1) === state.qa.N_V) {
-                flashHighlight(state.zoneNodes[i]);
-                onCorrect();
-            } else {
-                onWrong();
-            }
+            if (state.qa.busy || state.qa.N_V === 0) return;
+            if ((i + 1) === state.qa.N_V) flashHighlight(state.zoneNodes[i]);
+            answerQA((i + 1) === state.qa.N_V);
         }
         function onShmaClick(idx) {
             // GAMES1.FRM btnShma_Click(Index) 1:1 (line 508):
