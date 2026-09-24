@@ -428,7 +428,10 @@ HND.startMatch = function (root, app, unit, onComplete, opts) {
         // column, otherwise → StringHint column. data.js:836 already
         // resolves qPicture by routing sideCol(3) through textForPic, so
         // cal.hintCol is the correct column in every non-disabled case.
-        if (cal.whatToHint === 0 /* qDisabled */) return;
+        // qDisabled is 4 (qRight=0, qLeft=1, qHint=2, qPicture=3). Testing
+        // 0 let a disabled hint fall through to sideCol's default column,
+        // so after two mistakes "רמז:" showed the question text itself.
+        if (cal.whatToHint === 4 /* qDisabled */ || isNaN(cal.whatToHint)) return;
         const it = items[idOrder[state.qId]];
         const text = (cal.hintCol && it[cal.hintCol]) || "";
         if (!text) return;
