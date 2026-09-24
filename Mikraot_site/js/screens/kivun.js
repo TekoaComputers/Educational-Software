@@ -210,6 +210,9 @@
 
         // ---- handlers (1:1 from KIVUN.FRM) ---------------------------
 
+        // A maslul / free-route pick is in flight (see btnMsl1_Click).
+        let pickBusy = false;
+
         function btnShir_Click(idx) {
             // KIVUN.FRM btnShir_Click(Index) 1:1:
             //   Paam_Rishon = False
@@ -246,8 +249,19 @@
             //   If completed (Tozaot.Masl(idx,12)=1) → sofer.Show
             //   Else → bdika (first-pick cue) + Kivun(idx) walker
             if (gameNomer === 0) return;
+            // One maslul/free-route pick at a time. VB6's PlayZad blocked
+            // the UI thread, so a second click could not start a second
+            // walker; here each click ran its own chain — the second
+            // click's cue cut the first one's, the first chain resumed
+            // (its await resolves on pause), fired more10 over it, and
+            // BOTH chains called launchStep: the kid heard clipped cues
+            // and landed on the maslul clicked FIRST (issue #72).
+            if (pickBusy) return;
+            pickBusy = true;
             MK.bumpToken();
+            const tok = MK.currentToken();
             await MK.playSync("mik_siha/i" + (idx + 3) + ".wav");
+            if (MK.stale(tok)) return;   // left the screen mid-cue
             // KIVUN.FRM bdika [line ~831]: Rishona flag (per-song, per-
             // session) gates a one-time "first pick" cue — plays
             // Mik_Siha\more10.wav before the walker starts. Once any
@@ -256,6 +270,7 @@
             if (!sessionStorage.getItem(rishonaKey)) {
                 sessionStorage.setItem(rishonaKey, "1");
                 await MK.playSync("mik_siha/more10.wav");
+                if (MK.stale(tok)) return;
             }
             if (maslulCompleted(gameNomer, idx)) {
                 location.hash = "#/sofer/" + gameNomer + "/" + idx;
@@ -274,7 +289,7 @@
                     if (custom.length > 0) steps = custom;
                 }
             } catch (e) {}
-            if (!steps || steps.length === 0) return;
+            if (!steps || steps.length === 0) { pickBusy = false; return; }
             launchStep(steps, 0, idx);
         }
         async function btnHofshi_Click() {
@@ -282,6 +297,8 @@
             //   NomerMasl=-1; clear Tozaot.Masl(*,12) for current song
             //   PlayZad("Mik_Siha\n2.wav")   ' SYNC blocks
             //   If GameNomer>0: start.Show 1
+            if (pickBusy) return;
+            pickBusy = true;
             const t = loadTozaot();
             if (t[gameNomer]) {
                 [0,1,2].forEach(function (i) {
@@ -290,7 +307,9 @@
                 saveTozaot(t);
             }
             MK.bumpToken();
+            const tok = MK.currentToken();
             await MK.playSync("mik_siha/n2.wav");
+            if (MK.stale(tok)) return;
             if (gameNomer > 0) location.hash = "#/start";
         }
         function btnReturn_Click() {
