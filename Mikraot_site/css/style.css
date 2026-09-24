@@ -13,6 +13,13 @@ html, body {
     display: flex;
     align-items: center;
     justify-content: center;
+    /* VB6 forms have no text/image selection. Without this, the rapid
+       clicking the sprites and word zones invite (double/triple clicks)
+       selected the page's images and labels — big blue highlight blocks
+       over "half of the screen" (issue #77). */
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
 }
 .stage {
     position: relative;
