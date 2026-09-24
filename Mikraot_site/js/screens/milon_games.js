@@ -1024,12 +1024,15 @@
     //   When tek > kol → Matbeot, next round.
     //
     // Index → letter mapping: btnABC(0..26) = Chr(224)..Chr(250) in
-    // cp1255 = Hebrew consonants א..ת + final letters ך ם ן ף ץ.
-    // In Unicode these are 0x5D0..0x5EA (no final letters in that range
-    // — finals are 0x5DA, 0x5DD, 0x5DF, 0x5E3, 0x5E5).
-    // The .frm declaration order maps Index 0..21 to 0x5D0..0x5EA and
-    // 22..26 to the 5 final letters. We list them explicitly.
-    const HEB_ABC = ["א","ב","ג","ד","ה","ו","ז","ח","ט","י","כ","ל","מ","נ","ס","ע","פ","צ","ק","ר","ש","ת","ך","ם","ן","ף","ץ"];
+    // cp1255 = א..ת with each FINAL letter right after its base form
+    // (…י ך כ ל ם מ ן נ ס ע ף פ ץ צ ק ר ש ת). The GM3A.FRM grid confirms
+    // it: right-to-left its rows hold indices 6,7,8,9,11,10 / 12,14,13,
+    // 16,15,17 / 18,20,19,22,21,23 — alphabetical with each final after
+    // its letter only under this order. The port used to list the five
+    // finals LAST, which scrambled the on-screen keyboard (row 2 read
+    // ז ח ט י ל כ) and made the Form_KeyPress QWERTY table (built on the
+    // cp1255 indices) type the wrong letter for every key past י.
+    const HEB_ABC = ["א","ב","ג","ד","ה","ו","ז","ח","ט","י","ך","כ","ל","ם","מ","ן","נ","ס","ע","ף","פ","ץ","צ","ק","ר","ש","ת"];
 
     function isHebrewConsonant(ch) {
         const c = ch.charCodeAt(0);
