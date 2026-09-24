@@ -108,13 +108,16 @@
     // k = Mahamaa (1..3) — randomized praise variant per round. Earlier
     // versions of this port always used C<k> regardless of Taut, so a
     // 2nd-try correct answer sounded the same as 1st-try.
-    async function tov1(refs, picFeaNode, picBurNode, k, taut) {
+    // `tok` (render token): bail before any further audio once the player
+    // has left the screen, so a praise cue never talks over the next one.
+    async function tov1(refs, picFeaNode, picBurNode, k, taut, tok) {
         const ki = String(((k - 1) % 3) + 1);
         MK.play(taut === 0 ? ("milon/ranit/c" + ki + ".wav")
                            : ("milon/ranit/m" + ki + ".wav"));
         await animSprite(picFeaNode, "pic_fea", 6, 200);
         if (taut < 2) {
             await MK.sleep(100);
+            if (tok != null && MK.stale(tok)) return;
             MK.play("milon/ranit/noc" + ki + ".wav");
             await animSprite(picBurNode, "pic_bur", 6, 200);
         }
@@ -365,7 +368,18 @@
         //   Wrong   → Taut++; Taut<=2: Kishalon (kish<Taut>.wav + PicFea
         //             + 1s + NOk<Taut>.wav + PicBur), then user re-tries
         //             Taut>2: Kishal_3 (kish3.wav) + next round
+        // One answer at a time: VB6 ran the whole feedback (Matbeot →
+        // Tov1 / Kishalon) synchronously, so a second click could not
+        // land mid-way. Without this a double-click on the right answer
+        // awarded the round twice and skipped the next round.
+        const tok = MK.currentToken();
         async function onAnswer(picked, choices) {
+            if (state.busy) return;
+            state.busy = true;
+            try { await answer(picked, choices); }
+            finally { state.busy = false; }
+        }
+        async function answer(picked, choices) {
             const correct = state.current;
             const isRight = opts.isCorrect
                 ? opts.isCorrect(picked, correct, choices)
@@ -375,8 +389,10 @@
                 state.totalCoins += coin.value;
                 sc.setHalon(state.round - 1, state.attempts === 0 ? "right" : "part");
                 if (coin.wav) await MK.playSync(coin.wav);
+                if (MK.stale(tok)) return;
                 await tov1(sc.refs, sc.refs.PicFea, sc.refs.PicBur,
-                           state.mahamaa, state.attempts);
+                           state.mahamaa, state.attempts, tok);
+                if (MK.stale(tok)) return;
                 state.mahamaa = (state.mahamaa % 3) + 1;
                 nextRound();
             } else {
@@ -384,9 +400,10 @@
                 if (state.attempts > 2) {
                     sc.setHalon(state.round - 1, "wrong");
                     await MK.playSync("milon/ranit/kish3.wav");
+                    if (MK.stale(tok)) return;
                     nextRound();
                 } else {
-                    await kishalon(sc.refs.PicFea, sc.refs.PicBur, state.attempts);
+                    await kishalon(sc.refs.PicFea, sc.refs.PicBur, state.attempts, tok);
                 }
             }
         }
@@ -675,7 +692,15 @@
             pic.style.outline = prevBorder;
             pic.style.boxShadow = prevShadow;
         }
+        // One answer at a time (see runQuiz.onAnswer).
+        const tok = MK.currentToken();
         async function onAnswer(slot) {
+            if (state.busy || state.round === 0) return;
+            state.busy = true;
+            try { await answer(slot); }
+            finally { state.busy = false; }
+        }
+        async function answer(slot) {
             if (slot === state.mistakeSlot) {
                 // WAV1.FRM line ~391: Shape1(pr_Nomer-1).BackColor =
                 // &H00FF00FF& (magenta) on correct — celebrate the find.
@@ -684,8 +709,10 @@
                 sc.setHalon(state.round - 1, state.attempts === 0 ? "right" : "part");
                 flashSlot(slot, "#ff00ff", 800);   // magenta flash, fire-and-forget
                 if (coin.wav) await MK.playSync(coin.wav);
+                if (MK.stale(tok)) return;
                 await tov1(sc.refs, sc.refs.PicFea, sc.refs.PicBur,
-                           1 + ((state.round - 1) % 3), state.attempts);
+                           1 + ((state.round - 1) % 3), state.attempts, tok);
+                if (MK.stale(tok)) return;
                 setup();
             } else {
                 state.attempts += 1;
@@ -694,10 +721,12 @@
                     // &HFF& (red) — reveals the actual mistake slot.
                     sc.setHalon(state.round - 1, "wrong");
                     await flashSlot(state.mistakeSlot, "#ff0000", 1200);
+                    if (MK.stale(tok)) return;
                     await MK.playSync("wav/tautg3.wav");
+                    if (MK.stale(tok)) return;
                     setup();
                 } else {
-                    await kishalon(sc.refs.PicFea, sc.refs.PicBur, state.attempts);
+                    await kishalon(sc.refs.PicFea, sc.refs.PicBur, state.attempts, tok);
                 }
             }
         }
@@ -902,7 +931,16 @@
             // Play the word audio as an opening cue.
             MK.play(milonWavUrl(miln));
         }
+        // One pick at a time (see runQuiz.onAnswer): a double-click on the
+        // right tile otherwise filled two slots / advanced tekSlog twice.
+        const tok = MK.currentToken();
         async function onPick(idx) {
+            if (state.busy || state.round === 0) return;
+            state.busy = true;
+            try { await pick(idx); }
+            finally { state.busy = false; }
+        }
+        async function pick(idx) {
             const expected = state.slgMap[state.tekSlog];
             if (idx === expected) {
                 // Correct — fill btnSlog[tekSlog] with the syllable graphic.
@@ -916,10 +954,12 @@
                     slot.style.border = "2px solid #00aa00";
                 }
                 await MK.playSync("mik_siha/newchim.wav");
+                if (MK.stale(tok)) return;
                 state.tekSlog += 1;
                 if (state.tekSlog >= (state.current.misp || 1)) {
                     // Word completed — play full word, then award.
                     await MK.playSync(milonWavUrl(state.current));
+                    if (MK.stale(tok)) return;
                     const coin = awardCoin(state.attempts);
                     state.totalCoins += coin.value;
                     sc.setHalon(state.round - 1, state.attempts === 0 ? "right" : "part");
@@ -944,9 +984,10 @@
                         setTimeout(function () { correctBtnOt.style.border = prevBorder; }, 1500);
                     }
                     await MK.playSync("milon/ranit/kish3.wav");
+                    if (MK.stale(tok)) return;
                     setup();
                 } else {
-                    await kishalon(sc.refs.PicFea, sc.refs.PicBur, state.attempts);
+                    await kishalon(sc.refs.PicFea, sc.refs.PicBur, state.attempts, tok);
                 }
             }
         }
@@ -1129,7 +1170,17 @@
             // Play the word audio as opening cue.
             MK.play(milonWavUrl(state.current));
         }
+        // One letter at a time (see runQuiz.onAnswer): a double-click on
+        // the right letter otherwise filled a slot twice and skipped the
+        // next syllable.
+        const tok = MK.currentToken();
         async function onLetter(btnIdx) {
+            if (state.busy || state.round === 0) return;
+            state.busy = true;
+            try { await letter(btnIdx); }
+            finally { state.busy = false; }
+        }
+        async function letter(btnIdx) {
             // Expected: starting consonant of syllable `tek` =
             // slovo[mas[tek-1]] (0-based). Click is correct iff that
             // matches HEB_ABC[btnIdx].
@@ -1141,6 +1192,7 @@
                 const syl = state.slovo.slice(start, end);
                 if (slots[state.tek - 1]) slots[state.tek - 1].textContent = syl;
                 await MK.playSync("mik_siha/newchim.wav");
+                if (MK.stale(tok)) return;
                 state.tek += 1;
                 if (state.tek > state.kol) {
                     const coin = awardCoin(state.attempts);
@@ -1156,6 +1208,7 @@
                     // Kishal_3 1:1 from GM3A.FRM: tautG3.wav + PicFea anim
                     // + flash btnABC[correct] at size 28 / bold.
                     await MK.playSync("wav/tautg3.wav");
+                    if (MK.stale(tok)) return;
                     const idx = HEB_ABC.indexOf(expected);
                     const flashBtn = idx >= 0 ? sc.refs["btnABC_" + idx] : null;
                     await animSprite(sc.refs.PicFea, "pic_fea", 6, 200);
@@ -1172,7 +1225,7 @@
                     sc.setHalon(state.round - 1, "wrong");
                     setupRound();
                 } else {
-                    await kishalon(sc.refs.PicFea, sc.refs.PicBur, state.attempts);
+                    await kishalon(sc.refs.PicFea, sc.refs.PicBur, state.attempts, tok);
                 }
             }
         }
