@@ -228,6 +228,7 @@ class Driver {
     const onlySlots = process.env.HND_SLOTS ? process.env.HND_SLOTS.split(',').map(Number) : null;
 
     for (const u of units) {
+      this.noAskWaveReported = false;
       ctx.step(`u${u.id}/menu`);
       await this.hash(`#/${this.app}/unit/${u.id}/games`, 900);
       await ctx.checkImages();
@@ -240,9 +241,37 @@ class Driver {
         await this.playSlot(u, slot);
       }
       if (!onlySlots || onlySlots.includes(9)) await this.playHatamaPlus(u);
+      await this.checkCatalogProgress(u);
     }
     ctx.step('end');
     await this.flushAudio('end');
+  }
+
+  // The catalog battery (Tekoa.Progress) must count every scored menu
+  // slot of the unit: ≥2 scored slots → activity score with gamesPlayed.
+  async checkCatalogProgress(u) {
+    const r = await this.ev((a, id) => {
+      const keys = ['match', 'american_sound', 'american_pic', 'american_text',
+        'haklada_reg', 'haklada_dict', 'apple', 'connect'];
+      const bests = keys.map(k => HND.loadProgress(a, id, k)).filter(p => p && p.best > 0).map(p => p.best);
+      const act = window.Tekoa && Tekoa.Progress ? (Tekoa.Progress.getApp(a).activities || {})[String(id)] : undefined;
+      return { played: bests.length, avg: bests.length ? Math.round(bests.reduce((x, y) => x + y, 0) / bests.length) : 0,
+        score: act && act.score || null, hasProgress: !!(window.Tekoa && Tekoa.Progress) };
+    }, this.app, u.id);
+    // Unit-list score column must equal the game menu's total.
+    await this.hash(`#/${this.app}/unit/${u.id}/games`, 500);
+    const menuTotal = await this.ev(() => { const e = document.querySelector('.game-menu-total'); return e ? e.textContent : ''; });
+    await this.hash(`#/${this.app}/units`, 700);
+    const listScore = await this.ev(id => {
+      const rows = [...document.querySelectorAll('.unit-scroll .row.unit')];
+      const cells = [...document.querySelectorAll('.score-col .cell.unit')];
+      const i = rows.findIndex(r => r.dataset.id === String(id));
+      return i < 0 ? null : cells[i].textContent;
+    }, u.id);
+    if (listScore !== null) this.ctx.check(listScore === menuTotal, 'unit-list score ≠ game-menu total', `unit ${u.id}: list "${listScore}" menu "${menuTotal}"`);
+    if (!r.hasProgress || r.played < 2) return;
+    this.ctx.check(r.score && r.score.gamesPlayed === r.played && r.score.correct === r.avg, 'catalog progress ignores scored games',
+      `unit ${u.id}: ${r.played} slots scored (avg ${r.avg}) but Tekoa.Progress has ${JSON.stringify(r.score)}`);
   }
 
   async openSlot(u, slot) {
@@ -389,9 +418,14 @@ class Driver {
       const origIdx = info.idOrder[s.qId];
       const evs = await this.flushAudio('match');
       const waves = evs.filter(e => e.ev === 'play' && /\/wave\//.test(e.src)).map(e => rel(e.src));
-      if (u.hasWaves && waves.length) {
+      const hasAskWave = await this.ev((idx, side) => HND.unitWaveExists({ data: { items: __hndGame.items } }, idx, side), origIdx, info.ask);
+      if (u.hasWaves && !hasAskWave && !this.noAskWaveReported) {
+        this.noAskWaveReported = true;
+        ctx.finding('warn', 'match question has no audio', `unit ${u.id}: asked side "${info.ask}" has no recorded waves — the row can only be guessed`);
+      }
+      if (u.hasWaves && hasAskWave && waves.length) {
         const last = waves[waves.length - 1];
-        ctx.check(new RegExp(`/wave/${origIdx}_${info.ask}\\.`).test(last), 'match asked wave ≠ asked row', `q${n + 1}: played ${last}, row item ${origIdx}`);
+        ctx.check(new RegExp(`/wave/${origIdx}_${info.ask}\\.`).test(last), 'match asked wave ≠ asked row', `q${n + 1}: played ${last}, row item ${origIdx}; audio: ${evs.slice(-6).map(e => e.ev + ':' + rel(e.src).split('/').pop()).join(' ')}`);
       }
       const rowOk = await this.ev((r, idx) => {
         const g = __hndGame;
@@ -483,12 +517,13 @@ class Driver {
         return { answer: s.answer, sel: s.selected.slice(), typed: s.typed.slice(), cur: s.currentChar,
           data: (g.items[g.idOrder[s.current]][g.ansCol] || '').trim() };
       });
-      ctx.check(q.answer === q.data, 'haklada answer ≠ data', `q${n + 1}`);
+      const cells = cellsOf(q.answer);
+      ctx.check(cells.join('') === q.data, 'haklada answer ≠ data', `q${n + 1}`);
       const need = [];
-      for (let i = 0; i < q.answer.length; i++) if (q.sel[i] && !q.typed[i]) need.push(q.answer[i]);
+      for (let i = 0; i < cells.length; i++) if (q.sel[i] && !q.typed[i]) need.push(cells[i].charAt(0));
       const bad = need.filter(c => !/^[a-zA-Z0-9]$/.test(c) && !HEB_CODE[c]);
       if (bad.length) {
-        ctx.finding('error', 'untypeable character required', `haklada q${n + 1} "${q.answer}" wants ${bad.map(c => 'U+' + c.charCodeAt(0).toString(16).toUpperCase()).join(',')} — no key produces it (stuck)`);
+        ctx.finding('error', 'untypeable character required', `haklada q${n + 1} "${q.data}" wants ${bad.map(c => 'U+' + c.charCodeAt(0).toString(16).toUpperCase()).join(',')} — no key produces it (stuck)`);
         await ctx.shot(`u${u.id}-${key}-untypeable`);
         clean = false;
         await this.page.keyboard.press('F12');          // original's skip-question cheat
@@ -544,18 +579,20 @@ class Driver {
           data: (g.items[g.idOrder[s.current]][g.ansCol] || '').trim() };
       });
       if (q.cur !== n) { n = q.cur - 1; continue; }
-      ctx.check(q.answer === q.data, 'apple answer ≠ data', `q${n + 1}`);
-      const need = [...new Set(q.answer.split('').filter((c, i) => q.sel[i] && !q.filled[i]))];
+      const cells = cellsOf(q.answer);
+      const base = cells.map(c => c.charAt(0));
+      ctx.check(cells.join('') === q.data, 'apple answer ≠ data', `q${n + 1}`);
+      const need = [...new Set(base.filter((c, i) => q.sel[i] && !q.filled[i]))];
       const bad = need.filter(c => !/^[a-zA-Z0-9]$/.test(c) && !HEB_CODE[c]);
       let errs = 0;
       if (n === 0) {
         // #35: a letter NOT in the answer must count as a mistake and fill nothing.
-        const wrongCh = Object.keys(HEB_CODE).find(c => !q.answer.includes(c) && HEB_CODE[c] !== 'Period' && HEB_CODE[c] !== 'Comma');
+        const wrongCh = Object.keys(HEB_CODE).find(c => !q.data.includes(c) && HEB_CODE[c] !== 'Period' && HEB_CODE[c] !== 'Comma');
         if (wrongCh) {
           await this.pressChar(wrongCh, 'en');
           await this.sleep(60);
           const s = await this.ev(() => ({ f: __hndGame.state.filled.filter(Boolean).length, e: __hndGame.state.errorCount }));
-          ctx.check(s.f === q.filled.filter(Boolean).length, 'apple accepted a wrong letter', `"${wrongCh}" not in "${q.answer}"`);
+          ctx.check(s.f === q.filled.filter(Boolean).length, 'apple accepted a wrong letter', `"${wrongCh}" not in "${q.data}"`);
           ctx.check(s.e === 1, 'apple wrong letter not counted', `errorCount=${s.e}`);
           await this.pressChar(wrongCh, 'he');          // same physical key again → banned, no second error
           await this.sleep(60);
@@ -566,7 +603,7 @@ class Driver {
         }
       }
       if (bad.length) {
-        ctx.finding('error', 'untypeable character required', `apple q${n + 1} "${q.answer}" wants ${bad.map(c => 'U+' + c.charCodeAt(0).toString(16).toUpperCase()).join(',')} — no key produces it (question can only be failed)`);
+        ctx.finding('error', 'untypeable character required', `apple q${n + 1} "${q.data}" wants ${bad.map(c => 'U+' + c.charCodeAt(0).toString(16).toUpperCase()).join(',')} — no key produces it (question can only be failed)`);
         await ctx.shot(`u${u.id}-apple-untypeable`);
         clean = false;
       }
@@ -579,14 +616,14 @@ class Driver {
         const after = await this.ev(() => ({ f: __hndGame.state.filled.slice(), c: __hndGame.state.current }));
         if (after.c !== n) break;
         // exactly the positions holding `ch` flip to filled
-        const wrongFill = after.f.some((f, i) => f && !before[i] && q.answer[i] !== ch);
-        const missFill = q.answer.split('').some((c, i) => q.sel[i] && c === ch && !after.f[i]);
+        const wrongFill = after.f.some((f, i) => f && !before[i] && base[i] !== ch);
+        const missFill = base.some((c, i) => q.sel[i] && c === ch && !after.f[i]);
         ctx.check(!wrongFill, 'apple filled letters that were not typed', `q${n + 1} typed "${ch}"`);
         ctx.check(!missFill, 'apple did not fill the typed letter', `q${n + 1} typed "${ch}"`);
       }
       if (bad.length) {
         // Only way out: burn the remaining wrong-key budget (8 errors → eat).
-        const pool = Object.keys(HEB_CODE).filter(c => !q.answer.includes(c) && !['Period', 'Comma'].includes(HEB_CODE[c]));
+        const pool = Object.keys(HEB_CODE).filter(c => !q.data.includes(c) && !['Period', 'Comma'].includes(HEB_CODE[c]));
         for (const c of pool) {
           if (await this.ev(k2 => __hndGame.state.current !== k2 || !__hndGame.state.gameEnabled, n)) break;
           await this.pressChar(c, 'en'); await this.sleep(40);
@@ -608,6 +645,9 @@ class Driver {
       if (perfect) expected = 100;
       else expected = Math.min(100, Math.round(errsPerQ.reduce((a, e) => a + (8 - e > 0 ? 16 - e : 0), 0) * 100 / Q / 16));
     }
+    const baskets = await this.ev(() => __hndGame.state.baskets.slice());
+    ctx.check(JSON.stringify(baskets) === JSON.stringify(errsPerQ), 'apple basket errors ≠ mistakes made',
+      `baskets ${JSON.stringify(baskets)} vs made ${JSON.stringify(errsPerQ)}`, 'warn');
     await this.checkScoreForm(`u${u.id}-apple`, expected, 'apple', null);
     return { menuBadge: expected };
   }
@@ -757,7 +797,7 @@ class Driver {
           const s = __hndGame.state;
           if (s.completed) return null;
           const out = [];
-          for (let i = 0; i < s.answer.length; i++) if (s.selected[i] && s.filled[i] && !ks.includes(s.answer[i])) out.push(s.answer[i]);
+          for (let i = 0; i < s.answer.length; i++) if (s.selected[i] && s.filled[i] && !ks.includes(s.answer[i].charAt(0))) out.push(s.answer[i]);
           return out;
         }, pressed);
         ctx.check(!bad || !bad.length, 'apple filled letters nobody typed', bad && bad.join(','));
@@ -772,6 +812,7 @@ class Driver {
   }
 }
 
+function cellsOf(a) { return Array.isArray(a) ? a : String(a).split(''); }
 function rel(u) { return String(u || '').replace(/^https?:\/\/[^/]+\//, ''); }
 
 module.exports = { makeDriver };
