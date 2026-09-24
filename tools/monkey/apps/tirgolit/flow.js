@@ -94,6 +94,13 @@ async function playAll(ctx, P, levels, log) {
       ctx.check(/\d/.test(best || ''), 'unit best score missing after playing', `${P} unit ${uid}: "${best}"`);
     }
     await clickSel(ctx, '.glist-exit', 150);
+    // Leak watch: a full every-unit pass is ~700 games in one page.
+    const m = await ctx.page.metrics().catch(() => null);
+    if (m) {
+      const mb = Math.round(m.JSHeapUsedSize / 1048576);
+      log(`  ${P} u${uid} heap=${mb}MB nodes=${m.Nodes} listeners=${m.JSEventListeners}`);
+      if (mb > 400 && !shotDone.has('leak')) { shotDone.add('leak'); ctx.finding('error', 'page memory keeps growing', `${P} after unit ${uid}: JS heap ${mb}MB, ${m.Nodes} DOM nodes, ${m.JSEventListeners} listeners`); }
+    }
   }
 }
 

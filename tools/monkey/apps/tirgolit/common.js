@@ -157,6 +157,8 @@ async function playTyping(ctx, res, kind) {
     if (s.typedCount === 0) {
       if (kind === 1) ctx.check(s.tshP === pair.answer, 'typing target is not the answer', `${pair.expr}=${pair.answer}, must type "${s.tshP}"`);
       else ctx.check(pair.expr.substr(s.staStr - 1, s.tshP.length) === s.tshP, 'typing target not inside expression', `${pair.expr}: "${s.tshP}" @${s.staStr}`);
+      if (kind === 2 && s.tshP[0] === '-' && s.staStr > 1 && !/[+\-*/(]/.test(pair.expr[s.staStr - 2]))
+        ctx.finding('error', 'Tirgol2 blank swallows the minus operator', `${pair.expr} = ${pair.answer}: must type "${s.tshP}" but the screen shows "${pair.expr.slice(0, s.staStr - 1)}_${pair.expr.slice(s.staStr - 1 + s.tshP.length)}"`);
     }
     const exp = s.tshP[s.typedCount];
     if (!wrongDone) {
@@ -349,10 +351,10 @@ async function playSlot(ctx, P, tab, uid, slot, opts) {
     eggs: document.querySelectorAll('#score-eggs .egg-sprite').length,
   }));
   const expScore = 100 - res.expPenalty;
-  ctx.check(sc.n === expScore, `${SLOT_NAMES[slot]}: wrong final score`, `${P} unit ${uid}: shows ${sc.n}, expected ${expScore} (one wrong answer)`);
+  ctx.check(sc.n === expScore, `${SLOT_NAMES[slot]}: wrong final score`, `${P} unit ${uid}: shows ${sc.n}, expected ${expScore} (${res.wrong} wrong answer)`);
   const nQ = slot === 4 ? 8 : slot === 5 ? 12 : res.total;
-  ctx.check(sc.tov + sc.be + sc.ra === nQ && sc.be + sc.ra === 1, `${SLOT_NAMES[slot]}: score-screen stats wrong`,
-    `${P} unit ${uid}: tov/be/ra ${sc.tov}/${sc.be}/${sc.ra} for ${nQ} questions, 1 wrong`);
+  ctx.check(sc.tov + sc.be + sc.ra === nQ && sc.be + sc.ra === res.wrong, `${SLOT_NAMES[slot]}: score-screen stats wrong`,
+    `${P} unit ${uid}: tov/be/ra ${sc.tov}/${sc.be}/${sc.ra} for ${nQ} questions, ${res.wrong} wrong`);
   if (slot !== 5) ctx.check(sc.eggs === Math.min(nQ, 32), 'score-screen egg count wrong', `${sc.eggs} eggs for ${nQ} questions`);
   if (opts.shots) { await ctx.checkImages(); await ctx.shot(`${P}-u${uid}-${SLOT_NAMES[slot]}-score`); }
   await clickSel(ctx, '.sc-exit-btn', 250);
