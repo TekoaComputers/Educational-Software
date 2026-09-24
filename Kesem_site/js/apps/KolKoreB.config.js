@@ -61,7 +61,7 @@ export default {
                 "assets/KolKoreB/menu/playc1.png",  // 2 — play user's recording
                 "assets/KolKoreB/menu/playa1.png",  // 3 — play elaboration (Mhiza_5 _2.wav)
                 "assets/KolKoreB/menu/close1.png",  // 4 — close panel
-                "assets/KolKoreB/menu/as1.png",     // 5 — warning/hint indicator (no click)
+                "assets/KolKoreB/menu/as1.png",     // 5 — "?" help: shows the tipl captions
             ],
             dif: [
                 "assets/KolKoreB/menu/up1a1.png",   // 0 — prev hotspot

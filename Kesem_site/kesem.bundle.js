@@ -1048,7 +1048,7 @@ const CONFIGS = {
                 "assets/KolKoreB/menu/playc1.png",  // 2 — play user's recording
                 "assets/KolKoreB/menu/playa1.png",  // 3 — play elaboration (Mhiza_5 _2.wav)
                 "assets/KolKoreB/menu/close1.png",  // 4 — close panel
-                "assets/KolKoreB/menu/as1.png",     // 5 — warning/hint indicator (no click)
+                "assets/KolKoreB/menu/as1.png",     // 5 — "?" help: shows the tipl captions
             ],
             dif: [
                 "assets/KolKoreB/menu/up1a1.png",   // 0 — prev hotspot
@@ -1701,8 +1701,8 @@ function actionFor(ctrl, appId, screenId) {
     if (appId === "KolKoreB" && name === "mini")    return "kkb:mini";
     if (name === "btnIcon")   return `maslul:${idx + 1}`;
     // Games3 hak inspect overlay (Picture22): wa[0..4] = audio/record buttons,
-    // dif[0/1] = prev/next hotspot navigation. wa[5] is a decorative warning
-    // indicator with no click handler in the original.
+    // dif[0/1] = prev/next hotspot navigation. wa[5] is the "?" help
+    // (tipl(8) "עזרה") — the bundle shows the panel's tipl captions for it.
     if (name === "wa")         return `wa:${idx}`;
     if (name === "dif")        return `dif:${idx}`;
     if (name === "btnHofshi") return "hofshi";
@@ -9251,7 +9251,9 @@ function handleAction(appId, action /*, ctrl */) {
         else if (idx === 2) game3HakPlayRecording(currentSession);    // playc
         else if (idx === 3) playGame3HakElab(currentSession, nom);    // playa
         else if (idx === 4) closeGame3HakZoom(currentSession);        // close
-        // idx === 5 (as = warning indicator) has no click handler in the original.
+        // wa(5) "?" help — hover shows every caption; a tap shows them too
+        // (touch screens have no hover; tapping elsewhere fires mouseleave).
+        else if (idx === 5) showGame3HakTips(currentSession, "all");
         return;
     }
     if (action && action.indexOf("dif:") === 0) {
@@ -11311,7 +11313,13 @@ function openGame3HakZoom(state) {
     setWaEnabled(state, 2, false);
     setWaEnabled(state, 3, true);
     setWaEnabled(state, 4, true);
-    setWaEnabled(state, 5, false);
+    // wa(5) is the "?" help: tipl(8) under it reads "עזרה". Hovering it
+    // shows every button's tipl caption (wireGame3HakTips); so does a tap,
+    // for touch screens. Leaving it pointer-events:none made it a dead
+    // picture the user kept clicking (#48).
+    setWaEnabled(state, 5, true);
+    wireGame3HakTips(state);
+    showGame3HakTips(state, null);
     // wa(2) sprite: stays on playc1 if a recording from this hak session
     // already exists (e.g. user closed + reopened), else playc3 (dimmed)
     // to visually match Enabled=False.
@@ -11327,6 +11335,127 @@ function openGame3HakZoom(state) {
     paintGame3HakPatch(state);
     // Per original Form_Activate: opening HAK plays the hotspot's name wav.
     playGame3HakName(state, nom);
+}
+
+// Games3 Picture22 carries nine Visible=0 VB.Label captions tipl(0..8)
+// (BackColor &H400000 navy, ForeColor &HFFC0C0 lilac, AutoSize), each
+// placed right under / beside one panel button: "פריט קודם" dif(0),
+// "פריט הבא" dif(1), "שמיעת המילה" wa(0), "הקלטה" wa(1), "שמיעת ההקלטה"
+// wa(2), "הסבר" wa(3), "יציאה" wa(4), "עזרה" wa(5). They're the MouseMove
+// tooltips of those buttons; the port never rendered them, so the panel's
+// buttons were unlabeled and the "?" did nothing (#48). tipl(2) "למעלה"
+// has no button in the panel and stays hidden.
+const HAK_TIP_FOR = { "dif:0": 0, "dif:1": 1, "wa:0": 3, "wa:1": 4, "wa:2": 5, "wa:3": 6, "wa:4": 7, "wa:5": 8 };
+
+function wireGame3HakTips(state) {
+    const pic22 = state.stage.querySelector(".frm-ctrl--Picture22");
+    if (!pic22 || pic22.dataset.tipsWired) return;
+    pic22.dataset.tipsWired = "1";
+    const layout = state.layouts && state.layouts[state.currentScreen];
+    const tipl = {};
+    (function walk(c) {
+        if (c.name === "tipl" && c.props && c.props.Index != null) tipl[c.props.Index] = c.props;
+        (c.children || []).forEach(walk);
+    })(layout || {});
+    function vbColor(v, dflt) {
+        if (v == null) return dflt;
+        const n = parseInt(v, 10);
+        return "rgb(" + (n & 0xff) + "," + ((n >> 8) & 0xff) + "," + ((n >> 16) & 0xff) + ")";
+    }
+    state._hakTips = {};
+    Object.keys(tipl).forEach(function (i) {
+        const p = tipl[i];
+        if (!p.Caption) return;
+        const tip = document.createElement("div");
+        tip.className = "hak-tip";
+        tip.dataset.tipl = i;
+        tip.textContent = p.Caption;
+        tip.dataset.left = String(Math.round((p.Left || 0) / 15));
+        tip.dataset.top  = String(Math.round((p.Top  || 0) / 15));
+        Object.assign(tip.style, {
+            position: "absolute",
+            left: Math.round((p.Left || 0) / 15) + "px",
+            top:  Math.round((p.Top  || 0) / 15) + "px",
+            background: vbColor(p.BackColor, "#000040"),
+            color: vbColor(p.ForeColor, "#c0c0ff"),
+            font: "11px Arial, sans-serif", lineHeight: "13px",
+            padding: "0 2px", whiteSpace: "nowrap", direction: "rtl",
+            pointerEvents: "none", zIndex: "30", display: "none",
+        });
+        pic22.appendChild(tip);
+        state._hakTips[i] = tip;
+    });
+    Object.keys(HAK_TIP_FOR).forEach(function (key) {
+        const parts = key.split(":");
+        const el = pic22.querySelector(".frm-ctrl--" + parts[0] + '[data-index="' + parts[1] + '"]');
+        if (!el) return;
+        const help = key === "wa:5";
+        el.addEventListener("mouseenter", function () { showGame3HakTips(state, help ? "all" : HAK_TIP_FOR[key]); });
+        el.addEventListener("mouseleave", function () { showGame3HakTips(state, null); });
+    });
+}
+
+// which: null = hide all, "all" = help (every visible button's caption),
+// or one tipl index.
+function showGame3HakTips(state, which) {
+    const tips = state._hakTips || {};
+    const pic22 = state.stage.querySelector(".frm-ctrl--Picture22");
+    Object.keys(HAK_TIP_FOR).forEach(function (key) {
+        const tip = tips[HAK_TIP_FOR[key]];
+        if (!tip) return;
+        let on = which === HAK_TIP_FOR[key];
+        if (which === "all") {
+            const parts = key.split(":");
+            const el = pic22 && pic22.querySelector(".frm-ctrl--" + parts[0] + '[data-index="' + parts[1] + '"]');
+            on = !!el && getComputedStyle(el).display !== "none";
+        }
+        tip.style.display = on ? "" : "none";
+        // The three bench captions (tipl 5/4/3 under wa 2/1/0) overlap each
+        // other at their .frm spots — fine one-at-a-time on hover, garbled
+        // all together. For the help view centre each under its button and
+        // drop the middle one a row.
+        const bench = { "wa:0": 0, "wa:1": 1, "wa:2": 0 };
+        if (on && which === "all" && key in bench) {
+            const parts = key.split(":");
+            const el = pic22.querySelector(".frm-ctrl--wa" + '[data-index="' + parts[1] + '"]');
+            tip.style.left = Math.round(el.offsetLeft + el.offsetWidth / 2 - tip.offsetWidth / 2) + "px";
+            tip.style.top = (parseInt(tip.dataset.top, 10) + bench[key] * 14) + "px";
+        } else {
+            tip.style.left = tip.dataset.left + "px";
+            tip.style.top = tip.dataset.top + "px";
+        }
+    });
+}
+
+// Recording needs the browser's microphone permission (no VB6 equivalent —
+// MCI recorded unconditionally). When it's refused or unavailable, say so
+// under the record button instead of leaving wa(1) silently dead (#48).
+function showGame3HakMicMessage(state) {
+    const pic22 = state.stage.querySelector(".frm-ctrl--Picture22");
+    const t4 = state._hakTips && state._hakTips[4];
+    if (!pic22) return;
+    let msg = pic22.querySelector(".hak-mic-msg");
+    if (!msg) {
+        msg = document.createElement("div");
+        msg.className = "hak-mic-msg";
+        Object.assign(msg.style, {
+            position: "absolute", left: "0", right: "0",
+            top: t4 ? t4.style.top : "320px",
+            textAlign: "center", pointerEvents: "none", zIndex: "31",
+        });
+        const span = document.createElement("span");
+        Object.assign(span.style, {
+            background: "#000040", color: "#ffc0c0",
+            font: "bold 12px Arial, sans-serif", padding: "1px 6px", direction: "rtl",
+        });
+        span.textContent = "אין גישה למיקרופון — יש לאשר שימוש במיקרופון בדפדפן";
+        msg.appendChild(span);
+        pic22.appendChild(msg);
+    }
+    showGame3HakTips(state, null);     // wa(1)'s own caption sits on this row
+    msg.style.display = "";
+    clearTimeout(state._hakMicMsgTimer);
+    state._hakMicMsgTimer = setTimeout(function () { msg.style.display = "none"; }, 4000);
 }
 
 // Mirrors Games3.dif_Click + the Picture2.PaintPicture inside it: crops the
@@ -11406,6 +11535,7 @@ function closeGame3HakZoom(state) {
     const spic1 = state.stage.querySelector(".frm-ctrl--Spic1");
     if (pic22) pic22.style.display = "none";
     if (spic1) spic1.style.display = "";
+    showGame3HakTips(state, null);
     stopAllAudio(state);
     // Tear down any active MediaRecorder.
     if (state._kkbRec && state._kkbRec.mr && state._kkbRec.mr.state === "recording") {
@@ -11506,12 +11636,16 @@ function game3HakToggleRecord(state) {
     }
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         klog("game3 rec: getUserMedia not supported");
+        showGame3HakMicMessage(state);
         return;
     }
     navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
         r.stream = stream;
         startWithStream(stream);
-    }).catch(function (err) { klog("game3 rec: getUserMedia failed", err && err.message); });
+    }).catch(function (err) {
+        klog("game3 rec: getUserMedia failed", err && err.message);
+        showGame3HakMicMessage(state);
+    });
 }
 
 // wa(2) play recorded — plays the MediaRecorder blob (Games3.wa_Click Case 2
