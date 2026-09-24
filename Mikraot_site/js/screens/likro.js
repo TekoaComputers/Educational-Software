@@ -38,6 +38,9 @@
         return p.replace(/\\/g, "/").toLowerCase();
     }
     function bgImg(rel) { return "url('assets/" + rel + "')"; }
+    // KIVUN.FRM Shir() — song titles (same table as start.js / sofer.js).
+    const SHIR = ["שרה ראתה תחנה","שרה לחשה ","?למה צחקה דנה","סבא קנה מתנה","גל נפל",
+                  "?מה בגינה","בית ואוירון","סודר חדש לגל","החיט העליז","עגלה עם סוסים"];
 
     // Two book-page pictures live at fixed twips coords inside the form.
     // The .spi rects for Slovo/Pic_Zone are in PIXELS relative to those
@@ -457,9 +460,9 @@
             lbl.style.fontSize = "20px";
             lbl.style.color = "#FFFFFF";
             lbl.style.background = "rgb(0, 128, 255)";  // BackColor 16744576
-            // Caption = Shir(GameNomer-1). Without a real GameNomer
-            // model yet, label the panel with stage id.
-            lbl.textContent = "מקראות — שיר " + song + " (וריאציה " + variant + ")";
+            // GAMES1.FRM Form_Load: Panel3D1.Caption = Shir(GameNomer-1)
+            // (the song's title, as on START) — not a debug stage id.
+            lbl.textContent = SHIR[song - 1] || "";
             stageEl.appendChild(lbl);
         }
         function mkHalon(ctrl, style) {
