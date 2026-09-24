@@ -295,6 +295,22 @@
         next();
     }
 
+    // Pixel bounds [x0, y0, x1, y1] (inclusive, 320x200 art coords) of
+    // everything that MOVES in each decorative hub effect — measured by
+    // diffing every frame of the MP4 against its own first frame. Used to
+    // widen the effect's clipRect beyond its click hotspot (issue #80).
+    const ANIM_MOTION_BOUNDS = {
+        "assets/animations/m5_1.mp4":     [122, 12, 159,  45],   // window
+        "assets/animations/m5_2.mp4":     [  6, 10,  39,  48],   // clock
+        "assets/animations/m5_3.mp4":     [283, 19, 310,  37],   // bell
+        "assets/animations/m5_4.mp4":     [  0, 118, 42, 170],   // surprise box
+        "assets/animations/eff/fok1.mp4": [132, 67, 179, 108],   // kid
+        "assets/animations/eff/fok2.mp4": [126, 67, 184, 120],
+        "assets/animations/eff/fok3.mp4": [128, 67, 173, 108],
+        "assets/animations/eff/fok4.mp4": [124, 67, 172, 108],
+        "assets/animations/eff/fok5.mp4": [132, 68, 184, 108],
+    };
+
     function hub({ makeStage }) {
         MKH.log("screen", "hub");
         const stage = makeStage();
@@ -432,11 +448,26 @@
                 },
             };
             if (!effectiveRoute) {
+                // Clip to the hotspot rect UNIONED with the anim's own
+                // motion bounds — several effects move outside their
+                // click box (the kid's arms in fok2/4/5 reach x=124..184
+                // while the hotspot is 131..179; the jack-in-the-box
+                // pops up to y=118 above its 136 hotspot top; the clock
+                // pendulum swings to x=39). Clipping to the bare hotspot
+                // sliced those sprites mid-animation (issue #80).
+                const b = ANIM_MOTION_BOUNDS[entry.anim];
+                let x0 = h.x, y0 = h.y, x1 = h.x + h.w, y1 = h.y + h.h;
+                if (b) {
+                    x0 = Math.max(0,   Math.min(x0, b[0] - 1));
+                    y0 = Math.max(0,   Math.min(y0, b[1] - 1));
+                    x1 = Math.min(320, Math.max(x1, b[2] + 2));
+                    y1 = Math.min(200, Math.max(y1, b[3] + 2));
+                }
                 opts.clipRect = {
-                    x: h.x * SCALE,
-                    y: h.y * SCALE,
-                    w: h.w * SCALE,
-                    h: h.h * SCALE,
+                    x: x0 * SCALE,
+                    y: y0 * SCALE,
+                    w: (x1 - x0) * SCALE,
+                    h: (y1 - y0) * SCALE,
                 };
             }
             playAnim(stage, entry.anim, opts);
