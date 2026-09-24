@@ -9916,8 +9916,15 @@ function playVideo(url, opts) {
     // GoMovie_Done in original: when video reaches end, btnStop_Click → Unload.
     vid.addEventListener("ended", function () { klog("video ended → auto-dismiss"); dismiss(); });
     // Click on overlay (dimmer outside the frame) closes — convenience.
+    // Only a click that also STARTED on the dimmer counts: a seek-bar drag
+    // released outside the frame produces a `click` whose target is the
+    // common ancestor (= the overlay), which used to close the video in the
+    // middle of scrubbing (#60 / #62 slider reports).
+    let pressOnDimmer = false;
+    overlay.addEventListener("mousedown", function (e) { pressOnDimmer = (e.target === overlay); });
     overlay.addEventListener("click", function (e) {
-        if (e.target === overlay) { klog("CLICK video dimmer → dismiss"); dismiss(); }
+        if (e.target === overlay && pressOnDimmer) { klog("CLICK video dimmer → dismiss"); dismiss(); }
+        pressOnDimmer = false;
     });
     vid.addEventListener("error", function () {
         klog("video error — file missing or unsupported:", url);
