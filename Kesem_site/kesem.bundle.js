@@ -12937,7 +12937,7 @@ function sivStateFor(i) {
 // pause/resume toggle (swap targ/shad poses + timers + cmda enabled state).
 function onTargClick() {
     const st = gameState;
-    if (!st) return;
+    if (!st || st.over) return;
     if (st.arrowsEl) st.arrowsEl.style.display = "none";   // Timer4 stops, Label4 hides
     if (st.paused) {
         dbg("CLICK targ → resume");
@@ -13023,7 +13023,7 @@ function advanceShpup(fromCol, toCol) {
 // === Digit press (cmda_Click in Form1) ====================================
 function onDigit(digit) {
     const st = gameState;
-    if (!st || st.paused) return;
+    if (!st || st.paused || st.over) return;
     // io = 2; For i=0..8: cmda(i).Enabled = False — lock while evaluating.
     st.cmdaEls.forEach(function (b) { b.disabled = true; });
 
@@ -13055,12 +13055,15 @@ function onDigit(digit) {
                 // fresh round first so the player sees it before auto-starting.
                 renderRound();
                 let autoStarted = false;
+                const roundState = gameState;
                 const autoStart = function () {
                     if (autoStarted) return;
                     autoStarted = true;
                     // Only auto-resume if still paused (player might have
-                    // clicked targ or a digit during starts.wav playback).
-                    if (gameState && gameState.paused) onTargClick();
+                    // clicked targ or a digit during starts.wav playback),
+                    // and only this game — not one the player started after
+                    // ESC-ing out within the 2 s fallback window.
+                    if (gameState === roundState && gameState.paused) onTargClick();
                 };
                 playWav("voice", "starts.wav", autoStart);
                 // Fallback: auto-start after 2s even if audio fails to fire
@@ -13160,6 +13163,9 @@ function blinkCorrect(digit) {
 // fla(0/3/5/6) follower nearby — matching the dual-timer original.
 let winSpawner = null;
 function goWin() {
+    // Form1 is unloaded when Form3 shows: its cmda/keyboard handlers are
+    // gone. gameState stays (play-again reuses its params) but is inert.
+    if (gameState) gameState.over = true;
     stopAllAudio();
     stopGameTimers();
     if (winSpawner) { clearInterval(winSpawner); winSpawner = null; }
@@ -13236,6 +13242,7 @@ function goWin() {
     addEndButtons("win");
 }
 function goLose() {
+    if (gameState) gameState.over = true;     // see goWin
     stopAllAudio();
     stopGameTimers();
     clearStage();
