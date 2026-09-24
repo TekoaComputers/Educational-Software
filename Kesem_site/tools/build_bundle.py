@@ -10021,7 +10021,16 @@ function showNikod(state, slot, onClose) {
             textAlign: "center",
             color: color,
             fontSize: fontSize + "px",
-            lineHeight: h + "px",
+            // VB.Label has no vertical alignment — Caption is drawn from the
+            // TOP of the control. lineHeight = h centred the digits in the
+            // 31-px-tall labels and pushed each count ~8 px below its row's
+            // colour square in score2.png (issue #60 "numbers are offset").
+            // One line of fontSize height keeps the glyphs top-aligned; the
+            // centres then land within 1.5 px of the baked squares
+            // (177/203/229/251 in Picture1 coords). toch(0) is only 21 px
+            // tall and already sits on its baked "סך הכל … שאלות" line
+            // (text rows 140-149) when centred, so it keeps that.
+            lineHeight: (h > 24 ? fontSize : h) + "px",
             fontWeight: "700",
             pointerEvents: "none",
             direction: "ltr",
