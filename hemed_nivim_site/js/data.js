@@ -229,15 +229,28 @@ HND.gameKey = function (game, slotIdx) {
     if (slotIdx == null) return game;
     return HND.SLOT_KEYS[slotIdx] || game;
 };
-// Each game runner reads sessionStorage.lastSlot (set by GameMenu click)
-// to derive its own slot-specific key.
-HND.currentSlotKey = function (appId, fallbackGame) {
+// Menu slot → game (app.js KORA_SLOTS) and each game's default slot.
+// sessionStorage.lastSlot is only written by a game-menu click, so it is
+// STALE whenever a game is entered another way (direct/bookmarked route,
+// back/forward, the menu-less hatamaplus route): e.g. after American
+// "by text" (slot 4), a match route used to save its score under
+// "american_text" and read American's calibration block. Only honour
+// lastSlot when it belongs to the game asking.
+HND.SLOT_GAMES = { 0: "hakira", 1: "match", 2: "american", 3: "american", 4: "american",
+                   5: "haklada", 6: "haklada", 7: "apple", 8: "connect" };
+HND.DEFAULT_SLOT = { hakira: 0, match: 1, american: 4, haklada: 5, apple: 7, connect: 8 };
+HND.slotFor = function (appId, game) {
     let slot = null;
     try {
         const raw = sessionStorage.getItem("hnd." + appId + ".lastSlot");
         if (raw != null && raw !== "") slot = parseInt(raw, 10);
     } catch (e) {}
-    return HND.gameKey(fallbackGame, slot);
+    if (slot != null && HND.SLOT_GAMES[slot] === game) return slot;
+    return HND.DEFAULT_SLOT[game] != null ? HND.DEFAULT_SLOT[game] : null;
+};
+// Each game runner derives its own slot-specific progress key.
+HND.currentSlotKey = function (appId, game) {
+    return HND.gameKey(game, HND.slotFor(appId, game));
 };
 HND.loadProgress = function (appId, unitId, gameId) {
     try {
@@ -1188,10 +1201,11 @@ HND.resolveCalibration = function (unit, gameIdx) {
 // menu (sessionStorage.hnd.<app>.lastSlot, set in showGameMenu). Each
 // game called this from its startXxx() entry point so the cfg block is
 // auto-selected (especially for American which has 3 modes).
+HND.CAL_GAMES = { 0: "hakira", 1: "match", 2: "haklada", 3: "haklada", 4: "apple",
+                  5: "american", 6: "american", 7: "american", 8: "connect" };
 HND.gameCalibrationFromSlot = function (unit, appId, fallbackGameIdx) {
-    let slotIdx = -1;
-    try { slotIdx = parseInt(sessionStorage.getItem("hnd." + appId + ".lastSlot"), 10); }
-    catch (e) {}
+    const game = HND.CAL_GAMES[fallbackGameIdx != null ? fallbackGameIdx : 0];
+    const slotIdx = HND.slotFor(appId, game);   // stale lastSlot of another game ignored
     const idx = HND.SLOT_TO_CAL_IDX[slotIdx];
     return HND.resolveCalibration(
         unit,

@@ -64,11 +64,8 @@ HND.startAmerican = function (root, app, unit, onComplete) {
     //   slot 4 → "לפי טקסט"   (by text — both Q + audio visible) ← default
     // The slot index is stashed in sessionStorage on game-menu click;
     // read it here to branch the InitQuestion rendering.
-    let modeSlot = 4;   // default = by-text
-    try {
-        const v = sessionStorage.getItem("hnd." + app.id + ".lastSlot");
-        if (v != null) modeSlot = parseInt(v, 10);
-    } catch (e) {}
+    // HND.slotFor ignores a stale lastSlot left by another game.
+    const modeSlot = HND.slotFor(app.id, "american");   // 2 / 3 / 4 (default)
     const MODE_BY_SOUND = (modeSlot === 2);
     const MODE_BY_PIC   = (modeSlot === 3);
     HND.log("american mode", "slot=" + modeSlot,

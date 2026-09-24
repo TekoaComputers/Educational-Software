@@ -63,12 +63,8 @@ HND.startHaklada = function (root, app, unit, onComplete) {
     // Detect dictation mode from the game-menu slot the user picked.
     // Slot 5 (הקלטה רגילה) = practice → cfg block 2, Slot 6 (הכתבה) =
     // dictation → cfg block 3 (see app.js SLOT_TO_CAL_IDX).
-    let DICTATION = false;
-    try {
-        const lastSlot = sessionStorage.getItem("hnd." + app.id + ".lastSlot");
-        const lastMode = sessionStorage.getItem("hnd." + app.id + ".lastMode") || "";
-        DICTATION = (lastSlot === "6") || lastMode.indexOf("הכתבה") !== -1;
-    } catch (e) {}
+    // HND.slotFor ignores a stale lastSlot left by another game.
+    const DICTATION = HND.slotFor(app.id, "haklada") === 6;
     const GAME_IDX = DICTATION ? 3 : 2;
 
     // CurrentCalibration fields (orig GamesMoudle.bas:19-78). Sides:

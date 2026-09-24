@@ -43,7 +43,12 @@ function hatamaFlowerX(yPx) {
     return HATAMA_FLOWER_XY[0][1] - 24;
 }
 
-HND.startMatch = function (root, app, unit, onComplete) {
+// opts.progressKey / opts.routeId — used by HatamaPlus, which runs this
+// engine under its own score key and route.
+HND.startMatch = function (root, app, unit, onComplete, opts) {
+    opts = opts || {};
+    const progressKey = opts.progressKey || HND.currentSlotKey(app.id, "match");
+    const routeId     = opts.routeId || "match";
     const cols  = (unit.data && unit.data.columns) || [];
     const items = (unit.data && unit.data.items)  || [];
     if (!items.length || cols.length < 2) {
@@ -435,7 +440,7 @@ HND.startMatch = function (root, app, unit, onComplete) {
         const score = Math.max(0, 100 - Math.floor(state.penalty));
         HND.log("match FINISH", "score=" + score, "penalty=" + state.penalty);
         setGoatPose("win");
-        HND.saveProgress(app.id, unit.id, HND.currentSlotKey(app.id, "match"), score, state.errorsPerQ);
+        HND.saveProgress(app.id, unit.id, progressKey, score, state.errorsPerQ);
         // Original WaveMe_Done Case 100 → plays Win.WAV → Case 101 → WinGame.
         // WinGame calls ScoreForm.ShowGameScore. We delay 800ms (matching the
         // praise-wave window) and then show our ScoreForm overlay.
@@ -450,7 +455,7 @@ HND.startMatch = function (root, app, unit, onComplete) {
                 },
                 function onReplay() {
                     // Re-enter the match game.
-                    HND.restartGame(app.id, unit.id, "match");
+                    HND.restartGame(app.id, unit.id, routeId);
                 }
             );
         }, 900);
@@ -488,7 +493,7 @@ HND.startMatch = function (root, app, unit, onComplete) {
         });
         replayBtn.addEventListener("click", function (e) {
             e.stopPropagation();
-            HND.restartGame(app.id, unit.id, "match");
+            HND.restartGame(app.id, unit.id, routeId);
         });
         root.appendChild(replayBtn);
     }
