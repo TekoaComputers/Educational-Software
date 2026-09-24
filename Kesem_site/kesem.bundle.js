@@ -10056,9 +10056,15 @@ function enterStage(state) {
     // sees a consistent value. Other apps that dispatch Case 6 → Games3
     // keep gameNumber=6 and fall through to the (gameNumber===6 ? "game3")
     // fallback below; their LEV.BAS doesn't remap audio paths.
+    // EnglishB has one gameNumber-6 stage (r1 "3. אני ואתה", razNom 3_2):
+    // its .RAS hotspots are Games3 inspect items ("חקירה") with wav/3_2/1..10,
+    // and the only Ras_Wav shipped for it is rasb_wav/3_2_3.wav — the file
+    // the exe asks for when 6 is read as 3. Left as 6 it routed to the game3
+    // screen but no hotspot renderer handles 6: nothing was clickable, no
+    // indicators, no prompt, and the stage stored a 0/total score.
     const stage = Object.assign({}, stageRaw);
     const appId = state.config.id;
-    if ((appId === "KolKoreC" || appId === "KolKoreD") &&
+    if ((appId === "KolKoreC" || appId === "KolKoreD" || appId === "EnglishB") &&
         (stage.gameNumber === 6 || stage.gameNumber === 7 || stage.gameNumber === 8)) {
         stage._origGameNumber = stage.gameNumber;
         stage.gameNumber = 3;
