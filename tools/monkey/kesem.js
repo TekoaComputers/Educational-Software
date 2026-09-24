@@ -505,6 +505,12 @@ class Kesem {
 
   async playInspect(tag, s) {
     const ctx = this.ctx;
+    // A chaos burst can leave the hak panel open (Picture22 over a hidden
+    // Spic1) — close it like a user would before inspecting.
+    if (await this.eval(() => window.__km.visible('.frm-ctrl--Picture22'))) {
+      await this.waitIdle();
+      await this.tap('.frm-ctrl--wa[data-index="4"]', 0, 500);
+    }
     // #63: several hotspots clicked in quick succession must not talk over
     // each other (checked by the overlapping-audio tracker).
     await this.waitIdle();
