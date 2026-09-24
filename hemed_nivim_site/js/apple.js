@@ -983,7 +983,7 @@ HND.startApple = function (root, app, unit, onComplete) {
         const stage = root.parentElement;
 
         // Drain animation — original ScoreTimer_Timer (GameApple.frm:757-840):
-        //   AddScore = 100 / (QCount+1) / 16
+        //   AddScore = 100 / (QCount+1) / 16   (QCount = last index)
         //   Each tick: pick FIRST non-empty basket, DROP ONE GOOD APPLE
         //   (basket sprite goes from N → N-1, i.e. basket VISIBLY EMPTIES),
         //   TotalScore += AddScore. When the basket empties, TotalScore +=
@@ -1007,7 +1007,12 @@ HND.startApple = function (root, app, unit, onComplete) {
             const good = 8 - errors;                  // GOOD apples to drain out
             if (good > 0) drainPlan.push({ qIdx: qi, remaining: good });
         });
-        const ADD_SCORE = 100 / (QCOUNT + 1) / 16;
+        // Orig `AddScore = 100 / (QCount + 1) / 16` — VB6 QCount is the
+        // LAST question INDEX (`For i = 0 To QCount`, ReDim BasketStatus(
+        // QCount)), so QCount + 1 is the question count. Our QCOUNT already
+        // is the count; dividing by QCOUNT + 1 capped a flawless game at
+        // 100·Q/(Q+1) (88–90), never 100.
+        const ADD_SCORE = 100 / QCOUNT / 16;
         let totalScore = 0;
         let winFired = false;
         // Orig ScoreTimer:791,797 gates tic.wav on `WaveMe.Mode != mciModePlay`
