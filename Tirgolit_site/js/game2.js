@@ -178,7 +178,12 @@ const GameT2 = (() => {
     const chunks = [];
     let i = 0;
     while (i < str.length) {
-      if (/\d/.test(str[i]) || (str[i] === '-' && i + 1 < str.length && /\d/.test(str[i+1]))) {
+      // '-' belongs to the number only as a sign (start of expr or after an
+      // operator / '('); after a digit or ')' it is the subtraction operator
+      // and must stay visible ("8*1-4": blank "4", not "-4" → "8*1_").
+      const sign = str[i] === '-' && i + 1 < str.length && /\d/.test(str[i+1]) &&
+                   (i === 0 || /[+\-*/:(x×÷]/.test(str[i-1]));
+      if (/\d/.test(str[i]) || sign) {
         let start = i;
         if (str[i] === '-') i++;
         while (i < str.length && /\d/.test(str[i])) i++;
