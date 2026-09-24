@@ -270,6 +270,10 @@ function showApp(appId) {
     // in frmRenderer calls state.onRamaChange after updating state.rama.
     currentSession.onRamaChange = function (state) {
         if (state.currentScreen !== "sst") return;
+        // Sst.Icon_s_Click ends in Lampas: the lamps (and mahak) belong to
+        // the newly selected rama. Without this a tab switch kept showing
+        // the previous rama's lit lamps until the Sst was re-mounted.
+        wireSstLamps(state);
         if (state.config.id === "EnglishC") applyEnglishCRamaLayout(state);
         if (state.config.id === "KolKoreA") applyKolKoreARamaLayout(state);
         if (state.config.id === "KolKoreB") {
@@ -935,10 +939,7 @@ function setRamaUtil(state, rama) {
             if (img && !img.src.endsWith(resolved)) img.src = resolved;
         });
     });
-    // Re-run sst wiring so lamp images + mahak visibility reflect new rama.
-    if (state.currentScreen === "sst") {
-        wireSstLamps(state);
-    }
+    // Lamp images + mahak visibility are re-wired by onRamaChange below.
     // Per-app rama hook — the renderer's setRama calls this at the end, but
     // setRamaUtil is the bypass path used by flipBook (KolKoreC/D) and the
     // KolKoreB toggle. Without this, KolKoreD's Icon_s_Click +65 / -65 shift
