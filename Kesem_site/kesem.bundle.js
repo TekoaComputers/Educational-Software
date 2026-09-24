@@ -10142,6 +10142,7 @@ function initGameTurn(state, stage) {
     state.Pobeda = 0;              // games 2/4/5 correct-answers counter
     state.helek = 1;               // game 4 phase: 1=pick, 2=place
     state._pic1Listeners = false;  // pic1 was rebuilt by setScreen — re-attach
+    state._pic1Pointer = null;     // new Picture1: piece hidden until the pointer moves over it
     state._cursorPiece = null;
     state.Tek_N = 1;               // game 5 round counter
     state.game2Revealed = {};      // Game 2: which hotspot covers have been removed this stage
@@ -10397,12 +10398,10 @@ function paintHotspots(state, stage) {
         });
         // Mouse-tracking cursor piece. Live for the whole stage.
         pic1.addEventListener("mousemove", function (e) {
-            if (!state._cursorPiece) return;
-            const w = state._cursorPiece.offsetWidth;
-            const h = state._cursorPiece.offsetHeight;
             const p = pic1Coords(e);
-            state._cursorPiece.style.left = (p.x - w / 2) + "px";
-            state._cursorPiece.style.top  = (p.y - h / 2) + "px";
+            state._pic1Pointer = p;         // makeCursorPiece starts the next piece here
+            if (!state._cursorPiece) return;
+            placeCursorPiece(state._cursorPiece, p);
         });
     }
 
@@ -10663,6 +10662,19 @@ function makeHotspotButton(rect, vbIdx, t) {
 }
 
 // Cropped patch of Picture1 at the given hotspot rect, sized in displayed pixels.
+// Picture1_MouseMove: Picture3.Visible = True, centred on the pointer.
+function placeCursorPiece(piece, p) {
+    piece.style.left = (p.x - piece.offsetWidth / 2) + "px";
+    piece.style.top  = (p.y - piece.offsetHeight / 2) + "px";
+    piece.style.visibility = "";
+}
+
+// Each new question's piece used to be appended at Picture1's top-left
+// corner and only jumped under the pointer on the next mousemove, so after
+// a correct answer the block popped up in the corner / off the cursor
+// (#49). The correct branch hides Picture3 and Picture1_MouseMove shows
+// it again under the pointer — so start the piece at the last pointer
+// position over Picture1, or hidden until the pointer moves there.
 function makeCursorPiece(state, rect, t) {
     const c = document.createElement("canvas");
     c.className = "stage-cursor-piece";
@@ -10678,6 +10690,13 @@ function makeCursorPiece(state, rect, t) {
     try {
         c.getContext("2d").drawImage(state.stageImg, rect.x, rect.y, rect.w, rect.h, 0, 0, rect.w, rect.h);
     } catch (e) {}
+    const p = state._pic1Pointer;
+    if (p) {
+        c.style.left = (p.x - rect.w * t.scale / 2) + "px";
+        c.style.top  = (p.y - rect.h * t.scale / 2) + "px";
+    } else {
+        c.style.visibility = "hidden";
+    }
     return c;
 }
 
