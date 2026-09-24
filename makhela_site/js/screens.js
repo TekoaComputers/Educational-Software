@@ -1677,6 +1677,9 @@
 
         function onComplete() { complete = true; playWinVideo(); }
 
+        // Read-only test hook for tools/monkey (closure state is private).
+        MKH._test = { memoryGame: () => ({ deck: deck.slice(), matched, complete, busy }) };
+
         // Place 12 cards. Each card's BACKGROUND is the slice of igra2.png
         // at its own position — so face-down cards keep showing the
         // treble-clef-on-orange pattern (and crucially, occlude the
@@ -2283,6 +2286,9 @@
             v.addEventListener("ended", close);
             stage.appendChild(x);
         }
+
+        // Read-only test hook for tools/monkey (closure state is private).
+        MKH._test = { gameShow: () => ({ round, correct, currentTarget, slotSongs: slotSongs.slice(), busy, timeLeft }) };
 
         // ---- Setup ----
         makeLadder();
