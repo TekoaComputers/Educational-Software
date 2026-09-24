@@ -618,7 +618,7 @@ export function setScreen(state, screenId) {
 export function renderApp(config, layouts, root, onAction, opts = {}) {
     root.innerHTML = "";
     const wrap = el("div", { class: "frm-wrap" });
-    const stage = el("div", { class: "frm-stage" + (opts.debug ? " frm-stage--debug" : "") });
+    const stage = el("div", { class: "frm-stage" + (opts.debug ? " frm-stage--debug" : ""), "data-app": config.id });
     wrap.appendChild(stage);
     root.appendChild(wrap);
 

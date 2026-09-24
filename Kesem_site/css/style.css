@@ -235,6 +235,13 @@ h1 {
 .frm-hotspot:hover {
     background: rgba(255, 255, 0, .12);
 }
+/* Heshbon's rama tabs are round domes baked into castle{rama}.jpg (the
+   selected one is painted green by the background swap). The rectangular
+   hover tint read as a mis-drawn square "outline" over ramas ב/ג and turned
+   the green dome of rama א yellow (#84). VB6 had no hover paint here. */
+.frm-stage[data-app="Heshbon"] .frm-ctrl--Icon_s:hover {
+    background: transparent;
+}
 
 /* Debug mode — visible outlines on every control for layout verification. */
 .frm-stage--debug .frm-ctrl {
