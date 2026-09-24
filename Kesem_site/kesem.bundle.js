@@ -2376,6 +2376,9 @@ function showApp(appId) {
     // in frmRenderer calls state.onRamaChange after updating state.rama.
     currentSession.onRamaChange = function (state) {
         if (state.currentScreen !== "sst") return;
+        // Sst.Icon_s_Click ends with Lampas: lamps (and mahak) must show the
+        // NEW rama's completions, not the tab we just left.
+        wireSstLamps(state);
         if (state.config.id === "EnglishC") applyEnglishCRamaLayout(state);
         if (state.config.id === "KolKoreA") applyKolKoreARamaLayout(state);
         if (state.config.id === "KolKoreB") {
