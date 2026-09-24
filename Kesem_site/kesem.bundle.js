@@ -7795,6 +7795,22 @@ function wireSstLamps(state) {
     const root = state.config.assetsRoot;
 
     const lamps = state.stage.querySelectorAll(".frm-ctrl--btnLamp");
+    // Z-order: VB6 paints controls listed EARLIER in the .frm on top, CSS
+    // paints later DOM siblings on top. Where the .frm lists btnLamp before
+    // btnIcon (Brahot/Hagim/Shabat/Yeled/Dvash/English A-B/KolKore A-B/…)
+    // the lamp sits ABOVE the icon in the original. In Yeled every lamp
+    // strip overlaps the bottom edge of its btnIcon, so with DOM stacking a
+    // click on a lit lamp started the path instead of showing its score
+    // board (btnLamp_Click → niko). Lift the lamps only when the layout
+    // says they are on top; apps that list btnIcon first (EnglishC,
+    // KolKoreC/D) keep the icon above.
+    const firstIcon = state.stage.querySelector(".frm-ctrl--btnIcon");
+    lamps.forEach(function (el) {
+        if (firstIcon && el.parentElement === firstIcon.parentElement &&
+            (el.compareDocumentPosition(firstIcon) & Node.DOCUMENT_POSITION_FOLLOWING)) {
+            el.style.zIndex = "2";
+        }
+    });
     // KolKoreB Lampas iterates btnLamp(0..1) and reads completion file
     // "<rama>b<cHos>b<i>.txt" — i.e. the lamp lights up per the currently-
     // selected btnIcon (cHos). Lamp 0 reflects slot cHos, Lamp 1 reflects
