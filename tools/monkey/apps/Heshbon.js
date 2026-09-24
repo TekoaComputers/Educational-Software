@@ -251,7 +251,14 @@ async function avi(k) {
 module.exports = {
   run: ctx => runApp(ctx, 'Heshbon', {
     exitSel: '.frm-ctrl--hyju',
-    extra: async k => { await avi(k); await lmath(k); },
+    extra: async k => {
+      // Every reachable path was completed above → the catalog's % must be 100.
+      if (!k.ctx.quick) {
+        const pr = await k.eval(() => window.Tekoa && Tekoa.Progress ? { pct: Tekoa.Progress.getPercent('Heshbon'), total: Tekoa.Progress.getApp('Heshbon').total, done: Object.keys(Tekoa.Progress.getApp('Heshbon').activities).length } : null);
+        if (pr) k.ctx.check(pr.pct === 100, 'catalog progress not 100% after every path', JSON.stringify(pr));
+      }
+      await avi(k); await lmath(k);
+    },
   }),
   lmath, avi,
 };
