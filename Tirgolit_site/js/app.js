@@ -1882,10 +1882,27 @@ const App = (() => {
   window.appProduct_select       = appProduct_select;
   window.appProduct_back         = appProduct_back;
   window.appProduct_switchFromUnits = appProduct_switchFromUnits;
+  // The exercise on screen, for the Sketch pad — only where the student can
+  // already see it (Tirgol1 kind 2 target bar, Tirgol2's active row). In
+  // Tirgol1 kind 1 and Tirgol3 the expression is what must be found, so the
+  // pad opens blank instead of giving it away.
+  function visibleExercise() {
+    try {
+      if (gameBg === 't2') { const s = GameT2.peek(); return s.tshP ? s.scene[s.tshNom].expr : null; }
+      if (gameBg === 't3') return null;
+      if (gameKind === 2) { const s = Game.peek(); return s.target ? s.scene[s.target.sceneRow].expr : null; }
+    } catch (e) {}
+    return null;
+  }
+
   window.appGame_openSketch = function() {
     if (typeof SketchTool !== 'undefined') {
-      const unit = UNITS_DATA && currentUnitId ? UNITS_DATA.units[String(currentUnitId)] : null;
-      SketchTool.show(unit ? unit.title : '');
+      // SketchTool.show() lays its argument out on the grid as an
+      // 'a+b=' exercise; passing the unit title stamped stray title
+      // characters (e.g. the '- 6' of 'כפל - כפולות 6') onto the pad.
+      const expr = visibleExercise();
+      const unit = currentUnit || (UNITS_DATA && currentUnitId ? UNITS_DATA.units[String(currentUnitId)] : null);
+      SketchTool.show(expr ? expr + '=' : '', expr ? expr + ' =' : (unit ? unit.title : ''));
     }
   };
 
