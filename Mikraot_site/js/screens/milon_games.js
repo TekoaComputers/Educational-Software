@@ -323,9 +323,18 @@
 
         // Style Halon coin slots: each starts at matbea1.bmp (untouched);
         // turns to matbea0/2/3 as rounds resolve.
+        // Halon is AutoSize=-1: VB6 resized each box to its picture
+        // (matbea*.bmp, 54×50) at runtime. The .frm Width/Height are
+        // stale design sizes (38×26 on GAME5/SLOG/GM3A, one 54×50 among
+        // four 48×33 on WAV1) — using them squashed the coins and made
+        // one hole visibly bigger than its neighbours.
         const halons = [0,1,2,3,4].map(function (i) {
             const n = refs["Halon_" + i];
-            if (n) n.style.backgroundImage = "url('assets/menu/matbea1.png')";
+            if (n) {
+                n.style.backgroundImage = "url('assets/menu/matbea1.png')";
+                n.style.width = "54px";
+                n.style.height = "50px";
+            }
             return n || null;
         });
 
