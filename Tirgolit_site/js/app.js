@@ -375,9 +375,7 @@ const App = (() => {
       listEl.appendChild(item);
 
       if (scoreEl) {
-        const scores = Object.entries(
-          JSON.parse(localStorage.getItem('tirgolit_users') || '{}')[name]?.scores || {}
-        ).filter(([k, v]) => !k.includes('_s') && v > 0);
+        const scores = Users.lessonScores(name);
         const count = scores.length;
         const avg = count > 0 ? Math.round(scores.reduce((s, [, v]) => s + v, 0) / count) : 0;
         const si = document.createElement('div');
@@ -448,10 +446,7 @@ const App = (() => {
   async function appUserMgmt_detail() {
     const name = getSelectedUser();
     if (!name) { await showTMsg('בחר תלמיד מהרשימה'); return; }
-    const data = JSON.parse(localStorage.getItem('tirgolit_users') || '{}');
-    const scores = Object.entries(data[name]?.scores || {})
-      .filter(([k, v]) => !k.includes('_s') && v > 0)
-      .sort(([, a], [, b]) => b - a);
+    const scores = Users.lessonScores(name).sort(([, a], [, b]) => b - a);
     if (!scores.length) { await showTMsg('אין נתוני ציונים עבור ' + name); return; }
     const avg = Math.round(scores.reduce((s, [, v]) => s + v, 0) / scores.length);
     await showTMsg(name + '\nממוצע: ' + avg + ' (' + scores.length + ' שיעורים)');

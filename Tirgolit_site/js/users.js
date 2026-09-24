@@ -49,9 +49,31 @@ const Users = (() => {
     }
   }
 
+  // Slot scores are read from the product-namespaced keys ("t2/5_s0"):
+  // Tirgolit and Tirgolit2 both number their units from 1, so the legacy
+  // un-prefixed key "5_s0" is shared by T1 unit 5 and T2 unit 5 and showed
+  // one product's scores in the other's GList / unit list. A unit last played
+  // before the prefixed keys existed has only legacy keys; it is read as before.
+  function slotKey(user, scores, unitId, slot) {
+    const hasPrefixed = Object.keys(scores).some(k =>
+      k.startsWith('t1/' + unitId + '_s') || k.startsWith('t2/' + unitId + '_s'));
+    return hasPrefixed ? currentProduct(user) + '/' + unitId + '_s' + slot : unitId + '_s' + slot;
+  }
+
   function getSlotScore(user, unitId, slot) {
-    const data = load();
-    return data[user]?.scores?.[unitId + '_s' + slot] ?? 0;
+    const scores = load()[user]?.scores || {};
+    return scores[slotKey(user, scores, unitId, slot)] ?? 0;
+  }
+
+  // Per-lesson scores for the student manager: one entry per lesson played
+  // (both products), never the legacy duplicates of the same lesson.
+  function lessonScores(user) {
+    const scores = load()[user]?.scores || {};
+    const isSlot = k => /_s\d+$/.test(k);
+    const pref = Object.entries(scores).filter(([k]) => /^t[12]\//.test(k) && !isSlot(k));
+    const legacy = Object.entries(scores).filter(([k]) => !k.includes('/') && !isSlot(k) &&
+      !(('t1/' + k) in scores) && !(('t2/' + k) in scores));
+    return pref.concat(legacy).filter(([, v]) => v > 0);
   }
 
   function setSlotScore(user, unitId, slot, score) {
@@ -138,10 +160,10 @@ const Users = (() => {
   // VB6 IntUnScore: average of top-2 slot scores across all slots (0-6).
   // Returns 0 if fewer than 2 slots have been played (matches VB6 "If ScrS(0)=0 Then IntUnScore=0").
   function getTopTwoAvg(user, unitId) {
-    const data = load();
+    const scores = load()[user]?.scores || {};
     const played = [];
     for (let s = 0; s < 7; s++) {
-      const sc = data[user]?.scores?.[unitId + '_s' + s] ?? 0;
+      const sc = scores[slotKey(user, scores, unitId, s)] ?? 0;
       if (sc > 0) played.push(sc);
     }
     played.sort((a, b) => b - a);
@@ -167,5 +189,5 @@ const Users = (() => {
   }
   publishTotals();
 
-  return { list, create, remove, getScore, setScore, getAverageScore, getSlotScore, setSlotScore, getTopTwoAvg, clearScores, publishTotals };
+  return { list, create, remove, getScore, setScore, getAverageScore, getSlotScore, setSlotScore, getTopTwoAvg, lessonScores, clearScores, publishTotals };
 })();
