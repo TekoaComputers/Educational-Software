@@ -12046,7 +12046,12 @@ function showNikod(state, slot, onClose) {
         pointerEvents: "none",
         fontFamily: "inherit",
     });
-    koter.textContent = slot.name || "";
+    // Title = the .MAS header's path name (line 5, s$ — what PutGFile
+    // loads before niko), NOT the CHBOX<rama>.INI list label. The INI
+    // labels are stale in several apps: Brahot's read "- א"/"- ב",
+    // Shabat's are copies of Yeled's ("בגן הילדים - א"), Dvash's name
+    // unrelated Kesem lessons, Hagim's carry the .MAS number prefix.
+    koter.textContent = (slot.header && slot.header.pathName) || slot.name || "";
     box.appendChild(koter);
 
     // === Picture1 (summary panel) + picture2 (detail panel) ==============
