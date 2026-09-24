@@ -139,10 +139,10 @@ class Driver {
     return true;
   }
 
-  async waitGame(name, since, timeout = 15000) {
+  async waitGame(name, since, timeout = 15000, quiet = false) {
     const ok = await this.ctx.waitFor(a => window.__hndGame && window.__hndGame.game === a.name && window.__hndGame.startedAt >= a.since,
       timeout, { name, since });
-    if (!ok) this.ctx.finding('error', 'game did not start', `${name} (hook never registered)`);
+    if (!ok && !quiet) this.ctx.finding('error', 'game did not start', `${name} (hook never registered)`);
     return ok;
   }
 
@@ -288,10 +288,11 @@ class Driver {
     await this.audioSince();
     const t0 = await this.openSlot(u, slot);
     const game = name.split('-')[0];
-    if (!await this.waitGame(game, t0)) {
+    if (!await this.waitGame(game, t0, 15000, true)) {
       // Games legitimately refuse tiny units (american needs ≥4 items).
       const err = await this.ev(() => { const e = document.querySelector('.game-root .error'); return e && e.textContent; });
       if (err) ctx.finding('info', 'game refused unit', `${name}: ${err}`);
+      else ctx.finding('error', 'game did not start', `${name} (hook never registered, no error message)`);
       await ctx.shot(`u${u.id}-${name}-nostart`);
       return;
     }
@@ -317,6 +318,18 @@ class Driver {
     if (res && res.menuBadge != null && SLOT_KEYS[slot]) {
       const badge = await this.ev(s => { const e = document.querySelector(`.game-sign.k${s} .game-sign-score`); return e && e.textContent; }, slot);
       ctx.check(badge === String(res.menuBadge), 'menu score badge wrong', `${name}: badge=${badge} expected=${res.menuBadge}`);
+    }
+    // Once per run: after a finished Connect, sit in another screen past
+    // Connect's 50 s win-animation auto-exit — a timer that outlives its
+    // screen would yank us back to this unit's menu.
+    if (game === 'connect' && res && !this.staleTimerChecked && !ctx.quick) {
+      this.staleTimerChecked = true;
+      await this.hash(`#/${this.app}/unit/${u.id}/hakira`, 500);
+      const h0 = await this.ev(() => location.hash);
+      await this.sleep(53000);
+      const h1 = await this.ev(() => location.hash);
+      ctx.check(h1 === h0, 'stale timer navigated away', `left Connect, sat in ${h0}; 53 s later at ${h1}`);
+      await this.leaveGame(u);
     }
     // Chaos pass on a fresh copy of the game.
     await this.chaos(u, slot, game);
@@ -442,6 +455,22 @@ class Driver {
         ctx.check(after.penalty > s.penalty, 'match wrong row not penalised', `penalty ${s.penalty}→${after.penalty}`);
         wrongs++;
         await ctx.waitFor(() => __hndGame.state.gameEnabled, 3000);
+        // second mistake → hint threshold (ErrorForHint = 2 in all units):
+        // hint = the item's WhatToHint column, none when WhatToHint = 4
+        // (qDisabled).
+        const wrong2 = s.idStatus.findIndex((st, i) => st === 'notAnswered' && i !== s.qId && i !== wrong);
+        if (wrong2 >= 0) {
+          await this.clickEl(`.hat-line[data-row="${wrong2}"]`, { wait: 250 });
+          wrongs++;
+          await ctx.waitFor(() => __hndGame.state.gameEnabled, 3000);
+          const h = await this.ev(idx => {
+            const g = __hndGame;
+            return { shown: document.querySelector('.hat-hint').textContent, whatToHint: g.cal.whatToHint,
+              hintText: g.items[idx][g.cal.hintCol] || '' };
+          }, origIdx);
+          if (h.whatToHint === 4) ctx.check(!h.shown, 'match shows a hint although hints are disabled', `unit ${u.id}: WhatToHint=4 but hint "${h.shown}"`);
+          else ctx.check(h.shown === 'רמז: ' + h.hintText || !h.hintText, 'match hint wrong', `shown "${h.shown}" expected "${h.hintText}"`);
+        }
         await ctx.shot(`u${u.id}-match-wrong`);
       }
       await this.clickEl(`.hat-line[data-row="${s.qId}"]`, { wait: 150 });
@@ -452,7 +481,9 @@ class Driver {
     }
     const fin = await ctx.waitFor(() => __hndGame.state.completed, 15000);
     ctx.check(fin, 'match did not finish', 'all rows answered but game not completed');
-    const expected = Math.max(0, 100 - Math.floor(Math.min(60, wrongs * 20 / Q)));
+    let pen = 0;
+    for (let i = 0; i < wrongs; i++) pen = Math.min(60, pen + 20 / Q);   // same float steps as the game
+    const expected = Math.max(0, 100 - Math.floor(pen));
     await this.checkScoreForm(`u${u.id}-${key}`, expected, key, Q);
     return { menuBadge: key === 'hatamaplus' ? null : expected };
   }
@@ -508,10 +539,11 @@ class Driver {
     const { ctx } = this;
     await this.clickEl('.hak-typing', { wait: 300 });      // "click to start"
     const info = await this.ev(() => ({ Q: __hndGame.QCount }));
-    let penaltyExpected = 0, clean = true;
+    let penaltyExpected = 0, clean = true, played = 0;
     for (let n = 0; n < info.Q; n++) {
       const ready = await ctx.waitFor(k => { const s = __hndGame.state; return s.completed || (s.gameEnabled && s.current === k); }, 20000, n);
       if (!ready) { ctx.finding('error', 'stuck', `haklada: question ${n + 1} never became typeable`); await ctx.shot('haklada-stuck'); return null; }
+      if (await this.ev(() => __hndGame.state.completed || __hndGame.state.current >= __hndGame.QCount)) break;
       const q = await this.ev(() => {
         const g = __hndGame, s = g.state;
         return { answer: s.answer, sel: s.selected.slice(), typed: s.typed.slice(), cur: s.currentChar,
@@ -544,6 +576,7 @@ class Driver {
       let k = 0;
       for (const ch of need) {
         const before = await this.ev(() => __hndGame.state.typed.filter(Boolean).length);
+        played++;
         await this.pressChar(ch, (k++ % 3 === 2) ? 'en' : 'he');
         await this.sleep(40);
         const after = await this.ev(() => ({ t: __hndGame.state.typed.filter(Boolean).length, c: __hndGame.state.current }));
@@ -555,8 +588,9 @@ class Driver {
     }
     const fin = await ctx.waitFor(() => __hndGame.state.completed, 20000);
     ctx.check(fin, 'haklada did not finish');
+    if (!played) { ctx.finding('info', 'no playable questions', `haklada ${key}: every answer empty — score not checked`); clean = false; }
     const expected = clean ? Math.max(0, 100 - Math.floor(penaltyExpected)) : null;
-    await this.checkScoreForm(`u${u.id}-${key}`, expected, key, info.Q);
+    await this.checkScoreForm(`u${u.id}-${key}`, expected, key, played ? info.Q : null);
     return { menuBadge: expected };
   }
 
@@ -573,6 +607,7 @@ class Driver {
         if (cur > n) { n = cur - 1; continue; }        // skipped (empty answer)
         ctx.finding('error', 'stuck', `apple: question ${n + 1} never became typeable`); await ctx.shot('apple-stuck'); return null;
       }
+      if (await this.ev(() => __hndGame.state.completed || __hndGame.state.current >= __hndGame.QCount)) break;
       const q = await this.ev(() => {
         const g = __hndGame, s = g.state;
         return { answer: s.answer, sel: s.selected.slice(), filled: s.filled.slice(), cur: s.current,
@@ -587,7 +622,10 @@ class Driver {
       let errs = 0;
       if (n === 0) {
         // #35: a letter NOT in the answer must count as a mistake and fill nothing.
-        const wrongCh = Object.keys(HEB_CODE).find(c => !q.data.includes(c) && HEB_CODE[c] !== 'Period' && HEB_CODE[c] !== 'Comma');
+        // wrong in BOTH layouts: neither the Hebrew letter nor the latin
+        // letter on the same physical key may occur in the answer
+        const lat = c => (/^Key([A-Z])$/.exec(HEB_CODE[c]) || [])[1];
+        const wrongCh = Object.keys(HEB_CODE).find(c => !q.data.includes(c) && lat(c) && !q.data.toLowerCase().includes(lat(c).toLowerCase()));
         if (wrongCh) {
           await this.pressChar(wrongCh, 'en');
           await this.sleep(60);
@@ -623,7 +661,7 @@ class Driver {
       }
       if (bad.length) {
         // Only way out: burn the remaining wrong-key budget (8 errors → eat).
-        const pool = Object.keys(HEB_CODE).filter(c => !q.data.includes(c) && !['Period', 'Comma'].includes(HEB_CODE[c]));
+        const pool = Object.keys(HEB_CODE).filter(c => !q.data.includes(c) && /^Key/.test(HEB_CODE[c]) && !q.data.toLowerCase().includes(HEB_CODE[c].slice(3).toLowerCase()));
         for (const c of pool) {
           if (await this.ev(k2 => __hndGame.state.current !== k2 || !__hndGame.state.gameEnabled, n)) break;
           await this.pressChar(c, 'en'); await this.sleep(40);
@@ -639,6 +677,7 @@ class Driver {
     // Drain formula: each basket drains (8 - errors) apples + 8-apple bonus.
     // A flawless game must score 100.
     let expected = null;
+    if (!errsPerQ.length) { ctx.finding('info', 'no playable questions', 'apple: every answer empty — score not checked'); clean = false; }
     if (clean) {
       const Q = info.Q;
       const perfect = errsPerQ.every(e => e === 0);
@@ -646,7 +685,7 @@ class Driver {
       else expected = Math.min(100, Math.round(errsPerQ.reduce((a, e) => a + (8 - e > 0 ? 16 - e : 0), 0) * 100 / Q / 16));
     }
     const baskets = await this.ev(() => __hndGame.state.baskets.slice());
-    ctx.check(JSON.stringify(baskets) === JSON.stringify(errsPerQ), 'apple basket errors ≠ mistakes made',
+    if (errsPerQ.length) ctx.check(JSON.stringify(baskets) === JSON.stringify(errsPerQ), 'apple basket errors ≠ mistakes made',
       `baskets ${JSON.stringify(baskets)} vs made ${JSON.stringify(errsPerQ)}`, 'warn');
     await this.checkScoreForm(`u${u.id}-apple`, expected, 'apple', null);
     return { menuBadge: expected };
@@ -751,7 +790,8 @@ class Driver {
           const evs = await this.flushAudio('hakira');
           const side = st === 0 ? info.ask : info.ans;
           const want = new RegExp(`/wave/${pos}_${side}\\.`);
-          if (u.hasWaves) ctx.check(evs.some(e => e.ev === 'play' && want.test(e.src)), 'hakira step played no audio', `item ${pos} ${st === 0 ? 'question' : 'answer'} (${side})`);
+          const exists = await this.ev((p, sd) => HND.unitWaveExists({ data: { items: __hndGame.items } }, p, sd), pos, side);
+          if (u.hasWaves && exists) ctx.check(evs.some(e => e.ev === 'play' && want.test(e.src)), 'hakira step played no audio', `item ${pos} ${st === 0 ? 'question' : 'answer'} (${side})`);
         }
       }
       // wait for the item's audio to finish like a listening user would
@@ -789,6 +829,8 @@ class Driver {
       for (let i = 0; i < 14; i++) {
         const ch = ctx.pick(letters);
         pressed.push(ch);
+        const m = /^Key([A-Z])$/.exec(HEB_CODE[ch]);
+        if (m) pressed.push(m[1].toLowerCase(), m[1]);     // same physical key, English layout
         await this.pressChar(ch, ctx.rand() < 0.5 ? 'he' : 'en');
         await this.sleep(30);
       }
