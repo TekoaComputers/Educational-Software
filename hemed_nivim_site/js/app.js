@@ -837,7 +837,10 @@
     // has 0 AddScore / ScoreForm references) — excluded from the average.
     // Note: 'hatamaplus' is NOT in MaslulScores either — it shares Match's slot.
     function bestScoreFor(unit) {
-        const games = ["match", "american", "haklada", "apple", "connect"];
+        // Per-slot keys (American / Haklada score per mode) — the plain
+        // "american" / "haklada" keys are never written, so those games
+        // used to be missing from the unit-list average.
+        const games = HND.GAME_TYPES;
         let sum = 0, n = 0;
         games.forEach(function (g) {
             const p = HND.loadProgress(appId, unit.id, g);

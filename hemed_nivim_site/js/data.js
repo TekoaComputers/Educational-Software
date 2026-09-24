@@ -1366,7 +1366,12 @@ HND.deleteNewUnit = function (appId, unitId) {
 // One Tekoa activity per UNIT (lesson), not per sub-game. A unit is
 // considered "completed" once at least 2 of its 7 sub-games have been
 // scored (mirrors how the original treats a lesson as graded).
-HND.GAME_TYPES = ["american","apple","connect","hakira","haklada","hatamaplus","match"];
+// The progress keys games actually write — one per scoring game-menu
+// slot (HND.gameKey: American and Haklada score per mode). Hakira never
+// scores; hatamaplus has no menu sign. Same set the game menu averages
+// for its total, so unit list / menu / catalog agree.
+HND.GAME_TYPES = ["match", "american_sound", "american_pic", "american_text",
+                  "haklada_reg", "haklada_dict", "apple", "connect"];
 HND.MIN_GAMES_FOR_COMPLETION = 2;
 
 HND.publishProgressTotal = function (appId) {
