@@ -155,8 +155,10 @@
         }
         MKH.log("anim", "play", url);
 
-        const v = document.createElement("video");
-        v.src = url;
+        // opts.videoEl: an element the caller already preloaded (first
+        // frame decoded) so it paints the instant it is attached.
+        const v = opts.videoEl || document.createElement("video");
+        if (!opts.videoEl) v.src = url;
         v.autoplay = true;
         v.playsInline = true;
         v.style.cssText = "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;image-rendering:pixelated;z-index:100";
@@ -204,6 +206,7 @@
             sound.onEnd(() => { MKH.log("anim", "sound-ended-cut", url); finish(); });
         }
         stage.appendChild(v);
+        if (opts.videoEl) { const p = v.play(); if (p && p.catch) p.catch(() => {}); }
         return v;
     }
 
@@ -276,14 +279,14 @@
     // Ambient MIDI background music (from data/midi-blob.js) loops.
     // Play a list of (anim, sound) entries in sequence; call onAllDone
     // when the last one finishes. Empty list → call onAllDone immediately.
-    function playAnimSequence(stage, entries, onAllDone) {
+    function playAnimSequence(stage, entries, onAllDone, firstEl) {
         const list = (entries || []).filter(e => e && e.anim);
         if (list.length === 0) { if (onAllDone) onAllDone(); return; }
         let i = 0;
         function next() {
             if (i >= list.length) { if (onAllDone) onAllDone(); return; }
             const e = list[i++];
-            playAnim(stage, e.anim, { sound: e.sound || "", onEnd: () => {
+            playAnim(stage, e.anim, { sound: e.sound || "", videoEl: i === 1 ? firstEl : null, onEnd: () => {
                 // Remove the just-finished video so the next one in the
                 // sequence shows its first frame (m0.png shows through
                 // briefly between videos — fine because each anim starts
@@ -311,7 +314,49 @@
         "assets/animations/eff/fok5.mp4": [132, 68, 184, 108],
     };
 
-    function hub({ makeStage }) {
+    function hub({ makeStage }, preloaded) {
+        // Returning from a mini-game plays its return cutscene (m2/m4/m6/
+        // m8). If we tore the old screen down right away, the bare m0.png
+        // (kid standing at the start position) showed for the ~150-250 ms
+        // the <video> needs to decode its first frame, and then the kid
+        // "teleported" into the cutscene pose (issue #81). Instead keep
+        // the previous screen up until the first return frame is decoded,
+        // then swap in the hub with that frame already paintable.
+        let ret = null, retEntries = [];
+        if (!preloaded) {
+            ret = consumePendingReturn("m0");
+            if (ret) {
+                // ret may be an old string (single URL) or new list of entries
+                retEntries = Array.isArray(ret.anim)
+                    ? ret.anim
+                    : (typeof ret.anim === "string" && ret.anim ? [{ anim: ret.anim, sound: ret.sound || "" }] : []);
+                retEntries = retEntries.filter(e => e && e.anim);
+            }
+            if (retEntries.length) {
+                const pre = document.createElement("video");
+                pre.preload = "auto";
+                pre.muted = true;          // the anims carry no audio track
+                pre.playsInline = true;
+                pre.src = retEntries[0].anim;
+                const hash = location.hash;
+                let settled = false;
+                const go = () => {
+                    if (settled) return;
+                    settled = true;
+                    clearTimeout(timer);
+                    // The user navigated elsewhere while we waited.
+                    if (location.hash !== hash) return;
+                    hub({ makeStage }, { entries: retEntries, el: pre });
+                };
+                const timer = setTimeout(go, 1500);
+                pre.addEventListener("loadeddata", go, { once: true });
+                pre.addEventListener("error", go, { once: true });
+                pre.load();
+                return;
+            }
+        } else {
+            retEntries = preloaded.entries;
+        }
         MKH.log("screen", "hub");
         const stage = makeStage();
         stage.style.backgroundImage = "url('assets/screens/m0.png')";  // T0
@@ -473,16 +518,11 @@
             playAnim(stage, entry.anim, opts);
         }
 
-        const ret = consumePendingReturn("m0");
-        if (ret) {
-            // ret may be an old string (single URL) or new list of entries
-            const entries = Array.isArray(ret.anim)
-                ? ret.anim
-                : (typeof ret.anim === "string" && ret.anim ? [{ anim: ret.anim, sound: ret.sound || "" }] : []);
-            playAnimSequence(stage, entries, () => {
+        if (retEntries.length) {
+            playAnimSequence(stage, retEntries, () => {
                 stage.querySelectorAll("video").forEach(el => el.remove());
                 renderHotspots();
-            });
+            }, preloaded && preloaded.el);
         } else {
             renderHotspots();
         }
