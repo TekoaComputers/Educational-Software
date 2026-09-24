@@ -10034,6 +10034,17 @@ function enterStage(state) {
         (stage.gameNumber === 6 || stage.gameNumber === 7 || stage.gameNumber === 8)) {
         stage._origGameNumber = stage.gameNumber;
         stage.gameNumber = 3;
+    } else if (stage.gameNumber === 6 && appId !== "Kesem" && !state.config.screens.game6) {
+        // Dvash / EnglishB: Sst.frm Case 3, 6 → Games3 too (g1m = 1), so the
+        // stage IS a Games3 inspect stage — hotspots, lblToz, "next". Leaving
+        // gameNumber at 6 routed the screen to game3 but every per-game switch
+        // (hotspot renderer, click handler, scoring) fell through to game1:
+        // one live hotspot, clicks "ignored", no indicators — a dead stage.
+        // Unlike KolKoreC/D, these apps' LEV.BAS Ras_Wav keeps the real
+        // Game_Number, so the intro stays rasb_wav/<raz>_6.wav (_rasWavGn).
+        stage._origGameNumber = 6;
+        stage._rasWavGn = 6;
+        stage.gameNumber = 3;
     }
     const gameId = "game" + stage.gameNumber;
     // gameNumber 6 reuses game3 per Sst.frm Select Case in other apps too.
@@ -11058,13 +11069,14 @@ function playAudio(state, url, onEnded) {
 function playRasWav(state, onEnded) {
     const stage = state.activeStage;
     if (!stage) return;
-    const primaryRel = "rasb_wav/" + stage.razNom + "_" + stage.gameNumber + ".wav";
-    const fallbackRel = "wav/game" + stage.gameNumber + ".wav";
+    const gn = stage._rasWavGn || stage.gameNumber;
+    const primaryRel = "rasb_wav/" + stage.razNom + "_" + gn + ".wav";
+    const fallbackRel = "wav/game" + gn + ".wav";
     const base = state.config.assetsRoot;
     if (state.audioFiles && state.audioFiles.has(primaryRel)) {
         playAudio(state, base + "/" + primaryRel, onEnded);
     } else if (state.audioFiles && state.audioFiles.has(fallbackRel)) {
-        klog("Ras_Wav fallback → game" + stage.gameNumber + ".wav");
+        klog("Ras_Wav fallback → game" + gn + ".wav");
         playAudio(state, base + "/" + fallbackRel, onEnded);
     } else {
         klog("Ras_Wav missing entirely (neither " + primaryRel + " nor " + fallbackRel + ")");
