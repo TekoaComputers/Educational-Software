@@ -130,6 +130,13 @@
         // Path: #/maslul             → no song picked, only btnShir visible
         //       #/maslul/<n>         → song n picked, show maslul buttons
         const gameNomer = ctx.params.gameNomer ? +ctx.params.gameNomer : 0;
+        // The URL is the source of truth for the picked song. START,
+        // MILON and the sub-games read GameNomer from sessionStorage,
+        // which only btnShir_Click wrote — arriving at #/maslul/<n> any
+        // other way (browser Back/Forward, SOFER/START "return" links,
+        // a reload, a shared link) left the previous song in session, so
+        // the free route opened a DIFFERENT song than the one shown.
+        if (gameNomer > 0) sessionStorage.setItem("mikraot:gameNomer", String(gameNomer));
         const refs = { btnMsl1: [], btnShir: [], lblShm: [], lblAgdara: [], Label1: [] };
 
         MK.iterateInZOrder(layout.children, function (ctrl) {
