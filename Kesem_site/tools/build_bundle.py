@@ -10362,6 +10362,12 @@ function handleKey(e) {
         e.preventDefault();
         if (screen === "sst" || screen === "frmSel") {
             confirmExit(exitToLauncher);
+        } else if (screen && screen.indexOf("game") === 0 && currentSession.currentPath != null) {
+            // Esc on a game form IS picexi: same misger (working next/prev
+            // stage arrows + stage combo) and, on yes, the same scorelev
+            // snapshot + partial nikod board. The bare confirm below had
+            // dead arrows and dropped the user on Sst with no results (#56).
+            handleAction(currentSession.config.id, "back");
         } else {
             // game form / catalog — same flow as picexi (yes → back to Sst).
             confirmGameBack(
