@@ -9592,6 +9592,8 @@ function confirmGameBack(onYesExit, onNoCancel, onJumpTo) {
     // Original picexi_Click on every Games*.frm runs MMControl2.Command = "Close"
     // before showing Misgeret(). We mirror that: stop any chained audio so it
     // doesn't keep playing under the modal (and over the back-to-Sst flow).
+    // A correct-answer chain cut short here resumes on "no" (see runCorrectChain).
+    const resume = currentSession && currentSession._chainResume;
     stopAllAudio(currentSession);
 
     let stageList = [];
@@ -9612,7 +9614,10 @@ function confirmGameBack(onYesExit, onNoCancel, onJumpTo) {
         mode: "back",
         caption: "?לצאת מהמסלול",
         onYes: onYesExit,
-        onNo: onNoCancel || function () { /* stay */ },
+        onNo: function () {
+            if (onNoCancel) onNoCancel();
+            if (resume && currentSession && currentSession._chainResume === resume) resume();
+        },
         // Next-stage button — advance by 1.
         onNextStage: stageCount > 1 ? function () {
             if (onJumpTo) onJumpTo(Math.min(currentIdx + 1, stageCount - 1));
@@ -10182,6 +10187,7 @@ function initGameTurn(state, stage) {
     state.game2Revealed = {};      // Game 2: which hotspot covers have been removed this stage
     state.game4Revealed = {};      // Game 4: which red Label1 covers stay hidden after a correct placement
     state.inputLocked = false;     // cleared at every new stage so a back-out mid-chain doesn't pin the lock
+    state._chainResume = null;     // an interrupted correct chain never carries into another stage
     state._stageScore = { green: 0, yellow: 0, red: 0 };  // per-stage tally feeds nikod
     const n = stage.hotspots ? stage.hotspots.length : 0;
     state.maxTurn = Math.min(n, KOL_LBL_TOZAOT);
@@ -11211,8 +11217,26 @@ function playResponse(state, n, onEnded) {
 // We mirror that with state.inputLocked — onWrongClick + the per-game
 // hotspot handlers bail out while it's true, so a stray click during
 // the correct-answer celebration can't get logged as a wrong answer.
+//
+// The answer is already scored (markStageProgressAt) when the chain starts;
+// the step to the next question only runs at its end. picexi / Esc stop the
+// audio before showing the misger (MMControl2.Command = "Close"), which used
+// to kill the chain for good: after "no" the SAME question stayed live, the
+// user had to find it again, and it was scored a second time (a game1 stage
+// of 3 finished with 4 greens → 133% on the nikod board). In the original
+// the Timer loop just sees the MCI device stopped and moves on, so keep the
+// completion in state._chainResume for the misger "no" branch to run.
 function runCorrectChain(state, idx, onComplete) {
     state.inputLocked = true;
+    let finished = false;
+    function finish() {
+        if (finished) return;
+        finished = true;
+        if (state._chainResume === finish) state._chainResume = null;
+        state.inputLocked = false;
+        if (onComplete) onComplete();
+    }
+    state._chainResume = finish;
     let resp;
     if (state.wrongCount === 0)      resp = pickAlt(state, [1, 2]);
     else if (state.wrongCount < 3)   resp = pickAlt(state, [3, 4]);
@@ -11220,10 +11244,7 @@ function runCorrectChain(state, idx, onComplete) {
     klog("correct chain → Tguva " + resp + " → affirmation(" + idx + ") → mus → next");
     playResponse(state, resp, function () {
         playAffirmation(state, idx, function () {
-            playAudio(state, audioBase(state) + "/wav/mus.wav", function () {
-                state.inputLocked = false;
-                if (onComplete) onComplete();
-            });
+            playAudio(state, audioBase(state) + "/wav/mus.wav", finish);
         });
     });
 }
