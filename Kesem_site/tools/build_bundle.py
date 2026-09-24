@@ -10622,9 +10622,14 @@ function handleKey(e) {
         return;
     }
     if (e.key === " " || e.key === "Enter") {
-        // Only meaningful on game forms — replay the question audio.
+        // Only meaningful on game forms — replay the question audio. It is
+        // the keyboard twin of act1(0) (btnGolos), which Games*.frm Timer1
+        // disables while MMControl2 plays: replaying over a correct answer's
+        // Tguva chain replaced the chain's onended, so inputLocked stayed
+        // set and every later click was dropped as "audio busy".
         if (screen && screen.indexOf("game") === 0 && currentSession.activeStage) {
             e.preventDefault();
+            if (audioBusy(currentSession)) { klog("key replay ignored — audio busy"); return; }
             replayStageAudio(currentSession);
         }
     }
