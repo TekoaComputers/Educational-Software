@@ -8571,6 +8571,21 @@ function fillPicture2Crop(state, pic2, idx) {
     const rect = state.activeStage.hotspots[idx - 1];
     if (!pic2 || !rect || !state.stageImg) return;
     pic2.innerHTML = "";
+    // Games4.frm Picture2 is AutoSize = -1: it takes the piece's own size.
+    // The .frm Width/Height (56×43, landscape) is only the design
+    // placeholder — stretching a portrait letter tile (e.g. EnglishA 4_3,
+    // 51×73) into it squashed the piece. Same on-screen scale as Picture1's
+    // image (like the game5 tiles), kept centred on the design box so a tall
+    // piece doesn't run off the bottom of the form.
+    const t = pic1Transform(state);
+    if (t) {
+        if (pic2._designBox == null) pic2._designBox = { l: pic2.offsetLeft, t: pic2.offsetTop, w: pic2.offsetWidth, h: pic2.offsetHeight };
+        const d = pic2._designBox, w = rect.w * t.scale, h = rect.h * t.scale;
+        pic2.style.left = (d.l + (d.w - w) / 2) + "px";
+        pic2.style.top = (d.t + (d.h - h) / 2) + "px";
+        pic2.style.width = w + "px";
+        pic2.style.height = h + "px";
+    }
     const c = document.createElement("canvas");
     c.width = rect.w;
     c.height = rect.h;
