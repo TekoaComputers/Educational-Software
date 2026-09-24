@@ -57,6 +57,11 @@ HND.startHakira = function (root, app, unit, onComplete) {
     const ansSide = cal.ansSide;
     const hintCol = cal.hintCol && cal.hintCol !== askCol && cal.hintCol !== ansCol
                   ? cal.hintCol : null;
+    // A picture hint (WhatToHint = qPicture) is a hint step of its own even
+    // when its caption column coincides with the Q/A text column — gating
+    // the step on hintCol alone meant picture hints were never drawn and
+    // the scroll kept the 2-rows-per-page picture spacing with nothing in it.
+    const hasHintStep = !!hintCol || cal.whatToHint === 3;
 
     // Picture-mode adjustments (orig PlayGame:128-138):
     //   Any side = qPicture     → LinesIn = 3 (base picture-mode density)
@@ -64,7 +69,7 @@ HND.startHakira = function (root, app, unit, onComplete) {
     //   WhatToAnswer = qPicture → Middle = 70 (text shifted left, pic on right)
     //   WhatToAsk = qPicture    → Middle = 30 (text shifted right, pic on left)
     const anyPic = cal.whatToAsk === 3 || cal.whatToAnswer === 3 || cal.whatToHint === 3;
-    let LINES_IN = hintCol ? 6 : 12;
+    let LINES_IN = hasHintStep ? 6 : 12;
     if (anyPic)                 LINES_IN = 3;
     if (cal.whatToHint === 3)   LINES_IN = 2;
     let MIDDLE   = 50;     // default: askX=400, ansX=380
@@ -128,7 +133,8 @@ HND.startHakira = function (root, app, unit, onComplete) {
         firstClick: false,
     };
     HND._exposeTest("hakira", { state: state, items: items, cal: cal, askCol: askCol,
-                               ansCol: ansCol, hintCol: hintCol, linesIn: LINES_IN });
+                               ansCol: ansCol, hintCol: hintCol, linesIn: LINES_IN,
+                               hasHintStep: hasHintStep });
 
     function sharedWave(name) {
         return "assets/" + app.id + "/sounds/" + name;
@@ -345,7 +351,7 @@ HND.startHakira = function (root, app, unit, onComplete) {
             if (HND.unitWaveExists(unit, origIdx, "left")) {
                 HND.playWave(HND.unitWavePath(app.id, unit.id, origIdx, ansSide));
             }
-            if (hintCol) {
+            if (hasHintStep) {
                 state.lineStatus = 2;
             } else {
                 advanceItem();
@@ -355,7 +361,7 @@ HND.startHakira = function (root, app, unit, onComplete) {
             // Case 2: hint text vbCenter, Y = QA_Y + 35. No wave.
             // Picture-mode: pic at X=300, Y = base + 80 (orig:436), text
             // shifts to right-justify at picX+150 / Y+70 = +150.
-            const hintText = it[hintCol] || "";
+            const hintText = hintCol ? (it[hintCol] || "") : "";
             if (!drawRowWithMaybePic({
                 role: "hint", idx: origIdx, Y: Y + 80,
                 cls: "hakira-hint", justify: "center",
