@@ -851,6 +851,9 @@ const CONFIGS = {
         game2:  { layoutFile: "data/layout/_shared/games2.json", background: "assets/Kesem/menu/masah.png",  designSize: [640, 480], images: { picexi: "assets/Kesem/menu/hetz7.png" } },
         game3:  { layoutFile: "data/layout/_shared/games3.json", background: "assets/Kesem/menu/masah.png",  designSize: [640, 480], images: {
             picexi: "assets/Kesem/menu/hetz7.png",
+            // Hak ("radio") panel background — same screen2.bmp every other
+            // Kesem-suite app binds; without it the panel was see-through.
+            Picture22: "assets/Kesem/menu/screen2.png",
             wa: [
                 "assets/Kesem/menu/playb1.png", "assets/Kesem/menu/rec1.png",
                 "assets/Kesem/menu/playc1.png", "assets/Kesem/menu/playa1.png",

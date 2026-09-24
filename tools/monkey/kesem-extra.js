@@ -28,7 +28,9 @@ async function hakDeep(k, tag) {
   if (!ctx.check(await vis('.frm-ctrl--Picture22'), 'hak panel does not open', tag)) return;
   // The name wav starts on open. While it plays, hammering wa(0) (replay
   // name) / wa(3) / dif must not restart or stack audio (#67).
-  const busy = await k.eval(() => { const s = window.__km.snap(); return s.busy; });
+  // Play the name wav at normal speed for this check (at ×16 a short word
+  // ends between two clicks, and a replay after it ends is legitimate).
+  const busy = await k.eval(() => { const a = window.__kesemSession._audio; if (a) a.playbackRate = 1; return window.__km.snap().busy; });
   if (busy) {
     const t1 = ctx.traceLen();
     // Only clicks made while the wav is still playing count (a short wav at
@@ -39,6 +41,8 @@ async function hakDeep(k, tag) {
     }
     ctx.check(plays(k, t1) === 0 || !(await k.eval(() => window.__km.snap().busy)) && plays(k, t1) <= 1, 'hak: replay button restarts audio while it is still playing', `${tag}: ${plays(k, t1)} restarts from 3 clicks on wa(0) during the name wav`);
   }
+  const bg = await k.eval(() => { const p = document.querySelector('.frm-ctrl--Picture22'); const im = p && p.querySelector(':scope > img.frm-img'); return !!(im && im.naturalWidth) || (p && getComputedStyle(p).backgroundImage !== 'none'); });
+  ctx.check(bg, 'hak panel has no background (screen2)', tag);
   await ctx.checkImages();
   await ctx.shot(`${tag}-hak`);
   await k.waitIdle();
