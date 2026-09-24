@@ -301,7 +301,8 @@ const Game = (() => {
         row.addEventListener('click', () => handleRowClick(i));
         row.addEventListener('mouseenter', () => handleRowHover(i, true));
         row.addEventListener('mouseleave', () => handleRowHover(i, false));
-        row.addEventListener('touchstart', () => handleRowClick(i), { passive: true });
+        // No separate touchstart handler: a tap already produces this click, and
+        // answering on both counted every tap twice (double penalty per miss).
       }
 
       elRows.appendChild(row);
