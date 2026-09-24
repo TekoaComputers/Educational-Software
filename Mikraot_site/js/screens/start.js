@@ -189,7 +189,11 @@
             if (ctrl.name === "Picture1" || ctrl.name === "Picture2") {
                 const node = MK.el("div", { class: "ctrl no-click", style: style });
                 node.style.background = "transparent";
-                node.style.overflow = "visible";
+                // A VB6 PictureBox clips its picture to the box. Letting
+                // it overflow drew txt<n>p.bmp (425 px tall, box 333) as a
+                // white slab over the book's frame and behind the bottom
+                // toolbar icons (the monkey's START screenshot).
+                node.style.overflow = "hidden";
                 const rel = ctrl.name === "Picture1" ? blankLeft : blankRight;
                 if (rel) {
                     const img = MK.el("img", {
