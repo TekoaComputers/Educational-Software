@@ -39,6 +39,8 @@ const DEFAULTS = {
   chaosClicks: 25,
   sideScreens: true,
   extra: null,           // async k => app-specific side screens (after the main loop)
+  patch: null,           // k => void: override Kesem methods for app-specific Sst
+                         // layouts (selectRama, enterPath, lampIndex, visiblePaths)
   finalExit: true,       // end by confirming exit → must land on the launcher
   videoWatchMs: 1200,    // how long to let a video play before closing (quick / seret)
   stuckMs: 30000,        // no progress for this long ⇒ "stuck"
@@ -296,15 +298,31 @@ class Kesem {
     return true;
   }
 
+  /** btnLamp data-index that shows path i's score (KolKoreB: star pane). */
+  lampIndex(i) { return i; }
+
+  /** Path indices whose start control is visible on the current Sst. */
+  visiblePaths() {
+    return this.eval(() => [...document.querySelectorAll('.frm-ctrl--btnIcon')].filter(e => getComputedStyle(e).display !== 'none').map(e => +e.dataset.index));
+  }
+
+  /** Click whatever starts path i on the current rama; false if no control. */
+  async enterPath(i) {
+    const btnIdx = await this.eval(ix => [...document.querySelectorAll('.frm-ctrl--btnIcon')].findIndex(e => +e.dataset.index === ix), i);
+    if (btnIdx < 0) return false;
+    await this.tap('.frm-ctrl--btnIcon', btnIdx, 400);
+    return true;
+  }
+
   async lampState(i) {
-    return this.eval((ix, app) => {
+    return this.eval((ix, app, slot) => {
       const el = [...document.querySelectorAll('.frm-ctrl--btnLamp')].find(e => +e.dataset.index === ix);
       const s = window.__kesemSession;
-      const done = !!((window.__km.ls(app).completed[String(s.rama)] || {})[String(ix)]);
+      const done = !!((window.__km.ls(app).completed[String(s.rama)] || {})[String(slot)]);
       if (!el) return { exists: false, done };
       const im = el.querySelector('img');
       return { exists: true, done, shown: getComputedStyle(el).display !== 'none', src: im ? im.getAttribute('src') : '' };
-    }, i, this.app);
+    }, this.lampIndex(i), this.app, i);
   }
 
   // ----------------------------------------------------------------- play
@@ -616,10 +634,7 @@ class Kesem {
     const ctx = this.ctx;
     const tag = `r${r}p${i + 1}`;
     ctx.step(`${tag}/enter`);
-    const before = await this.snap();
-    const btnIdx = await this.eval(ix => [...document.querySelectorAll('.frm-ctrl--btnIcon')].findIndex(e => +e.dataset.index === ix), i);
-    if (btnIdx < 0) { ctx.finding('error', 'no btnIcon for path', `${tag} (${name})`); return; }
-    await this.tap('.frm-ctrl--btnIcon', btnIdx, 400);
+    if (!(await this.enterPath(i))) { ctx.finding('error', 'no btnIcon for path', `${tag} (${name})`); return; }
     const started = await ctx.waitFor(() => { const s = window.__km.snap(); return s.ov === 'video' || /^game/.test(s.screen || ''); }, 8000);
     if (!started) { ctx.finding('error', 'path did not start', `${tag} (${name}) screen=${(await this.snap()).screen}`); await ctx.shot(`${tag}-nostart`); return; }
     const res = await this.playPath(tag, { wrongs, chaos });
@@ -643,7 +658,7 @@ class Kesem {
     ctx.check((await this.snap()).rama === r, 'rama changed after path', `${tag}: rama now ${(await this.snap()).rama}`);
     // Lamp → saved board replay must show the same numbers.
     if (lamp.exists && lamp.shown && this.o.sideScreens && (i === 0 || !ctx.quick)) {
-      const li = await this.eval(ix => [...document.querySelectorAll('.frm-ctrl--btnLamp')].findIndex(e => +e.dataset.index === ix), i);
+      const li = await this.eval(ix => [...document.querySelectorAll('.frm-ctrl--btnLamp')].findIndex(e => +e.dataset.index === ix), this.lampIndex(i));
       await this.tap('.frm-ctrl--btnLamp', li, 400);
       const ok = await ctx.waitFor(() => !!document.querySelector('.nikod-overlay'), 4000);
       if (ctx.check(ok, 'lamp click shows no score board', tag)) {
@@ -762,8 +777,7 @@ class Kesem {
     const ctx = this.ctx;
     const tag = `r${r}p${i + 1}-picexi`;
     ctx.step(tag);
-    const btnIdx = await this.eval(ix => [...document.querySelectorAll('.frm-ctrl--btnIcon')].findIndex(e => +e.dataset.index === ix), i);
-    await this.tap('.frm-ctrl--btnIcon', btnIdx, 400);
+    await this.enterPath(i);
     await ctx.waitFor(() => { const s = window.__km.snap(); return s.ov === 'video' || /^game/.test(s.screen || ''); }, 8000);
     if ((await this.snap()).ov === 'video') await this.video(`${tag}-intro`, { watch: 300 });
     let s = await this.snap();
@@ -840,6 +854,7 @@ async function runApp(ctx, app, overrides = {}) {
   const o = Object.assign({}, DEFAULTS, overrides);
   const k = new Kesem(ctx, app, o);
   k._completed = new Set();
+  if (o.patch) o.patch(k);
   await ctx.page.evaluateOnNewDocument(pageInit, o.rate);
   ctx.step('boot');
   await ctx.goto(`Kesem_site/index.html#/${app}`, 1200);
@@ -866,7 +881,7 @@ async function runApp(ctx, app, overrides = {}) {
     await ctx.checkImages();
     await ctx.shot(`sst-rama${r}`);
     const slots = await k.eval(() => { const s = window.__kesemSession; const sl = (s.paths.ramas[String(s.config.activityRamaPin || s.rama)] || {}).slots || []; return sl.map(x => ({ name: x.name || x.masFile, n: (x.stages || []).length })); });
-    const nIcons = await k.eval(() => [...document.querySelectorAll('.frm-ctrl--btnIcon')].filter(e => getComputedStyle(e).display !== 'none').map(e => +e.dataset.index));
+    const nIcons = await k.visiblePaths();
     let idx = o.slots ? o.slots(r, slots) : slots.map((_, i) => i).filter(i => slots[i].n > 0);
     for (const i of slots.map((_, j) => j)) if (!slots[i].n && nIcons.includes(i)) ctx.finding('info', 'path has no stages', `r${r}p${i + 1} ${slots[i].name}`);
     idx = idx.filter(i => { if (!nIcons.includes(i)) { ctx.finding('warn', 'path without visible btnIcon', `r${r}p${i + 1}`); return false; } return true; });
