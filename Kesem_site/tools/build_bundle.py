@@ -1445,7 +1445,9 @@ function kesemPromptString(opts, onResult) {
     });
     const no = document.createElement("button");
     no.textContent = opts.cancelLabel || "no";
-    Object.assign(no.style, ok.style);
+    // Copy ok's look. (Object.assign(no.style, ok.style) walks the
+    // CSSStyleDeclaration's indexed entries and throws in Chromium.)
+    no.style.cssText = ok.style.cssText;
     btns.appendChild(ok); btns.appendChild(no);
     box.appendChild(btns);
     overlay.appendChild(box);
