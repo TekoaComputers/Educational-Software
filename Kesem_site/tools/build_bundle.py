@@ -5558,6 +5558,9 @@ function openBookChapter(state, chapter) {
                 const stages = entry.stages;
                 let ax = 0, bx = 0, cx = 0, dX = 0;
                 stages.forEach(function (s) {
+                    // pathScore is sparse (no entry for game3 inspect stages);
+                    // JSON turns the holes into null.
+                    if (!s) return;
                     ax += (s.total  || 0);
                     bx += (s.green  || 0);
                     cx += (s.yellow || 0);
