@@ -609,20 +609,14 @@ HND.startAmerican = function (root, app, unit, onComplete) {
         // QASwitched flag is on; falls through to plain gameX.wav.
         const suffix = (window.HND_QASwitched ? "Fliped" : "") + ".wav";
         const wavName = "game" + (5 + kindOfGame) + suffix;
+        // game6/7 (+Fliped) were never shipped: pick the fallback up front
+        // (orig `If Exist(...)`). The old "retry game5 500 ms later if the
+        // primary 404'd" fired AFTER initQuestion had started the question
+        // wave, so in by-sound mode (game7 → 404) game5 cut the question's
+        // audio off — the one mode where the audio IS the question.
         const primary = "assets/" + app.id + "/sounds/" + wavName;
         const fallback = "assets/" + app.id + "/sounds/game5.wav";
-        const playOnce = function (url, onEnd) {
-            HND.playWave(url, onEnd);
-            // If url 404s, _missingWaves cache will reflect that on next
-            // play — try fallback after a short pause.
-            setTimeout(function () {
-                if (HND._missingWaves && HND._missingWaves[url] && url !== fallback) {
-                    HND.playWave(fallback, hide);
-                }
-            }, 500);
-        };
-        if (primary === fallback) HND.playWave(primary, hide);
-        else                       playOnce(primary, hide);
+        HND.playWave(HND.sharedSoundExists(wavName) ? primary : fallback, hide);
         setTimeout(hide, 8000);   // hard cap if wave never ends
     }
 

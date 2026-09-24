@@ -102,8 +102,31 @@ HND.restartGame = function (appId, unitId, game) {
     requestAnimationFrame(function () { location.hash = gameRoute; });
 };
 
+// Orig VB6 guards every play with `If Exist(path) Then PlayWave`. Mirror
+// it without a network round trip: shared sounds shipped per app (both
+// apps ship the same set — game3/6/7 were never shipped), and per-item
+// unit waves via the port-time manifest (item._waves). A request for a
+// file we know is absent 404s into the console (and the feedback
+// widget's captured log) and, worse, fires its error callback late.
+HND.SHARED_SOUNDS = ["game0", "game1", "game2", "game4", "game5", "game8",
+    "good1", "good2", "good3", "good4", "ra", "ra2", "sample",
+    "score_0", "score_60", "score_70", "score_80", "score_90",
+    "smallgood", "tic", "vol", "win"];
+HND.sharedSoundExists = function (name) {
+    return HND.SHARED_SOUNDS.indexOf(String(name).replace(/\.wav$/i, "").toLowerCase()) !== -1;
+};
+HND.waveKnownMissing = function (url) {
+    const s = /assets\/[A-Za-z]+\/sounds\/([\w]+)\.wav$/i.exec(url);
+    if (s) return !HND.sharedSoundExists(s[1]);
+    const m = /data\/([A-Za-z]+)\/unit_(\d+)\/wave\/(\d+)_(left|right|hint)\.wav$/i.exec(url);
+    if (!m) return false;
+    const units = HND._loaded && HND._loaded[m[1]];
+    const u = units && units.find(function (x) { return String(x.id) === m[2]; });
+    return !!u && !HND.unitWaveExists(u, parseInt(m[3], 10), m[4]);
+};
+
 HND.playWave = function (url, onEnded) {
-    if (HND._missingWaves[url]) {
+    if (HND._missingWaves[url] || HND.waveKnownMissing(url)) {
         if (onEnded) onEnded();
         return;
     }

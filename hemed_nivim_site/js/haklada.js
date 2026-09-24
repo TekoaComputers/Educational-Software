@@ -660,27 +660,11 @@ HND.startHaklada = function (root, app, unit, onComplete) {
         // PlayWave game2.wav` fallback. Our shared sounds dir only has
         // game2.wav (game3 is the per-unit variant and our port doesn't
         // ship those), so dictation also rolls back to game2.
-        const playFb = function (url, fb) {
-            if (HND._missingWaves && HND._missingWaves[url]) {
-                HND.playWave(fb, hide);
-            } else {
-                HND.playWave(url, function () { hide(); });
-                // If the primary URL 404s, the playWave error cache will
-                // catch it; trigger fallback on next user gesture. For
-                // simplicity here just attempt fallback after 500ms if
-                // hide hasn't fired (wave never started).
-                setTimeout(function () {
-                    if (helpEl && helpEl.style.display !== "none" &&
-                        HND._missingWaves && HND._missingWaves[url]) {
-                        HND.playWave(fb, hide);
-                    }
-                }, 500);
-            }
-        };
-        const primary  = sharedWave(DICTATION ? "game3.wav" : "game2.wav");
-        const fallback = sharedWave("game2.wav");
-        if (primary === fallback) HND.playWave(primary, hide);
-        else                       playFb(primary, fallback);
+        // game3.wav was never shipped — pick the fallback up front (orig
+        // `If Exist(...) Else PlayWave game2.wav`) instead of requesting a
+        // 404 first.
+        const name = (DICTATION && HND.sharedSoundExists("game3")) ? "game3.wav" : "game2.wav";
+        HND.playWave(sharedWave(name), hide);
         setTimeout(hide, 8000);
     }
 
