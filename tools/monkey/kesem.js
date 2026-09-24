@@ -38,6 +38,7 @@ const DEFAULTS = {
   chaosEvery: 5,         // every Nth played path gets a chaos burst (0 = never)
   chaosClicks: 25,
   sideScreens: true,
+  lampCheck: true,       // after every rama switch, lit lamps must match that rama's completions
   extra: null,           // async k => app-specific side screens (after the main loop)
   patch: null,           // k => void: override Kesem methods for app-specific Sst
                          // layouts (selectRama, enterPath, lampIndex, visiblePaths)
@@ -295,6 +296,7 @@ class Kesem {
       if (has) this.ctx.finding('error', 'rama tab did not switch', `clicked Icon_s[${r - 1}], rama=${s.rama}`);
       return false;
     }
+    if (this.o.lampCheck) await this.checkLamps(r);
     return true;
   }
 
@@ -312,6 +314,22 @@ class Kesem {
     if (btnIdx < 0) return false;
     await this.tap('.frm-ctrl--btnIcon', btnIdx, 400);
     return true;
+  }
+
+  /** Lit lamps on Sst must be exactly the current rama's completed paths. */
+  async checkLamps(r) {
+    if (this.app === 'KolKoreB') return;   // lamps there track the selected btnIcon (cHos), not slot i
+    const bad = await this.eval(app => {
+      const s = window.__kesemSession;
+      const done = window.__km.ls(app).completed[String(s.rama)] || {};
+      return [...document.querySelectorAll('.frm-ctrl--btnLamp')].map(el => {
+        const im = el.querySelector('img');
+        const lit = getComputedStyle(el).display !== 'none' && !!im && /lamp2/i.test(im.getAttribute('src') || '');
+        return { i: +el.dataset.index, lit, done: !!done[el.dataset.index] };
+      }).filter(x => x.lit !== x.done);
+    }, this.app);
+    this.ctx.check(!bad.length, 'lamps do not match rama completions',
+      `rama ${r}: ${bad.map(b => `lamp ${b.i} ${b.lit ? 'lit' : 'dark'} but path ${b.done ? 'completed' : 'not completed'}`).join('; ')}`);
   }
 
   async lampState(i) {
@@ -508,6 +526,12 @@ class Kesem {
 
   async playInspect(tag, s) {
     const ctx = this.ctx;
+    // A chaos burst can leave the hak panel open (Picture22 over a hidden
+    // Spic1) — close it like a user would before inspecting.
+    if (await this.eval(() => window.__km.visible('.frm-ctrl--Picture22'))) {
+      await this.waitIdle();
+      await this.tap('.frm-ctrl--wa[data-index="4"]', 0, 500);
+    }
     // #63: several hotspots clicked in quick succession must not talk over
     // each other (checked by the overlapping-audio tracker).
     await this.waitIdle();

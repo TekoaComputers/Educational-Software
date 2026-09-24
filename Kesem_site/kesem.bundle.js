@@ -243,6 +243,9 @@ const CONFIGS = {
     tafroshFile: "data/tafrosh/EnglishA.json",
     defaultRama: 1,
     maxRama: 2,
+    // Catalog progress counts only the paths the Sst offers (see
+    // kesemProgressTotal in tools/build_bundle.py).
+    progressSlots: { "1": true, "2": true },
     bgRamaMax: 2,
     act1Images: {
         default: {
@@ -311,6 +314,9 @@ const CONFIGS = {
     tafroshFile: "data/tafrosh/EnglishB.json",
     defaultRama: 1,
     maxRama: 3,
+    // Catalog progress counts only the paths the Sst offers (see
+    // kesemProgressTotal in tools/build_bundle.py).
+    progressSlots: { "1": true, "2": true, "3": true },
     bgRamaMax: 3,
     act1Images: {
         default: {
@@ -389,6 +395,10 @@ const CONFIGS = {
     tafroshFile: "data/tafrosh/EnglishC.json",
     defaultRama: 1,
     maxRama: 3,
+    // Catalog progress counts only the paths the Sst offers (see
+    // kesemProgressTotal in tools/build_bundle.py); rama 1/2 hide filler
+    // btnIcon 4/9 (applyEnglishCRamaLayout).
+    progressSlots: { "1": [0, 1, 2, 3, 5, 6, 7, 8], "2": [0, 1, 2, 3, 5, 6, 7, 8], "3": true },
     bgRamaMax: 3,
     act1Images: {
         default: {
@@ -2399,6 +2409,7 @@ function showApp(appId) {
         wireSstLamps(state);
         if (state.config.id === "EnglishC") applyEnglishCRamaLayout(state);
         if (state.config.id === "KolKoreA") applyKolKoreARamaLayout(state);
+        keepSstImagesLoading(state);
         if (state.config.id === "KolKoreB") {
             // refreshRamaImages wiped the temC selected sprite back to tem;
             // also the star previews need to reload (rama-specific maslul
@@ -2516,6 +2527,7 @@ function onScreenChange(state, screenId) {
         if (state.config.flipBook) wireFlipBookAnimation(state);
         if (state.config.id === "EnglishC") applyEnglishCRamaLayout(state);
         if (state.config.id === "KolKoreA") applyKolKoreARamaLayout(state);
+        keepSstImagesLoading(state);
         if (state.config.id === "KolKoreB") {
             wireKolKoreBRamaToggle(state);
             // Apply the initial KolKoreB selection (sticky across screen
@@ -2954,6 +2966,29 @@ function applyKolKoreARamaLayout(state) {
             lampEl.style.left = (ov.left + 5) + "px";
         }
     }
+}
+
+// Rama tabs swap every btnIcon/background <img>.src at once. Changing an
+// <img>'s src aborts its in-flight download, so on a slow connection a
+// user flipping tabs faster than the thumbnails arrive never lets any of
+// them finish — the old rama's pictures stay on screen and the tabs look
+// dead (#83 "when swapping too fast images stop swapping"). Mirror every
+// visible Sst image into a detached Image() that nothing ever re-points,
+// so each download runs to completion and the next visit is a cache hit.
+// Only URLs the screen is actually showing are mirrored (hidden slots such
+// as EnglishC btnIcon 4/9 have no src), so no extra requests or 404s.
+function keepSstImagesLoading(state) {
+    if (!state || !state.stage) return;
+    const keep = state._sstImgKeep || (state._sstImgKeep = new Map());
+    const imgs = [state.bg].concat([].slice.call(state.stage.querySelectorAll("img")));
+    imgs.forEach(function (img) {
+        if (!img || img.complete) return;
+        const src = img.getAttribute("src");
+        if (!src || keep.has(src)) return;
+        const pre = new Image();
+        pre.src = src;
+        keep.set(src, pre);
+    });
 }
 
 // EnglishC Sst.Icon_s_Click reshuffles the activity grid per rama:
@@ -9998,7 +10033,14 @@ function playVideo(url, opts) {
         window.removeEventListener("resize", onResize);
         if (opts.onClose) opts.onClose();
     }
-    function onKey(e) { if (e.key === "Escape") dismiss(); }
+    function onKey(e) {
+        if (e.key !== "Escape") return;
+        // Consume it — see showNikod's onKey: otherwise handleKey also runs
+        // the underlying screen's Escape (exit confirm / picexi misger).
+        e.preventDefault();
+        e.stopPropagation();
+        dismiss();
+    }
 
     close.addEventListener("click", function () { klog("CLICK video close (Label1)"); dismiss(); });
     // GoMovie_Done in original: when video reaches end, btnStop_Click → Unload.
@@ -10109,9 +10151,15 @@ function enterStage(state) {
     // sees a consistent value. Other apps that dispatch Case 6 → Games3
     // keep gameNumber=6 and fall through to the (gameNumber===6 ? "game3")
     // fallback below; their LEV.BAS doesn't remap audio paths.
+    // EnglishB has one gameNumber-6 stage (r1 "3. אני ואתה", razNom 3_2):
+    // its .RAS hotspots are Games3 inspect items ("חקירה") with wav/3_2/1..10,
+    // and the only Ras_Wav shipped for it is rasb_wav/3_2_3.wav — the file
+    // the exe asks for when 6 is read as 3. Left as 6 it routed to the game3
+    // screen but no hotspot renderer handles 6: nothing was clickable, no
+    // indicators, no prompt, and the stage stored a 0/total score.
     const stage = Object.assign({}, stageRaw);
     const appId = state.config.id;
-    if ((appId === "KolKoreC" || appId === "KolKoreD") &&
+    if ((appId === "KolKoreC" || appId === "KolKoreD" || appId === "EnglishB") &&
         (stage.gameNumber === 6 || stage.gameNumber === 7 || stage.gameNumber === 8)) {
         stage._origGameNumber = stage.gameNumber;
         stage.gameNumber = 3;
@@ -10751,6 +10799,21 @@ function fillPicture2Crop(state, pic2, idx) {
     const rect = state.activeStage.hotspots[idx - 1];
     if (!pic2 || !rect || !state.stageImg) return;
     pic2.innerHTML = "";
+    // Games4.frm Picture2 is AutoSize = -1: it takes the piece's own size.
+    // The .frm Width/Height (56×43, landscape) is only the design
+    // placeholder — stretching a portrait letter tile (e.g. EnglishA 4_3,
+    // 51×73) into it squashed the piece. Same on-screen scale as Picture1's
+    // image (like the game5 tiles), kept centred on the design box so a tall
+    // piece doesn't run off the bottom of the form.
+    const t = pic1Transform(state);
+    if (t) {
+        if (pic2._designBox == null) pic2._designBox = { l: pic2.offsetLeft, t: pic2.offsetTop, w: pic2.offsetWidth, h: pic2.offsetHeight };
+        const d = pic2._designBox, w = rect.w * t.scale, h = rect.h * t.scale;
+        pic2.style.left = (d.l + (d.w - w) / 2) + "px";
+        pic2.style.top = (d.t + (d.h - h) / 2) + "px";
+        pic2.style.width = w + "px";
+        pic2.style.height = h + "px";
+    }
     const c = document.createElement("canvas");
     c.width = rect.w;
     c.height = rect.h;
@@ -10919,9 +10982,21 @@ function tickGame5Timer(state) {
 // paintHotspots → setupGame5AuxUI → fresh timer.
 function restartGame5Stage(state) {
     if (!state.activeStage) return;
+    // `Unload games5` runs Form_Unload → scorelev for the timed-out attempt
+    // (snapStageScore keeps the better of attempts); `games5.Show 1` then
+    // starts a fresh Form_Load with zeroed counters and dark lblToz. Without
+    // this reset the answers from before the timeout were tallied again on
+    // top of the new attempt (stage green > stage total, board > 100%).
+    snapStageScore(state);
+    state._stageScore = { green: 0, yellow: 0, red: 0 };
+    initStageIndicators(state);
     state.Pobeda = 0;
     state.wrongCount = 0;
     state.Tek_N = 1;
+    // Form_Load also puts PicTime back at its design Left, resets the speed
+    // selector and starts Timer1 again. setupGame5AuxUI only does that on a
+    // fresh stage entry, so forget the stage to make the repaint count as one.
+    state._game5LastStage = null;
     paintHotspots(state, state.activeStage);
     playGame5Prompt(state);
 }
@@ -12609,7 +12684,15 @@ function showNikod(state, slot, onClose) {
         teardown();
         if (onClose) onClose();
     }
-    function onKey(e) { if (e.key === "Escape" || e.key === "Enter") dismiss(); }
+    function onKey(e) {
+        if (e.key !== "Escape" && e.key !== "Enter") return;
+        // Consume the key: dismiss() lands on Sst synchronously, and the
+        // window-level handleKey would otherwise see the same Escape on Sst
+        // and pop the exit confirm on top (one key = two actions).
+        e.preventDefault();
+        e.stopPropagation();
+        dismiss();
+    }
     cmd1.addEventListener("click", dismiss);
     document.addEventListener("keydown", onKey);
     // Expose the no-callback teardown so the Label2 column-header click
@@ -12688,7 +12771,8 @@ function handleKey(e) {
     // the underlying screen's Esc action (fix for #65.1 "in all the
     // english games you can leave without confirming by pressing
     // escape again").
-    if (document.querySelector(".exit-modal, .misger-overlay")) return;
+    if (e.defaultPrevented) return;
+    if (document.querySelector(".exit-modal, .misger-overlay, .nikod-overlay, .video-overlay")) return;
     if (!currentSession) return;
     const screen = currentSession.currentScreen;
     const isKesem = currentSession.config.id === "Kesem";
@@ -12727,6 +12811,12 @@ function handleKey(e) {
         e.preventDefault();
         if (screen === "sst" || screen === "frmSel") {
             confirmExit(exitToLauncher);
+        } else if (screen && screen.indexOf("game") === 0 && currentSession.currentPath != null) {
+            // Esc on a game form IS picexi: same misger (working next/prev
+            // stage arrows + stage combo) and, on yes, the same scorelev
+            // snapshot + partial nikod board. The bare confirm below had
+            // dead arrows and dropped the user on Sst with no results (#56).
+            handleAction(currentSession.config.id, "back");
         } else {
             // game form / catalog — same flow as picexi (yes → back to Sst).
             confirmGameBack(
