@@ -11672,12 +11672,22 @@ function showHint(state) {
     if (!pic1) return;
     const stage = state.activeStage;
     const idx = (stage && stage.gameNumber === 4) ? state.Pr_N : state.Gg_N || state.targetHotspot;
-    const target = pic1.querySelector('.stage-hotspot[data-idx="' + idx + '"]');
+    // Game 2 has no .stage-hotspot buttons — its answer boxes are the
+    // .stage-cover tiles, so the hint used to silently not show there. Mark
+    // the target cover with the outline only: a translucent fill would
+    // uncover the picture patch the player is meant to find.
+    const hot = pic1.querySelector('.stage-hotspot[data-idx="' + idx + '"]');
+    const target = hot || pic1.querySelector('.stage-cover[data-idx="' + idx + '"]');
     if (!target) return;
-    target.style.background = "rgba(255, 255, 0, .4)";
+    if (hot) target.style.background = "rgba(255, 255, 0, .4)";
     target.style.outline = "3px solid #ff0";
-    setTimeout(function () {
-        target.style.background = "transparent";
+    // Every further wrong click re-shows the hint; restart ONE timer rather
+    // than stacking one per click — the earlier clicks' timers blanked the
+    // box while the player was still clicking (#70: "assistance blacks out").
+    if (state._hintTimer) clearTimeout(state._hintTimer);
+    state._hintTimer = setTimeout(function () {
+        state._hintTimer = null;
+        if (hot) target.style.background = "transparent";
         target.style.outline = "none";
     }, 1200);
 }
