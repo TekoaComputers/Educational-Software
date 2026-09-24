@@ -409,7 +409,9 @@ HND.startApple = function (root, app, unit, onComplete) {
     // Match VB6 RealChar — accepts Hebrew letters + ASCII letters + digits
     // (GamesMoudle.bas:534 — CharID > 47 And CharID < 58 includes 0-9).
     // Punctuation / control chars are filtered upstream by e.key.length===1.
-    function isLetter(c) { return /[֐-׿A-Za-z0-9]/.test(c); }
+    // Hebrew letter / Latin / digit (VB6 RealChar). Hebrew marks and
+    // punctuation (maqaf, geresh) are not keys the student can press.
+    function isLetter(c) { return HND.isTypeableLetter(c); }
 
     // Israeli Hebrew keyboard layout — physical key → Hebrew char (and
     // inverse). Matches the original's `Lang128 = Not Lang128` trick
@@ -591,12 +593,16 @@ HND.startApple = function (root, app, unit, onComplete) {
             state.current++;
             return initQuestion();
         }
-        state.answer = ansText;
+        // One cell per letter WITH its niqqud (HND.typingCells): niqqud
+        // code points used to be cells of their own that no key can fill,
+        // so a pointed answer could only end by losing all 8 apples.
+        const cells = HND.typingCells(ansText).cells;
+        state.answer = cells;
         state.selected = [];
         state.filled = [];
         let realCharCount = 0;
-        for (let i = 0; i < ansText.length; i++) {
-            const sel = isLetter(ansText[i]);
+        for (let i = 0; i < cells.length; i++) {
+            const sel = isLetter(cells[i]);
             state.selected.push(sel);
             state.filled.push(!sel);
             if (sel) realCharCount++;
@@ -689,7 +695,7 @@ HND.startApple = function (root, app, unit, onComplete) {
     // `IsHebrew` is True when AllChar contains any Hebrew code (> 128 in
     // cp1255). We use Unicode Hebrew range [0590..05FF].
     function answerIsHebrew() {
-        return /[֐-׿]/.test(state.answer || "");
+        return /[֐-׿]/.test((state.answer || []).join(""));
     }
     // Original GameApple.frm:660-664 — pick the variant of the pressed
     // physical key that matches the answer's language:
@@ -739,7 +745,7 @@ HND.startApple = function (root, app, unit, onComplete) {
         // Accept either-layout matches per the original's Lang128 toggle.
         for (let i = 0; i < state.answer.length; i++) {
             if (state.selected[i] && !state.filled[i] &&
-                keyMatchesChar(e, state.answer[i])) {
+                keyMatchesChar(e, state.answer[i].charAt(0))) {
                 state.filled[i] = true;
                 justFilled.add(i);
             }

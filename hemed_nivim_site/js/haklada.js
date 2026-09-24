@@ -286,10 +286,10 @@ HND.startHaklada = function (root, app, unit, onComplete) {
         HND.playWave(HND.unitWavePath(app.id, unit.id, idx, askSide));
     });
 
+    // `ch` is a typing cell (letter + its niqqud) — see HND.typingCells.
     function isLetter(ch) {
         if (!ch || ch.length === 0) return false;
-        // Anything other than whitespace/punctuation.
-        return /[֐-׿A-Za-z0-9]/.test(ch);
+        return HND.isTypeableLetter(ch);
     }
 
     // Walk `selected[]` from `start` in `step` direction (+1 or -1),
@@ -337,15 +337,19 @@ HND.startHaklada = function (root, app, unit, onComplete) {
         if (state.current >= QCOUNT) { finishGame(); return; }
         const idx = idOrder[state.current];
         const text = (items[idx][ansCol] || "").trim();
-        state.answer = text;
+        // One cell per letter WITH its niqqud: niqqud code points used to
+        // be cells of their own that counted as "letters" no key can type,
+        // so every pointed answer (e.g. all of Nivim's Aramaic unit) got
+        // stuck on the first mark.
+        const tc = HND.typingCells(text);
+        state.answer = tc.cells;
         state.selected = [];
         state.typed = [];
-        let hasHebrew = false;
-        for (let i = 0; i < text.length; i++) {
-            const sel = isLetter(text[i]);
+        const hasHebrew = /[֐-׿]/.test(text);
+        for (let i = 0; i < tc.cells.length; i++) {
+            const sel = isLetter(tc.cells[i]);
             state.selected.push(sel);
             state.typed.push(!sel);          // non-letters count as already filled
-            if (/[֐-׿]/.test(text[i])) hasHebrew = true;
         }
         // WhatToType (orig InitQuestion 209-228 + GamesMoudle.bas qAll/
         // qFirst/qLast/qSelected constants):
@@ -370,7 +374,7 @@ HND.startHaklada = function (root, app, unit, onComplete) {
         } else if (whatToType === 23) {
             const flags = (items[idx][ansSelKey]) || [];
             for (let i = 0; i < state.selected.length; i++) {
-                if (state.selected[i] && flags[i] === false) {
+                if (state.selected[i] && flags[tc.starts[i]] === false) {
                     state.selected[i] = false;
                     state.typed[i] = true;
                 }
@@ -465,7 +469,7 @@ HND.startHaklada = function (root, app, unit, onComplete) {
         // Accept the expected letter typed in either Hebrew OR English
         // keyboard layout on the matching physical key (matches the original
         // `Lang128 = Not Lang128 / GetCharFromKey` double-check in .frm).
-        if (keyMatches(e, expected)) {
+        if (keyMatches(e, expected.charAt(0))) {
             state.typed[state.currentChar] = true;
             // Always walk forward in logical order — our data is already
             // fix_hebrew'd so Hebrew text is in natural left-to-right

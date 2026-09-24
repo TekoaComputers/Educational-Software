@@ -594,6 +594,30 @@ HND._exposeTest = function (game, api) {
                                                Object.getOwnPropertyDescriptors(api));
 };
 
+// Typing games (Haklada, Apple): split an answer into typing CELLS — a
+// base character plus the Hebrew combining marks that follow it (niqqud,
+// dagesh, shin/sin dots, cantillation). No key produces a mark on its
+// own (in cp1255 they are separate bytes 0xC0-0xD2, outside the VB6
+// RealChar letter range), so a mark must ride on its letter: it is
+// revealed with the letter, never asked for. `starts[i]` = offset of
+// cell i in the original string (for per-char data like _sel_* flags).
+HND.COMBINING_RE = /[\u0591-\u05BD\u05BF\u05C1\u05C2\u05C4\u05C5\u05C7]/;
+HND.typingCells = function (text) {
+    const cells = [], starts = [];
+    for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        if (cells.length && HND.COMBINING_RE.test(c)) { cells[cells.length - 1] += c; continue; }
+        cells.push(c);
+        starts.push(i);
+    }
+    return { cells: cells, starts: starts };
+};
+// A cell the student must type: Hebrew letter א-ת, Latin letter or digit
+// (VB6 RealChar). Maqaf / geresh / gershayim / marks are shown, not typed.
+HND.isTypeableLetter = function (cell) {
+    return /[\u05D0-\u05EAA-Za-z0-9]/.test(String(cell || "").charAt(0));
+};
+
 HND._shuffle = function (arr) {
     const a = arr.slice();
     for (let i = a.length - 1; i > 0; i--) {
