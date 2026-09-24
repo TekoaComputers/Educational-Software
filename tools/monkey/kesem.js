@@ -368,7 +368,10 @@ class Kesem {
         await this.waitStageReady(s);
         await ctx.checkImages();
         await ctx.shot(`${tag}-st${s.stageIdx + 1}-g${s.gn}`);
-        exp[s.stageIdx] = (s.gn === 3 || s.gn === 6) ? null : { green: 0, yellow: 0, red: 0, total: s.maxTurn };
+        // Start from the live tally: 0 on a normal entry, but a chaos burst on
+        // the previous stage may already have answered questions here.
+        const sc0 = s.score || {};
+        exp[s.stageIdx] = (s.gn === 3 || s.gn === 6) ? null : { green: sc0.green || 0, yellow: sc0.yellow || 0, red: sc0.red || 0, total: s.maxTurn };
         if (wrongs && exp[s.stageIdx] && s.nHot) wrongDue.add(s.stageIdx);
         if (!chaosDone && stageCount >= 2 || (!chaosDone && slotLen === 1)) {
           chaosDone = true;
