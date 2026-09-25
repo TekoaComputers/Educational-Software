@@ -20,7 +20,7 @@
 // The games expose read-only state via window.__hndGame (HND._exposeTest
 // in hemed_nivim_site/js/data.js).
 //
-// Audio is played at 16× (HTMLMediaElement.play patched per page) so the
+// Audio is played at 16× (HND_AUDIO_RATE; HTMLMediaElement.play patched per page) so the
 // audio-chained game flow finishes in reasonable time; the media requests
 // still go to the server, so 404s are still caught.
 
@@ -49,8 +49,7 @@ const SLOT_KEYS = { 1: 'match', 2: 'american_sound', 3: 'american_pic', 4: 'amer
 
 // Injected before any page script: speed audio up, log media errors and
 // rejected play() promises into window.__hndAudio.
-function audioHookScript() {
-  const RATE = 16;
+function audioHookScript(RATE) {
   window.__hndAudio = [];
   const P = HTMLMediaElement.prototype;
   const origPlay = P.play;
@@ -185,11 +184,27 @@ class Driver {
     }
   }
 
+  // A one-line title must not run past its box (text clipped at the
+  // stage edges / under the exit & help icons).
+  async checkFits(sel, label) {
+    const r = await this.ev(s => {
+      const el = document.querySelector(s);
+      if (!el || !el.textContent) return null;
+      const rg = document.createRange(); rg.selectNodeContents(el);
+      const t = rg.getBoundingClientRect(), b = el.getBoundingClientRect();
+      const st = document.querySelector('.stage').getBoundingClientRect();
+      return { tl: Math.round(t.left), tr: Math.round(t.right), sl: Math.round(st.left), sr: Math.round(st.right), lines: rg.getClientRects().length,
+        text: el.textContent.slice(0, 60) };
+    }, sel);
+    if (!r) return;
+    this.ctx.check(r.tl >= r.sl && r.tr <= r.sr, 'title clipped at the stage edge', `${label}: text spans ${r.tl}..${r.tr}, stage ${r.sl}..${r.sr} — "${r.text}"`);
+  }
+
   // ---------- flow ----------
   async run() {
     const { ctx } = this;
     this.cdp = await this.page.target().createCDPSession();
-    await this.page.evaluateOnNewDocument(audioHookScript);
+    await this.page.evaluateOnNewDocument(audioHookScript, +process.env.HND_AUDIO_RATE || 16);
 
     ctx.step('main');
     await ctx.goto(`${SITE}#/${this.app}`, 1200);
@@ -227,12 +242,15 @@ class Driver {
     if (ctx.quick) units = units.slice(0, 2);
     const onlySlots = process.env.HND_SLOTS ? process.env.HND_SLOTS.split(',').map(Number) : null;
 
+    const mem = [];
     for (const u of units) {
       this.noAskWaveReported = false;
+      mem.push(await this.memSample(u.id));
       ctx.step(`u${u.id}/menu`);
       await this.hash(`#/${this.app}/unit/${u.id}/games`, 900);
       await ctx.checkImages();
       await ctx.shot(`u${u.id}-menu`);
+      await this.checkFits('.game-menu-title', `u${u.id} menu`);
       await this.checkListeners(`u${u.id} menu`);
       const slots = await this.ev(() => [...document.querySelectorAll('.game-sign')].map(s => +/\bk(\d)\b/.exec(s.className)[1]));
       ctx.check(slots.length > 0, 'game menu has no signs', `unit ${u.id}`);
@@ -245,6 +263,30 @@ class Driver {
     }
     ctx.step('end');
     await this.flushAudio('end');
+    mem.push(await this.memSample('end'));
+    this.reportMemory(mem);
+  }
+
+  // Renderer memory per unit: a leak (timers/listeners/DOM kept by
+  // finished games) shows up as monotonic growth over a long run and
+  // eventually kills the renderer ("detached Frame").
+  async memSample(label) {
+    try {
+      await this.cdp.send('HeapProfiler.collectGarbage').catch(() => {});
+      const m = await this.page.metrics();
+      const r = { label, heapMB: +(m.JSHeapUsedSize / 1048576).toFixed(1), nodes: m.Nodes, listeners: m.JSEventListeners };
+      console.log(`  [${this.app}] mem before u${label}: ${r.heapMB}MB ${r.nodes} nodes ${r.listeners} listeners`);
+      return r;
+    } catch (e) { return { label, err: String(e) }; }
+  }
+  reportMemory(mem) {
+    const ok = mem.filter(m => m.heapMB != null);
+    if (ok.length < 2) return;
+    const a = ok[0], b = ok[ok.length - 1];
+    const line = ok.map(m => `${m.label}:${m.heapMB}MB/${m.nodes}n/${m.listeners}l`).join(' ');
+    this.ctx.finding('info', 'renderer memory per unit', line);
+    if (b.heapMB > 3 * a.heapMB && b.heapMB > 150) this.ctx.finding('warn', 'JS heap keeps growing', `${a.heapMB}MB → ${b.heapMB}MB over ${ok.length - 1} units`);
+    if (b.nodes > 3 * a.nodes && b.nodes > 20000) this.ctx.finding('warn', 'detached DOM keeps growing', `${a.nodes} → ${b.nodes} nodes over ${ok.length - 1} units`);
   }
 
   // The catalog battery (Tekoa.Progress) must count every scored menu
@@ -378,7 +420,9 @@ class Driver {
     }
     if (!await onMenu()) { await this.page.keyboard.press('Escape'); await this.sleep(700); }
     if (!await onMenu()) {
-      this.ctx.finding('warn', 'could not leave game', 'Esc/score-exit did not return to the menu');
+      const where = await this.ev(() => location.hash);
+      const tail = this.ctx.traceSince(Math.max(0, this.ctx.traceLen() - 6)).join(' ⏎ ');
+      this.ctx.finding('warn', 'could not leave game', `Esc/score-exit did not return to the menu (at ${where}); trace: ${tail}`);
       await this.hash(`#/${this.app}/unit/${u.id}/games`, 600);
     }
   }
@@ -591,6 +635,23 @@ class Driver {
       ctx.check(adv, 'haklada did not advance after a fully typed answer', `q${n + 1}`);
       if (n === 0) await ctx.shot(`u${u.id}-${key}-q1`);
     }
+    // Picture mode: the question picture is blitted 1:1 (orig BitBlt) —
+    // its box must not be stretched past the picture's natural size.
+    const pic = await this.ev(() => new Promise(res => {
+      const el = document.querySelector('.hak-pic');
+      if (!el) return res(null);
+      const m = /url\(["']?([^"')]+)/.exec(el.style.backgroundImage || '');
+      if (!m) return res(null);
+      const r = el.getBoundingClientRect();
+      const k = r.width / el.offsetWidth || 1;           // stage scale
+      const im = new Image();
+      im.onload = () => res({ w: Math.round(r.width / k), h: Math.round(r.height / k), nw: im.naturalWidth, nh: im.naturalHeight,
+        bs: getComputedStyle(el).backgroundSize });
+      im.onerror = () => res(null);
+      im.src = m[1];
+    }));
+    if (pic) ctx.check(pic.bs !== '100% 100%' && pic.w <= pic.nw * 1.15 + 12 && pic.h <= pic.nh * 1.15 + 12, 'haklada picture stretched',
+      `box ${pic.w}x${pic.h} (background-size ${pic.bs}) for a ${pic.nw}x${pic.nh} picture`);
     const fin = await ctx.waitFor(() => __hndGame.state.completed, 20000);
     ctx.check(fin, 'haklada did not finish');
     if (!played) { ctx.finding('info', 'no playable questions', `haklada ${key}: every answer empty — score not checked`); clean = false; }
@@ -602,6 +663,8 @@ class Driver {
   // ---------- APPLE ----------
   async playApple(u, key) {
     const { ctx } = this;
+    await this.sleep(100);
+    await this.checkFits('.apple-header', `u${u.id} apple`);
     const info = await this.ev(() => ({ Q: __hndGame.QCount }));
     let clean = true;
     const errsPerQ = [];
@@ -740,7 +803,12 @@ class Driver {
         }
         await this.clickBox(pr.q); await this.clickBox(pr.a);
         const ok = await this.ev(id => !!__hndGame.state.matched[id], pr.pairId);
-        ctx.check(ok, 'connect rejected the right pair', `"${boxes[pr.q].text}" ↔ "${boxes[pr.a].text}"`);
+        if (!ok) {
+          const st = await this.ev(() => ({ sel: __hndGame.state.selected, en: __hndGame.state.gameEnabled, hash: location.hash }));
+          const tail = ctx.traceSince(Math.max(0, ctx.traceLen() - 8)).map(l => l.replace(/^\[[^\]]*\] /, '')).join(' ⏎ ');
+          ctx.finding('error', 'connect rejected the right pair', `"${boxes[pr.q].text}" ↔ "${boxes[pr.a].text}" — state ${JSON.stringify(st)}; trace: ${tail}`);
+          await ctx.shot(`u${u.id}-connect-rejected`);
+        }
         pr.done = true;
       }
       const next = await ctx.waitFor(s => __hndGame.gameState.completed || __hndGame.gameState.setNum > s, 5000, set);
@@ -858,6 +926,12 @@ class Driver {
         }, pressed);
         ctx.check(!bad || !bad.length, 'apple filled letters nobody typed', bad && bad.join(','));
       }
+    }
+    if (game === 'hakira') {
+      // roll-up/unroll are 0.48 s each — after that the scroll must be open
+      await this.sleep(1500);
+      const h = await this.ev(() => ({ anim: __hndGame.state.animating, cls: document.querySelector('.hakira-parchment').className }));
+      ctx.check(!h.anim && !/rolling-up|unrolling/.test(h.cls), 'hakira scroll stuck rolled up', `after chaos: animating=${h.anim} class="${h.cls}"`);
     }
     await ctx.checkImages();
     await ctx.shot(`u${u.id}-${name}-chaos`);
