@@ -74,6 +74,7 @@
         const blankRight = stageData ? bmpToPng(bliZeva(stageData.right)) : null;
 
         const refs = {};
+        MK._test = { screen: "start", refs: refs };   // read-only hook for tools/monkey
 
         // Map control-name → image file + click action.
         const wiring = {

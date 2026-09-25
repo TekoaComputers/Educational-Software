@@ -187,8 +187,9 @@ module.exports = {
     // double-click path + kid-on-chair shortcut
     ctx.step('songs/dblclick');
     const b3 = await page.$eval(hs('song 3'), el => { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
-    await page.mouse.click(b3.x, b3.y, { clickCount: 1 });
-    await page.mouse.click(b3.x, b3.y, { clickCount: 2 });
+    // one real double-click (click, click, dblclick). `count` — not the
+    // deprecated clickCount, which WebDriver BiDi (Firefox) ignores.
+    await page.mouse.click(b3.x, b3.y, { count: 2 });
     ctx.check(await hashIs('#/songs/ionatan'), 'double-click did not open song', 'ionatan');
     await sleep(800);
     await ctx.clickSel('button.btn-x');

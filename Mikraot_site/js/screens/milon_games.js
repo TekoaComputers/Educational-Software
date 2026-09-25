@@ -656,6 +656,7 @@
         }
 
         const state = { round: 0, totalCoins: 0, attempts: 0, mistakeSlot: 0 };
+        MK._test = { screen: "game2", state: state, refs: sc.refs };   // read-only hook for tools/monkey
 
         function setup() {
             if (state.round >= 5) {
@@ -886,6 +887,7 @@
         }
         const state = { round: 0, totalCoins: 0, attempts: 0, current: null,
                         tekSlog: 0, slgMap: [] /* slgMap[k] = btnOt index for Slg[k] */ };
+        MK._test = { screen: "slog", state: state, refs: sc.refs };   // read-only hook for tools/monkey
 
         function avaraUrl(code) {
             const c = (code || "").trim();
@@ -1127,6 +1129,7 @@
         window.addEventListener("hashchange", cleanupKey);
         const state = { round: 0, totalCoins: 0, attempts: 0, current: null,
                         slovo: "", mas: [], kol: 0, tek: 1 };
+        MK._test = { screen: "gam3", state: state, refs: sc.refs, abc: HEB_ABC };   // read-only hook for tools/monkey
         const slots = [];
 
         for (let i = 0; i < 27; i++) {

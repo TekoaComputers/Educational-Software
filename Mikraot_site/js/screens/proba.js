@@ -70,6 +70,7 @@
         stageEl.style.backgroundSize = "100% 100%";
 
         const refs = {};   // control name(+index) → DOM node
+        MK._test = { screen: "proba", refs: refs };   // read-only hook for tools/monkey
         const state = {
             play_a: false,
             timer1: null,

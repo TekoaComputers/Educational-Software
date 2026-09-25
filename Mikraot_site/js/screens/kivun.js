@@ -138,6 +138,7 @@
         // the free route opened a DIFFERENT song than the one shown.
         if (gameNomer > 0) sessionStorage.setItem("mikraot:gameNomer", String(gameNomer));
         const refs = { btnMsl1: [], btnShir: [], lblShm: [], lblAgdara: [], Label1: [] };
+        MK._test = { screen: "kivun", refs: refs };   // read-only hook for tools/monkey
 
         MK.iterateInZOrder(layout.children, function (ctrl) {
             const style = MK.posStyle(ctrl, scale);

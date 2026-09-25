@@ -38,6 +38,16 @@ function serve(port = 0) {
 }
 
 async function launch({ headed = false } = {}) {
+  // BROWSER=firefox: same drivers under headless Firefox (WebDriver BiDi)
+  // for Gecko-only reports. Chromium stays the default.
+  if (process.env.BROWSER === 'firefox') {
+    return puppeteer.launch({
+      browser: 'firefox',
+      executablePath: process.env.FIREFOX || '/usr/bin/firefox',
+      headless: !headed,
+      extraPrefsFirefox: { 'media.autoplay.default': 0, 'media.autoplay.blocking_policy': 0, 'media.volume_scale': '0.0' },
+    });
+  }
   return puppeteer.launch({
     executablePath: process.env.CHROMIUM || '/usr/bin/chromium',
     headless: !headed,
@@ -50,6 +60,9 @@ async function launch({ headed = false } = {}) {
 function instrument(page, log) {
   log.errors = log.errors || []; log.console = log.console || [];
   log.failed = log.failed || []; log.trace = log.trace || [];
+  // Renderer crash (OOM, GPU process death …) — otherwise the driver only
+  // sees a cryptic 'detached Frame' / 'Target closed' on its next call.
+  page.on('error', e => log.errors.push({ t: Date.now(), msg: 'PAGE CRASHED: ' + String(e && e.message || e) }));
   page.on('pageerror', e => log.errors.push({ t: Date.now(), msg: String(e && e.stack || e) }));
   page.on('console', m => {
     const text = m.text();
