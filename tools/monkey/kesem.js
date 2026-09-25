@@ -106,6 +106,16 @@ function pageInit(rate) {
     const r = el.getBoundingClientRect();
     return r.width > 1 && r.height > 1;
   };
+  // The slot list the running path indexes into — mirrors the bundle's
+  // currentRamaSlots(): Ivrit's List1 song override, the Kesem editor's
+  // doc.maslul, else the (pinned) rama's CHBOX slots.
+  km.slots = () => {
+    const s = window.__kesemSession;
+    if (!s) return [];
+    if (s._activeSlotOverride) return [s._activeSlotOverride];
+    if (s.config.id === 'Kesem') { const d = s.editor && s.editor.doc; return (d && d.maslul) || s.paths.maslul || []; }
+    return (s.paths.ramas[String(s.config.activityRamaPin || s.rama)] || {}).slots || [];
+  };
   km.visible = (sel, i) => visible(document.querySelectorAll(sel)[i || 0]);
   // A clickable point on element sel[i]: the centre if it is top-most there,
   // otherwise the first point of a 7×7 grid that hits it. hit=false ⇒ the
@@ -411,7 +421,7 @@ class Kesem {
     let chaosDone = !chaos;
     let guard = 0;
     let stageCount = 0;
-    const slotLen = await this.eval(() => { const s = window.__kesemSession; const sl = (s.paths.ramas[String(s.config.activityRamaPin || s.rama)] || {}).slots || []; const x = sl[s.currentPath]; return x && x.stages ? x.stages.length : 0; });
+    const slotLen = await this.eval(() => { const s = window.__kesemSession; const sl = window.__km.slots(); const x = sl[s.currentPath]; return x && x.stages ? x.stages.length : 0; });
     while (guard++ < 400) {
       const s = await this.snap();
       if (s.ov === 'video') { await this.video(`${tag}-s${s.stageIdx}`); continue; }
@@ -1038,7 +1048,7 @@ class Kesem {
     const s2 = await this.snap();
     ctx.check(s2.screen === s.screen && s2.stageIdx === s.stageIdx && !s2.ov, 'picexi "no" did not keep the stage', `${JSON.stringify(s2)}`);
     // picexi → next-stage arrow (misgerb) → must land on stage+1
-    const slotLen = await this.eval(() => { const s = window.__kesemSession; const sl = (s.paths.ramas[String(s.config.activityRamaPin || s.rama)] || {}).slots || []; return (sl[s.currentPath].stages || []).length; });
+    const slotLen = await this.eval(() => { const s = window.__kesemSession; const sl = window.__km.slots(); return (sl[s.currentPath].stages || []).length; });
     if (slotLen > 1 && s2.stageIdx + 1 < slotLen) {
       await this.tap('.frm-ctrl--picexi', 0, 500);
       await this.tap('.misger-overlay img[title="שלב הבא"]', 0, 800);
