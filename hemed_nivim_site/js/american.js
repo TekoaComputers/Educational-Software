@@ -64,11 +64,8 @@ HND.startAmerican = function (root, app, unit, onComplete) {
     //   slot 4 → "לפי טקסט"   (by text — both Q + audio visible) ← default
     // The slot index is stashed in sessionStorage on game-menu click;
     // read it here to branch the InitQuestion rendering.
-    let modeSlot = 4;   // default = by-text
-    try {
-        const v = sessionStorage.getItem("hnd." + app.id + ".lastSlot");
-        if (v != null) modeSlot = parseInt(v, 10);
-    } catch (e) {}
+    // HND.slotFor ignores a stale lastSlot left by another game.
+    const modeSlot = HND.slotFor(app.id, "american");   // 2 / 3 / 4 (default)
     const MODE_BY_SOUND = (modeSlot === 2);
     const MODE_BY_PIC   = (modeSlot === 3);
     HND.log("american mode", "slot=" + modeSlot,
@@ -141,6 +138,9 @@ HND.startAmerican = function (root, app, unit, onComplete) {
         userInteracted: false,
     };
     HND.log("american start", app.id + "/" + unit.id, "items=" + items.length, "QCount=" + QCOUNT);
+    HND._exposeTest("american", { state: state, idOrder: idOrder, items: items, cal: cal,
+                                 QCount: QCOUNT, askCol: askCol, ansCol: ansCol,
+                                 layout: layout, modeSlot: modeSlot });
 
     // Help banner — Form_Paint draws CurrentCalibration.Instructions at
     // (400, 40) in RGB(40,80,190) centered. Read from this unit's cfg
@@ -609,20 +609,14 @@ HND.startAmerican = function (root, app, unit, onComplete) {
         // QASwitched flag is on; falls through to plain gameX.wav.
         const suffix = (window.HND_QASwitched ? "Fliped" : "") + ".wav";
         const wavName = "game" + (5 + kindOfGame) + suffix;
+        // game6/7 (+Fliped) were never shipped: pick the fallback up front
+        // (orig `If Exist(...)`). The old "retry game5 500 ms later if the
+        // primary 404'd" fired AFTER initQuestion had started the question
+        // wave, so in by-sound mode (game7 → 404) game5 cut the question's
+        // audio off — the one mode where the audio IS the question.
         const primary = "assets/" + app.id + "/sounds/" + wavName;
         const fallback = "assets/" + app.id + "/sounds/game5.wav";
-        const playOnce = function (url, onEnd) {
-            HND.playWave(url, onEnd);
-            // If url 404s, _missingWaves cache will reflect that on next
-            // play — try fallback after a short pause.
-            setTimeout(function () {
-                if (HND._missingWaves && HND._missingWaves[url] && url !== fallback) {
-                    HND.playWave(fallback, hide);
-                }
-            }, 500);
-        };
-        if (primary === fallback) HND.playWave(primary, hide);
-        else                       playOnce(primary, hide);
+        HND.playWave(HND.sharedSoundExists(wavName) ? primary : fallback, hide);
         setTimeout(hide, 8000);   // hard cap if wave never ends
     }
 

@@ -84,6 +84,11 @@
             // VB6 Threed.SSCommand look — these picture sizes match the
             // button slot sizes after AutoSize behavior).
             node.style.backgroundSize = "100% 100%";
+            // Frame1 is rendered as `.ctrl.no-click` (pointer-events:none)
+            // and pointer-events is INHERITED — without re-enabling it here
+            // the 7 dictionary-game buttons swallowed no clicks at all and
+            // every MILON game was unreachable from START.
+            node.style.pointerEvents = "auto";
             node.addEventListener("click", onclick);
             parent.appendChild(node);
             return node;

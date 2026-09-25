@@ -46,6 +46,15 @@
         const t = loadTozaot();
         const songData = (t[gameNomer] || {})[mispMasl] || {};
         const completed = songData.done === 1;
+        // Free-route Q&A result (likro.js finishQA). Without it a free
+        // round landed on an empty blue board with only the reset /
+        // import / export buttons (issue #74) — show the in-progress
+        // view instead: this round's coins in the Halon windows and the
+        // total in lblTozaot.
+        let round = null;
+        try { round = JSON.parse(sessionStorage.getItem("mikraot:lastRound") || "null"); } catch (e) {}
+        sessionStorage.removeItem("mikraot:lastRound");
+        if (round && (completed || round.song !== gameNomer)) round = null;
         // Steps with coins.
         const steps = [];
         let sum = 0, max = 0;
@@ -112,10 +121,11 @@
                 MK.log("sofer modiin → would play Video/" + gameNomer + ".avi; falling back to PROBA");
                 location.hash = "#/";
             }},
-            Panel3D1: { text: completed ? (SHIR[gameNomer - 1] || "") : "",
-                bg: "rgb(0,128,255)", color: "#fff", visible: completed },
+            Panel3D1: { text: (completed || round) ? (SHIR[gameNomer - 1] || "") : "",
+                bg: "rgb(0,128,255)", color: "#fff", visible: completed || !!round },
             lblTozaot: {
-                text: completed ? (" אספת " + sum + " מטבעות מתוך " + max2) : "",
+                text: completed ? (" אספת " + sum + " מטבעות מתוך " + max2)
+                    : round ? (" אספת " + round.kol + " מטבעות מתוך " + round.max) : "",
                 color: "#ffff00", fontSize: 16, fontFamily: "David, serif",
             },
             // Shape1 outline box — frame around the score row.
@@ -142,7 +152,13 @@
         }
         // Halon coins (in-progress mode) — hide in completed mode.
         for (let i = 0; i < 5; i++) {
-            bindings["Halon_" + i] = { visible: false };
+            const img = round && round.coins[i];
+            bindings["Halon_" + i] = img ? {
+                img: img,
+                style: { backgroundSize: "contain", backgroundRepeat: "no-repeat",
+                         backgroundPosition: "center", pointerEvents: "none",
+                         cursor: "default" },
+            } : { visible: false };
         }
         MK.renderForm(stage, layout, scale, bindings);
 
@@ -185,9 +201,10 @@
         // The numeric cue captures the total in voice ("you collected 7
         // coins out of 19"). We mirror with a setTimeout chain, guarded
         // by the render token so a screen swap mid-count bails out.
-        if (completed) {
+        if (completed || round) {
+            const total = completed ? sum : round.kol;
             (async function () {
-                for (let i = 0; i < sum && i < 50; i++) {
+                for (let i = 0; i < total && i < 50; i++) {
                     if (MK.stale(myToken)) return;
                     MK.play("mik_siha/coincoun.wav");
                     await MK.sleep(200);
@@ -195,8 +212,8 @@
                 if (MK.stale(myToken)) return;
                 await MK.sleep(300);
                 if (MK.stale(myToken)) return;
-                if (sum >= 1 && sum <= 50) {
-                    MK.play("mik_siha/fc" + sum + ".wav");
+                if (total >= 1 && total <= 50) {
+                    MK.play("mik_siha/fc" + total + ".wav");
                 }
             })();
         }

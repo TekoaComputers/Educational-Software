@@ -366,8 +366,10 @@ const SketchTool = (() => {
     render();
   }
 
-  function show(expression) {
-    if (window.TDebug) TDebug.log('sketch', 'show', { expression });
+  // expression: exercise to lay out on the grid ('' = blank pad);
+  // caption: text for the Qtext label (defaults to the expression).
+  function show(expression, caption) {
+    if (window.TDebug) TDebug.log('sketch', 'show', { expression, caption });
     if (!canvas) init();
     const ov = document.getElementById('sketch-overlay');
     if (!ov) return;
@@ -389,7 +391,7 @@ const SketchTool = (() => {
 
     // Show expression text in Qtext area
     const exEl = document.getElementById('sketch-expr');
-    if (exEl) exEl.textContent = expression || '';
+    if (exEl) exEl.textContent = caption != null ? caption : (expression || '');
 
     // Reset grid; start LTR at (4,1) as VB6 ShowSketch does
     XY = makeXY();

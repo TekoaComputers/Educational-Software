@@ -82,6 +82,7 @@ export default {
     // Ivrit's CHBOX1..4 mirror the standard rama 1..4 pattern, with rama 4
     // serving as the "free play" set (btnHofshi_Click).
     defaultRama: 4,
+    progress: { maslul: true },       // List1 lists every MASLUL/*.MAS
     maxRama: 4,
     bgRamaMax: 4,
     act1Images: {

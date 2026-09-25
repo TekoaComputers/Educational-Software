@@ -64,6 +64,8 @@ export default {
     tafroshFile: "data/tafrosh/KolKoreD.json",
     defaultRama: 1,
     maxRama: 2,
+    // Rama 2 hides btnIcon/btnLamp 11 (applyKolKoreDRamaLayout).
+    progressSlots: { "1": true, "2": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] },
     bgRamaMax: 2,
     // Page-flip animation between rama 1 and rama 2 (Sst.FlipClock_Timer).
     // polaNum=7 in Form_Load → 7 frames Daf1..Daf7 painted at 70 ms each.

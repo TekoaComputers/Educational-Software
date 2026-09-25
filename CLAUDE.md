@@ -63,6 +63,11 @@ load source JS directly — no build step.
     (games / games2 / games3 / games4 / games5 / misger / mashal).
   - `data/paths/<App>.json` ↔ stage data (.RAS hotspot rects, .MAS slots).
   - `data/tafrosh/<App>.json` ↔ tooltip strings.
+  - Catalog "N%" denominator = `kesemProgressTotal` in build_bundle.py.
+    `.MAS` data often has ramas/slots the Sst never offers → declare
+    `progressSlots` / `progress` in the app config and keep
+    `main_site_assets/progress.js` `DEFAULT_TOTALS` in step, or the app
+    tops out below 100%.
   - `assets/<App>/menu/*.png` ↔ icons, lamps, plane sprites (from .bmp).
   - `assets/<App>/bmp/*.png` ↔ stage images.
   - `assets/<App>/wav/*.wav` ↔ audio.
@@ -127,9 +132,12 @@ cp1255 (Hebrew Windows codepage):
 tr -d '\r' < EnglishA/Sst.frm | iconv -f WINDOWS-1255 -t UTF-8 | sed -n '<range>p'
 ```
 
-**No headless-Chrome testing.** The user prefers source-grounded
+**No ad-hoc headless-Chrome testing.** The user prefers source-grounded
 diagnosis to runtime probing. The feedback widget captures real-user
 console logs into GitHub issues — use those for repro context.
+Exception: the `tools/monkey/` harness (per-app drivers that play every
+level; see its README) — run it when asked to regression-test, and after
+engine-wide changes. Wrap long runs in `systemd-inhibit`.
 
 **Coordinate system gotcha — twips/15, not /12.** VB6 stores
 `Left/Top/Width/Height` in TWIPS regardless of ScaleMode. These forms use

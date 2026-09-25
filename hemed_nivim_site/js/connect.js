@@ -620,7 +620,14 @@ HND.startConnect = function (root, app, unit, onComplete) {
             if (Object.keys(state.matched).length === ROUND) onSetComplete();
         } else {
             HND.log("connect WRONG", "prev=" + prev.pairId, "now=" + b.pairId);
-            prev.errorCount = Math.min(3, prev.errorCount + 1);
+            // Charge the mistake to the first-picked box's PAIR, via its Q
+            // box: score (totalErrors) and the per-Q stars only read Q-box
+            // errorCounts, so charging an A box (A picked first) silently
+            // dropped the mistake and a wrong pairing still scored 100.
+            const errBox = prev.kind === "Q" ? prev : (boxes.find(function (x) {
+                return x.pairId === prev.pairId && x.kind === "Q";
+            }) || prev);
+            errBox.errorCount = Math.min(3, errBox.errorCount + 1);
             // Orig Form_MouseUp:541 — ra.wav only; no visual feedback.
             HND.playWave(sharedWave("ra.wav"));
             state.selected = null;
@@ -717,7 +724,7 @@ HND.startConnect = function (root, app, unit, onComplete) {
         });
 
         let winT = 0;
-        const winInterval = setInterval(function () {
+        winInterval = setInterval(function () {
             // Phase 1: stars arc upward + scoreEl counts up.
             if (winT < 27) {
                 const Dt = 0.2, m = 1, k = 6;
@@ -782,6 +789,7 @@ HND.startConnect = function (root, app, unit, onComplete) {
         });
         const Dt = 0.2, m = 1, Fy = 35;
         const bounce = setInterval(function () {
+            if (!root.isConnected) { clearInterval(bounce); return; }
             pieces.forEach(function (p) {
                 p.x += Dt * Dt * 0 / m + p.vx * Dt;
                 p.y += Dt * Dt * Fy / m + p.vy * Dt;
@@ -826,6 +834,12 @@ HND.startConnect = function (root, app, unit, onComplete) {
     // CmdHelp_Click:237-242). showTip = 30 frames in original (~3s
     // at 100ms/frame) — we use a 4s setTimeout. Plays game8.wav
     // (Connect's help wave); falls back silently if missing.
+    // Win-animation timer (runWinAnimation). Must die with the screen: its
+    // 50 s auto-exit (`winT > 500`) otherwise fired after the user had left
+    // and yanked them — mid-way through another game, even another unit —
+    // back to THIS unit's game menu.
+    let winInterval = null;
+
     let tipEl = null;
     function showHelpOverlay() {
         const text = (cal.instructionsFliped && window.HND_QASwitched)
@@ -914,6 +928,7 @@ HND.startConnect = function (root, app, unit, onComplete) {
         teardownObs = new MutationObserver(function () {
             if (!root.isConnected) {
                 stopTick();
+                if (winInterval) { clearInterval(winInterval); winInterval = null; }
                 document.removeEventListener("keydown", keyHandler);
                 if (teardownObs) teardownObs.disconnect();
             }
@@ -922,6 +937,9 @@ HND.startConnect = function (root, app, unit, onComplete) {
                             { childList: true, subtree: true });
     }
 
+    HND._exposeTest("connect", { gameState: game, state: state, items: items, cal: cal,
+                                leftCol: leftCol, rightCol: rightCol,
+                                get boxes() { return boxes; } });
     HND.log("connect start", app.id + "/" + unit.id,
             "items=" + items.length,
             "sets=" + Math.ceil(items.length / MAX_LINES));

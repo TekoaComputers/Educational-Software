@@ -102,8 +102,31 @@ HND.restartGame = function (appId, unitId, game) {
     requestAnimationFrame(function () { location.hash = gameRoute; });
 };
 
+// Orig VB6 guards every play with `If Exist(path) Then PlayWave`. Mirror
+// it without a network round trip: shared sounds shipped per app (both
+// apps ship the same set — game3/6/7 were never shipped), and per-item
+// unit waves via the port-time manifest (item._waves). A request for a
+// file we know is absent 404s into the console (and the feedback
+// widget's captured log) and, worse, fires its error callback late.
+HND.SHARED_SOUNDS = ["game0", "game1", "game2", "game4", "game5", "game8",
+    "good1", "good2", "good3", "good4", "ra", "ra2", "sample",
+    "score_0", "score_60", "score_70", "score_80", "score_90",
+    "smallgood", "tic", "vol", "win"];
+HND.sharedSoundExists = function (name) {
+    return HND.SHARED_SOUNDS.indexOf(String(name).replace(/\.wav$/i, "").toLowerCase()) !== -1;
+};
+HND.waveKnownMissing = function (url) {
+    const s = /assets\/[A-Za-z]+\/sounds\/([\w]+)\.wav$/i.exec(url);
+    if (s) return !HND.sharedSoundExists(s[1]);
+    const m = /data\/([A-Za-z]+)\/unit_(\d+)\/wave\/(\d+)_(left|right|hint)\.wav$/i.exec(url);
+    if (!m) return false;
+    const units = HND._loaded && HND._loaded[m[1]];
+    const u = units && units.find(function (x) { return String(x.id) === m[2]; });
+    return !!u && !HND.unitWaveExists(u, parseInt(m[3], 10), m[4]);
+};
+
 HND.playWave = function (url, onEnded) {
-    if (HND._missingWaves[url]) {
+    if (HND._missingWaves[url] || HND.waveKnownMissing(url)) {
         if (onEnded) onEnded();
         return;
     }
@@ -229,15 +252,28 @@ HND.gameKey = function (game, slotIdx) {
     if (slotIdx == null) return game;
     return HND.SLOT_KEYS[slotIdx] || game;
 };
-// Each game runner reads sessionStorage.lastSlot (set by GameMenu click)
-// to derive its own slot-specific key.
-HND.currentSlotKey = function (appId, fallbackGame) {
+// Menu slot → game (app.js KORA_SLOTS) and each game's default slot.
+// sessionStorage.lastSlot is only written by a game-menu click, so it is
+// STALE whenever a game is entered another way (direct/bookmarked route,
+// back/forward, the menu-less hatamaplus route): e.g. after American
+// "by text" (slot 4), a match route used to save its score under
+// "american_text" and read American's calibration block. Only honour
+// lastSlot when it belongs to the game asking.
+HND.SLOT_GAMES = { 0: "hakira", 1: "match", 2: "american", 3: "american", 4: "american",
+                   5: "haklada", 6: "haklada", 7: "apple", 8: "connect" };
+HND.DEFAULT_SLOT = { hakira: 0, match: 1, american: 4, haklada: 5, apple: 7, connect: 8 };
+HND.slotFor = function (appId, game) {
     let slot = null;
     try {
         const raw = sessionStorage.getItem("hnd." + appId + ".lastSlot");
         if (raw != null && raw !== "") slot = parseInt(raw, 10);
     } catch (e) {}
-    return HND.gameKey(fallbackGame, slot);
+    if (slot != null && HND.SLOT_GAMES[slot] === game) return slot;
+    return HND.DEFAULT_SLOT[game] != null ? HND.DEFAULT_SLOT[game] : null;
+};
+// Each game runner derives its own slot-specific progress key.
+HND.currentSlotKey = function (appId, game) {
+    return HND.gameKey(game, HND.slotFor(appId, game));
 };
 HND.loadProgress = function (appId, unitId, gameId) {
     try {
@@ -330,6 +366,39 @@ HND.log = function (kind /*, ...args */) {
         }
     }, true);
 })();
+
+// Keep a one-line title inside its box: VB6 DrawString painted the
+// title bar on one line, but the browser's fallback fonts are wider, so a
+// long unit name + subject + level + student ran past both stage edges
+// (clipped at left and right). Shrink the font until the line fits.
+// Call after the element is in the DOM and whenever its text changes.
+HND.fitLine = function (el, minPx) {
+    if (!el || !el.isConnected) return;
+    // Web fonts change the width — measure again once they are in.
+    if (document.fonts && document.fonts.status !== "loaded" && !el._fitPending) {
+        el._fitPending = true;
+        document.fonts.ready.then(function () { el._fitPending = false; HND.fitLine(el, minPx); });
+    }
+    el.style.whiteSpace = "nowrap";
+    el.style.fontSize = "";
+    let px = parseFloat(getComputedStyle(el).fontSize) || 16;
+    const min = minPx || 12;
+    // Centred text overflows on BOTH sides, which scrollWidth doesn't
+    // count — measure the text run itself against the content box (in
+    // screen px, hence the stage-scale factor).
+    const range = document.createRange();
+    const cs = getComputedStyle(el);
+    const room = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const tooWide = function () {
+        range.selectNodeContents(el);
+        const scale = el.getBoundingClientRect().width / (el.offsetWidth || 1);
+        return range.getBoundingClientRect().width > room * scale + 1;
+    };
+    while (tooWide() && px > min) {
+        px -= 1;
+        el.style.fontSize = px + "px";
+    }
+};
 
 // Tiny DOM helper used by every game module. Each option key turns into
 // an attribute, with class/text/style/onXxx handled specially.
@@ -569,6 +638,40 @@ HND.fadeInOnReady = function (root, readyPromise, delayMs, transitionMs) {
     return p.then(function () {
         setTimeout(function () { root.style.opacity = "1"; }, wait);
     });
+};
+
+// Read-only test hook for tools/monkey (cf. Kesem's window.__kesemSession).
+// Each game runner registers its live state here on start so the headless
+// monkey can read the current question / answer / penalty without parsing
+// the DOM. Game code never reads it back.
+HND._exposeTest = function (game, api) {
+    // defineProperties (not Object.assign) so getters stay live.
+    window.__hndGame = Object.defineProperties({ game: game, startedAt: Date.now() },
+                                               Object.getOwnPropertyDescriptors(api));
+};
+
+// Typing games (Haklada, Apple): split an answer into typing CELLS — a
+// base character plus the Hebrew combining marks that follow it (niqqud,
+// dagesh, shin/sin dots, cantillation). No key produces a mark on its
+// own (in cp1255 they are separate bytes 0xC0-0xD2, outside the VB6
+// RealChar letter range), so a mark must ride on its letter: it is
+// revealed with the letter, never asked for. `starts[i]` = offset of
+// cell i in the original string (for per-char data like _sel_* flags).
+HND.COMBINING_RE = /[\u0591-\u05BD\u05BF\u05C1\u05C2\u05C4\u05C5\u05C7]/;
+HND.typingCells = function (text) {
+    const cells = [], starts = [];
+    for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        if (cells.length && HND.COMBINING_RE.test(c)) { cells[cells.length - 1] += c; continue; }
+        cells.push(c);
+        starts.push(i);
+    }
+    return { cells: cells, starts: starts };
+};
+// A cell the student must type: Hebrew letter א-ת, Latin letter or digit
+// (VB6 RealChar). Maqaf / geresh / gershayim / marks are shown, not typed.
+HND.isTypeableLetter = function (cell) {
+    return /[\u05D0-\u05EAA-Za-z0-9]/.test(String(cell || "").charAt(0));
 };
 
 HND._shuffle = function (arr) {
@@ -1178,10 +1281,11 @@ HND.resolveCalibration = function (unit, gameIdx) {
 // menu (sessionStorage.hnd.<app>.lastSlot, set in showGameMenu). Each
 // game called this from its startXxx() entry point so the cfg block is
 // auto-selected (especially for American which has 3 modes).
+HND.CAL_GAMES = { 0: "hakira", 1: "match", 2: "haklada", 3: "haklada", 4: "apple",
+                  5: "american", 6: "american", 7: "american", 8: "connect" };
 HND.gameCalibrationFromSlot = function (unit, appId, fallbackGameIdx) {
-    let slotIdx = -1;
-    try { slotIdx = parseInt(sessionStorage.getItem("hnd." + appId + ".lastSlot"), 10); }
-    catch (e) {}
+    const game = HND.CAL_GAMES[fallbackGameIdx != null ? fallbackGameIdx : 0];
+    const slotIdx = HND.slotFor(appId, game);   // stale lastSlot of another game ignored
     const idx = HND.SLOT_TO_CAL_IDX[slotIdx];
     return HND.resolveCalibration(
         unit,
@@ -1342,7 +1446,12 @@ HND.deleteNewUnit = function (appId, unitId) {
 // One Tekoa activity per UNIT (lesson), not per sub-game. A unit is
 // considered "completed" once at least 2 of its 7 sub-games have been
 // scored (mirrors how the original treats a lesson as graded).
-HND.GAME_TYPES = ["american","apple","connect","hakira","haklada","hatamaplus","match"];
+// The progress keys games actually write — one per scoring game-menu
+// slot (HND.gameKey: American and Haklada score per mode). Hakira never
+// scores; hatamaplus has no menu sign. Same set the game menu averages
+// for its total, so unit list / menu / catalog agree.
+HND.GAME_TYPES = ["match", "american_sound", "american_pic", "american_text",
+                  "haklada_reg", "haklada_dict", "apple", "connect"];
 HND.MIN_GAMES_FOR_COMPLETION = 2;
 
 HND.publishProgressTotal = function (appId) {

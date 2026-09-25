@@ -16,18 +16,26 @@
   const GAME_SCREENS = new Set(['screen-game', 'screen-war', 'screen-krav']);
 
   // Each key entry: {label, key, code, keyCode}
+  // 4 columns: digits + the operator/paren characters that answers contain
+  // ("2+2", "4*4", "3(1)", "-3" in units 21/22/79/80/94, T2 unit 45…).
+  // Without them those answers could not be typed on a touch device.
   const KEYS = [
     { label: '7', key: '7', code: 'Digit7', kc: 55 },
     { label: '8', key: '8', code: 'Digit8', kc: 56 },
     { label: '9', key: '9', code: 'Digit9', kc: 57 },
+    { label: '+', key: '+', code: 'NumpadAdd', kc: 107, cls: 'vk-op' },
     { label: '4', key: '4', code: 'Digit4', kc: 52 },
     { label: '5', key: '5', code: 'Digit5', kc: 53 },
     { label: '6', key: '6', code: 'Digit6', kc: 54 },
+    { label: '−', key: '-', code: 'NumpadSubtract', kc: 109, cls: 'vk-op' },
     { label: '1', key: '1', code: 'Digit1', kc: 49 },
     { label: '2', key: '2', code: 'Digit2', kc: 50 },
     { label: '3', key: '3', code: 'Digit3', kc: 51 },
+    { label: '×', key: '*', code: 'NumpadMultiply', kc: 106, cls: 'vk-op' },
     { label: '.', key: '.', code: 'Period', kc: 190 },
     { label: '0', key: '0', code: 'Digit0', kc: 48 },
+    { label: '(', key: '(', code: 'Digit9', kc: 57, shift: true, cls: 'vk-op' },
+    { label: ')', key: ')', code: 'Digit0', kc: 48, shift: true, cls: 'vk-op' },
     { label: '⌫', key: 'Backspace', code: 'Backspace', kc: 8 },
     { label: '↑', key: 'ArrowUp',   code: 'ArrowUp',   kc: 38, cls: 'vk-arrow' },
     { label: '↓', key: 'ArrowDown', code: 'ArrowDown', kc: 40, cls: 'vk-arrow' },
@@ -35,7 +43,7 @@
 
   function dispatchKey(spec) {
     const e = new KeyboardEvent('keydown', {
-      key: spec.key, code: spec.code,
+      key: spec.key, code: spec.code, shiftKey: !!spec.shift,
       bubbles: true, cancelable: true,
     });
     // keyCode/which are read-only on standard events but most game handlers
@@ -53,7 +61,7 @@
     s.textContent = `
       #vk-panel {
         position: fixed; right: 12px; bottom: 56px;
-        display: none; grid-template-columns: repeat(3, 48px);
+        display: none; grid-template-columns: repeat(4, 48px);
         gap: 4px; padding: 24px 8px 8px 8px;  /* extra top padding for the close button */
         background: rgba(20, 20, 30, 0.78);
         border-radius: 10px;
@@ -76,6 +84,7 @@
       }
       .vk-key:active { background: linear-gradient(#1f2a44, #3a4a6a); }
       .vk-arrow { background: linear-gradient(#553a6a, #2a1f44); }
+      .vk-op { background: linear-gradient(#3a6a4a, #1f442a); }
       #vk-close {
         position: absolute; top: 2px; right: 4px;
         width: 20px; height: 20px;
@@ -123,6 +132,7 @@
       const b = document.createElement('div');
       b.className = 'vk-key' + (k.cls ? ' ' + k.cls : '');
       b.textContent = k.label;
+      if (k.key.length === 1) b.dataset.char = k.key;
       // pointerdown fires before focus changes, which is what we want.
       b.addEventListener('pointerdown', (ev) => {
         ev.preventDefault();

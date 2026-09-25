@@ -49,6 +49,16 @@ const GameT2 = (() => {
   };
   const TOV_VARIANTS = ['tov1','tov2','tov3'];
 
+
+  // Every destroy() starts a new session; callbacks scheduled by an older
+  // session (intro delay, post-answer / end-of-game delays) become no-ops, so
+  // leaving or restarting a game can't resurrect it on a hidden screen.
+  let session = 0;
+  function later(fn, ms) {
+    const my = session;
+    return setTimeout(() => { if (my === session) fn(); }, ms);
+  }
+
   // ─── Public API ──────────────────────────────────────────────────────────────
 
   function init(unitData, kind, completeCb) {
@@ -79,6 +89,7 @@ const GameT2 = (() => {
     renderEggs();
     updatePenalty();
     if (elTargetVal) elTargetVal.textContent = '';
+    if (elTimer) elTimer.textContent = '0:00';
 
     window.addEventListener('resize', resizeViewport);
     resizeViewport();
@@ -86,15 +97,22 @@ const GameT2 = (() => {
     keyHandler = e => handleKey(e);
     window.addEventListener('keydown', keyHandler);
 
+    // No typing target until the intro ends: without this a key pressed
+    // during the intro was checked against the previous game's last row
+    // and cost a penalty before the first question was even shown.
+    tshP = ''; typedCount = 0; blocked = true;
+
     startAnim('start');
     AudioMgr.playAnim(`Tirgol2Q${gameKind}.wav`);
-    setTimeout(() => {
+    later(() => {
+      blocked = false;
       goToScene(0);
       startTimer();
     }, 1600);
   }
 
   function destroy() {
+    session++;
     stopTimer();
     stopAnim();
     stopChicksAnim();
@@ -160,7 +178,12 @@ const GameT2 = (() => {
     const chunks = [];
     let i = 0;
     while (i < str.length) {
-      if (/\d/.test(str[i]) || (str[i] === '-' && i + 1 < str.length && /\d/.test(str[i+1]))) {
+      // '-' belongs to the number only as a sign (start of expr or after an
+      // operator / '('); after a digit or ')' it is the subtraction operator
+      // and must stay visible ("8*1-4": blank "4", not "-4" → "8*1_").
+      const sign = str[i] === '-' && i + 1 < str.length && /\d/.test(str[i+1]) &&
+                   (i === 0 || /[+\-*/:(x×÷]/.test(str[i-1]));
+      if (/\d/.test(str[i]) || sign) {
         let start = i;
         if (str[i] === '-') i++;
         while (i < str.length && /\d/.test(str[i])) i++;
@@ -371,7 +394,7 @@ const GameT2 = (() => {
       playCorrectAnim();
     }
 
-    setTimeout(() => {
+    later(() => {
       blocked = false;
       const nextRow = rowIdx + 1;
       if (nextRow < scenePairs.length) {
@@ -391,6 +414,10 @@ const GameT2 = (() => {
 
   function endGame() {
     stopTimer();
+    // The score screen is up now: stop listening, or every key typed there
+    // counted as a wrong answer and played the "wrong" sound.
+    blocked = true;
+    if (keyHandler) { window.removeEventListener('keydown', keyHandler); keyHandler = null; }
     startChicksAnim();
     if (penalty < 30) AudioMgr.playAnim('soff.wav');
     const tov = eggs.filter(e => e === 0).length;
@@ -582,5 +609,12 @@ const GameT2 = (() => {
     return arr;
   }
 
-  return { init, destroy };
+  // Read-only snapshot for tools/monkey (headless test driver).
+  function peek() {
+    return { kind: gameKind, sceneIndex, total: allPairs.length, penalty, eggs: [...eggs], tshNom,
+      tshP, typedCount, staStr, blocked, matched: [...matched],
+      scene: scenePairs.map(p => ({ expr: p.expr, answer: p.answer })) };
+  }
+
+  return { init, destroy, peek };
 })();

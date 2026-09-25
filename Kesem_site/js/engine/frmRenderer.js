@@ -52,8 +52,8 @@ function actionFor(ctrl, appId, screenId) {
     if (appId === "KolKoreB" && name === "mini")    return "kkb:mini";
     if (name === "btnIcon")   return `maslul:${idx + 1}`;
     // Games3 hak inspect overlay (Picture22): wa[0..4] = audio/record buttons,
-    // dif[0/1] = prev/next hotspot navigation. wa[5] is a decorative warning
-    // indicator with no click handler in the original.
+    // dif[0/1] = prev/next hotspot navigation. wa[5] is the "?" help
+    // (tipl(8) "עזרה") — the bundle shows the panel's tipl captions for it.
     if (name === "wa")         return `wa:${idx}`;
     if (name === "dif")        return `dif:${idx}`;
     if (name === "btnHofshi") return "hofshi";
@@ -99,8 +99,10 @@ function actionFor(ctrl, appId, screenId) {
     // Heshbon Sst.Picture2_Click → start.Visible=True / Sst.Visible=False —
     // launches the Lmath ladybug-math mini-game (Lmath/start.frm). Scope to
     // Heshbon since Dvash/Ivrit also have a generic Picture2 control with
-    // unrelated semantics.
-    if (name === "Picture2" && appId === "Heshbon") return "lmath:start";
+    // unrelated semantics — and to the Sst screen: Games4/Games5 also have
+    // a Picture2 (the game4 piece canvas / game5 choice tiles), and without
+    // the screen check a click there tore the game down into Lmath.
+    if (name === "Picture2" && appId === "Heshbon" && screenId === "sst") return "lmath:start";
     // Sst.mahak_Click → MsgBox confirm → ResetKlali (wipe scores) → Lampas.
     // Visible only when Lampas finds at least one saved activity.
     if (name === "mahak")      return "reset";
@@ -208,6 +210,35 @@ function isContainer(ctrl) {
     // VB6 PictureBox / Frame can host child controls. We render them as
     // positioned divs so their children inherit absolute positioning.
     return ctrl.children && ctrl.children.length > 0;
+}
+
+// Warm the cache with every rama's background for this screen the first
+// time it is shown. On the live site each rama tab otherwise fetched a
+// ~100-500 KB background on first click, so the tab kept showing the
+// previous rama (or, in Firefox, a blank frame) for a second or more —
+// reported as a multi-second delay when swapping levels (#62) and as
+// wrong-looking / missing art when swapping fast (#57, #61). Only the
+// background: per-rama control art ({rama} in `images`) includes files that
+// legitimately don't exist for ramas where the control is hidden
+// (EnglishC tem_15, KolKoreA tem_61…), and those would 404. The Image
+// objects are kept on state so they aren't collected mid-load.
+function preloadRamaImages(state, screenConf) {
+    const maxRama = (state.config && state.config.maxRama) || 1;
+    if (maxRama < 2 || !screenConf.background) return;
+    const key = state.currentScreen;
+    state._ramaPreloaded = state._ramaPreloaded || {};
+    if (state._ramaPreloaded[key]) return;
+    state._ramaPreloaded[key] = [];
+    const urls = new Set();
+    for (let r = 1; r <= maxRama; r++) {
+        const bg = backgroundUrl(screenConf, r, state.config);
+        if (bg && r !== state.rama) urls.add(bg);
+    }
+    urls.forEach(function (u) {
+        const im = new Image();
+        im.src = u;
+        state._ramaPreloaded[key].push(im);
+    });
 }
 
 function backgroundUrl(screenConf, rama, config) {
@@ -423,8 +454,12 @@ function buildSubtree(ctrl, scale, state, screenConf) {
             const img = el("img", { class: "frm-img act1-img", src: a1.idle, alt: "" });
             node.appendChild(img);
             if (a1.hover) {
-                node.addEventListener("mouseenter", function () { img.src = a1.hover; });
-                node.addEventListener("mouseleave", function () { img.src = a1.idle; });
+                // A gated act1 is Enabled=False while audio plays (the bundle
+                // shows its "_2" sprite) — a disabled VB6 control gets no
+                // MouseMove, so no hover swap then.
+                const off = () => node.dataset.busySprite === "1";
+                node.addEventListener("mouseenter", function () { if (!off()) img.src = a1.hover; });
+                node.addEventListener("mouseleave", function () { if (!off()) img.src = a1.idle; });
             }
         }
     }
@@ -507,6 +542,7 @@ function renderScreen(state) {
         const bg = el("img", { class: bgClass, src: bgSrc, alt: "" });
         state.stage.appendChild(bg);
         state.bg = bg;
+        preloadRamaImages(state, screenConf);
     } else {
         state.bg = null;
     }
@@ -616,7 +652,7 @@ export function setScreen(state, screenId) {
 export function renderApp(config, layouts, root, onAction, opts = {}) {
     root.innerHTML = "";
     const wrap = el("div", { class: "frm-wrap" });
-    const stage = el("div", { class: "frm-stage" + (opts.debug ? " frm-stage--debug" : "") });
+    const stage = el("div", { class: "frm-stage" + (opts.debug ? " frm-stage--debug" : ""), "data-app": config.id });
     wrap.appendChild(stage);
     root.appendChild(wrap);
 

@@ -107,10 +107,21 @@ h1 {
    Click handlers also short-circuit on audioBusy — the dim is purely the
    "you can see it" half of the original behaviour.  */
 .frm-stage.audio-busy [data-audio-gated="1"] {
-    opacity: 0.45;
     cursor: not-allowed;
+}
+/* Only dim when there is no "_2" disabled sprite to swap in. */
+.frm-stage.audio-busy [data-audio-gated="1"]:not([data-busy-sprite]) {
+    opacity: 0.45;
     filter: saturate(0.6);
     transition: opacity .08s ease, filter .08s ease;
+}
+/* Picture1 / Picture2 are Enabled=False too (Timer1) — every answer click
+   is ignored while audio plays, so don't offer the hand cursor. */
+.frm-stage.audio-busy .frm-ctrl--Picture1,
+.frm-stage.audio-busy .frm-ctrl--Picture1 *,
+.frm-stage.audio-busy .frm-ctrl--Picture2,
+.frm-stage.audio-busy .frm-ctrl--Picture2 * {
+    cursor: default !important;
 }
 
 .frm-bg {
@@ -234,6 +245,13 @@ h1 {
 
 .frm-hotspot:hover {
     background: rgba(255, 255, 0, .12);
+}
+/* Heshbon's rama tabs are round domes baked into castle{rama}.jpg (the
+   selected one is painted green by the background swap). The rectangular
+   hover tint read as a mis-drawn square "outline" over ramas ב/ג and turned
+   the green dome of rama א yellow (#84). VB6 had no hover paint here. */
+.frm-stage[data-app="Heshbon"] .frm-ctrl--Icon_s:hover {
+    background: transparent;
 }
 
 /* Debug mode — visible outlines on every control for layout verification. */
@@ -431,6 +449,13 @@ h1 {
     overflow: hidden;
 }
 
+/* Like .frm-stage: nothing on the Lmath forms is selectable text (#86) —
+   the settings labels / slider values used to highlight on drag. */
+.lmath-stage {
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
 .lmath-stage img,
 .lmath-stage button { user-select: none; }
 
@@ -579,15 +604,19 @@ h1 {
     font-weight: 700;
     color: #333;
 }
-.lmath-slider label { white-space: nowrap; }
+/* The label keeps its full width; the range track is what gives way.
+   With a fixed 220px box and the track's old 90px floor, "מספר הסיבובים"
+   was pushed out past the box's left border (#85). */
+.lmath-slider label { white-space: nowrap; flex: none; }
 .lmath-slider span {
+    flex: none;
     min-width: 28px;
     text-align: center;
     color: #b00;
     font-size: 18px;
 }
 .lmath-slider input[type=range] {
-    flex: 1; min-width: 90px;
+    flex: 1 1 auto; min-width: 0; width: 0;
     /* The .lmath-slider container is RTL (so label/value/track flow right→left
        like Hebrew text). Modern browsers flip <input type=range> with the
        parent's direction — low value to the right, high to the left. That

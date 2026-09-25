@@ -198,6 +198,9 @@ const heading = document.querySelector("h1");
 const root = document.getElementById("app-root");
 
 let currentSession = null;
+// Read-only test hook for tools/monkey: headless drivers read live game
+// state (current stage, hotspot rects) through this getter.
+Object.defineProperty(window, "__kesemSession", { get: function () { return currentSession; }, configurable: true });
 
 // Where to go when the user fully exits an app (picexi / Ezia / CmdExit).
 // `Kesem_site/index.html` sits one level below `Code/index.html` (the main
@@ -267,8 +270,15 @@ function showApp(appId) {
     // in frmRenderer calls state.onRamaChange after updating state.rama.
     currentSession.onRamaChange = function (state) {
         if (state.currentScreen !== "sst") return;
+        // Sst.Icon_s_Click ends with Lampas: the lamps (and their printed
+        // scores) must show the NEW rama's completions. The renderer's
+        // setRama path never re-ran it, so the previous rama's lit lamps
+        // stayed up (setRamaUtil already calls it; running it twice is
+        // idempotent).
+        wireSstLamps(state);
         if (state.config.id === "EnglishC") applyEnglishCRamaLayout(state);
         if (state.config.id === "KolKoreA") applyKolKoreARamaLayout(state);
+        keepSstImagesLoading(state);
         if (state.config.id === "KolKoreB") {
             // refreshRamaImages wiped the temC selected sprite back to tem;
             // also the star previews need to reload (rama-specific maslul
@@ -278,14 +288,49 @@ function showApp(appId) {
         if (state.config.id === "KolKoreD") applyKolKoreDRamaLayout(state);
     };
     onScreenChange(currentSession, currentSession.currentScreen);
-    // ---- progress total: one entry per maslul (slot) across all ramas ----
+    // ---- progress total: one entry per reachable maslul (see kesemProgressTotal) ----
     if (window.Tekoa && window.Tekoa.Progress && paths && paths.ramas) {
-        let total = 0;
-        for (const r in paths.ramas) {
-            total += ((paths.ramas[r] && paths.ramas[r].slots) || []).length;
-        }
+        const total = kesemProgressTotal(config, paths);
         if (total > 0) window.Tekoa.Progress.setTotal(appId, total);
     }
+}
+
+// Catalog progress denominator. By default every slot of every rama in the
+// .MAS/.RAS data counts — but some apps ship more than their Sst offers:
+// KolKoreB/C/D carry ramas 3–4 that no Icon_s reaches, KolKoreA rama 1
+// lists 15 paths behind five btnIcon (applyKolKoreARamaLayout), KolKoreD
+// rama 2 hides btnIcon 11. Counting those left the catalog below 100%
+// (KolKoreA 63%) after every path was finished. An app can declare
+// config.progressSlots = { rama: [slot indices] | true (every slot with
+// stages) }: only the listed ramas / slots count then. Keep
+// main_site_assets/progress.js DEFAULT_TOTALS in step (it seeds the
+// catalog before the Kesem bundle ever runs).
+//
+// Two more forms (config.progress), used by Heshbon / Ivrit:
+//   progress: { ramas: [1,2,3] } — only these ramas, and only slots that
+//                                   have stages (startPath refuses empty ones);
+//   progress: { maslul: true }   — one activity per MASLUL/*.MAS (Ivrit's
+//                                   List1 plays every .MAS, not CHBOX slots).
+function kesemProgressTotal(config, paths) {
+    let total = 0;
+    const prog = config && config.progress;
+    if (prog && prog.maslul) return (paths.maslul || []).length;
+    let only = config && config.progressSlots;
+    if (!only && prog && prog.ramas) {
+        only = {};
+        prog.ramas.forEach(function (r) { only[String(r)] = true; });
+    }
+    for (const r in paths.ramas) {
+        const slots = (paths.ramas[r] && paths.ramas[r].slots) || [];
+        if (!only) { total += slots.length; continue; }
+        if (!only[r]) continue;
+        slots.forEach(function (sl, i) {
+            if (!sl || !sl.stages || !sl.stages.length) return;
+            if (only[r] !== true && only[r].indexOf(i) < 0) return;
+            total++;
+        });
+    }
+    return total;
 }
 
 // === Screen post-process =================================================
@@ -363,6 +408,7 @@ function onScreenChange(state, screenId) {
         if (state.config.flipBook) wireFlipBookAnimation(state);
         if (state.config.id === "EnglishC") applyEnglishCRamaLayout(state);
         if (state.config.id === "KolKoreA") applyKolKoreARamaLayout(state);
+        keepSstImagesLoading(state);
         if (state.config.id === "KolKoreB") {
             wireKolKoreBRamaToggle(state);
             // Apply the initial KolKoreB selection (sticky across screen
@@ -803,6 +849,29 @@ function applyKolKoreARamaLayout(state) {
     }
 }
 
+// Rama tabs swap every btnIcon/background <img>.src at once. Changing an
+// <img>'s src aborts its in-flight download, so on a slow connection a
+// user flipping tabs faster than the thumbnails arrive never lets any of
+// them finish — the old rama's pictures stay on screen and the tabs look
+// dead (#83 "when swapping too fast images stop swapping"). Mirror every
+// visible Sst image into a detached Image() that nothing ever re-points,
+// so each download runs to completion and the next visit is a cache hit.
+// Only URLs the screen is actually showing are mirrored (hidden slots such
+// as EnglishC btnIcon 4/9 have no src), so no extra requests or 404s.
+function keepSstImagesLoading(state) {
+    if (!state || !state.stage) return;
+    const keep = state._sstImgKeep || (state._sstImgKeep = new Map());
+    const imgs = [state.bg].concat([].slice.call(state.stage.querySelectorAll("img")));
+    imgs.forEach(function (img) {
+        if (!img || img.complete) return;
+        const src = img.getAttribute("src");
+        if (!src || keep.has(src)) return;
+        const pre = new Image();
+        pre.src = src;
+        keep.set(src, pre);
+    });
+}
+
 // EnglishC Sst.Icon_s_Click reshuffles the activity grid per rama:
 //   Rama 1 & 2: 4 columns × 2 rows (8 visible). btnIcon(4)/(9) and
 //               btnLamp(4)/(9) are hidden; the others reposition to
@@ -932,10 +1001,7 @@ function setRamaUtil(state, rama) {
             if (img && !img.src.endsWith(resolved)) img.src = resolved;
         });
     });
-    // Re-run sst wiring so lamp images + mahak visibility reflect new rama.
-    if (state.currentScreen === "sst") {
-        wireSstLamps(state);
-    }
+    // Lamp images + mahak visibility are re-wired by onRamaChange below.
     // Per-app rama hook — the renderer's setRama calls this at the end, but
     // setRamaUtil is the bypass path used by flipBook (KolKoreC/D) and the
     // KolKoreB toggle. Without this, KolKoreD's Icon_s_Click +65 / -65 shift
@@ -1422,7 +1488,9 @@ function kesemPromptString(opts, onResult) {
     });
     const no = document.createElement("button");
     no.textContent = opts.cancelLabel || "no";
-    Object.assign(no.style, ok.style);
+    // Copy ok's look. (Object.assign(no.style, ok.style) walks the
+    // CSSStyleDeclaration's indexed entries and throws in Chromium.)
+    no.style.cssText = ok.style.cssText;
     btns.appendChild(ok); btns.appendChild(no);
     box.appendChild(btns);
     overlay.appendChild(box);
@@ -2832,7 +2900,22 @@ function kesemChgamesCommit(state) {
         razNom: state.editor.currentRazNom || "",
     };
     klog("kesem: chgames commit", JSON.stringify(state.editor.pendingStage));
-    setScreen(state, "main");
+    // Main.menu(0): "ChGames.Show 1 → Games(n).Show 1" — once the modal
+    // picker closes, Main runs the chosen cutout in the chosen game so the
+    // teacher can try it. Before, OK only stored pendingStage (read by
+    // nothing) and dropped back to Main: the picker looked dead (#44).
+    // Played as a one-stage override slot flagged _kesemPreview so it
+    // records no score/completion and returns to Main, not Sst.
+    const st = state.editor.pendingStage;
+    const hot = (doc && doc.rasb && doc.rasb[st.razNom]) || [];
+    if (!st.pic || !st.razNom || !hot.length) { setScreen(state, "main"); return; }
+    state._activeSlotOverride = {
+        masFile: "", name: st.razNom,
+        header: { pathName: (hot[0] && hot[0].name) || st.razNom },
+        stages: [{ pic: st.pic, razNom: st.razNom, gameNumber: st.gameNumber, hotspots: hot }],
+    };
+    state._kesemPreview = "main";
+    startPath(state, 0);
 }
 
 // === Gzira (hotspot rectangle editor) =====================================
@@ -3589,6 +3672,9 @@ function wireKesemStartMaslul(state) {
     // --- List1: all available .MAS lessons ------------------------------
     const list1 = stage.querySelector(".frm-ctrl--List1");
     if (list1) {
+        // Re-rendered on every click: keep the scroll position, or picking
+        // a row further down snaps the list back to the top.
+        const keepScroll = list1.scrollTop;
         list1.innerHTML = "";
         Object.assign(list1.style, {
             background: "rgba(255,255,255,.92)", overflow: "auto",
@@ -3596,6 +3682,15 @@ function wireKesemStartMaslul(state) {
             textAlign: "right", direction: "rtl", boxSizing: "border-box",
             padding: "4px", display: "block",
         });
+        // Start_ma.frm's List1 is 336 twips (22 px) tall at design time —
+        // one row, with the lesson list scrolled inside it; the first1.jpg
+        // panel it sits in runs down to the stage-detail box (SpG_l). Fill
+        // that panel so the lessons are actually browsable.
+        const spgBox = stage.querySelector(".frm-ctrl--SpG_l");
+        const top1 = parseFloat(list1.style.top) || 0;
+        const topS = spgBox ? parseFloat(spgBox.style.top) || 0 : 0;
+        if (topS - top1 > 60) list1.style.height = (topS - top1 - 8) + "px";
+
         const ul = document.createElement("ul");
         Object.assign(ul.style, { listStyle: "none", margin: 0, padding: 0 });
         (doc.maslul || []).forEach(function (m, i) {
@@ -3618,6 +3713,7 @@ function wireKesemStartMaslul(state) {
             ul.appendChild(li);
         });
         list1.appendChild(ul);
+        list1.scrollTop = keepScroll;
     }
 
     // --- SpG_l: stage preview of the selected lesson --------------------
@@ -5535,6 +5631,9 @@ function openBookChapter(state, chapter) {
                 const stages = entry.stages;
                 let ax = 0, bx = 0, cx = 0, dX = 0;
                 stages.forEach(function (s) {
+                    // pathScore is sparse (no entry for game3 inspect stages);
+                    // JSON turns the holes into null.
+                    if (!s) return;
                     ax += (s.total  || 0);
                     bx += (s.green  || 0);
                     cx += (s.yellow || 0);
@@ -5686,6 +5785,22 @@ function wireSstLamps(state) {
     const root = state.config.assetsRoot;
 
     const lamps = state.stage.querySelectorAll(".frm-ctrl--btnLamp");
+    // Z-order: VB6 paints controls listed EARLIER in the .frm on top, CSS
+    // paints later DOM siblings on top. Where the .frm lists btnLamp before
+    // btnIcon (Brahot/Hagim/Shabat/Yeled/Dvash/English A-B/KolKore A-B/…)
+    // the lamp sits ABOVE the icon in the original. In Yeled every lamp
+    // strip overlaps the bottom edge of its btnIcon, so with DOM stacking a
+    // click on a lit lamp started the path instead of showing its score
+    // board (btnLamp_Click → niko). Lift the lamps only when the layout
+    // says they are on top; apps that list btnIcon first (EnglishC,
+    // KolKoreC/D) keep the icon above.
+    const firstIcon = state.stage.querySelector(".frm-ctrl--btnIcon");
+    lamps.forEach(function (el) {
+        if (firstIcon && el.parentElement === firstIcon.parentElement &&
+            (el.compareDocumentPosition(firstIcon) & Node.DOCUMENT_POSITION_FOLLOWING)) {
+            el.style.zIndex = "2";
+        }
+    });
     // KolKoreB Lampas iterates btnLamp(0..1) and reads completion file
     // "<rama>b<cHos>b<i>.txt" — i.e. the lamp lights up per the currently-
     // selected btnIcon (cHos). Lamp 0 reflects slot cHos, Lamp 1 reflects
@@ -5825,7 +5940,11 @@ function audioBusy(state) {
     // MMControl2.Mode = 526 would have caught).
     if (state._audioPlaying) return true;
     const a = state._audio;
-    return !!(a && a.src && !a.paused && !a.ended);
+    // A file that fails to decode (e.g. Kesem wav/50_32/7 — a 44-byte,
+    // header-only WAV and a garbage MP3) leaves the element with
+    // error set, paused === false and ended === false for good; without the
+    // error check every gated control stayed "busy" and the stage was dead.
+    return !!(a && a.src && !a.paused && !a.ended && !a.error);
 }
 
 // Add `data-audio-gated="1"` to the act1 controls the current screen
@@ -5864,16 +5983,53 @@ function startAudioGateWatcher(state) {
             lastBusy = busy;
             state.stage.classList.toggle("audio-busy", busy);
         }
+        // Every tick, not just on transitions: a stage change rebuilds the
+        // act1 DOM while audio may already be (still) playing.
+        applyAct1BusySprites(state, busy);
     }
     tick();
     state._audioGateTimer = setInterval(tick, 100);
+}
+
+// Games*.frm Timer1/Timer2: a gated act1 gets `.Enabled = False` AND its
+// "_2" picture (sanb2 / sana2 / nex2 / sev2 — the flat, greyed variants)
+// while MMControl2 plays; a disabled VB6 control receives no MouseMove, so
+// its "_3" hover glow can't show either (the renderer's hover listeners
+// skip gated buttons while .audio-busy is set). Without the swap the
+// buttons kept their normal sprite and still lit up on hover, so they
+// looked clickable while every click was ignored (#50).
+function applyAct1BusySprites(state, busy) {
+    const cfg = state.config.act1Images;
+    if (!cfg || !state.stage) return;
+    const screen = state.currentScreen;
+    state.stage.querySelectorAll(".frm-ctrl--act1").forEach(function (el) {
+        const img = el.querySelector("img.act1-img");
+        if (!img) return;
+        const idx = el.dataset.index;
+        const a1 = (cfg[screen] && cfg[screen][idx]) || (cfg.default && cfg.default[idx]) || cfg[idx];
+        if (!a1 || !a1.idle) return;
+        if (busy && el.dataset.audioGated === "1") {
+            const off = a1.idle.replace(/1(\.[a-z]+)$/i, "2$1");
+            if (off === a1.idle) return;
+            el.dataset.busySprite = "1";
+            // image_format.js may have rewritten .png → .webp; compare stems.
+            const stem = function (u) { return String(u || "").replace(/\.[a-z]+$/i, ""); };
+            if (stem(img.getAttribute("src")) !== stem(off)) img.src = off;
+        } else if (el.dataset.busySprite) {
+            delete el.dataset.busySprite;
+            img.src = (a1.hover && el.matches(":hover")) ? a1.hover : a1.idle;
+        }
+    });
 }
 
 function stopAudioGateWatcher(state) {
     if (!state || !state._audioGateTimer) return;
     clearInterval(state._audioGateTimer);
     state._audioGateTimer = null;
-    if (state.stage) state.stage.classList.remove("audio-busy");
+    if (state.stage) {
+        state.stage.classList.remove("audio-busy");
+        applyAct1BusySprites(state, false);
+    }
 }
 
 // Several Sst controls are designtime Visible=0 and unhidden at runtime by
@@ -6113,12 +6269,23 @@ function markPathCompleted(state) {
     if (window.Tekoa && window.Tekoa.Progress) {
         let g = 0, y = 0, rd = 0, tot = 0;
         for (const st of (state.pathScore || [])) {
+            // pathScore is SPARSE: snapStageScore never writes a slot for
+            // game3 (inspect) stages, and a misger jump can skip stages, so
+            // for…of yields `undefined` holes. Without this guard a path
+            // whose first stage is game3 threw here — before the outro video
+            // and nikod — and the player was left stuck on the last stage.
+            if (!st) continue;
             g  += st.green  || 0;
             y  += st.yellow || 0;
             rd += st.red    || 0;
             tot += st.total || 0;
         }
-        window.Tekoa.Progress.setScore(appId, r + "/" + n, { g, y, r: rd, total: tot });
+        // Ivrit's List1 songs all run as path 0 of an override slot; key the
+        // activity by the .MAS so each song counts once (see kesemProgressTotal).
+        const ov = state._activeSlotOverride;
+        const pid = (ov && state.config.progress && state.config.progress.maslul && ov.masFile)
+            ? "mas/" + ov.masFile : r + "/" + n;
+        window.Tekoa.Progress.setScore(appId, pid, { g, y, r: rd, total: tot });
     }
 }
 
@@ -6157,7 +6324,9 @@ function handleAction(appId, action /*, ctrl */) {
                     // affecting the next regular path play.
                     currentSession._singleStageReplay = false;
                     currentSession._singleStageReplayOnClose = null;
-                    setScreen(currentSession, "sst");
+                    const ret = currentSession._kesemPreview || "sst";
+                    currentSession._kesemPreview = null;
+                    setScreen(currentSession, ret);
                 };
                 if (showScore && slot) showNikod(currentSession, slot, goSst);
                 else                    goSst();
@@ -7068,12 +7237,23 @@ function handleAction(appId, action /*, ctrl */) {
         if (!currentSession) return;
         const idx = parseInt(action.split(":")[1], 10);
         const nom = currentSession._hakNom || 1;
+        // The three "play" buttons wait for the current sound like every
+        // other Games3 control (Timer2 / MMControl2.Mode = 526): a click
+        // mid-word used to restart it from the top, and repeated clicks on
+        // play-recording stacked copies of the take (#67). Record (1) and
+        // close (4) stay live.
+        if ((idx === 0 || idx === 2 || idx === 3) && audioBusy(currentSession)) {
+            klog("hak wa(" + idx + ") click ignored — audio busy");
+            return;
+        }
         if (idx === 0)      playGame3HakName(currentSession, nom);    // playb
         else if (idx === 1) game3HakToggleRecord(currentSession);     // rec
         else if (idx === 2) game3HakPlayRecording(currentSession);    // playc
         else if (idx === 3) playGame3HakElab(currentSession, nom);    // playa
         else if (idx === 4) closeGame3HakZoom(currentSession);        // close
-        // idx === 5 (as = warning indicator) has no click handler in the original.
+        // wa(5) "?" help — hover shows every caption; a tap shows them too
+        // (touch screens have no hover; tapping elsewhere fires mouseleave).
+        else if (idx === 5) showGame3HakTips(currentSession, "all");
         return;
     }
     if (action && action.indexOf("dif:") === 0) {
@@ -7378,6 +7558,8 @@ function confirmGameBack(onYesExit, onNoCancel, onJumpTo) {
     // Original picexi_Click on every Games*.frm runs MMControl2.Command = "Close"
     // before showing Misgeret(). We mirror that: stop any chained audio so it
     // doesn't keep playing under the modal (and over the back-to-Sst flow).
+    // A correct-answer chain cut short here resumes on "no" (see runCorrectChain).
+    const resume = currentSession && currentSession._chainResume;
     stopAllAudio(currentSession);
 
     let stageList = [];
@@ -7398,7 +7580,10 @@ function confirmGameBack(onYesExit, onNoCancel, onJumpTo) {
         mode: "back",
         caption: "?לצאת מהמסלול",
         onYes: onYesExit,
-        onNo: onNoCancel || function () { /* stay */ },
+        onNo: function () {
+            if (onNoCancel) onNoCancel();
+            if (resume && currentSession && currentSession._chainResume === resume) resume();
+        },
         // Next-stage button — advance by 1.
         onNextStage: stageCount > 1 ? function () {
             if (onJumpTo) onJumpTo(Math.min(currentIdx + 1, stageCount - 1));
@@ -7591,8 +7776,21 @@ function playVideo(url, opts) {
     function safePlay()  { _vidPending = _vidPending.then(function () { return vid.play(); }).catch(function () {}); }
     function safePause() { _vidPending = _vidPending.then(function () { vid.pause(); }).catch(function () {}); }
 
+    // A double-click on the control that opened the video (path icon,
+    // btnSeret, catalog tile…) delivers its second click to the player that
+    // just appeared on top of it — it paused the intro or hit the close
+    // Label1 (#60 "clicking a button too fast just closes the animation").
+    // Treat clicks within the double-click interval as part of the opener.
+    const openedAt = Date.now();
+    function carryOver(what) {
+        if (Date.now() - openedAt > 500) return false;
+        klog("video " + what + " click ignored — double-click carry-over");
+        return true;
+    }
+
     // Picture1_Click: pause⇆play toggle (Mode 526 = playing).
     vid.addEventListener("click", function () {
+        if (carryOver("Picture1")) return;
         klog("CLICK video Picture1 → " + (vid.paused ? "play" : "pause"));
         if (vid.paused) safePlay(); else safePause();
     });
@@ -7779,14 +7977,28 @@ function playVideo(url, opts) {
         window.removeEventListener("resize", onResize);
         if (opts.onClose) opts.onClose();
     }
-    function onKey(e) { if (e.key === "Escape") dismiss(); }
+    function onKey(e) {
+        if (e.key !== "Escape") return;
+        // Consume it — see showNikod's onKey: otherwise handleKey also runs
+        // the underlying screen's Escape (exit confirm / picexi misger).
+        e.preventDefault();
+        e.stopPropagation();
+        dismiss();
+    }
 
-    close.addEventListener("click", function () { klog("CLICK video close (Label1)"); dismiss(); });
+    close.addEventListener("click", function () { if (carryOver("close")) return; klog("CLICK video close (Label1)"); dismiss(); });
     // GoMovie_Done in original: when video reaches end, btnStop_Click → Unload.
     vid.addEventListener("ended", function () { klog("video ended → auto-dismiss"); dismiss(); });
     // Click on overlay (dimmer outside the frame) closes — convenience.
+    // Only a click that also STARTED on the dimmer counts: a seek-bar drag
+    // released outside the frame produces a `click` whose target is the
+    // common ancestor (= the overlay), which used to close the video in the
+    // middle of scrubbing (#60 / #62 slider reports).
+    let pressOnDimmer = false;
+    overlay.addEventListener("mousedown", function (e) { pressOnDimmer = (e.target === overlay); });
     overlay.addEventListener("click", function (e) {
-        if (e.target === overlay) { klog("CLICK video dimmer → dismiss"); dismiss(); }
+        if (e.target === overlay && pressOnDimmer && !carryOver("dimmer")) { klog("CLICK video dimmer → dismiss"); dismiss(); }
+        pressOnDimmer = false;
     });
     vid.addEventListener("error", function () {
         klog("video error — file missing or unsupported:", url);
@@ -7890,11 +8102,28 @@ function enterStage(state) {
     // sees a consistent value. Other apps that dispatch Case 6 → Games3
     // keep gameNumber=6 and fall through to the (gameNumber===6 ? "game3")
     // fallback below; their LEV.BAS doesn't remap audio paths.
+    // EnglishB has one gameNumber-6 stage (r1 "3. אני ואתה", razNom 3_2):
+    // its .RAS hotspots are Games3 inspect items ("חקירה") with wav/3_2/1..10,
+    // and the only Ras_Wav shipped for it is rasb_wav/3_2_3.wav — the file
+    // the exe asks for when 6 is read as 3. Left as 6 it routed to the game3
+    // screen but no hotspot renderer handles 6: nothing was clickable, no
+    // indicators, no prompt, and the stage stored a 0/total score.
     const stage = Object.assign({}, stageRaw);
     const appId = state.config.id;
-    if ((appId === "KolKoreC" || appId === "KolKoreD") &&
+    if ((appId === "KolKoreC" || appId === "KolKoreD" || appId === "EnglishB") &&
         (stage.gameNumber === 6 || stage.gameNumber === 7 || stage.gameNumber === 8)) {
         stage._origGameNumber = stage.gameNumber;
+        stage.gameNumber = 3;
+    } else if (stage.gameNumber === 6 && appId !== "Kesem" && !state.config.screens.game6) {
+        // Dvash (and any app without a game6 screen): Sst.frm Case 3, 6 → Games3 (g1m = 1), so the
+        // stage IS a Games3 inspect stage — hotspots, lblToz, "next". Leaving
+        // gameNumber at 6 routed the screen to game3 but every per-game switch
+        // (hotspot renderer, click handler, scoring) fell through to game1:
+        // one live hotspot, clicks "ignored", no indicators — a dead stage.
+        // Unlike KolKoreC/D, these apps' LEV.BAS Ras_Wav keeps the real
+        // Game_Number, so the intro stays rasb_wav/<raz>_6.wav (_rasWavGn).
+        stage._origGameNumber = 6;
+        stage._rasWavGn = 6;
         stage.gameNumber = 3;
     }
     const gameId = "game" + stage.gameNumber;
@@ -7962,11 +8191,13 @@ function initGameTurn(state, stage) {
     state.Pobeda = 0;              // games 2/4/5 correct-answers counter
     state.helek = 1;               // game 4 phase: 1=pick, 2=place
     state._pic1Listeners = false;  // pic1 was rebuilt by setScreen — re-attach
+    state._pic1Pointer = null;     // new Picture1: piece hidden until the pointer moves over it
     state._cursorPiece = null;
     state.Tek_N = 1;               // game 5 round counter
     state.game2Revealed = {};      // Game 2: which hotspot covers have been removed this stage
     state.game4Revealed = {};      // Game 4: which red Label1 covers stay hidden after a correct placement
     state.inputLocked = false;     // cleared at every new stage so a back-out mid-chain doesn't pin the lock
+    state._chainResume = null;     // an interrupted correct chain never carries into another stage
     state._stageScore = { green: 0, yellow: 0, red: 0 };  // per-stage tally feeds nikod
     const n = stage.hotspots ? stage.hotspots.length : 0;
     state.maxTurn = Math.min(n, KOL_LBL_TOZAOT);
@@ -8217,12 +8448,17 @@ function paintHotspots(state, stage) {
         });
         // Mouse-tracking cursor piece. Live for the whole stage.
         pic1.addEventListener("mousemove", function (e) {
-            if (!state._cursorPiece) return;
-            const w = state._cursorPiece.offsetWidth;
-            const h = state._cursorPiece.offsetHeight;
             const p = pic1Coords(e);
-            state._cursorPiece.style.left = (p.x - w / 2) + "px";
-            state._cursorPiece.style.top  = (p.y - h / 2) + "px";
+            state._pic1Pointer = p;         // makeCursorPiece starts the next piece here
+            if (!state._cursorPiece) return;
+            placeCursorPiece(state._cursorPiece, p);
+        });
+        // The pointer left Picture1 (bottom bar, picexi, a misger overlay
+        // on top): its last position no longer says where the cursor is,
+        // so the next question's piece waits hidden for the next
+        // Picture1_MouseMove instead of popping up at a stale spot.
+        pic1.addEventListener("mouseleave", function () {
+            state._pic1Pointer = null;
         });
     }
 
@@ -8483,6 +8719,19 @@ function makeHotspotButton(rect, vbIdx, t) {
 }
 
 // Cropped patch of Picture1 at the given hotspot rect, sized in displayed pixels.
+// Picture1_MouseMove: Picture3.Visible = True, centred on the pointer.
+function placeCursorPiece(piece, p) {
+    piece.style.left = (p.x - piece.offsetWidth / 2) + "px";
+    piece.style.top  = (p.y - piece.offsetHeight / 2) + "px";
+    piece.style.visibility = "";
+}
+
+// Each new question's piece used to be appended at Picture1's top-left
+// corner and only jumped under the pointer on the next mousemove, so after
+// a correct answer the block popped up in the corner / off the cursor
+// (#49). The correct branch hides Picture3 and Picture1_MouseMove shows
+// it again under the pointer — so start the piece at the last pointer
+// position over Picture1, or hidden until the pointer moves there.
 function makeCursorPiece(state, rect, t) {
     const c = document.createElement("canvas");
     c.className = "stage-cursor-piece";
@@ -8498,6 +8747,13 @@ function makeCursorPiece(state, rect, t) {
     try {
         c.getContext("2d").drawImage(state.stageImg, rect.x, rect.y, rect.w, rect.h, 0, 0, rect.w, rect.h);
     } catch (e) {}
+    const p = state._pic1Pointer;
+    if (p) {
+        c.style.left = (p.x - rect.w * t.scale / 2) + "px";
+        c.style.top  = (p.y - rect.h * t.scale / 2) + "px";
+    } else {
+        c.style.visibility = "hidden";
+    }
     return c;
 }
 
@@ -8505,6 +8761,23 @@ function fillPicture2Crop(state, pic2, idx) {
     const rect = state.activeStage.hotspots[idx - 1];
     if (!pic2 || !rect || !state.stageImg) return;
     pic2.innerHTML = "";
+    // Stretching the crop to fill the .frm's 56×43 (landscape) Picture2 box
+    // squashed portrait pieces (EnglishA 4_3 letter tiles are 51×73 — a
+    // flattened "d"). Keep the piece's aspect ratio, but fit it INSIDE the
+    // design box: drawing it at Picture1's scale made large pieces (Hagim /
+    // Yeled crops are ~220×110) cover the btnArw cycle arrows beside it, so
+    // the player could no longer change pieces. Centred on the design box.
+    const t = pic1Transform(state);
+    if (t) {
+        if (pic2._designBox == null) pic2._designBox = { l: pic2.offsetLeft, t: pic2.offsetTop, w: pic2.offsetWidth, h: pic2.offsetHeight };
+        const d = pic2._designBox;
+        const k = Math.min(t.scale, d.w / rect.w, d.h / rect.h);
+        const w = rect.w * k, h = rect.h * k;
+        pic2.style.left = (d.l + (d.w - w) / 2) + "px";
+        pic2.style.top = (d.t + (d.h - h) / 2) + "px";
+        pic2.style.width = w + "px";
+        pic2.style.height = h + "px";
+    }
     const c = document.createElement("canvas");
     c.width = rect.w;
     c.height = rect.h;
@@ -8673,6 +8946,20 @@ function tickGame5Timer(state) {
 // paintHotspots → setupGame5AuxUI → fresh timer.
 function restartGame5Stage(state) {
     if (!state.activeStage) return;
+    // `Unload games5` runs Form_Unload → scorelev, which files the partial
+    // run into the stage's score slot (keeping the better of old/new), and
+    // `games5.Show 1` then starts a FRESH form: zeroed counters and all
+    // lblToz back to caftoff. Without the snapshot + reset the answers from
+    // before the timeout stayed in _stageScore and the replay added on top
+    // of them — a 4-question stage could score 5 answers (>100% board).
+    snapStageScore(state);
+    state._stageScore = { green: 0, yellow: 0, red: 0 };
+    initStageIndicators(state);
+    // Fresh form ⇒ setupGame5AuxUI must take its freshStage branch: plane
+    // back at the start, speed back to nor1, Timer1 re-armed. Otherwise the
+    // plane stayed parked past the finish line with its timer stopped and
+    // the replayed stage had no time limit at all.
+    state._game5LastStage = null;
     state.Pobeda = 0;
     state.wrongCount = 0;
     state.Tek_N = 1;
@@ -8906,13 +9193,14 @@ function playAudio(state, url, onEnded) {
 function playRasWav(state, onEnded) {
     const stage = state.activeStage;
     if (!stage) return;
-    const primaryRel = "rasb_wav/" + stage.razNom + "_" + stage.gameNumber + ".wav";
-    const fallbackRel = "wav/game" + stage.gameNumber + ".wav";
+    const gn = stage._rasWavGn || stage.gameNumber;
+    const primaryRel = "rasb_wav/" + stage.razNom + "_" + gn + ".wav";
+    const fallbackRel = "wav/game" + gn + ".wav";
     const base = state.config.assetsRoot;
     if (state.audioFiles && state.audioFiles.has(primaryRel)) {
         playAudio(state, base + "/" + primaryRel, onEnded);
     } else if (state.audioFiles && state.audioFiles.has(fallbackRel)) {
-        klog("Ras_Wav fallback → game" + stage.gameNumber + ".wav");
+        klog("Ras_Wav fallback → game" + gn + ".wav");
         playAudio(state, base + "/" + fallbackRel, onEnded);
     } else {
         klog("Ras_Wav missing entirely (neither " + primaryRel + " nor " + fallbackRel + ")");
@@ -8978,8 +9266,26 @@ function playResponse(state, n, onEnded) {
 // We mirror that with state.inputLocked — onWrongClick + the per-game
 // hotspot handlers bail out while it's true, so a stray click during
 // the correct-answer celebration can't get logged as a wrong answer.
+//
+// The answer is already scored (markStageProgressAt) when the chain starts;
+// the step to the next question only runs at its end. picexi / Esc stop the
+// audio before showing the misger (MMControl2.Command = "Close"), which used
+// to kill the chain for good: after "no" the SAME question stayed live, the
+// user had to find it again, and it was scored a second time (a game1 stage
+// of 3 finished with 4 greens → 133% on the nikod board). In the original
+// the Timer loop just sees the MCI device stopped and moves on, so keep the
+// completion in state._chainResume for the misger "no" branch to run.
 function runCorrectChain(state, idx, onComplete) {
     state.inputLocked = true;
+    let finished = false;
+    function finish() {
+        if (finished) return;
+        finished = true;
+        if (state._chainResume === finish) state._chainResume = null;
+        state.inputLocked = false;
+        if (onComplete) onComplete();
+    }
+    state._chainResume = finish;
     let resp;
     if (state.wrongCount === 0)      resp = pickAlt(state, [1, 2]);
     else if (state.wrongCount < 3)   resp = pickAlt(state, [3, 4]);
@@ -8987,10 +9293,7 @@ function runCorrectChain(state, idx, onComplete) {
     klog("correct chain → Tguva " + resp + " → affirmation(" + idx + ") → mus → next");
     playResponse(state, resp, function () {
         playAffirmation(state, idx, function () {
-            playAudio(state, audioBase(state) + "/wav/mus.wav", function () {
-                state.inputLocked = false;
-                if (onComplete) onComplete();
-            });
+            playAudio(state, audioBase(state) + "/wav/mus.wav", finish);
         });
     });
 }
@@ -9133,7 +9436,19 @@ function openGame3HakZoom(state) {
     setWaEnabled(state, 2, false);
     setWaEnabled(state, 3, true);
     setWaEnabled(state, 4, true);
-    setWaEnabled(state, 5, false);
+    // wa(5) is the "?" help: tipl(8) under it reads "עזרה". Hovering it
+    // shows every button's tipl caption (wireGame3HakTips); so does a tap,
+    // for touch screens. Leaving it pointer-events:none made it a dead
+    // picture the user kept clicking (#48).
+    setWaEnabled(state, 5, true);
+    wireGame3HakTips(state);
+    showGame3HakTips(state, null);
+    // Dim the play buttons while a sound is playing (see the wa dispatch
+    // gate) the same way act1 dims — .frm-stage.audio-busy CSS.
+    [0, 2, 3].forEach(function (i) {
+        const w = pic22.querySelector('.frm-ctrl--wa[data-index="' + i + '"]');
+        if (w) w.dataset.audioGated = "1";
+    });
     // wa(2) sprite: stays on playc1 if a recording from this hak session
     // already exists (e.g. user closed + reopened), else playc3 (dimmed)
     // to visually match Enabled=False.
@@ -9149,6 +9464,127 @@ function openGame3HakZoom(state) {
     paintGame3HakPatch(state);
     // Per original Form_Activate: opening HAK plays the hotspot's name wav.
     playGame3HakName(state, nom);
+}
+
+// Games3 Picture22 carries nine Visible=0 VB.Label captions tipl(0..8)
+// (BackColor &H400000 navy, ForeColor &HFFC0C0 lilac, AutoSize), each
+// placed right under / beside one panel button: "פריט קודם" dif(0),
+// "פריט הבא" dif(1), "שמיעת המילה" wa(0), "הקלטה" wa(1), "שמיעת ההקלטה"
+// wa(2), "הסבר" wa(3), "יציאה" wa(4), "עזרה" wa(5). They're the MouseMove
+// tooltips of those buttons; the port never rendered them, so the panel's
+// buttons were unlabeled and the "?" did nothing (#48). tipl(2) "למעלה"
+// has no button in the panel and stays hidden.
+const HAK_TIP_FOR = { "dif:0": 0, "dif:1": 1, "wa:0": 3, "wa:1": 4, "wa:2": 5, "wa:3": 6, "wa:4": 7, "wa:5": 8 };
+
+function wireGame3HakTips(state) {
+    const pic22 = state.stage.querySelector(".frm-ctrl--Picture22");
+    if (!pic22 || pic22.dataset.tipsWired) return;
+    pic22.dataset.tipsWired = "1";
+    const layout = state.layouts && state.layouts[state.currentScreen];
+    const tipl = {};
+    (function walk(c) {
+        if (c.name === "tipl" && c.props && c.props.Index != null) tipl[c.props.Index] = c.props;
+        (c.children || []).forEach(walk);
+    })(layout || {});
+    function vbColor(v, dflt) {
+        if (v == null) return dflt;
+        const n = parseInt(v, 10);
+        return "rgb(" + (n & 0xff) + "," + ((n >> 8) & 0xff) + "," + ((n >> 16) & 0xff) + ")";
+    }
+    state._hakTips = {};
+    Object.keys(tipl).forEach(function (i) {
+        const p = tipl[i];
+        if (!p.Caption) return;
+        const tip = document.createElement("div");
+        tip.className = "hak-tip";
+        tip.dataset.tipl = i;
+        tip.textContent = p.Caption;
+        tip.dataset.left = String(Math.round((p.Left || 0) / 15));
+        tip.dataset.top  = String(Math.round((p.Top  || 0) / 15));
+        Object.assign(tip.style, {
+            position: "absolute",
+            left: Math.round((p.Left || 0) / 15) + "px",
+            top:  Math.round((p.Top  || 0) / 15) + "px",
+            background: vbColor(p.BackColor, "#000040"),
+            color: vbColor(p.ForeColor, "#c0c0ff"),
+            font: "11px Arial, sans-serif", lineHeight: "13px",
+            padding: "0 2px", whiteSpace: "nowrap", direction: "rtl",
+            pointerEvents: "none", zIndex: "30", display: "none",
+        });
+        pic22.appendChild(tip);
+        state._hakTips[i] = tip;
+    });
+    Object.keys(HAK_TIP_FOR).forEach(function (key) {
+        const parts = key.split(":");
+        const el = pic22.querySelector(".frm-ctrl--" + parts[0] + '[data-index="' + parts[1] + '"]');
+        if (!el) return;
+        const help = key === "wa:5";
+        el.addEventListener("mouseenter", function () { showGame3HakTips(state, help ? "all" : HAK_TIP_FOR[key]); });
+        el.addEventListener("mouseleave", function () { showGame3HakTips(state, null); });
+    });
+}
+
+// which: null = hide all, "all" = help (every visible button's caption),
+// or one tipl index.
+function showGame3HakTips(state, which) {
+    const tips = state._hakTips || {};
+    const pic22 = state.stage.querySelector(".frm-ctrl--Picture22");
+    Object.keys(HAK_TIP_FOR).forEach(function (key) {
+        const tip = tips[HAK_TIP_FOR[key]];
+        if (!tip) return;
+        let on = which === HAK_TIP_FOR[key];
+        if (which === "all") {
+            const parts = key.split(":");
+            const el = pic22 && pic22.querySelector(".frm-ctrl--" + parts[0] + '[data-index="' + parts[1] + '"]');
+            on = !!el && getComputedStyle(el).display !== "none";
+        }
+        tip.style.display = on ? "" : "none";
+        // The three bench captions (tipl 5/4/3 under wa 2/1/0) overlap each
+        // other at their .frm spots — fine one-at-a-time on hover, garbled
+        // all together. For the help view centre each under its button and
+        // drop the middle one a row.
+        const bench = { "wa:0": 0, "wa:1": 1, "wa:2": 0 };
+        if (on && which === "all" && key in bench) {
+            const parts = key.split(":");
+            const el = pic22.querySelector(".frm-ctrl--wa" + '[data-index="' + parts[1] + '"]');
+            tip.style.left = Math.round(el.offsetLeft + el.offsetWidth / 2 - tip.offsetWidth / 2) + "px";
+            tip.style.top = (parseInt(tip.dataset.top, 10) + bench[key] * 14) + "px";
+        } else {
+            tip.style.left = tip.dataset.left + "px";
+            tip.style.top = tip.dataset.top + "px";
+        }
+    });
+}
+
+// Recording needs the browser's microphone permission (no VB6 equivalent —
+// MCI recorded unconditionally). When it's refused or unavailable, say so
+// under the record button instead of leaving wa(1) silently dead (#48).
+function showGame3HakMicMessage(state) {
+    const pic22 = state.stage.querySelector(".frm-ctrl--Picture22");
+    const t4 = state._hakTips && state._hakTips[4];
+    if (!pic22) return;
+    let msg = pic22.querySelector(".hak-mic-msg");
+    if (!msg) {
+        msg = document.createElement("div");
+        msg.className = "hak-mic-msg";
+        Object.assign(msg.style, {
+            position: "absolute", left: "0", right: "0",
+            top: t4 ? t4.style.top : "320px",
+            textAlign: "center", pointerEvents: "none", zIndex: "31",
+        });
+        const span = document.createElement("span");
+        Object.assign(span.style, {
+            background: "#000040", color: "#ffc0c0",
+            font: "bold 12px Arial, sans-serif", padding: "1px 6px", direction: "rtl",
+        });
+        span.textContent = "אין גישה למיקרופון — יש לאשר שימוש במיקרופון בדפדפן";
+        msg.appendChild(span);
+        pic22.appendChild(msg);
+    }
+    showGame3HakTips(state, null);     // wa(1)'s own caption sits on this row
+    msg.style.display = "";
+    clearTimeout(state._hakMicMsgTimer);
+    state._hakMicMsgTimer = setTimeout(function () { msg.style.display = "none"; }, 4000);
 }
 
 // Mirrors Games3.dif_Click + the Picture2.PaintPicture inside it: crops the
@@ -9228,6 +9664,7 @@ function closeGame3HakZoom(state) {
     const spic1 = state.stage.querySelector(".frm-ctrl--Spic1");
     if (pic22) pic22.style.display = "none";
     if (spic1) spic1.style.display = "";
+    showGame3HakTips(state, null);
     stopAllAudio(state);
     // Tear down any active MediaRecorder.
     if (state._kkbRec && state._kkbRec.mr && state._kkbRec.mr.state === "recording") {
@@ -9328,12 +9765,16 @@ function game3HakToggleRecord(state) {
     }
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         klog("game3 rec: getUserMedia not supported");
+        showGame3HakMicMessage(state);
         return;
     }
     navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
         r.stream = stream;
         startWithStream(stream);
-    }).catch(function (err) { klog("game3 rec: getUserMedia failed", err && err.message); });
+    }).catch(function (err) {
+        klog("game3 rec: getUserMedia failed", err && err.message);
+        showGame3HakMicMessage(state);
+    });
 }
 
 // wa(2) play recorded — plays the MediaRecorder blob (Games3.wa_Click Case 2
@@ -9344,8 +9785,9 @@ function game3HakPlayRecording(state) {
         return;
     }
     klog("CLICK game3 wa(2) play-recording");
-    const a = new Audio(state._kkbRec.url);
-    a.play().catch(function () {});
+    // Through the shared session player (not a throwaway new Audio) so the
+    // take is tracked by audioBusy() and can't overlap itself or the words.
+    playAudio(state, state._kkbRec.url);
 }
 
 // Flash the current hotspot rect — Games3.startgame draws a grey-then-blue
@@ -9539,12 +9981,22 @@ function showHint(state) {
     if (!pic1) return;
     const stage = state.activeStage;
     const idx = (stage && stage.gameNumber === 4) ? state.Pr_N : state.Gg_N || state.targetHotspot;
-    const target = pic1.querySelector('.stage-hotspot[data-idx="' + idx + '"]');
+    // Game 2 has no .stage-hotspot buttons — its answer boxes are the
+    // .stage-cover tiles, so the hint used to silently not show there. Mark
+    // the target cover with the outline only: a translucent fill would
+    // uncover the picture patch the player is meant to find.
+    const hot = pic1.querySelector('.stage-hotspot[data-idx="' + idx + '"]');
+    const target = hot || pic1.querySelector('.stage-cover[data-idx="' + idx + '"]');
     if (!target) return;
-    target.style.background = "rgba(255, 255, 0, .4)";
+    if (hot) target.style.background = "rgba(255, 255, 0, .4)";
     target.style.outline = "3px solid #ff0";
-    setTimeout(function () {
-        target.style.background = "transparent";
+    // Every further wrong click re-shows the hint; restart ONE timer rather
+    // than stacking one per click — the earlier clicks' timers blanked the
+    // box while the player was still clicking (#70: "assistance blacks out").
+    if (state._hintTimer) clearTimeout(state._hintTimer);
+    state._hintTimer = setTimeout(function () {
+        state._hintTimer = null;
+        if (hot) target.style.background = "transparent";
         target.style.outline = "none";
     }, 1200);
 }
@@ -9685,7 +10137,9 @@ function advanceStage(state) {
         //   3. Creates AppPath\<rama><n_masl>.txt to mark the activity done
         //      → FrmMashal Form_Load reads that file to decide locked/unlocked
         // Sequence: outro video first (if any), then score board, then back to Sst.
-        markPathCompleted(state);
+        const previewReturn = state._kesemPreview;   // Kesem ChGames try-out
+        state._kesemPreview = null;
+        if (!previewReturn) markPathCompleted(state);
         playSlotVideo(state, slot, "end", function () {
             showNikod(state, slot, function () {
                 state.currentPath = null;
@@ -9693,7 +10147,7 @@ function advanceStage(state) {
                 state.activeStage = null;
                 state.pathScore = null;
                 state._activeSlotOverride = null;
-                setScreen(state, "sst");
+                setScreen(state, previewReturn || "sst");
             });
         });
         return;
@@ -9931,7 +10385,12 @@ function showNikod(state, slot, onClose) {
         pointerEvents: "none",
         fontFamily: "inherit",
     });
-    koter.textContent = slot.name || "";
+    // Title = the .MAS header's path name (line 5, s$ — what PutGFile
+    // loads before niko), NOT the CHBOX<rama>.INI list label. The INI
+    // labels are stale in several apps: Brahot's read "- א"/"- ב",
+    // Shabat's are copies of Yeled's ("בגן הילדים - א"), Dvash's name
+    // unrelated Kesem lessons, Hagim's carry the .MAS number prefix.
+    koter.textContent = (slot.header && slot.header.pathName) || slot.name || "";
     box.appendChild(koter);
 
     // === Picture1 (summary panel) + picture2 (detail panel) ==============
@@ -10012,7 +10471,16 @@ function showNikod(state, slot, onClose) {
             textAlign: "center",
             color: color,
             fontSize: fontSize + "px",
-            lineHeight: h + "px",
+            // VB.Label has no vertical alignment — Caption is drawn from the
+            // TOP of the control. lineHeight = h centred the digits in the
+            // 31-px-tall labels and pushed each count ~8 px below its row's
+            // colour square in score2.png (issue #60 "numbers are offset").
+            // One line of fontSize height keeps the glyphs top-aligned; the
+            // centres then land within 1.5 px of the baked squares
+            // (177/203/229/251 in Picture1 coords). toch(0) is only 21 px
+            // tall and already sits on its baked "סך הכל … שאלות" line
+            // (text rows 140-149) when centred, so it keeps that.
+            lineHeight: (h > 24 ? fontSize : h) + "px",
             fontWeight: "700",
             pointerEvents: "none",
             direction: "ltr",
@@ -10202,7 +10670,15 @@ function showNikod(state, slot, onClose) {
         teardown();
         if (onClose) onClose();
     }
-    function onKey(e) { if (e.key === "Escape" || e.key === "Enter") dismiss(); }
+    function onKey(e) {
+        if (e.key !== "Escape" && e.key !== "Enter") return;
+        // Consume the key: dismiss() lands on Sst synchronously, and the
+        // window-level handleKey would otherwise see the same Escape on Sst
+        // and pop the exit confirm on top (one key = two actions).
+        e.preventDefault();
+        e.stopPropagation();
+        dismiss();
+    }
     cmd1.addEventListener("click", dismiss);
     document.addEventListener("keydown", onKey);
     // Expose the no-callback teardown so the Label2 column-header click
@@ -10281,7 +10757,8 @@ function handleKey(e) {
     // the underlying screen's Esc action (fix for #65.1 "in all the
     // english games you can leave without confirming by pressing
     // escape again").
-    if (document.querySelector(".exit-modal, .misger-overlay")) return;
+    if (e.defaultPrevented) return;
+    if (document.querySelector(".exit-modal, .misger-overlay, .nikod-overlay, .video-overlay")) return;
     if (!currentSession) return;
     const screen = currentSession.currentScreen;
     const isKesem = currentSession.config.id === "Kesem";
@@ -10320,6 +10797,12 @@ function handleKey(e) {
         e.preventDefault();
         if (screen === "sst" || screen === "frmSel") {
             confirmExit(exitToLauncher);
+        } else if (screen && screen.indexOf("game") === 0 && currentSession.currentPath != null) {
+            // Esc on a game form IS picexi: same misger (working next/prev
+            // stage arrows + stage combo) and, on yes, the same scorelev
+            // snapshot + partial nikod board. The bare confirm below had
+            // dead arrows and dropped the user on Sst with no results (#56).
+            handleAction(currentSession.config.id, "back");
         } else {
             // game form / catalog — same flow as picexi (yes → back to Sst).
             confirmGameBack(
@@ -10336,9 +10819,14 @@ function handleKey(e) {
         return;
     }
     if (e.key === " " || e.key === "Enter") {
-        // Only meaningful on game forms — replay the question audio.
+        // Only meaningful on game forms — replay the question audio. It is
+        // the keyboard twin of act1(0) (btnGolos), which Games*.frm Timer1
+        // disables while MMControl2 plays: replaying over a correct answer's
+        // Tguva chain replaced the chain's onended, so inputLocked stayed
+        // set and every later click was dropped as "audio busy".
         if (screen && screen.indexOf("game") === 0 && currentSession.activeStage) {
             e.preventDefault();
+            if (audioBusy(currentSession)) { klog("key replay ignored — audio busy"); return; }
             replayStageAudio(currentSession);
         }
     }
@@ -10361,10 +10849,7 @@ if (window.Tekoa && window.Tekoa.Progress) {
     for (const appId of APPS) {
         const paths = PATHS[appId];
         if (!paths || !paths.ramas) continue;
-        let total = 0;
-        for (const r in paths.ramas) {
-            total += ((paths.ramas[r] && paths.ramas[r].slots) || []).length;
-        }
+        const total = kesemProgressTotal(CONFIGS[appId], paths);
         if (total > 0) window.Tekoa.Progress.setTotal(appId, total);
     }
 }

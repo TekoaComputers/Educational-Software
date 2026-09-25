@@ -63,6 +63,16 @@ const Game = (() => {
   // col 0=unanswered, col 2=broken(bad), col 4=chick(0wrong), col 5=chick(1), col 6=chick(2)
   const EGG_BGX = { '-1': 0, '0': -156, '1': -117, '2': -117, 'bad': -78 };
 
+
+  // Every destroy() starts a new session; callbacks scheduled by an older
+  // session (intro delay, post-answer / end-of-game delays) become no-ops, so
+  // leaving or restarting a game can't resurrect it on a hidden screen.
+  let session = 0;
+  function later(fn, ms) {
+    const my = session;
+    return setTimeout(() => { if (my === session) fn(); }, ms);
+  }
+
   // ─── Public API ────────────────────────────────────────────────────────────
 
   function init(unitData, kind, completeCb) {
@@ -98,9 +108,11 @@ const Game = (() => {
     elEggs      = document.getElementById('game-eggs');
     charAnim    = document.getElementById('char-img');
 
+    currentTarget = null;   // nothing to answer until the intro ends
     renderEggs();
     updatePenalty();
     updateProgress();
+    if (elTimer) elTimer.textContent = '0:00';
 
     // Fit viewport to window
     window.addEventListener('resize', resizeViewport);
@@ -113,13 +125,14 @@ const Game = (() => {
     // Start intro animation then kick off scene
     startAnim('start');
     AudioMgr.playAnim(`Tirgol1Q${gameKind}.wav`);
-    setTimeout(() => {
+    later(() => {
       goToScene(0);
       startTimer();
     }, 1600);
   }
 
   function destroy() {
+    session++;
     stopTimer();
     stopAnim();
     stopChicksAnim();
@@ -168,13 +181,13 @@ const Game = (() => {
     if (unmatched.length === 0) {
       const totalScenes = Math.ceil(allPairs.length / 8);
       if (sceneIndex + 1 < totalScenes) {
-        setTimeout(() => goToScene(sceneIndex + 1), 500);
+        later(() => goToScene(sceneIndex + 1), 500);
       } else {
         stopTimer();
         stopAnim();
         startChicksAnim();
         if (penalty < 30) AudioMgr.playAnim('soff.wav');
-        setTimeout(() => {
+        later(() => {
           if (onComplete) {
             const tov = eggs.filter(e => e === 0).length;
             const be  = eggs.filter(e => e === 1 || e === 2).length;
@@ -288,7 +301,8 @@ const Game = (() => {
         row.addEventListener('click', () => handleRowClick(i));
         row.addEventListener('mouseenter', () => handleRowHover(i, true));
         row.addEventListener('mouseleave', () => handleRowHover(i, false));
-        row.addEventListener('touchstart', () => handleRowClick(i), { passive: true });
+        // No separate touchstart handler: a tap already produces this click, and
+        // answering on both counted every tap twice (double penalty per miss).
       }
 
       elRows.appendChild(row);
@@ -338,7 +352,7 @@ const Game = (() => {
   }
 
   function handleRowClick(rowIdx) {
-    if (!currentTarget || matched[rowIdx]) return;
+    if (!currentTarget || !scenePairs[rowIdx] || matched[rowIdx]) return;
     clearHint();
 
     const pair = scenePairs[rowIdx];
@@ -387,7 +401,7 @@ const Game = (() => {
       // Invalidate the target immediately so a hover during the 400ms transition
       // can't preview the just-answered question. pickNextTarget restores it.
       currentTarget = null;
-      setTimeout(pickNextTarget, 400);
+      later(pickNextTarget, 400);
     } else {
       penalty += Math.max(1, Math.round(5 - allPairs.length / 8));
       if (penalty > 60) penalty = 60;
@@ -420,7 +434,8 @@ const Game = (() => {
       navigateRow(1);
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      handleRowClick(keyFocusRow);
+      // keyFocusRow is -1 until an arrow key picks a plank for this target.
+      if (keyFocusRow >= 0) handleRowClick(keyFocusRow);
     }
   }
 
@@ -629,5 +644,12 @@ const Game = (() => {
     return Math.max(0, 100 - penalty);
   }
 
-  return { init, destroy, getScore };
+  // Read-only snapshot for tools/monkey (headless test driver).
+  function peek() {
+    return { kind: gameKind, sceneIndex, total: allPairs.length, penalty, eggs: [...eggs],
+      matched: [...matched], target: currentTarget && { ...currentTarget },
+      scene: scenePairs.map(p => ({ expr: p.expr, answer: p.answer })), anim: !!animInterval };
+  }
+
+  return { init, destroy, getScore, peek };
 })();

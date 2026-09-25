@@ -49,6 +49,9 @@ export default {
     tafroshFile: "data/tafrosh/EnglishA.json",
     defaultRama: 1,
     maxRama: 2,
+    // Catalog progress counts only the paths the Sst offers (see
+    // kesemProgressTotal in tools/build_bundle.py).
+    progressSlots: { "1": true, "2": true },
     bgRamaMax: 2,
     act1Images: {
         default: {

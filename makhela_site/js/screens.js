@@ -155,8 +155,10 @@
         }
         MKH.log("anim", "play", url);
 
-        const v = document.createElement("video");
-        v.src = url;
+        // opts.videoEl: an element the caller already preloaded (first
+        // frame decoded) so it paints the instant it is attached.
+        const v = opts.videoEl || document.createElement("video");
+        if (!opts.videoEl) v.src = url;
         v.autoplay = true;
         v.playsInline = true;
         v.style.cssText = "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;image-rendering:pixelated;z-index:100";
@@ -204,6 +206,7 @@
             sound.onEnd(() => { MKH.log("anim", "sound-ended-cut", url); finish(); });
         }
         stage.appendChild(v);
+        if (opts.videoEl) { const p = v.play(); if (p && p.catch) p.catch(() => {}); }
         return v;
     }
 
@@ -276,14 +279,14 @@
     // Ambient MIDI background music (from data/midi-blob.js) loops.
     // Play a list of (anim, sound) entries in sequence; call onAllDone
     // when the last one finishes. Empty list → call onAllDone immediately.
-    function playAnimSequence(stage, entries, onAllDone) {
+    function playAnimSequence(stage, entries, onAllDone, firstEl) {
         const list = (entries || []).filter(e => e && e.anim);
         if (list.length === 0) { if (onAllDone) onAllDone(); return; }
         let i = 0;
         function next() {
             if (i >= list.length) { if (onAllDone) onAllDone(); return; }
             const e = list[i++];
-            playAnim(stage, e.anim, { sound: e.sound || "", onEnd: () => {
+            playAnim(stage, e.anim, { sound: e.sound || "", videoEl: i === 1 ? firstEl : null, onEnd: () => {
                 // Remove the just-finished video so the next one in the
                 // sequence shows its first frame (m0.png shows through
                 // briefly between videos — fine because each anim starts
@@ -295,7 +298,65 @@
         next();
     }
 
-    function hub({ makeStage }) {
+    // Pixel bounds [x0, y0, x1, y1] (inclusive, 320x200 art coords) of
+    // everything that MOVES in each decorative hub effect — measured by
+    // diffing every frame of the MP4 against its own first frame. Used to
+    // widen the effect's clipRect beyond its click hotspot (issue #80).
+    const ANIM_MOTION_BOUNDS = {
+        "assets/animations/m5_1.mp4":     [122, 12, 159,  45],   // window
+        "assets/animations/m5_2.mp4":     [  6, 10,  39,  48],   // clock
+        "assets/animations/m5_3.mp4":     [283, 19, 310,  37],   // bell
+        "assets/animations/m5_4.mp4":     [  0, 118, 42, 170],   // surprise box
+        "assets/animations/eff/fok1.mp4": [132, 67, 179, 108],   // kid
+        "assets/animations/eff/fok2.mp4": [126, 67, 184, 120],
+        "assets/animations/eff/fok3.mp4": [128, 67, 173, 108],
+        "assets/animations/eff/fok4.mp4": [124, 67, 172, 108],
+        "assets/animations/eff/fok5.mp4": [132, 68, 184, 108],
+    };
+
+    function hub({ makeStage }, preloaded) {
+        // Returning from a mini-game plays its return cutscene (m2/m4/m6/
+        // m8). If we tore the old screen down right away, the bare m0.png
+        // (kid standing at the start position) showed for the ~150-250 ms
+        // the <video> needs to decode its first frame, and then the kid
+        // "teleported" into the cutscene pose (issue #81). Instead keep
+        // the previous screen up until the first return frame is decoded,
+        // then swap in the hub with that frame already paintable.
+        let ret = null, retEntries = [];
+        if (!preloaded) {
+            ret = consumePendingReturn("m0");
+            if (ret) {
+                // ret may be an old string (single URL) or new list of entries
+                retEntries = Array.isArray(ret.anim)
+                    ? ret.anim
+                    : (typeof ret.anim === "string" && ret.anim ? [{ anim: ret.anim, sound: ret.sound || "" }] : []);
+                retEntries = retEntries.filter(e => e && e.anim);
+            }
+            if (retEntries.length) {
+                const pre = document.createElement("video");
+                pre.preload = "auto";
+                pre.muted = true;          // the anims carry no audio track
+                pre.playsInline = true;
+                pre.src = retEntries[0].anim;
+                const hash = location.hash;
+                let settled = false;
+                const go = () => {
+                    if (settled) return;
+                    settled = true;
+                    clearTimeout(timer);
+                    // The user navigated elsewhere while we waited.
+                    if (location.hash !== hash) return;
+                    hub({ makeStage }, { entries: retEntries, el: pre });
+                };
+                const timer = setTimeout(go, 1500);
+                pre.addEventListener("loadeddata", go, { once: true });
+                pre.addEventListener("error", go, { once: true });
+                pre.load();
+                return;
+            }
+        } else {
+            retEntries = preloaded.entries;
+        }
         MKH.log("screen", "hub");
         const stage = makeStage();
         stage.style.backgroundImage = "url('assets/screens/m0.png')";  // T0
@@ -432,26 +493,36 @@
                 },
             };
             if (!effectiveRoute) {
+                // Clip to the hotspot rect UNIONED with the anim's own
+                // motion bounds — several effects move outside their
+                // click box (the kid's arms in fok2/4/5 reach x=124..184
+                // while the hotspot is 131..179; the jack-in-the-box
+                // pops up to y=118 above its 136 hotspot top; the clock
+                // pendulum swings to x=39). Clipping to the bare hotspot
+                // sliced those sprites mid-animation (issue #80).
+                const b = ANIM_MOTION_BOUNDS[entry.anim];
+                let x0 = h.x, y0 = h.y, x1 = h.x + h.w, y1 = h.y + h.h;
+                if (b) {
+                    x0 = Math.max(0,   Math.min(x0, b[0] - 1));
+                    y0 = Math.max(0,   Math.min(y0, b[1] - 1));
+                    x1 = Math.min(320, Math.max(x1, b[2] + 2));
+                    y1 = Math.min(200, Math.max(y1, b[3] + 2));
+                }
                 opts.clipRect = {
-                    x: h.x * SCALE,
-                    y: h.y * SCALE,
-                    w: h.w * SCALE,
-                    h: h.h * SCALE,
+                    x: x0 * SCALE,
+                    y: y0 * SCALE,
+                    w: (x1 - x0) * SCALE,
+                    h: (y1 - y0) * SCALE,
                 };
             }
             playAnim(stage, entry.anim, opts);
         }
 
-        const ret = consumePendingReturn("m0");
-        if (ret) {
-            // ret may be an old string (single URL) or new list of entries
-            const entries = Array.isArray(ret.anim)
-                ? ret.anim
-                : (typeof ret.anim === "string" && ret.anim ? [{ anim: ret.anim, sound: ret.sound || "" }] : []);
-            playAnimSequence(stage, entries, () => {
+        if (retEntries.length) {
+            playAnimSequence(stage, retEntries, () => {
                 stage.querySelectorAll("video").forEach(el => el.remove());
                 renderHotspots();
-            });
+            }, preloaded && preloaded.el);
         } else {
             renderHotspots();
         }
@@ -537,6 +608,9 @@
         // can still hit "preview song" / "exit" while the anim plays.
         function playClickAnimFor(h, after, opts) {
             opts = opts || {};
+            // Any other anim replaces (and silently stops) a running song
+            // intro, whose onEnd then never fires — so reset here.
+            introBusy = !!opts.intro;
             const arr = (h.clickAnims || []).filter(c => c && c.anim);
             const entry = arr[0]
                 || (h.clickAnim ? { anim: h.clickAnim, sound: h.clickSound || "" } : null);
@@ -559,6 +633,13 @@
 
         let clickPending = null;          // timer id for distinguishing dbl-click
         const DBLCLICK_MS = 250;
+        // True while the kid is announcing a song name (menu1 clip + the
+        // m_N_2 voice). Further song-line clicks are ignored until he is
+        // done, like the DOS original whose FLI playback blocked input —
+        // otherwise a second click cut him off mid-word and started the
+        // next song's intro (issue #47). Preview / kid-on-chair / exit /
+        // double-click stay live.
+        let introBusy = false;
 
         function addHotspots() {
             stage.querySelectorAll(".hotspot").forEach(b => b.remove());
@@ -594,6 +675,10 @@
                     if (!songKey) continue;
 
                     btn.onclick = () => {
+                        if (introBusy) {
+                            MKH.log("click", "song-line-ignored", num, songKey);
+                            return;
+                        }
                         // Select IMMEDIATELY so "preview song" is active in
                         // the same tick — no waiting for the dbl-click
                         // resolution window or the click anim to finish.
@@ -605,8 +690,8 @@
                             // Anim is clipped to kid box + ends with the voice
                             // intro. Hotspots stay clickable throughout so
                             // "preview song" can be hit any time.
-                            playClickAnimFor(h, () => {}, {
-                                clip: true, endWithSound: true, keepHotspots: true,
+                            playClickAnimFor(h, () => { introBusy = false; }, {
+                                clip: true, endWithSound: true, keepHotspots: true, intro: true,
                             });
                         }, DBLCLICK_MS);
                     };
@@ -631,6 +716,7 @@
                             const arr = (h.clickAnims || []).filter(c => c && c.anim);
                             const animUrl = (arr[0] && arr[0].anim) || h.clickAnim || "";
                             stage.querySelectorAll("video").forEach(v => { try { v.pause(); } catch (e) {} v.remove(); });
+                            introBusy = false;
                             playAnim(stage, animUrl, {
                                 sound:    sound,
                                 clipRect: kidClipRect,
@@ -1369,8 +1455,9 @@
     // Classic concentration / memory game on the igra2 screen — 12 cards
     // (3×4 grid) hiding 6 pairs of instrument icons cropped from
     // pan_inst.png. Card backs = the treble-clef pattern baked into
-    // igra2.png; flipping just overlays the face on top. da.mp4/net.mp4
-    // provide match/mismatch audio cues; konec.mp4 plays as a celebration
+    // igra2.png; flipping just overlays the face on top. (da.mp4/net.mp4
+    // are SILENT game-show kid clips, not audio cues — see onCardClick.)
+    // konec.mp4 plays as a celebration
     // when all pairs are found (and the "play video when game complete"
     // hotspot replays it on demand).
     function memoryGame({ makeStage }) {
@@ -1482,14 +1569,6 @@
             return wrap;
         }
 
-        function playClip(url) {
-            try {
-                const a = new Audio(url);
-                a.volume = vol("speech");
-                a.play().catch(() => {});
-            } catch (e) {}
-        }
-
         // Slot → instrument fx clip in assets/sfx/fx/. Each .ogg is a short
         // demo (1-3 s) of that instrument playing — gives the player an
         // audible cue of what the card is on top of the visual sprite.
@@ -1542,7 +1621,11 @@
             if (a.slot === b.slot) {
                 a.matched = true; b.matched = true;
                 matched += 1;
-                playClip("assets/animations/da.mp4");
+                // No match cue: da.mp4 / net.mp4 (formerly played here via
+                // new Audio) are 0.6 s video-only FLI conversions with no
+                // audio track — silent in Chrome, an "audio error" on every
+                // match in Firefox. The flipped card's own instrument clip
+                // is the audible feedback.
                 // Brief pause so the user reads the matching pair, THEN
                 // remove both cards to reveal the gramaf frame behind.
                 busy = true;
@@ -1556,7 +1639,6 @@
                 }, 500);
             } else {
                 busy = true;
-                playClip("assets/animations/net.mp4");
                 setTimeout(() => { flipDown(a); flipDown(b); busy = false; }, 900);
             }
         }
@@ -1594,6 +1676,9 @@
         }
 
         function onComplete() { complete = true; playWinVideo(); }
+
+        // Read-only test hook for tools/monkey (closure state is private).
+        MKH._test = { memoryGame: () => ({ deck: deck.slice(), matched, complete, busy }) };
 
         // Place 12 cards. Each card's BACKGROUND is the slice of igra2.png
         // at its own position — so face-down cards keep showing the
@@ -2201,6 +2286,9 @@
             v.addEventListener("ended", close);
             stage.appendChild(x);
         }
+
+        // Read-only test hook for tools/monkey (closure state is private).
+        MKH._test = { gameShow: () => ({ round, correct, currentTarget, slotSongs: slotSongs.slice(), busy, timeLeft }) };
 
         // ---- Setup ----
         makeLadder();

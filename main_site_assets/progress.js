@@ -494,14 +494,17 @@
     // Live setTotal calls from each subsite still override these if data
     // changes (e.g. a unit added).
     const DEFAULT_TOTALS = {
-        Brahot: 24, Dvash: 25, EnglishA: 24, EnglishB: 18, EnglishC: 44,
-        Hagim: 24, Heshbon: 24, Ivrit: 24, KolKoreA: 27, KolKoreB: 40,
-        KolKoreC: 28, KolKoreD: 36, Shabat: 24, Shirim: 26,
+        Brahot: 24, Dvash: 25, EnglishA: 12, EnglishB: 18, EnglishC: 26,
+        Hagim: 24, Heshbon: 15, Ivrit: 44, KolKoreA: 17, KolKoreB: 28,
+        KolKoreC: 16, KolKoreD: 23, Shabat: 24, Shirim: 26,
         "Shirim&Meshalim": 39, Yeled: 18,
         Hemed: 10, Nivim: 31,
         Tirgolit: 106, Tirgolit2: 90,
         Makhela: 8, Mikraot: 30,
     };
+    // EnglishA/C: playable maslulim only (Kesem progressTotal) — EnglishA's
+    // .MAS carries ramas 3/4 behind a 2-tab Sst, EnglishC a rama 4 and the
+    // hidden filler slots 4/9. Seeding the raw 24/44 capped them at 50%/59%.
     for (const app in DEFAULT_TOTALS) {
         // Only seed when the app has no live total yet (or has zero) —
         // don't downgrade a higher live count to the baked-in one.

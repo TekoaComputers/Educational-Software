@@ -393,6 +393,7 @@ body {
    pale-lavender RGB(220,221,252) shadow row at y=9, centered x=400. */
 .game-menu-title {
     left: 0; top: 9px; width: 800px;
+    padding: 0 56px;            /* keep clear of the exit/help icons */
     text-align: center;
     color: rgb(90, 131, 252);
     /* Orig Form_Paint:598-599 paints twice: shadow row at y=8 in
@@ -1026,7 +1027,13 @@ body {
     background-image: url("../assets/Hemed/pictures/GameAmerican/framefocus.png");
 }
 .am-q-text { color: #2a1d0a; font-size: 1.3rem; font-weight: 700; text-align: center; flex: 1; }
-.am-q-text.am-pic-loaded { font-size: 0; }    /* hide text when picture loads */
+.am-q-text.am-pic-loaded {                      /* hide text when picture loads */
+    font-size: 0;
+    /* The picture is this span's background: with its text gone it would
+       collapse to 0 px tall in the row-flex frame (align-items:center),
+       leaving the by-picture question frame empty. Fill the frame. */
+    align-self: stretch;
+}
 
 /* ---- Option box (default = text-text vertical rows, orig:220-227) ---- */
 .am-option {
@@ -1272,6 +1279,7 @@ body {
        (400, 5/9/7) in RGB(180,220,255) [y=5 above] / RGB(150,200,255)
        [y=9 below] / RGB(50,100,210) [y=7 main]. 22pt SystemFont. */
     left: 0; right: 0; top: 7px;
+    padding: 0 56px;            /* keep clear of the exit/help icons */
     text-align: center; font: 700 18pt "David CLM", "Heebo", "Segoe UI", Arial, sans-serif;
     color: rgb(50, 100, 210);
     text-shadow:
@@ -2162,8 +2170,11 @@ body {
    QPic at 512,324 over ~330ms). We use a CSS clip-path reveal which
    gets us the same visual without per-frame canvas blits. */
 .hak-pic {
-    left: 512px; top: 324px; width: 280px; height: 200px;
-    background-size: 100% 100%; background-repeat: no-repeat;
+    /* BitBlt copies QPic 1:1 — the unit pictures are ~130-140 px, which
+       lands them centred on the right-hand board. Stretching them to a
+       280×200 box distorted them and ran past the board's edge. */
+    left: 512px; top: 324px; width: 140px; height: 140px;
+    background-size: auto; background-position: 0 0; background-repeat: no-repeat;
     background-color: transparent;
     pointer-events: none;
     z-index: 2;

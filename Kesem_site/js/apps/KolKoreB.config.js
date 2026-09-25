@@ -61,7 +61,7 @@ export default {
                 "assets/KolKoreB/menu/playc1.png",  // 2 — play user's recording
                 "assets/KolKoreB/menu/playa1.png",  // 3 — play elaboration (Mhiza_5 _2.wav)
                 "assets/KolKoreB/menu/close1.png",  // 4 — close panel
-                "assets/KolKoreB/menu/as1.png",     // 5 — warning/hint indicator (no click)
+                "assets/KolKoreB/menu/as1.png",     // 5 — "?" help: shows the tipl captions
             ],
             dif: [
                 "assets/KolKoreB/menu/up1a1.png",   // 0 — prev hotspot
@@ -84,6 +84,9 @@ export default {
     tafroshFile: "data/tafrosh/KolKoreB.json",
     defaultRama: 2,
     maxRama: 2,
+    // Catalog progress: the Sst reaches ramas 1–2 only (the data also
+    // carries ramas 3–4).
+    progressSlots: { "1": true, "2": true },
     bgRamaMax: 2,
     act1Images: {
         default: {
