@@ -308,10 +308,13 @@ async function chgames(k) {
     await k.tap('.frm-ctrl--butt_list', bi, 800);
     const s = await k.snap();
     if (!/^game/.test(s.screen || '')) { ctx.finding('warn', 'ChGames commit does not test-play', `ChG(${g}) → screen ${s.screen}`); continue; }
+    const done0 = JSON.stringify((await k.eval(() => window.__km.ls('Kesem'))).completed);
     const res = await k.playPath(`chg${g}`, {});
     if (res) await k.closeNikod();
+    await ctx.sleep(300);
     const after = await scr(k);
-    ctx.finding('info', 'ChGames test-play returns to', `ChG(${g}) game${[3, 1, 2, 4, 5][g]} → ${after}`);
+    ctx.check(after === 'main', 'ChGames test-play does not return to Main', `ChG(${g}) → ${after}`);
+    ctx.check(JSON.stringify((await k.eval(() => window.__km.ls('Kesem'))).completed) === done0, 'ChGames test-play recorded a lesson completion', `ChG(${g})`);
   }
   await back();
   await chaos(k, 'chgames', '.frm-ctrl--endof,.frm-ctrl--Ed_But,.frm-ctrl--butt_list', null);
