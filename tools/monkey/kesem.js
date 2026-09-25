@@ -597,6 +597,28 @@ class Kesem {
     }
     const lit = await this.eval(() => [...document.querySelectorAll('.frm-ctrl--lblToz')].filter(t => getComputedStyle(t).display !== 'none' && /caftblu/.test((t.querySelector('img') || {}).src || '')).length);
     ctx.check(lit === Math.min(s.nHot, 9, s.maxTurn), 'game3 indicator count', `${tag}: ${lit} blue tiles for ${s.nHot} hotspots`);
+    // #63 "next appears greyed out but the button still works": while a
+    // hotspot is speaking, "next" is dimmed (audio-gated) and must be inert.
+    const hp = await this.eval(() => window.__km.point('.stage-hotspot[data-idx="1"]'));
+    const np = await this.eval(() => window.__km.point('.frm-ctrl--act1[data-index="0"]'));
+    if (hp && hp.hit && np && np.hit) {
+      await this.waitIdle();
+      await ctx.click(hp.x, hp.y, 0);
+      // Real-time playback for this one clip so it is certainly still
+      // speaking when "next" is clicked (×16 clips can end in ~100 ms).
+      await this.eval(() => { const a = window.__kesemSession._audio; if (a) a.playbackRate = 1; });
+      await ctx.sleep(150);
+      const g = await this.eval(() => { const s = window.__km.snap(); const st = window.__kesemSession.stage; const n = document.querySelector('.frm-ctrl--act1[data-index="0"]'); return { busy: s.busy, dim: st.classList.contains('audio-busy') && n.dataset.audioGated === '1', idx: s.stageIdx, screen: s.screen }; });
+      if (g.busy) {
+        const t0 = ctx.traceLen();
+        await ctx.click(np.x, np.y, 300);
+        const a = await this.snap();
+        ctx.check(a.stageIdx === g.idx && a.screen === g.screen && !a.ov, 'greyed-out "next" still works', `${tag} stage ${s.stageIdx + 1}: dimmed=${g.dim}, clicked next while a hotspot was speaking → stage ${a.stageIdx + 1} ${a.screen} ${a.ov || ''}\n${ctx.traceSince(t0 - 6).join('\n')}`);
+        ctx.check(g.dim, '"next" not greyed while audio plays', `${tag} stage ${s.stageIdx + 1}`, 'warn');
+        if (a.stageIdx !== g.idx || a.ov) return {};
+      }
+      await this.waitIdle();
+    }
     const before = await this.key();
     // Rapid triple-click on "next" (#61: fast clicks skipped levels) — must
     // advance exactly one stage.
