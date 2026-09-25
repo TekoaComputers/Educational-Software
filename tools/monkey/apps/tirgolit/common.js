@@ -268,7 +268,7 @@ async function playKrav(ctx, res) {
   await ctx.page.focus('#krav-name-b'); await ctx.page.keyboard.type('Bee'); await ctx.page.keyboard.press('Enter');
   if (!await until(ctx, () => document.getElementById('krav-name-a').style.display === 'block', 3000)) return 'second name box never shown';
   await ctx.page.focus('#krav-name-a'); await ctx.page.keyboard.type('Ay'); await ctx.page.keyboard.press('Enter');
-  await ctx.shot('krav-names');
+  if (res.shots) await ctx.shot('krav-names');
   let wrongDone = false, rounds = 0;
   const t0 = Date.now();
   while (Date.now() - t0 < 240000) {
@@ -277,7 +277,7 @@ async function playKrav(ctx, res) {
     const k = await peek(ctx, 'krav');
     if (k.showScoreOverlay) {
       rounds++;
-      await ctx.shot(`krav-round-${rounds}`);
+      if (res.shots) await ctx.shot(`krav-round-${rounds}`);
       const ex = k.scoreOverlayGameOver;
       const p = await canvasPt(ctx, 'krav-canvas', ex ? 263 + 60 : 391 + 60, ex ? 215 + 27 : 214 + 27);
       await ctx.click(p.x, p.y, 200);
@@ -305,7 +305,7 @@ async function playKrav(ctx, res) {
 // ─── one game, end to end ───────────────────────────────────────────────────
 
 async function playSlot(ctx, P, tab, uid, slot, opts) {
-  const res = { wrong: 0, expPenalty: 0 };
+  const res = { wrong: 0, expPenalty: 0, shots: opts.shots };
   await clickSel(ctx, `#glist-row-${slot}`, 200);
   const a = await app(ctx);
   const wantScreen = slot === 5 ? 'war' : slot === 6 ? 'krav' : 'game';
