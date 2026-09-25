@@ -9753,8 +9753,21 @@ function playVideo(url, opts) {
     function safePlay()  { _vidPending = _vidPending.then(function () { return vid.play(); }).catch(function () {}); }
     function safePause() { _vidPending = _vidPending.then(function () { vid.pause(); }).catch(function () {}); }
 
+    // A double-click on the control that opened the video (path icon,
+    // btnSeret, catalog tile…) delivers its second click to the player that
+    // just appeared on top of it — it paused the intro or hit the close
+    // Label1 (#60 "clicking a button too fast just closes the animation").
+    // Treat clicks within the double-click interval as part of the opener.
+    const openedAt = Date.now();
+    function carryOver(what) {
+        if (Date.now() - openedAt > 500) return false;
+        klog("video " + what + " click ignored — double-click carry-over");
+        return true;
+    }
+
     // Picture1_Click: pause⇆play toggle (Mode 526 = playing).
     vid.addEventListener("click", function () {
+        if (carryOver("Picture1")) return;
         klog("CLICK video Picture1 → " + (vid.paused ? "play" : "pause"));
         if (vid.paused) safePlay(); else safePause();
     });
@@ -9943,7 +9956,7 @@ function playVideo(url, opts) {
     }
     function onKey(e) { if (e.key === "Escape") dismiss(); }
 
-    close.addEventListener("click", function () { klog("CLICK video close (Label1)"); dismiss(); });
+    close.addEventListener("click", function () { if (carryOver("close")) return; klog("CLICK video close (Label1)"); dismiss(); });
     // GoMovie_Done in original: when video reaches end, btnStop_Click → Unload.
     vid.addEventListener("ended", function () { klog("video ended → auto-dismiss"); dismiss(); });
     // Click on overlay (dimmer outside the frame) closes — convenience.
@@ -9954,7 +9967,7 @@ function playVideo(url, opts) {
     let pressOnDimmer = false;
     overlay.addEventListener("mousedown", function (e) { pressOnDimmer = (e.target === overlay); });
     overlay.addEventListener("click", function (e) {
-        if (e.target === overlay && pressOnDimmer) { klog("CLICK video dimmer → dismiss"); dismiss(); }
+        if (e.target === overlay && pressOnDimmer && !carryOver("dimmer")) { klog("CLICK video dimmer → dismiss"); dismiss(); }
         pressOnDimmer = false;
     });
     vid.addEventListener("error", function () {

@@ -47,7 +47,7 @@ async function catalog(k) {
     const a = await k.eval(() => window.__km.point('.catalog-tile', 0));
     const b = await k.eval(() => window.__km.point('.catalog-tile', 1));
     await ctx.click(a.x, a.y, 30);
-    await ctx.click(b.x, b.y, 300);
+    await ctx.click(b.x, b.y, 700);   // past the player's double-click carry-over window
     const n = await k.eval(() => document.querySelectorAll('.video-overlay').length);
     ctx.check(n <= 1, 'catalog: overlapping video players', `${n} .video-overlay after two quick tile clicks`);
     await ctx.shot('catalog-double');
