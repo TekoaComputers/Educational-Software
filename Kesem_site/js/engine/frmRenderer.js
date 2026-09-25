@@ -210,6 +210,35 @@ function isContainer(ctrl) {
     return ctrl.children && ctrl.children.length > 0;
 }
 
+// Warm the cache with every rama's background for this screen the first
+// time it is shown. On the live site each rama tab otherwise fetched a
+// ~100-500 KB background on first click, so the tab kept showing the
+// previous rama (or, in Firefox, a blank frame) for a second or more —
+// reported as a multi-second delay when swapping levels (#62) and as
+// wrong-looking / missing art when swapping fast (#57, #61). Only the
+// background: per-rama control art ({rama} in `images`) includes files that
+// legitimately don't exist for ramas where the control is hidden
+// (EnglishC tem_15, KolKoreA tem_61…), and those would 404. The Image
+// objects are kept on state so they aren't collected mid-load.
+function preloadRamaImages(state, screenConf) {
+    const maxRama = (state.config && state.config.maxRama) || 1;
+    if (maxRama < 2 || !screenConf.background) return;
+    const key = state.currentScreen;
+    state._ramaPreloaded = state._ramaPreloaded || {};
+    if (state._ramaPreloaded[key]) return;
+    state._ramaPreloaded[key] = [];
+    const urls = new Set();
+    for (let r = 1; r <= maxRama; r++) {
+        const bg = backgroundUrl(screenConf, r, state.config);
+        if (bg && r !== state.rama) urls.add(bg);
+    }
+    urls.forEach(function (u) {
+        const im = new Image();
+        im.src = u;
+        state._ramaPreloaded[key].push(im);
+    });
+}
+
 function backgroundUrl(screenConf, rama, config) {
     const bg = screenConf.background;
     if (!bg) return null;
@@ -511,6 +540,7 @@ function renderScreen(state) {
         const bg = el("img", { class: bgClass, src: bgSrc, alt: "" });
         state.stage.appendChild(bg);
         state.bg = bg;
+        preloadRamaImages(state, screenConf);
     } else {
         state.bg = null;
     }

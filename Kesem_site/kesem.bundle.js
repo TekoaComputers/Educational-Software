@@ -1880,6 +1880,35 @@ function isContainer(ctrl) {
     return ctrl.children && ctrl.children.length > 0;
 }
 
+// Warm the cache with every rama's background for this screen the first
+// time it is shown. On the live site each rama tab otherwise fetched a
+// ~100-500 KB background on first click, so the tab kept showing the
+// previous rama (or, in Firefox, a blank frame) for a second or more —
+// reported as a multi-second delay when swapping levels (#62) and as
+// wrong-looking / missing art when swapping fast (#57, #61). Only the
+// background: per-rama control art ({rama} in `images`) includes files that
+// legitimately don't exist for ramas where the control is hidden
+// (EnglishC tem_15, KolKoreA tem_61…), and those would 404. The Image
+// objects are kept on state so they aren't collected mid-load.
+function preloadRamaImages(state, screenConf) {
+    const maxRama = (state.config && state.config.maxRama) || 1;
+    if (maxRama < 2 || !screenConf.background) return;
+    const key = state.currentScreen;
+    state._ramaPreloaded = state._ramaPreloaded || {};
+    if (state._ramaPreloaded[key]) return;
+    state._ramaPreloaded[key] = [];
+    const urls = new Set();
+    for (let r = 1; r <= maxRama; r++) {
+        const bg = backgroundUrl(screenConf, r, state.config);
+        if (bg && r !== state.rama) urls.add(bg);
+    }
+    urls.forEach(function (u) {
+        const im = new Image();
+        im.src = u;
+        state._ramaPreloaded[key].push(im);
+    });
+}
+
 function backgroundUrl(screenConf, rama, config) {
     const bg = screenConf.background;
     if (!bg) return null;
@@ -2181,6 +2210,7 @@ function renderScreen(state) {
         const bg = el("img", { class: bgClass, src: bgSrc, alt: "" });
         state.stage.appendChild(bg);
         state.bg = bg;
+        preloadRamaImages(state, screenConf);
     } else {
         state.bg = null;
     }
@@ -3120,10 +3150,7 @@ function setRamaUtil(state, rama) {
             if (img && !img.src.endsWith(resolved)) img.src = resolved;
         });
     });
-    // Re-run sst wiring so lamp images + mahak visibility reflect new rama.
-    if (state.currentScreen === "sst") {
-        wireSstLamps(state);
-    }
+    // Lamp images + mahak visibility are re-wired by onRamaChange below.
     // Per-app rama hook — the renderer's setRama calls this at the end, but
     // setRamaUtil is the bypass path used by flipBook (KolKoreC/D) and the
     // KolKoreB toggle. Without this, KolKoreD's Icon_s_Click +65 / -65 shift
@@ -9845,8 +9872,21 @@ function playVideo(url, opts) {
     function safePlay()  { _vidPending = _vidPending.then(function () { return vid.play(); }).catch(function () {}); }
     function safePause() { _vidPending = _vidPending.then(function () { vid.pause(); }).catch(function () {}); }
 
+    // A double-click on the control that opened the video (path icon,
+    // btnSeret, catalog tile…) delivers its second click to the player that
+    // just appeared on top of it — it paused the intro or hit the close
+    // Label1 (#60 "clicking a button too fast just closes the animation").
+    // Treat clicks within the double-click interval as part of the opener.
+    const openedAt = Date.now();
+    function carryOver(what) {
+        if (Date.now() - openedAt > 500) return false;
+        klog("video " + what + " click ignored — double-click carry-over");
+        return true;
+    }
+
     // Picture1_Click: pause⇆play toggle (Mode 526 = playing).
     vid.addEventListener("click", function () {
+        if (carryOver("Picture1")) return;
         klog("CLICK video Picture1 → " + (vid.paused ? "play" : "pause"));
         if (vid.paused) safePlay(); else safePause();
     });
@@ -10042,12 +10082,19 @@ function playVideo(url, opts) {
         dismiss();
     }
 
-    close.addEventListener("click", function () { klog("CLICK video close (Label1)"); dismiss(); });
+    close.addEventListener("click", function () { if (carryOver("close")) return; klog("CLICK video close (Label1)"); dismiss(); });
     // GoMovie_Done in original: when video reaches end, btnStop_Click → Unload.
     vid.addEventListener("ended", function () { klog("video ended → auto-dismiss"); dismiss(); });
     // Click on overlay (dimmer outside the frame) closes — convenience.
+    // Only a click that also STARTED on the dimmer counts: a seek-bar drag
+    // released outside the frame produces a `click` whose target is the
+    // common ancestor (= the overlay), which used to close the video in the
+    // middle of scrubbing (#60 / #62 slider reports).
+    let pressOnDimmer = false;
+    overlay.addEventListener("mousedown", function (e) { pressOnDimmer = (e.target === overlay); });
     overlay.addEventListener("click", function (e) {
-        if (e.target === overlay) { klog("CLICK video dimmer → dismiss"); dismiss(); }
+        if (e.target === overlay && pressOnDimmer && !carryOver("dimmer")) { klog("CLICK video dimmer → dismiss"); dismiss(); }
+        pressOnDimmer = false;
     });
     vid.addEventListener("error", function () {
         klog("video error — file missing or unsupported:", url);
@@ -10162,6 +10209,17 @@ function enterStage(state) {
     if ((appId === "KolKoreC" || appId === "KolKoreD" || appId === "EnglishB") &&
         (stage.gameNumber === 6 || stage.gameNumber === 7 || stage.gameNumber === 8)) {
         stage._origGameNumber = stage.gameNumber;
+        stage.gameNumber = 3;
+    } else if (stage.gameNumber === 6 && appId !== "Kesem" && !state.config.screens.game6) {
+        // Dvash (and any app without a game6 screen): Sst.frm Case 3, 6 → Games3 (g1m = 1), so the
+        // stage IS a Games3 inspect stage — hotspots, lblToz, "next". Leaving
+        // gameNumber at 6 routed the screen to game3 but every per-game switch
+        // (hotspot renderer, click handler, scoring) fell through to game1:
+        // one live hotspot, clicks "ignored", no indicators — a dead stage.
+        // Unlike KolKoreC/D, these apps' LEV.BAS Ras_Wav keeps the real
+        // Game_Number, so the intro stays rasb_wav/<raz>_6.wav (_rasWavGn).
+        stage._origGameNumber = 6;
+        stage._rasWavGn = 6;
         stage.gameNumber = 3;
     }
     const gameId = "game" + stage.gameNumber;
@@ -10982,21 +11040,23 @@ function tickGame5Timer(state) {
 // paintHotspots → setupGame5AuxUI → fresh timer.
 function restartGame5Stage(state) {
     if (!state.activeStage) return;
-    // `Unload games5` runs Form_Unload → scorelev for the timed-out attempt
-    // (snapStageScore keeps the better of attempts); `games5.Show 1` then
-    // starts a fresh Form_Load with zeroed counters and dark lblToz. Without
-    // this reset the answers from before the timeout were tallied again on
-    // top of the new attempt (stage green > stage total, board > 100%).
+    // `Unload games5` runs Form_Unload → scorelev, which files the partial
+    // run into the stage's score slot (keeping the better of old/new), and
+    // `games5.Show 1` then starts a FRESH form: zeroed counters and all
+    // lblToz back to caftoff. Without the snapshot + reset the answers from
+    // before the timeout stayed in _stageScore and the replay added on top
+    // of them — a 4-question stage could score 5 answers (>100% board).
     snapStageScore(state);
     state._stageScore = { green: 0, yellow: 0, red: 0 };
     initStageIndicators(state);
+    // Fresh form ⇒ setupGame5AuxUI must take its freshStage branch: plane
+    // back at the start, speed back to nor1, Timer1 re-armed. Otherwise the
+    // plane stayed parked past the finish line with its timer stopped and
+    // the replayed stage had no time limit at all.
+    state._game5LastStage = null;
     state.Pobeda = 0;
     state.wrongCount = 0;
     state.Tek_N = 1;
-    // Form_Load also puts PicTime back at its design Left, resets the speed
-    // selector and starts Timer1 again. setupGame5AuxUI only does that on a
-    // fresh stage entry, so forget the stage to make the repaint count as one.
-    state._game5LastStage = null;
     paintHotspots(state, state.activeStage);
     playGame5Prompt(state);
 }
@@ -11227,13 +11287,14 @@ function playAudio(state, url, onEnded) {
 function playRasWav(state, onEnded) {
     const stage = state.activeStage;
     if (!stage) return;
-    const primaryRel = "rasb_wav/" + stage.razNom + "_" + stage.gameNumber + ".wav";
-    const fallbackRel = "wav/game" + stage.gameNumber + ".wav";
+    const gn = stage._rasWavGn || stage.gameNumber;
+    const primaryRel = "rasb_wav/" + stage.razNom + "_" + gn + ".wav";
+    const fallbackRel = "wav/game" + gn + ".wav";
     const base = state.config.assetsRoot;
     if (state.audioFiles && state.audioFiles.has(primaryRel)) {
         playAudio(state, base + "/" + primaryRel, onEnded);
     } else if (state.audioFiles && state.audioFiles.has(fallbackRel)) {
-        klog("Ras_Wav fallback → game" + stage.gameNumber + ".wav");
+        klog("Ras_Wav fallback → game" + gn + ".wav");
         playAudio(state, base + "/" + fallbackRel, onEnded);
     } else {
         klog("Ras_Wav missing entirely (neither " + primaryRel + " nor " + fallbackRel + ")");

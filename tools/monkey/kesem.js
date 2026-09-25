@@ -269,6 +269,53 @@ class Kesem {
     }
   }
 
+  /**
+   * Scrub the VideoBox seek bar hard (#60/#62: "slider stops moving / goes
+   * off screen / video freezes"): fast drag back and forth, release, then
+   * the thumb must sit inside its track and playback must resume.
+   */
+  async scrub(label) {
+    const ctx = this.ctx;
+    await ctx.waitFor(() => { const v = document.querySelector('.video-overlay video'); return v && v.readyState >= 2; }, 6000);
+    const g = await this.eval(() => {
+      const ov = document.querySelector('.video-overlay'); if (!ov) return null;
+      const v = ov.querySelector('video');
+      // reTrack = the flex:1 child between the two arrow buttons.
+      const tr = [...ov.querySelectorAll('div')].find(d => d.style.flex === '1' || d.style.flex === '1 1 0%');
+      if (!tr || !v) return null;
+      const r = tr.getBoundingClientRect();
+      return { x: r.left, y: r.top + r.height / 2, w: r.width, h: r.height, dur: v.duration };
+    });
+    if (!g || !g.dur || !isFinite(g.dur)) return;
+    const m = ctx.page.mouse;
+    await m.move(g.x + g.w * 0.1, g.y); await m.down();
+    for (let k = 0; k < 60; k++) { const f = 0.1 + 0.8 * Math.abs(Math.sin(k / 6)); await m.move(g.x + g.w * f, g.y + (k % 7) - 3); }
+    // Release off the frame, on the dimmer (still mid-track horizontally so
+    // the seek target is not the very end).
+    const vp = ctx.page.viewport();
+    await m.move(g.x + g.w * 0.5, vp.height - 3);
+    await m.up();
+    await ctx.sleep(300);
+    if (await this.eval(() => !document.querySelector('.video-overlay'))) {
+      ctx.finding('error', 'video closed by a seek drag', `${label}: dragging the seek thumb and releasing outside the video frame dismissed the player`);
+      return;
+    }
+    const t0 = await this.eval(() => { const v = document.querySelector('.video-overlay video'); return v ? v.currentTime : null; });
+    await ctx.sleep(900);
+    const st = await this.eval(() => {
+      const ov = document.querySelector('.video-overlay'); if (!ov) return { gone: true };
+      const v = ov.querySelector('video');
+      const tr = [...ov.querySelectorAll('div')].find(d => d.style.flex === '1' || d.style.flex === '1 1 0%');
+      const th = tr && tr.firstElementChild;
+      const a = tr.getBoundingClientRect(), b = th.getBoundingClientRect();
+      return { t: v.currentTime, paused: v.paused, ended: v.ended, seeking: v.seeking, inside: b.left >= a.left - 1 && b.right <= a.right + 1, thumb: [b.left | 0, b.right | 0], track: [a.left | 0, a.right | 0] };
+    });
+    if (st.gone) return;                                   // ended + auto-closed: fine
+    ctx.check(st.inside, 'video seek thumb outside its track', `${label}: thumb ${st.thumb} track ${st.track}`);
+    ctx.check(st.ended || (!st.paused && st.t > t0), 'video frozen after scrubbing', `${label}: currentTime ${t0} → ${st.t} paused=${st.paused} seeking=${st.seeking}`);
+    await ctx.shot(`scrub-${label}`);
+  }
+
   async misgerAnswer(yes) {
     const sel = yes ? '.misger-overlay button[title="אישור"]' : '.misger-overlay button[title="ביטול"]';
     await this.tap(sel, 0, 500);
@@ -316,22 +363,6 @@ class Kesem {
     return true;
   }
 
-  /** Lit lamps on Sst must be exactly the current rama's completed paths. */
-  async checkLamps(r) {
-    if (this.app === 'KolKoreB') return;   // lamps there track the selected btnIcon (cHos), not slot i
-    const bad = await this.eval(app => {
-      const s = window.__kesemSession;
-      const done = window.__km.ls(app).completed[String(s.rama)] || {};
-      return [...document.querySelectorAll('.frm-ctrl--btnLamp')].map(el => {
-        const im = el.querySelector('img');
-        const lit = getComputedStyle(el).display !== 'none' && !!im && /lamp2/i.test(im.getAttribute('src') || '');
-        return { i: +el.dataset.index, lit, done: !!done[el.dataset.index] };
-      }).filter(x => x.lit !== x.done);
-    }, this.app);
-    this.ctx.check(!bad.length, 'lamps do not match rama completions',
-      `rama ${r}: ${bad.map(b => `lamp ${b.i} ${b.lit ? 'lit' : 'dark'} but path ${b.done ? 'completed' : 'not completed'}`).join('; ')}`);
-  }
-
   async lampState(i) {
     return this.eval((ix, app, slot) => {
       const el = [...document.querySelectorAll('.frm-ctrl--btnLamp')].find(e => +e.dataset.index === ix);
@@ -343,12 +374,31 @@ class Kesem {
     }, this.lampIndex(i), this.app, i);
   }
 
+  /** Every lamp (and the mahak eraser) must reflect the CURRENT rama's completions. */
+  async checkLamps(tag) {
+    const st = await this.eval(app => {
+      const s = window.__kesemSession;
+      const done = window.__km.ls(app).completed[String(s.rama)] || {};
+      const lamps = [...document.querySelectorAll('.frm-ctrl--btnLamp')].map(el => {
+        const im = el.querySelector('img');
+        const lit = getComputedStyle(el).display !== 'none' && !!im && /lamp2/i.test(im.getAttribute('src') || '');
+        return [+el.dataset.index, lit, !!done[el.dataset.index]];
+      });
+      const m = document.querySelector('.frm-ctrl--mahak');
+      return { rama: s.rama, lamps, mahak: m ? getComputedStyle(m).display !== 'none' : null, any: Object.keys(done).length > 0 };
+    }, this.app);
+    if (this.app === 'KolKoreB') return;              // lamps follow the selected activity, not the index
+    const bad = st.lamps.filter(([, lit, done]) => lit !== done);
+    this.ctx.check(!bad.length, 'Sst lamps show another rama\'s results', `${tag}: rama ${st.rama}, lamp(index, lit, completed): ${bad.map(b => b.join('/')).join(' ')}`);
+    if (st.mahak !== null) this.ctx.check(st.mahak === st.any, 'mahak eraser visibility does not match the rama', `${tag}: rama ${st.rama} completed=${st.any} mahak shown=${st.mahak}`, 'warn');
+  }
+
   // ----------------------------------------------------------------- play
   /**
    * Play the path currently loaded (screen already a game or its intro video). Returns
    * { expected: [per-stage tally|null], board, chaos }.
    */
-  async playPath(tag, { wrongs = false, chaos = false } = {}) {
+  async playPath(tag, { wrongs = false, chaos = false, single = false } = {}) {
     const ctx = this.ctx;
     const exp = [];            // per stageIdx: {green,yellow,red,total} | null (game3) | 'chaos'
     let lastStage = null;
@@ -398,6 +448,12 @@ class Kesem {
           continue;
         }
       }
+      if (s.gn === 5 && !this._g5TimeoutDone && !chaos && s.maxTurn > 1 && exp[s.stageIdx] && s.Pobeda === 1) {
+        // Let the plane time out once mid-stage (Timer1 → matoss → restart).
+        this._g5TimeoutDone = true;
+        if (await this.game5Timeout(tag, s)) exp[s.stageIdx] = { green: 0, yellow: 0, red: 0, total: s.maxTurn };
+        continue;
+      }
       const cur = exp[s.stageIdx];
       const plannedWrongs = (cur && cur !== 'chaos' && wrongDue.has(s.stageIdx)) ? wrongCycle[wrongN % 3] : 0;
       const r = await this.playTurn(tag, s, plannedWrongs);
@@ -413,7 +469,7 @@ class Kesem {
     const board = await this.eval(() => window.__km.nikod());
     await ctx.checkImages();
     await ctx.shot(`${tag}-nikod`);
-    ctx.check(stageCount === slotLen || exp.length === slotLen, 'not every stage was visited', `${tag}: visited ${stageCount}/${slotLen}`);
+    if (!single) ctx.check(stageCount === slotLen || exp.length === slotLen, 'not every stage was visited', `${tag}: visited ${stageCount}/${slotLen}`);
     return { expected: exp, board, slotLen };
   }
 
@@ -547,6 +603,19 @@ class Kesem {
     }
     await this.waitIdle();
     await this.flushOverlaps();
+    // #63: hammering the same hotspot must not silence it for good.
+    const p1 = await this.eval(q => window.__km.point(q), '.stage-hotspot[data-idx="1"]');
+    if (p1 && p1.hit) {
+      for (let c = 0; c < 8; c++) await ctx.click(p1.x, p1.y, 30);
+      const idle = await this.waitIdle(20000);
+      ctx.check(idle, 'audio stuck busy after rapid clicks', `${tag} stage ${s.stageIdx + 1}\n${await this.diag()}`);
+      const n0 = ctx.traceLen();
+      await ctx.click(p1.x, p1.y, 400);
+      // The click must be accepted (not "ignored — audio busy") and reach audio.
+      const spoke = ctx.traceSince(n0).some(l => /CLICK game3 hotspot/.test(l));
+      ctx.check(spoke, 'hotspot silent after rapid clicks', `${tag} stage ${s.stageIdx + 1}: a normal click on hotspot 1 played nothing\n${await this.diag()}`);
+      await this.waitIdle();
+    }
     for (let i = 1; i <= s.nHot; i++) {
       await this.waitIdle();
       const before = (await this.snap()).inspect;
@@ -563,6 +632,28 @@ class Kesem {
     }
     const lit = await this.eval(() => [...document.querySelectorAll('.frm-ctrl--lblToz')].filter(t => getComputedStyle(t).display !== 'none' && /caftblu/.test((t.querySelector('img') || {}).src || '')).length);
     ctx.check(lit === Math.min(s.nHot, 9, s.maxTurn), 'game3 indicator count', `${tag}: ${lit} blue tiles for ${s.nHot} hotspots`);
+    // #63 "next appears greyed out but the button still works": while a
+    // hotspot is speaking, "next" is dimmed (audio-gated) and must be inert.
+    const hp = await this.eval(() => window.__km.point('.stage-hotspot[data-idx="1"]'));
+    const np = await this.eval(() => window.__km.point('.frm-ctrl--act1[data-index="0"]'));
+    if (hp && hp.hit && np && np.hit) {
+      await this.waitIdle();
+      await ctx.click(hp.x, hp.y, 0);
+      // Real-time playback for this one clip so it is certainly still
+      // speaking when "next" is clicked (×16 clips can end in ~100 ms).
+      await this.eval(() => { const a = window.__kesemSession._audio; if (a) a.playbackRate = 1; });
+      await ctx.sleep(150);
+      const g = await this.eval(() => { const s = window.__km.snap(); const st = window.__kesemSession.stage; const n = document.querySelector('.frm-ctrl--act1[data-index="0"]'); return { busy: s.busy, dim: st.classList.contains('audio-busy') && n.dataset.audioGated === '1', idx: s.stageIdx, screen: s.screen }; });
+      if (g.busy) {
+        const t0 = ctx.traceLen();
+        await ctx.click(np.x, np.y, 300);
+        const a = await this.snap();
+        ctx.check(a.stageIdx === g.idx && a.screen === g.screen && !a.ov, 'greyed-out "next" still works', `${tag} stage ${s.stageIdx + 1}: dimmed=${g.dim}, clicked next while a hotspot was speaking → stage ${a.stageIdx + 1} ${a.screen} ${a.ov || ''}\n${ctx.traceSince(t0 - 6).join('\n')}`);
+        ctx.check(g.dim, '"next" not greyed while audio plays', `${tag} stage ${s.stageIdx + 1}`, 'warn');
+        if (a.stageIdx !== g.idx || a.ov) return {};
+      }
+      await this.waitIdle();
+    }
     const before = await this.key();
     // Rapid triple-click on "next" (#61: fast clicks skipped levels) — must
     // advance exactly one stage.
@@ -599,6 +690,32 @@ class Kesem {
     await this.tap('.frm-ctrl--wa[data-index="4"]', 0, 500);      // close
     ctx.check(!(await vis('.frm-ctrl--Picture22')) && await vis('.frm-ctrl--Spic1'), 'hak panel does not close', tag);
     await this.waitIdle();
+  }
+
+  /**
+   * Games5 Timer1: when the plane (PicTime) crosses the strip the stage
+   * restarts (Unload + Show). Speed the plane up (Picture4 → spe 3), wait for
+   * the restart and check the round state + tally really start over — the
+   * replayed stage must not score more answers than it has questions.
+   */
+  async game5Timeout(tag, s) {
+    const ctx = this.ctx;
+    ctx.step(`${tag}/game5-timeout`);
+    await this.waitIdle();
+    await this.tap('.frm-ctrl--Picture4', 0, 150);
+    await this.tap('.frm-ctrl--Picture4', 0, 150);        // spe 1 → 2 → 3
+    const reset = await ctx.waitFor(() => { const x = window.__km.snap(); return x.Pobeda === 0; }, 60000);
+    if (!ctx.check(reset, 'game5 plane timeout never restarted the stage', `${tag}\n${await this.diag()}`)) return false;
+    await this.waitIdle();
+    const x = await this.snap();
+    ctx.check(x.Tek_N === 1 && x.wrong === 0, 'game5 restart left round state', JSON.stringify(x));
+    const plane = await this.eval(() => { const s = window.__kesemSession; const p = s._game5PicTime; return { left: p ? parseFloat(p.style.left) : null, design: p ? p._designLeft : null, timer: !!s._game5Timer }; });
+    ctx.check(plane.timer && plane.left != null && plane.left - plane.design < 20, 'game5 restart did not reset the plane timer',
+      `${tag}: after the restart PicTime.left=${plane.left} (start ${plane.design}), Timer1 running=${plane.timer}`);
+    ctx.check(x.score.green + x.score.yellow + x.score.red === 0, 'game5 restart kept the old answers in the stage tally',
+      `${tag}: after the timeout restart the stage tally is g/y/r ${x.score.green}/${x.score.yellow}/${x.score.red} before any new answer — replaying the stage will score more than ${x.maxTurn} answers`);
+    await ctx.shot(`${tag}-game5-timeout`);
+    return true;
   }
 
   /** Random clicks inside the game screen; must not crash or stick. */
@@ -674,8 +791,24 @@ class Kesem {
     const ctx = this.ctx;
     const tag = `r${r}p${i + 1}`;
     ctx.step(`${tag}/enter`);
-    if (!(await this.enterPath(i))) { ctx.finding('error', 'no btnIcon for path', `${tag} (${name})`); return; }
+    const n0 = ctx.traceLen();
+    const btnIdx = await this.eval(ix => [...document.querySelectorAll('.frm-ctrl--btnIcon')].findIndex(e => +e.dataset.index === ix), i);
+    if (i === 0 && btnIdx >= 0 && this.enterPath === Kesem.prototype.enterPath) {
+      // #60 "clicking a button too fast just closes the animation": a
+      // double-click on the path icon must leave the intro video playing.
+      const p = await this.eval(ix => window.__km.point('.frm-ctrl--btnIcon', ix), btnIdx);
+      await ctx.click(p.x, p.y, 60);
+      await ctx.click(p.x, p.y, 400);
+    } else if (!(await this.enterPath(i))) { ctx.finding('error', 'no btnIcon for path', `${tag} (${name})`); return; }
     const started = await ctx.waitFor(() => { const s = window.__km.snap(); return s.ov === 'video' || /^game/.test(s.screen || ''); }, 8000);
+    if (i === 0 && started) {
+      const tr = ctx.traceSince(n0);
+      const hadVideo = tr.some(l => /video play: /.test(l));
+      const v = await this.eval(() => { const x = document.querySelector('.video-overlay video'); return x ? { paused: x.paused, ended: x.ended } : null; });
+      if (hadVideo) ctx.check(v && (!v.paused || v.ended) && !tr.some(l => /video (dimmer|close)|Picture1 → pause/.test(l)),
+        'double-click on a path icon stops its intro video', `${tag}: ${v ? 'video paused=' + v.paused : 'video gone'}\n${tr.slice(-6).join('\n')}`);
+      ctx.check(tr.filter(l => /startPath:/.test(l)).length === 1, 'double-click on a path icon started it twice', `${tag}\n${tr.slice(-8).join('\n')}`);
+    }
     if (!started) { ctx.finding('error', 'path did not start', `${tag} (${name}) screen=${(await this.snap()).screen}`); await ctx.shot(`${tag}-nostart`); return; }
     const res = await this.playPath(tag, { wrongs, chaos });
     if (!res) { this.cover(`${tag} ${name}: ABORTED`); return; }
@@ -706,9 +839,41 @@ class Kesem {
         const b2 = await this.eval(() => window.__km.nikod());
         ctx.check(b2 && res.board && b2.ltott === res.board.ltott && b2.toch.join() === res.board.toch.join(),
           'lamp replay board differs', `${tag}: end ${res.board && res.board.ltott}% ${res.board && res.board.toch.join('/')} vs replay ${b2 && b2.ltott}% ${b2 && b2.toch.join('/')}`);
-        await this.closeNikod();
+        const j = res.expected.findIndex(e => e && e !== 'chaos');
+        if (i === 0 && !chaos && j >= 0) await this.stageReplay(tag, r, i, res, j, lsStages);
+        else await this.closeNikod();
       }
     }
+  }
+
+  /**
+   * nikod detail view (adv) → Label2(j) single-stage replay (StartGamesA with
+   * ShlavNahehi = nma): play stage j again all-correct, land back on Sst with
+   * the board re-opened, and the stage keeps its better score.
+   */
+  async stageReplay(tag, r, i, res, j, lsStages) {
+    const ctx = this.ctx;
+    ctx.step(`${tag}/replay-stage${j + 1}`);
+    await this.tap('.nikod-overlay button[title="החלף תצוגה"]', 0, 400);
+    await ctx.checkImages();
+    await ctx.shot(`${tag}-nikod-detail`);
+    const lbl = await this.eval(n => [...document.querySelectorAll('.nikod-overlay button')].findIndex(b => b.title === 'תרגיל חוזר לשלב ' + n), j + 1);
+    if (!ctx.check(lbl >= 0, 'nikod detail has no stage replay button', `${tag} stage ${j + 1}`)) { await this.closeNikod(); return; }
+    await this.tap('.nikod-overlay button', lbl, 600);
+    const s = await this.snap();
+    if (!ctx.check(/^game/.test(s.screen || '') && s.stageIdx === j, 'stage replay did not open the stage', `${tag}: ${JSON.stringify(s)}`)) { await this.bailOut(tag); return; }
+    const rep = await this.playPath(`${tag}-rp${j + 1}`, { single: true });
+    if (!rep) return;
+    const old = (lsStages || [])[j] || res.expected[j];
+    const neu = rep.expected[j] || { green: 0, yellow: 0, red: 0 };
+    const val = x => x.green * 5 + x.yellow * 2 + x.red;
+    const best = val(neu) > val(old) ? neu : old;
+    const stages = res.expected.map((e, k) => (k === j ? best : (e === 'chaos' ? (lsStages || [])[k] : e)));
+    const want = expectedBoard(stages);
+    ctx.check(rep.board && rep.board.ltott === String(want.mispar) && rep.board.toch.join() === want.toch.join(),
+      'board after single-stage replay', `${tag} stage ${j + 1}: expected ${want.mispar}% ${want.toch.join('/')} got ${rep.board && rep.board.ltott}% ${rep.board && rep.board.toch.join('/')}`);
+    await this.closeNikod();
+    ctx.check(await this.waitScreen('sst', 4000), 'not on Sst after stage replay', tag);
   }
 
   // --------------------------------------------------------- side screens
@@ -717,6 +882,7 @@ class Kesem {
     const n = await this.eval(() => document.querySelectorAll('.frm-ctrl--Icon_s').length);
     if (n < 2 || !(await this.eval(() => window.__km.visible('.frm-ctrl--Icon_s', 0)))) return;
     ctx.step('sst/rama-burst');
+    await this.ramaLatency(maxRama);
     const ref = {};
     for (let r = 1; r <= maxRama; r++) {
       await this.selectRama(r);
@@ -741,6 +907,39 @@ class Kesem {
     await ctx.shot('rama-burst');
   }
 
+  /**
+   * #62 "3 second delay when swapping levels" / #57 #61 art missing or stale
+   * while swapping fast: on the live site a never-visited rama tab fetched its
+   * whole Sst background on click. Throttle the network like a slow school
+   * line, click a rama tab that hasn't been shown yet, and require its
+   * background to be on screen almost at once (i.e. it was preloaded while
+   * the user was looking at the Sst).
+   */
+  async ramaLatency(maxRama) {
+    const ctx = this.ctx;
+    const cur = (await this.snap()).rama;
+    const target = [maxRama, maxRama - 1, 1].find(r => r >= 1 && r !== cur);
+    if (!target) return;
+    await ctx.sleep(1500);                 // user reads the menu first
+    const cdp = await ctx.page.target().createCDPSession();
+    await cdp.send('Network.enable');
+    await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 600, downloadThroughput: 64 * 1024, uploadThroughput: 64 * 1024 });
+    try {
+      const i = await this.eval(ix => [...document.querySelectorAll('.frm-ctrl--Icon_s')].findIndex(e => +e.dataset.index === ix), target - 1);
+      const p = await this.eval(j => window.__km.point('.frm-ctrl--Icon_s', j), i);
+      if (!p) return;
+      await ctx.click(p.x, p.y, 0);
+      const t0 = Date.now();
+      const ok = await ctx.waitFor(() => { const b = window.__kesemSession.bg; return b && b.complete && b.naturalWidth > 0; }, 5000);
+      const ms = Date.now() - t0;
+      const src = await this.eval(() => { const b = window.__kesemSession.bg; return b && b.getAttribute('src'); });
+      ctx.check(ok && ms < 400, 'rama switch waits for the network', `Icon_s[${target - 1}] on a slow line: new Sst background (${src}) took ${ok ? ms + ' ms' : '>5 s'} to appear — not preloaded`);
+    } finally {
+      await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 }).catch(() => {});
+      await cdp.detach().catch(() => {});
+    }
+  }
+
   async seret() {
     const ctx = this.ctx;
     const n = await this.eval((sel, ex) => [...document.querySelectorAll(sel)].filter(e => !e.matches(ex)).length, this.o.seretSel, this.o.exitSel);
@@ -749,7 +948,10 @@ class Kesem {
       const idx = await this.eval((sel, ex, k) => { const all = [...document.querySelectorAll(sel)]; const el = all.filter(e => !e.matches(ex))[k]; return all.indexOf(el); }, this.o.seretSel, this.o.exitSel, i);
       if (!(await this.eval((sel, j) => window.__km.visible(sel, j), this.o.seretSel, idx))) continue;
       await this.tap(this.o.seretSel, idx, 600);
-      if (await this.eval(() => !!document.querySelector('.video-overlay'))) await this.video(`seret${i}`, { watch: this.o.videoWatchMs });
+      if (await this.eval(() => !!document.querySelector('.video-overlay'))) {
+        await this.scrub(`seret${i}`);
+        await this.video(`seret${i}`, { watch: this.o.videoWatchMs });
+      }
       else ctx.finding('info', 'btnSeret opened no video', `${this.o.seretSel}[${idx}]`);
       ctx.check((await this.snap()).screen === 'sst', 'not on Sst after seret video', '');
     }
@@ -920,6 +1122,7 @@ async function runApp(ctx, app, overrides = {}) {
     await ctx.sleep(400);
     await ctx.checkImages();
     await ctx.shot(`sst-rama${r}`);
+    await k.checkLamps(`r${r}/sst`);
     const slots = await k.eval(() => { const s = window.__kesemSession; const sl = (s.paths.ramas[String(s.config.activityRamaPin || s.rama)] || {}).slots || []; return sl.map(x => ({ name: x.name || x.masFile, n: (x.stages || []).length })); });
     const nIcons = await k.visiblePaths();
     let idx = o.slots ? o.slots(r, slots) : slots.map((_, i) => i).filter(i => slots[i].n > 0);
@@ -953,4 +1156,4 @@ async function runApp(ctx, app, overrides = {}) {
   return k;
 }
 
-module.exports = { runApp, Kesem, DEFAULTS, expectedBoard };
+module.exports = { runApp, Kesem, DEFAULTS, expectedBoard, pageInit };
