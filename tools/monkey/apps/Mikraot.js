@@ -278,6 +278,18 @@ module.exports = {
         ctx.check(codes.every(Boolean), 'slog word has an empty syllable', `${tag}: ${w.mila} ${JSON.stringify(w.slg)} misp=${w.misp}`);
         ctx.check(new Set(codes).size === codes.length, 'slog word repeats a syllable — identical tiles, only one accepted', `${tag}: ${w.mila} ${codes.join(',')}`);
         let att = 0;
+        if (r === 1) {
+          // every syllable tile (btnOt) speaks its syllable — or stays
+          // silent — but never requests a missing file
+          const m = await T(() => window.__mm.log.length);
+          for (let i = 0; i < 4; i++) {
+            const p = await ctx.eval(i => { const b = MK._test.refs['btnOt_' + i]; return b && b.style.backgroundImage ? __c(b) : null; }, i);
+            if (p) await ctx.click(p.x, p.y, 150);
+          }
+          const errs = (await ctx.eval(m => window.__mm.log.slice(m), m)).filter(e => e.ev === 'error').map(e => (e.src || '').replace(/.*assets\//, ''));
+          ctx.check(!errs.length, 'slog syllable tile audio missing', `${tag}: ${errs.join(' ')}`);
+          await sleep(300);
+        }
         for (let k = 0; k < w.n; k++) {
           if (r === 4 && k === 0 && w.n < 4) {
             const free = [0, 1, 2, 3].find(i => !w.map.includes(i));

@@ -12,6 +12,10 @@ CHROMIUM=/path/to/chrome node run.js     # other browser binary
 BROWSER=firefox node run.js Makhela      # same drivers under headless Firefox (BiDi)
 ```
 
+A full Mikraot run takes ~70 min. If the laptop suspends mid-run the driver
+dies with "detached Frame" / "Target closed" — wrap long runs in
+`systemd-inhibit --what=idle:sleep:handle-lid-switch node run.js …`.
+
 Output: `runs/<stamp>/<App>/report.md` (+ `report.json`, `shots/*.png`),
 `runs/<stamp>/summary.json`. Exit code 1 if any app has an error finding.
 
