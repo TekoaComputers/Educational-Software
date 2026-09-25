@@ -2168,8 +2168,11 @@ body {
    QPic at 512,324 over ~330ms). We use a CSS clip-path reveal which
    gets us the same visual without per-frame canvas blits. */
 .hak-pic {
-    left: 512px; top: 324px; width: 280px; height: 200px;
-    background-size: 100% 100%; background-repeat: no-repeat;
+    /* BitBlt copies QPic 1:1 — the unit pictures are ~130-140 px, which
+       lands them centred on the right-hand board. Stretching them to a
+       280×200 box distorted them and ran past the board's edge. */
+    left: 512px; top: 324px; width: 140px; height: 140px;
+    background-size: auto; background-position: 0 0; background-repeat: no-repeat;
     background-color: transparent;
     pointer-events: none;
     z-index: 2;
