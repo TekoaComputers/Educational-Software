@@ -837,7 +837,10 @@
     // has 0 AddScore / ScoreForm references) — excluded from the average.
     // Note: 'hatamaplus' is NOT in MaslulScores either — it shares Match's slot.
     function bestScoreFor(unit) {
-        const games = ["match", "american", "haklada", "apple", "connect"];
+        // Per-slot keys (American / Haklada score per mode) — the plain
+        // "american" / "haklada" keys are never written, so those games
+        // used to be missing from the unit-list average.
+        const games = HND.GAME_TYPES;
         let sum = 0, n = 0;
         games.forEach(function (g) {
             const p = HND.loadProgress(appId, unit.id, g);
@@ -931,9 +934,11 @@
         }
         const title = el("div", { class: "ctrl game-menu-title", text: buildTitleStr() });
         stg.appendChild(title);
+        HND.fitLine(title);
         // Re-render once tips.json loads in.
         if (HND.loadTips) HND.loadTips(appId).then(function () {
             title.textContent = buildTitleStr();
+            HND.fitLine(title);
         });
 
         // windowPic — preview parchment, hidden until a sign is hovered.
@@ -1230,6 +1235,18 @@
             }
         };
         document.addEventListener("keyup", HND._fkeyHandler);
+        // Detach when the game stage is swapped out — otherwise the handler
+        // stays live on the game menu / unit list and Esc there bounces
+        // back to this game's menu, F1 toggles a help overlay on a
+        // detached stage.
+        const fk = HND._fkeyHandler;
+        const fkObs = new MutationObserver(function () {
+            if (stg.isConnected) return;
+            document.removeEventListener("keyup", fk);
+            if (HND._fkeyHandler === fk) HND._fkeyHandler = null;
+            fkObs.disconnect();
+        });
+        fkObs.observe(root, { childList: true });
     }
 
     // F1 help overlay — shows the calibration Instructions string for this

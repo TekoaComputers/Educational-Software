@@ -133,6 +133,8 @@ HND.startApple = function (root, app, unit, onComplete) {
         state.basketStages.push(null);
     }
     HND.log("apple start", app.id + "/" + unit.id, "items=" + items.length, "QCOUNT=" + QCOUNT);
+    HND._exposeTest("apple", { state: state, idOrder: idOrder, items: items, cal: cal,
+                              QCount: QCOUNT, askCol: askCol, ansCol: ansCol });
 
     // Layers
     // Read unit.Middle (TheUnitFile(14)) and pre-compute the X positions
@@ -392,6 +394,8 @@ HND.startApple = function (root, app, unit, onComplete) {
         const sepUser = HND.tip(app.id, 112) || "";
         header.textContent = unit.name + sepUnit
                            + (userName ? userName + sepUser : "");
+        // One line, shrunk to fit (root may not be attached yet → next frame).
+        requestAnimationFrame(function () { HND.fitLine(header); });
     }
     renderHeader();
     if (HND.loadTips) HND.loadTips(app.id).then(renderHeader);
@@ -407,7 +411,9 @@ HND.startApple = function (root, app, unit, onComplete) {
     // Match VB6 RealChar — accepts Hebrew letters + ASCII letters + digits
     // (GamesMoudle.bas:534 — CharID > 47 And CharID < 58 includes 0-9).
     // Punctuation / control chars are filtered upstream by e.key.length===1.
-    function isLetter(c) { return /[֐-׿A-Za-z0-9]/.test(c); }
+    // Hebrew letter / Latin / digit (VB6 RealChar). Hebrew marks and
+    // punctuation (maqaf, geresh) are not keys the student can press.
+    function isLetter(c) { return HND.isTypeableLetter(c); }
 
     // Israeli Hebrew keyboard layout — physical key → Hebrew char (and
     // inverse). Matches the original's `Lang128 = Not Lang128` trick
@@ -589,12 +595,16 @@ HND.startApple = function (root, app, unit, onComplete) {
             state.current++;
             return initQuestion();
         }
-        state.answer = ansText;
+        // One cell per letter WITH its niqqud (HND.typingCells): niqqud
+        // code points used to be cells of their own that no key can fill,
+        // so a pointed answer could only end by losing all 8 apples.
+        const cells = HND.typingCells(ansText).cells;
+        state.answer = cells;
         state.selected = [];
         state.filled = [];
         let realCharCount = 0;
-        for (let i = 0; i < ansText.length; i++) {
-            const sel = isLetter(ansText[i]);
+        for (let i = 0; i < cells.length; i++) {
+            const sel = isLetter(cells[i]);
             state.selected.push(sel);
             state.filled.push(!sel);
             if (sel) realCharCount++;
@@ -687,7 +697,7 @@ HND.startApple = function (root, app, unit, onComplete) {
     // `IsHebrew` is True when AllChar contains any Hebrew code (> 128 in
     // cp1255). We use Unicode Hebrew range [0590..05FF].
     function answerIsHebrew() {
-        return /[֐-׿]/.test(state.answer || "");
+        return /[֐-׿]/.test((state.answer || []).join(""));
     }
     // Original GameApple.frm:660-664 — pick the variant of the pressed
     // physical key that matches the answer's language:
@@ -737,7 +747,7 @@ HND.startApple = function (root, app, unit, onComplete) {
         // Accept either-layout matches per the original's Lang128 toggle.
         for (let i = 0; i < state.answer.length; i++) {
             if (state.selected[i] && !state.filled[i] &&
-                keyMatchesChar(e, state.answer[i])) {
+                keyMatchesChar(e, state.answer[i].charAt(0))) {
                 state.filled[i] = true;
                 justFilled.add(i);
             }
@@ -981,7 +991,7 @@ HND.startApple = function (root, app, unit, onComplete) {
         const stage = root.parentElement;
 
         // Drain animation — original ScoreTimer_Timer (GameApple.frm:757-840):
-        //   AddScore = 100 / (QCount+1) / 16
+        //   AddScore = 100 / (QCount+1) / 16   (QCount = last index)
         //   Each tick: pick FIRST non-empty basket, DROP ONE GOOD APPLE
         //   (basket sprite goes from N → N-1, i.e. basket VISIBLY EMPTIES),
         //   TotalScore += AddScore. When the basket empties, TotalScore +=
@@ -1005,7 +1015,12 @@ HND.startApple = function (root, app, unit, onComplete) {
             const good = 8 - errors;                  // GOOD apples to drain out
             if (good > 0) drainPlan.push({ qIdx: qi, remaining: good });
         });
-        const ADD_SCORE = 100 / (QCOUNT + 1) / 16;
+        // Orig `AddScore = 100 / (QCount + 1) / 16` — VB6 QCount is the
+        // LAST question INDEX (`For i = 0 To QCount`, ReDim BasketStatus(
+        // QCount)), so QCount + 1 is the question count. Our QCOUNT already
+        // is the count; dividing by QCOUNT + 1 capped a flawless game at
+        // 100·Q/(Q+1) (88–90), never 100.
+        const ADD_SCORE = 100 / QCOUNT / 16;
         let totalScore = 0;
         let winFired = false;
         // Orig ScoreTimer:791,797 gates tic.wav on `WaveMe.Mode != mciModePlay`

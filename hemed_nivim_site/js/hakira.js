@@ -57,6 +57,11 @@ HND.startHakira = function (root, app, unit, onComplete) {
     const ansSide = cal.ansSide;
     const hintCol = cal.hintCol && cal.hintCol !== askCol && cal.hintCol !== ansCol
                   ? cal.hintCol : null;
+    // A picture hint (WhatToHint = qPicture) is a hint step of its own even
+    // when its caption column coincides with the Q/A text column — gating
+    // the step on hintCol alone meant picture hints were never drawn and
+    // the scroll kept the 2-rows-per-page picture spacing with nothing in it.
+    const hasHintStep = !!hintCol || cal.whatToHint === 3;
 
     // Picture-mode adjustments (orig PlayGame:128-138):
     //   Any side = qPicture     → LinesIn = 3 (base picture-mode density)
@@ -64,7 +69,7 @@ HND.startHakira = function (root, app, unit, onComplete) {
     //   WhatToAnswer = qPicture → Middle = 70 (text shifted left, pic on right)
     //   WhatToAsk = qPicture    → Middle = 30 (text shifted right, pic on left)
     const anyPic = cal.whatToAsk === 3 || cal.whatToAnswer === 3 || cal.whatToHint === 3;
-    let LINES_IN = hintCol ? 6 : 12;
+    let LINES_IN = hasHintStep ? 6 : 12;
     if (anyPic)                 LINES_IN = 3;
     if (cal.whatToHint === 3)   LINES_IN = 2;
     let MIDDLE   = 50;     // default: askX=400, ansX=380
@@ -127,6 +132,9 @@ HND.startHakira = function (root, app, unit, onComplete) {
         ended: false,
         firstClick: false,
     };
+    HND._exposeTest("hakira", { state: state, items: items, cal: cal, askCol: askCol,
+                               ansCol: ansCol, hintCol: hintCol, linesIn: LINES_IN,
+                               hasHintStep: hasHintStep });
 
     function sharedWave(name) {
         return "assets/" + app.id + "/sounds/" + name;
@@ -343,7 +351,7 @@ HND.startHakira = function (root, app, unit, onComplete) {
             if (HND.unitWaveExists(unit, origIdx, "left")) {
                 HND.playWave(HND.unitWavePath(app.id, unit.id, origIdx, ansSide));
             }
-            if (hintCol) {
+            if (hasHintStep) {
                 state.lineStatus = 2;
             } else {
                 advanceItem();
@@ -353,7 +361,7 @@ HND.startHakira = function (root, app, unit, onComplete) {
             // Case 2: hint text vbCenter, Y = QA_Y + 35. No wave.
             // Picture-mode: pic at X=300, Y = base + 80 (orig:436), text
             // shifts to right-justify at picX+150 / Y+70 = +150.
-            const hintText = it[hintCol] || "";
+            const hintText = hintCol ? (it[hintCol] || "") : "";
             if (!drawRowWithMaybePic({
                 role: "hint", idx: origIdx, Y: Y + 80,
                 cls: "hakira-hint", justify: "center",
@@ -490,12 +498,27 @@ HND.startHakira = function (root, app, unit, onComplete) {
     });
     // F-keys (orig Form_KeyUp:232-241): Space → advance, Esc → exit,
     // F1 → help. Esc is handled by app.js's outer F-key handler.
-    document.addEventListener("keyup", function hakKey(e) {
+    function hakKey(e) {
         if (state.ended) {
             document.removeEventListener("keyup", hakKey);
             return;
         }
         if (e.key === " " || e.code === "Space") userClick();
         else if (e.key === "F1") { e.preventDefault(); showHelpOverlay(); }
-    });
+    }
+    document.addEventListener("keyup", hakKey);
+    // Teardown on game leave. state.ended is only set by CmdNext; leaving
+    // via Esc / the exit icon left hakKey attached, so Space pressed in a
+    // later game (e.g. typing a space in Haklada) still stepped this dead
+    // scroll and played its waves over the new game's audio.
+    if (root.parentElement && root.parentElement.parentElement) {
+        const teardownObs = new MutationObserver(function () {
+            if (!root.isConnected) {
+                document.removeEventListener("keyup", hakKey);
+                teardownObs.disconnect();
+            }
+        });
+        teardownObs.observe(root.parentElement.parentElement,
+                            { childList: true, subtree: true });
+    }
 };

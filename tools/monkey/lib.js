@@ -54,6 +54,9 @@ function instrument(page, log) {
   log.errors = log.errors || []; log.console = log.console || [];
   log.failed = log.failed || []; log.trace = log.trace || [];
   page.on('pageerror', e => log.errors.push({ t: Date.now(), msg: String(e && e.stack || e) }));
+  // Renderer crash (OOM, …): the driver's next call fails with "detached
+  // Frame" — record the real cause.
+  page.on('error', e => log.errors.push({ t: Date.now(), msg: 'page crashed: ' + String(e && e.message || e) }));
   page.on('console', m => {
     const text = m.text();
     if (/^\[[^\]]+\/[^\]]*\] /.test(text)) log.trace.push(text);

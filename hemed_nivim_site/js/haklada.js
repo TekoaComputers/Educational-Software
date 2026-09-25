@@ -63,12 +63,8 @@ HND.startHaklada = function (root, app, unit, onComplete) {
     // Detect dictation mode from the game-menu slot the user picked.
     // Slot 5 (הקלטה רגילה) = practice → cfg block 2, Slot 6 (הכתבה) =
     // dictation → cfg block 3 (see app.js SLOT_TO_CAL_IDX).
-    let DICTATION = false;
-    try {
-        const lastSlot = sessionStorage.getItem("hnd." + app.id + ".lastSlot");
-        const lastMode = sessionStorage.getItem("hnd." + app.id + ".lastMode") || "";
-        DICTATION = (lastSlot === "6") || lastMode.indexOf("הכתבה") !== -1;
-    } catch (e) {}
+    // HND.slotFor ignores a stale lastSlot left by another game.
+    const DICTATION = HND.slotFor(app.id, "haklada") === 6;
     const GAME_IDX = DICTATION ? 3 : 2;
 
     // CurrentCalibration fields (orig GamesMoudle.bas:19-78). Sides:
@@ -186,6 +182,9 @@ HND.startHaklada = function (root, app, unit, onComplete) {
     };
     HND.log("haklada start", app.id + "/" + unit.id,
             "items=" + items.length, "QCOUNT=" + QCOUNT);
+    HND._exposeTest("haklada", { state: state, idOrder: idOrder, items: items,
+                                QCount: QCOUNT, askCol: askCol, ansCol: ansCol,
+                                dictation: DICTATION, whatToType: whatToType });
 
     // GetFlowerX/Y from the original: 33 positions, snaking three rows.
     function flowerX(i) {
@@ -287,10 +286,10 @@ HND.startHaklada = function (root, app, unit, onComplete) {
         HND.playWave(HND.unitWavePath(app.id, unit.id, idx, askSide));
     });
 
+    // `ch` is a typing cell (letter + its niqqud) — see HND.typingCells.
     function isLetter(ch) {
         if (!ch || ch.length === 0) return false;
-        // Anything other than whitespace/punctuation.
-        return /[֐-׿A-Za-z0-9]/.test(ch);
+        return HND.isTypeableLetter(ch);
     }
 
     // Walk `selected[]` from `start` in `step` direction (+1 or -1),
@@ -338,15 +337,19 @@ HND.startHaklada = function (root, app, unit, onComplete) {
         if (state.current >= QCOUNT) { finishGame(); return; }
         const idx = idOrder[state.current];
         const text = (items[idx][ansCol] || "").trim();
-        state.answer = text;
+        // One cell per letter WITH its niqqud: niqqud code points used to
+        // be cells of their own that counted as "letters" no key can type,
+        // so every pointed answer (e.g. all of Nivim's Aramaic unit) got
+        // stuck on the first mark.
+        const tc = HND.typingCells(text);
+        state.answer = tc.cells;
         state.selected = [];
         state.typed = [];
-        let hasHebrew = false;
-        for (let i = 0; i < text.length; i++) {
-            const sel = isLetter(text[i]);
+        const hasHebrew = /[֐-׿]/.test(text);
+        for (let i = 0; i < tc.cells.length; i++) {
+            const sel = isLetter(tc.cells[i]);
             state.selected.push(sel);
             state.typed.push(!sel);          // non-letters count as already filled
-            if (/[֐-׿]/.test(text[i])) hasHebrew = true;
         }
         // WhatToType (orig InitQuestion 209-228 + GamesMoudle.bas qAll/
         // qFirst/qLast/qSelected constants):
@@ -371,7 +374,7 @@ HND.startHaklada = function (root, app, unit, onComplete) {
         } else if (whatToType === 23) {
             const flags = (items[idx][ansSelKey]) || [];
             for (let i = 0; i < state.selected.length; i++) {
-                if (state.selected[i] && flags[i] === false) {
+                if (state.selected[i] && flags[tc.starts[i]] === false) {
                     state.selected[i] = false;
                     state.typed[i] = true;
                 }
@@ -466,7 +469,7 @@ HND.startHaklada = function (root, app, unit, onComplete) {
         // Accept the expected letter typed in either Hebrew OR English
         // keyboard layout on the matching physical key (matches the original
         // `Lang128 = Not Lang128 / GetCharFromKey` double-check in .frm).
-        if (keyMatches(e, expected)) {
+        if (keyMatches(e, expected.charAt(0))) {
             state.typed[state.currentChar] = true;
             // Always walk forward in logical order — our data is already
             // fix_hebrew'd so Hebrew text is in natural left-to-right
@@ -657,27 +660,11 @@ HND.startHaklada = function (root, app, unit, onComplete) {
         // PlayWave game2.wav` fallback. Our shared sounds dir only has
         // game2.wav (game3 is the per-unit variant and our port doesn't
         // ship those), so dictation also rolls back to game2.
-        const playFb = function (url, fb) {
-            if (HND._missingWaves && HND._missingWaves[url]) {
-                HND.playWave(fb, hide);
-            } else {
-                HND.playWave(url, function () { hide(); });
-                // If the primary URL 404s, the playWave error cache will
-                // catch it; trigger fallback on next user gesture. For
-                // simplicity here just attempt fallback after 500ms if
-                // hide hasn't fired (wave never started).
-                setTimeout(function () {
-                    if (helpEl && helpEl.style.display !== "none" &&
-                        HND._missingWaves && HND._missingWaves[url]) {
-                        HND.playWave(fb, hide);
-                    }
-                }, 500);
-            }
-        };
-        const primary  = sharedWave(DICTATION ? "game3.wav" : "game2.wav");
-        const fallback = sharedWave("game2.wav");
-        if (primary === fallback) HND.playWave(primary, hide);
-        else                       playFb(primary, fallback);
+        // game3.wav was never shipped — pick the fallback up front (orig
+        // `If Exist(...) Else PlayWave game2.wav`) instead of requesting a
+        // 404 first.
+        const name = (DICTATION && HND.sharedSoundExists("game3")) ? "game3.wav" : "game2.wav";
+        HND.playWave(sharedWave(name), hide);
         setTimeout(hide, 8000);
     }
 

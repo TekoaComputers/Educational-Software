@@ -43,7 +43,12 @@ function hatamaFlowerX(yPx) {
     return HATAMA_FLOWER_XY[0][1] - 24;
 }
 
-HND.startMatch = function (root, app, unit, onComplete) {
+// opts.progressKey / opts.routeId — used by HatamaPlus, which runs this
+// engine under its own score key and route.
+HND.startMatch = function (root, app, unit, onComplete, opts) {
+    opts = opts || {};
+    const progressKey = opts.progressKey || HND.currentSlotKey(app.id, "match");
+    const routeId     = opts.routeId || "match";
     const cols  = (unit.data && unit.data.columns) || [];
     const items = (unit.data && unit.data.items)  || [];
     if (!items.length || cols.length < 2) {
@@ -90,6 +95,8 @@ HND.startMatch = function (root, app, unit, onComplete) {
         completed: false,
     };
     HND.log("match start", app.id + "/" + unit.id, "rows=" + QCount);
+    HND._exposeTest("match", { state: state, idOrder: idOrder, items: items, cal: cal,
+                              QCount: QCount, askCol: askCol, ansCol: ansCol });
 
     // Pre-load all sprite-sheet frames so background-image swaps don't
     // flicker the first time each frame is needed. The row-paper composition
@@ -421,7 +428,10 @@ HND.startMatch = function (root, app, unit, onComplete) {
         // column, otherwise → StringHint column. data.js:836 already
         // resolves qPicture by routing sideCol(3) through textForPic, so
         // cal.hintCol is the correct column in every non-disabled case.
-        if (cal.whatToHint === 0 /* qDisabled */) return;
+        // qDisabled is 4 (qRight=0, qLeft=1, qHint=2, qPicture=3). Testing
+        // 0 let a disabled hint fall through to sideCol's default column,
+        // so after two mistakes "רמז:" showed the question text itself.
+        if (cal.whatToHint === 4 /* qDisabled */ || isNaN(cal.whatToHint)) return;
         const it = items[idOrder[state.qId]];
         const text = (cal.hintCol && it[cal.hintCol]) || "";
         if (!text) return;
@@ -433,7 +443,7 @@ HND.startMatch = function (root, app, unit, onComplete) {
         const score = Math.max(0, 100 - Math.floor(state.penalty));
         HND.log("match FINISH", "score=" + score, "penalty=" + state.penalty);
         setGoatPose("win");
-        HND.saveProgress(app.id, unit.id, HND.currentSlotKey(app.id, "match"), score, state.errorsPerQ);
+        HND.saveProgress(app.id, unit.id, progressKey, score, state.errorsPerQ);
         // Original WaveMe_Done Case 100 → plays Win.WAV → Case 101 → WinGame.
         // WinGame calls ScoreForm.ShowGameScore. We delay 800ms (matching the
         // praise-wave window) and then show our ScoreForm overlay.
@@ -448,7 +458,7 @@ HND.startMatch = function (root, app, unit, onComplete) {
                 },
                 function onReplay() {
                     // Re-enter the match game.
-                    HND.restartGame(app.id, unit.id, "match");
+                    HND.restartGame(app.id, unit.id, routeId);
                 }
             );
         }, 900);
@@ -486,7 +496,7 @@ HND.startMatch = function (root, app, unit, onComplete) {
         });
         replayBtn.addEventListener("click", function (e) {
             e.stopPropagation();
-            HND.restartGame(app.id, unit.id, "match");
+            HND.restartGame(app.id, unit.id, routeId);
         });
         root.appendChild(replayBtn);
     }
@@ -534,6 +544,23 @@ HND.startMatch = function (root, app, unit, onComplete) {
         }
     }
     document.addEventListener("keydown", keyHandler);
+
+    // Teardown on game leave (same pattern as american/haklada/connect):
+    // without it the F1/F12 handler outlived the screen — F12 pressed in
+    // a LATER game (Haklada's skip key) ran this stale match's finishGame
+    // and saved a phantom score for the old unit.
+    let teardownObs = null;
+    if (root.parentElement && root.parentElement.parentElement) {
+        teardownObs = new MutationObserver(function () {
+            if (!root.isConnected) {
+                document.removeEventListener("keydown", keyHandler);
+                stopGoatCycle();
+                teardownObs.disconnect();
+            }
+        });
+        teardownObs.observe(root.parentElement.parentElement,
+                            { childList: true, subtree: true });
+    }
 
     // Original PlayGame ends with Me.Show 1 and lets WaveMe_Done (after the
     // help-audio plays) trigger the first NextQuestion. The user reaches
