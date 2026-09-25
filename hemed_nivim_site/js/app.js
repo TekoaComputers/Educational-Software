@@ -934,9 +934,11 @@
         }
         const title = el("div", { class: "ctrl game-menu-title", text: buildTitleStr() });
         stg.appendChild(title);
+        HND.fitLine(title);
         // Re-render once tips.json loads in.
         if (HND.loadTips) HND.loadTips(appId).then(function () {
             title.textContent = buildTitleStr();
+            HND.fitLine(title);
         });
 
         // windowPic — preview parchment, hidden until a sign is hovered.

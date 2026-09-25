@@ -367,6 +367,39 @@ HND.log = function (kind /*, ...args */) {
     }, true);
 })();
 
+// Keep a one-line title inside its box: VB6 DrawString painted the
+// title bar on one line, but the browser's fallback fonts are wider, so a
+// long unit name + subject + level + student ran past both stage edges
+// (clipped at left and right). Shrink the font until the line fits.
+// Call after the element is in the DOM and whenever its text changes.
+HND.fitLine = function (el, minPx) {
+    if (!el || !el.isConnected) return;
+    // Web fonts change the width — measure again once they are in.
+    if (document.fonts && document.fonts.status !== "loaded" && !el._fitPending) {
+        el._fitPending = true;
+        document.fonts.ready.then(function () { el._fitPending = false; HND.fitLine(el, minPx); });
+    }
+    el.style.whiteSpace = "nowrap";
+    el.style.fontSize = "";
+    let px = parseFloat(getComputedStyle(el).fontSize) || 16;
+    const min = minPx || 12;
+    // Centred text overflows on BOTH sides, which scrollWidth doesn't
+    // count — measure the text run itself against the content box (in
+    // screen px, hence the stage-scale factor).
+    const range = document.createRange();
+    const cs = getComputedStyle(el);
+    const room = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const tooWide = function () {
+        range.selectNodeContents(el);
+        const scale = el.getBoundingClientRect().width / (el.offsetWidth || 1);
+        return range.getBoundingClientRect().width > room * scale + 1;
+    };
+    while (tooWide() && px > min) {
+        px -= 1;
+        el.style.fontSize = px + "px";
+    }
+};
+
 // Tiny DOM helper used by every game module. Each option key turns into
 // an attribute, with class/text/style/onXxx handled specially.
 HND._el = function (tag, opts, kids) {

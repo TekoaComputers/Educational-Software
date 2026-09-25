@@ -394,6 +394,8 @@ HND.startApple = function (root, app, unit, onComplete) {
         const sepUser = HND.tip(app.id, 112) || "";
         header.textContent = unit.name + sepUnit
                            + (userName ? userName + sepUser : "");
+        // One line, shrunk to fit (root may not be attached yet → next frame).
+        requestAnimationFrame(function () { HND.fitLine(header); });
     }
     renderHeader();
     if (HND.loadTips) HND.loadTips(app.id).then(renderHeader);

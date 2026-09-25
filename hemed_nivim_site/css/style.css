@@ -393,6 +393,7 @@ body {
    pale-lavender RGB(220,221,252) shadow row at y=9, centered x=400. */
 .game-menu-title {
     left: 0; top: 9px; width: 800px;
+    padding: 0 56px;            /* keep clear of the exit/help icons */
     text-align: center;
     color: rgb(90, 131, 252);
     /* Orig Form_Paint:598-599 paints twice: shadow row at y=8 in
@@ -1278,6 +1279,7 @@ body {
        (400, 5/9/7) in RGB(180,220,255) [y=5 above] / RGB(150,200,255)
        [y=9 below] / RGB(50,100,210) [y=7 main]. 22pt SystemFont. */
     left: 0; right: 0; top: 7px;
+    padding: 0 56px;            /* keep clear of the exit/help icons */
     text-align: center; font: 700 18pt "David CLM", "Heebo", "Segoe UI", Arial, sans-serif;
     color: rgb(50, 100, 210);
     text-shadow:
