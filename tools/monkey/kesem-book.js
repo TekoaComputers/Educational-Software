@@ -192,6 +192,14 @@ function runBook(ctx, app) {
         const ti = await k.eval(ix => [...document.querySelectorAll('.frm-ctrl--ShowName')].findIndex(e => +e.dataset.index === ix), k._bookRow);
         return tap('.frm-ctrl--ShowName', ti, wait, o);
       };
+      // The walker (picexiScenario, playPathAt) enters paths via enterPath(),
+      // which looks for btnIcon — the book has none.
+      k.enterPath = async () => {
+        const ti = await k.eval(ix => [...document.querySelectorAll('.frm-ctrl--ShowName')].findIndex(e => +e.dataset.index === ix), k._bookRow);
+        if (ti < 0) return false;
+        await tap('.frm-ctrl--ShowName', ti, 400);
+        return true;
+      };
     },
     extra: bookWalk,
   });
