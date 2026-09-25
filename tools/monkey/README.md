@@ -9,6 +9,7 @@ node run.js                              # all apps
 node run.js Brahot Hemed                 # some apps
 node run.js --quick --seed 7 Brahot      # faster pass / different random seed
 CHROMIUM=/path/to/chrome node run.js     # other browser binary
+BROWSER=firefox node run.js Makhela      # same drivers under headless Firefox (BiDi)
 ```
 
 Output: `runs/<stamp>/<App>/report.md` (+ `report.json`, `shots/*.png`),
@@ -53,7 +54,10 @@ module.exports = {
 `[app/screen] verb …` trace lines), `rand()` / `pick(arr)` (seeded), `quick`.
 
 Test hooks exposed by the apps: `window.__kesemSession` (Kesem suite live
-state — `currentScreen`, `rama`, `paths`, `activeStage`, …).
+state — `currentScreen`, `rama`, `paths`, `activeStage`, …), `MKH._test`
+(Makhela memory game / game show), `MK._test = { screen, refs, state }`
+(Mikraot, set by each screen). Use `page.mouse.click(x, y, { count: 2 })`
+for double-clicks — Firefox ignores the deprecated `clickCount`.
 
 ## Reviewing a run
 
