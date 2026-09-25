@@ -446,15 +446,17 @@ module.exports = {
         // #75/#76: hammering a sprite must not start overlapping cycles,
         // and every cell must already be cached (no blank frames).
         await setSpeed(1);
-        const reqs = [];
-        const onReq = r => { if (/assets\/anim\//.test(r.url())) reqs.push(r.url()); };
-        page.on('request', onReq);
+        // Real network fetches only (Resource Timing, transferSize > 0):
+        // under WebDriver BiDi (Firefox) page 'request' also fires for
+        // cache hits, which are not blank frames.
+        const t0Req = await T(() => performance.now());
         await T(() => { const n = MK._test.state.picBurNode; const seq = window.__frames = [];
           const t0 = performance.now(); (function tick() { const m = /pic_bur_(\d+)/.exec(n.style.backgroundImage); seq.push(m ? +m[1] : -1);
             if (performance.now() - t0 < 3500) setTimeout(tick, 40); })(); });
         for (let k = 0; k < 6; k++) { await clickEl(() => __c(MK._test.state.picBurNode), 'PicBur', null, 110); }
         await sleep(3000);
-        page.off('request', onReq);
+        const reqs = await ctx.eval(t0 => performance.getEntriesByType('resource')
+          .filter(e => /assets\/anim\//.test(e.name) && e.startTime >= t0 && e.transferSize > 0).map(e => e.name), t0Req);
         const fr = (await T(() => window.__frames)).filter((f, i, a) => i === 0 || f !== a[i - 1]);
         const back = fr.filter((f, i) => i > 0 && f < fr[i - 1] && f !== 0);
         ctx.check(!back.length, 'sprite frames run backwards — overlapping animations (#75/#76)', fr.join(','));
