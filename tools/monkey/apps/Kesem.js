@@ -47,6 +47,17 @@ async function activ(k, i, wait = 700) {
  * `skip` = CSS selector of controls not to click (destructive / leaves the
  * app); `back` = async fn restoring the screen after a control navigates away.
  */
+// Close an open video overlay. The player ignores clicks for its first
+// 500 ms (double-click carry-over guard), so retry until it is really gone.
+async function closeVideo(k) {
+  for (let n = 0; n < 6; n++) {
+    const open = await k.eval(() => { const v = document.querySelector('.video-overlay button[aria-label="close"]'); if (v) v.click(); return !!v; });
+    if (!open) return;
+    await k.ctx.sleep(250);
+    if (!(await k.eval(() => !!document.querySelector('.video-overlay')))) return;
+  }
+}
+
 async function audit(k, label, { skip = '', back = null, click = true } = {}) {
   const { ctx } = k;
   ctx.step(`${label}/audit`);
@@ -77,7 +88,7 @@ async function audit(k, label, { skip = '', back = null, click = true } = {}) {
     const dialogs = ctx.log.console.filter(x => x.type === 'dialog').length - nDialogs;
     if (!lines.length && f0 === f1 && html0 === html1 && !dialogs) dead.push(`${c.name}${c.i != null ? `(${c.i})` : ''}${c.action ? ' ' + c.action : ''}`);
     // Close whatever opened.
-    await k.eval(() => { const v = document.querySelector('.video-overlay button[aria-label="close"]'); if (v) v.click(); });
+    await closeVideo(k);
     if (await k.eval(() => !!document.querySelector('.misger-overlay'))) await k.misgerAnswer(false);
     if (await k.eval(() => !!document.querySelector('.nikod-overlay'))) await k.closeNikod();
     await k.eval(() => { for (const o of document.querySelectorAll('.kesem-print-layer, .kesem-modal-overlay')) o.remove(); });
@@ -347,6 +358,7 @@ async function gzira(k) {
   await chaos(k, 'gzira', '.frm-ctrl--Label4,.frm-ctrl--endof,.frm-ctrl--btnED', null);
   // Save & exit.
   ctx.step('gzira/save');
+  await closeVideo(k);
   if ((await scr(k)) === 'gzira') {
     await k.tap('.frm-ctrl--Label4', 0, 600);
     if (await k.eval(() => !!document.querySelector('.misger-overlay'))) await k.misgerAnswer(true);
@@ -459,6 +471,7 @@ async function maslulEditor(k) {
   await audit(k, 'maslul', { skip: '.frm-ctrl--btnReturn,.frm-ctrl--endof,.frm-ctrl--expo1,.frm-ctrl--video,.frm-ctrl--btnBitul,.frm-ctrl--Command3,.frm-ctrl--Option1', click: true, back: null });
   // Save & return (prompts for a name — the harness accepts the default).
   ctx.step('maslul/save');
+  await closeVideo(k);
   await k.eval(() => { window.__kmPrompt = window.prompt; window.prompt = () => 'מונקי ' + (Date.now() % 1000); });
   await k.tap('.frm-ctrl--btnReturn', 0, 800);
   await k.eval(() => { window.prompt = window.__kmPrompt; });

@@ -131,7 +131,9 @@ function pageInit(rate) {
       const x = r.left + r.width * a / 8, y = r.top + r.height * b / 8;
       if (x >= 0 && y >= 0 && x < innerWidth && y < innerHeight && ok(x, y)) return { x, y, hit: true };
     }
-    return { x: cx, y: cy, hit: false };
+    const top = document.elementFromPoint(Math.min(Math.max(cx, 0), innerWidth - 1), Math.min(Math.max(cy, 0), innerHeight - 1));
+    const by = top ? top.tagName.toLowerCase() + (top.id ? '#' + top.id : '') + (typeof top.className === 'string' && top.className ? '.' + top.className.trim().split(/\s+/).slice(0, 3).join('.') : '') : 'nothing';
+    return { x: cx, y: cy, hit: false, by };
   };
   // Client coords of hotspot rect (image px) of the active stage.
   km.hotRectClient = (idx) => {
@@ -231,7 +233,7 @@ class Kesem {
     const p = await this.eval((s, j) => window.__km.point(s, j), sel, i);
     if (!p) { if (!quiet) this.ctx.finding('error', 'missing control', `not visible: ${sel}[${i}]`); return false; }
     if (!p.hit) {
-      if (!quiet) this.ctx.finding('warn', 'control covered', `${sel}[${i}] is not top-most anywhere — clicked via JS`);
+      if (!quiet) this.ctx.finding('warn', 'control covered', `${sel}[${i}] is not top-most anywhere (covered by ${p.by}) — clicked via JS`);
       await this.eval((s, j) => document.querySelectorAll(s)[j].click(), sel, i);
       await this.ctx.sleep(wait);
       return true;
