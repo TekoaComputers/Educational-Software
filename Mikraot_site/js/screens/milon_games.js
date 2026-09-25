@@ -889,6 +889,14 @@
                         tekSlog: 0, slgMap: [] /* slgMap[k] = btnOt index for Slg[k] */ };
         MK._test = { screen: "slog", state: state, refs: sc.refs };   // read-only hook for tools/monkey
 
+        // Syllables used by MILON.DAT words whose Avara.wav\A<code>.wav
+        // recording was never shipped (Avara.bmp has all 660 tiles, the
+        // wav folder only ~170). VB6's sndPlaySound on a missing file just
+        // returned False — silence; here each click 404'd with a console
+        // error. Keep the tile silent, as in the original.
+        const NO_AVARA_WAV = new Set(["3", "22", "43", "47", "55", "56", "73", "101", "102",
+            "122", "123", "128", "192", "195", "206", "222", "223", "242", "243", "273",
+            "279", "352", "372", "392", "411", "412", "422"]);
         function avaraUrl(code) {
             const c = (code || "").trim();
             return c ? "assets/milon/avara.bmp/A" + c + ".png" : "";
@@ -956,7 +964,7 @@
                     // = the syllable audio under milon/avara.wav/a<code>.wav.
                     bOt.onclick = (function (c) {
                         return function () {
-                            if (c) MK.play("milon/avara.wav/a" + c + ".wav");
+                            if (c && !NO_AVARA_WAV.has(c)) MK.play("milon/avara.wav/a" + c + ".wav");
                         };
                     })(code);
                 }
