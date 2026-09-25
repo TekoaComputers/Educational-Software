@@ -38,6 +38,9 @@
         return p.replace(/\\/g, "/").toLowerCase();
     }
     function bgImg(rel) { return "url('assets/" + rel + "')"; }
+    // KIVUN.FRM Shir() — song titles (same table as start.js / sofer.js).
+    const SHIR = ["שרה ראתה תחנה","שרה לחשה ","?למה צחקה דנה","סבא קנה מתנה","גל נפל",
+                  "?מה בגינה","בית ואוירון","סודר חדש לגל","החיט העליז","עגלה עם סוסים"];
 
     // Two book-page pictures live at fixed twips coords inside the form.
     // The .spi rects for Slovo/Pic_Zone are in PIXELS relative to those
@@ -51,16 +54,7 @@
     }
 
     function animateSprite(node, label, cells, intervalMs) {
-        let i = 0;
-        return new Promise(function (resolve) {
-            const tick = function () {
-                if (i >= cells) { resolve(); return; }
-                node.style.backgroundImage = bgImg("anim/" + label + "_" + i + ".png");
-                i += 1;
-                setTimeout(tick, intervalMs);
-            };
-            tick();
-        });
+        return MK.animSprite(node, label, cells, intervalMs);
     }
 
     function flashHighlight(node) {
@@ -139,10 +133,17 @@
             // GAMES1.FRM Form_Load: `Mahamaa = Int(3 * Rnd + 1)` —
             // random 1..3 so the praise-audio variant (C<k>.wav) isn't
             // identical every game.
-            qa: { N_V: 0, otvet: 0, Taut: 0, Mis_Tsuva: 1,
+            // busy: an answer's feedback sequence (coin → praise → answer
+            // audio, or the wrong-answer cue chain) is still running.
+            // VB6 ran those synchronously (PlayZad/Sleep block the UI
+            // thread), so no second answer could be registered mid-way.
+            qa: { N_V: 0, otvet: 0, Taut: 0, Mis_Tsuva: 1, busy: false,
                   Mahamaa: 1 + Math.floor(Math.random() * 3),
                   Vprs: [], SahAkol: 0, KolMonet: 0 },
         };
+
+        // Read-only test hook for tools/monkey (closure state is private).
+        MK._test = { screen: "likro", state: state, stage: stage };
 
         // Render controls in original Z-order (.frm earlier-first = on top
         // in VB; reverse for DOM where later = on top).
@@ -200,6 +201,15 @@
         //   FrmVisibl(0) → Halon hidden, btnSlog/Slovo/Stroka visible, btnShma hidden
         //   FrmVisibl(1) → reversed (Q&A modes)
         applyFrmVisibl(state.tirgul > 3 ? 1 : 0);
+        // btnSlog/Slovo/Stroka_Click swap the clicked button to its active
+        // picture (kl11/kl22/kl33) and it STAYS active while that mode
+        // runs — VB6 never reloads the form. Our mode switch re-renders
+        // via the URL, which painted all three idle again, so the pressed
+        // button seemed to vanish/revert (issue #78). Restore it.
+        const activeMode = state.tirgul === 1 ? state.btnStrokaNode :
+                           state.tirgul === 2 ? state.btnSlovoNode :
+                           state.tirgul === 3 ? state.btnSlogNode : null;
+        if (activeMode) activeMode.style.backgroundImage = bgImg(activeMode.dataset.active);
 
         // Form_Load tail — two branches per GAMES1.FRM:
         //   If NomerMasl = -1 (free play): play WAV\KFP1.wav (single cue).
@@ -247,6 +257,7 @@
             const node = MK.el("button", { class: "ctrl", style: MK.posStyle(ctrl, scale) });
             node.style.backgroundImage = bgImg("anim/pic_fea_0.png");
             node.addEventListener("click", async function () {
+                if (node.__animating) return;   // VB6: UI blocked mid-anim
                 const t = state.tirgul;
                 const tguva = function (wav1, wav2) {
                     MK.play(state.kfp === 1 ? wav1 : wav2);
@@ -275,7 +286,6 @@
                 }
                 await animateSprite(node, "pic_fea", 12, 200);
                 await animateSprite(node, "pic_fea", 12, 200);
-                node.style.backgroundImage = bgImg("anim/pic_fea_0.png");
             });
             stageEl.appendChild(node);
             state.picFeaNode = node;
@@ -287,6 +297,7 @@
             const node = MK.el("button", { class: "ctrl", style: MK.posStyle(ctrl, scale) });
             node.style.backgroundImage = bgImg("anim/pic_bur_0.png");
             node.addEventListener("click", async function () {
+                if (node.__animating) return;   // VB6: UI blocked mid-anim
                 const t = state.tirgul;
                 const tguva = function (wav1, wav2) {
                     MK.play(state.kfp === 1 ? wav1 : wav2);
@@ -298,7 +309,6 @@
                 else if (t === 3) tguva("wav/knok11.wav", "wav/knok12.wav");
                 else MK.play("mik_siha/kpq.wav");
                 await animateSprite(node, "pic_bur", 6, 200);
-                node.style.backgroundImage = bgImg("anim/pic_bur_0.png");
             });
             stageEl.appendChild(node);
             state.picBurNode = node;
@@ -308,11 +318,10 @@
             const node = MK.el("button", { class: "ctrl", style: MK.posStyle(ctrl, scale) });
             node.style.backgroundImage = bgImg("anim/" + label + "_0.png");
             node.addEventListener("click", function () {
+                if (node.__animating) return;
                 const a = audios[Math.floor(Math.random() * audios.length)];
                 MK.play(a);
-                animateSprite(node, label, cells, 100).then(function () {
-                    node.style.backgroundImage = bgImg("anim/" + label + "_0.png");
-                });
+                animateSprite(node, label, cells, 100);
             });
             stageEl.appendChild(node);
             set(node);
@@ -451,9 +460,9 @@
             lbl.style.fontSize = "20px";
             lbl.style.color = "#FFFFFF";
             lbl.style.background = "rgb(0, 128, 255)";  // BackColor 16744576
-            // Caption = Shir(GameNomer-1). Without a real GameNomer
-            // model yet, label the panel with stage id.
-            lbl.textContent = "מקראות — שיר " + song + " (וריאציה " + variant + ")";
+            // GAMES1.FRM Form_Load: Panel3D1.Caption = Shir(GameNomer-1)
+            // (the song's title, as on START) — not a debug stage id.
+            lbl.textContent = SHIR[song - 1] || "";
             stageEl.appendChild(lbl);
         }
         function mkHalon(ctrl, style) {
@@ -655,6 +664,13 @@
                     return;
                 }
             }
+            // Free route: SOFER has no maslul record to show (it rendered
+            // an empty board — issue #74), so hand it this round's coins.
+            try {
+                sessionStorage.setItem("mikraot:lastRound", JSON.stringify({
+                    song: +song, coins: state.qa.coinImgs || [],
+                    kol: state.qa.KolMonet, max: 9 }));
+            } catch (e) {}
             location.hash = "#/sofer/" + song + "/0";
         }
         async function awardCoin(misp) {
@@ -670,6 +686,7 @@
             if (state.halonNodes && state.halonNodes[misp]) {
                 state.halonNodes[misp].style.backgroundImage = bgImg(img);
             }
+            (state.qa.coinImgs = state.qa.coinImgs || [])[misp] = img;
             state.qa.KolMonet += value;
             if (wav) await MK.playSync(wav);   // SYNC (PlayZad) — must block.
         }
@@ -690,8 +707,26 @@
             await animateSprite(state.picFeaNode, "pic_fea", 6, 200);
             if (taut < 2) {
                 await MK.sleep(100);
+                if (MK.stale(myToken)) return;
                 MK.play("milon/ranit/noc" + ki + ".wav");
                 await animateSprite(state.picBurNode, "pic_bur", 6, 200);
+            }
+        }
+        // Answer dispatch for tirgul 4/5. Ignores clicks before the first
+        // question is asked (N_V=0 during the BB007/BB008 intro — those
+        // used to count as wrong answers) and while a previous answer's
+        // feedback is still playing: a double-click on the right answer
+        // ran onCorrect twice, counting it as two correct answers (3
+        // "correct" after two questions) and leaving a stray praise/coin
+        // chain that talked over SOFER after the round ended (issue #73).
+        async function answerQA(isRight) {
+            if (state.qa.busy || state.qa.N_V === 0) return;
+            state.qa.busy = true;
+            try {
+                if (isRight) await onCorrect();
+                else await onWrong();
+            } finally {
+                state.qa.busy = false;
             }
         }
         async function onCorrect() {
@@ -709,15 +744,19 @@
             state.qa.otvet += 1;
             const tautAtAnswer = state.qa.Taut;
             await awardCoin(state.qa.otvet - 1);     // SYNC coin
+            if (MK.stale(myToken)) return;
             await tov1Likro(state.qa.Mahamaa, tautAtAnswer);  // praise + anim
+            if (MK.stale(myToken)) return;
             state.qa.Taut = 0;
             state.qa.Mahamaa = (state.qa.Mahamaa % 3) + 1;   // 1→2→3→1
             const list = state.tirgul === 4 ? stage.words : stage.zones;
             const e = list[state.qa.N_V - 1];
             if (e && e.wavA) await playAwait(e.wavA);   // answer wav SYNC
+            if (MK.stale(myToken)) return;
             if (state.btnVoprosNode) state.btnVoprosNode.style.display = "none";
             MK.play("mik_siha/newchim.wav");           // async confirm
             await MK.sleep(1500);
+            if (MK.stale(myToken)) return;
             if (state.qa.otvet >= 3 || state.qa.Vprs.length === 0) {
                 finishQA();
                 return;
@@ -760,11 +799,14 @@
                       : mt === 2 ? "wav/tautik2.wav"
                                  : tautG;
             await MK.playSync(cue);
+            if (MK.stale(myToken)) return;
             // For Mis_Tsuva 1/2: replay the question. For 3: play the
             // answer + a confirm jingle + flash the correct word/zone.
             if (mt === 3) {
                 if (e && e.wavA) await playAwait(e.wavA);
+                if (MK.stale(myToken)) return;
                 await MK.playSync("mik_siha/newchim.wav");
+                if (MK.stale(myToken)) return;
                 state.qa.Mis_Tsuva = 1;
                 // Three quick flashes of the correct overlay (zone for
                 // tirgul=5, word for tirgul=4).
@@ -797,12 +839,9 @@
             // Original: `Timer3.Enabled = False ; Timer3.Enabled = True`
             // at the top of Slovo_Click — push the nag-replay forward.
             resetQaNag();
-            if ((i + 1) === state.qa.N_V) {
-                flashHighlight(state.slovoNodes[i]);
-                onCorrect();
-            } else {
-                onWrong();
-            }
+            if (state.qa.busy || state.qa.N_V === 0) return;
+            if ((i + 1) === state.qa.N_V) flashHighlight(state.slovoNodes[i]);
+            answerQA((i + 1) === state.qa.N_V);
         }
         function onPicZoneClick(i) {
             // Pic_Zone_Click 1:1 with GAMES1.FRM:
@@ -815,12 +854,9 @@
             if (state.tirgul === 2) { play(z.sWav); return; }
             if (state.tirgul !== 5) return;
             resetQaNag();   // same as Slovo_Click — Timer3 reset
-            if ((i + 1) === state.qa.N_V) {
-                flashHighlight(state.zoneNodes[i]);
-                onCorrect();
-            } else {
-                onWrong();
-            }
+            if (state.qa.busy || state.qa.N_V === 0) return;
+            if ((i + 1) === state.qa.N_V) flashHighlight(state.zoneNodes[i]);
+            answerQA((i + 1) === state.qa.N_V);
         }
         function onShmaClick(idx) {
             // GAMES1.FRM btnShma_Click(Index) 1:1 (line 508):

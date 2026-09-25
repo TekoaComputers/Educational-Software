@@ -70,6 +70,7 @@
         stageEl.style.backgroundSize = "100% 100%";
 
         const refs = {};   // control name(+index) → DOM node
+        MK._test = { screen: "proba", refs: refs };   // read-only hook for tools/monkey
         const state = {
             play_a: false,
             timer1: null,
@@ -234,14 +235,45 @@
 
         // ---- MCI shim (HTML5 <video>) ---------------------------------
 
+        // Only cred.avi was ever transcoded — the per-song celebration
+        // films (Video\<n>.avi) that KIVUN.modiin / SOFER.modiin queue up
+        // in Azaga mode don't exist, so requesting them just 404s and
+        // leaves a black screen that never "ends". Treat a missing film
+        // like the no-film branch of Timer1_Timer: kolnoa.wav + the
+        // song's L1 intro, then back to the maslul picker.
+        const FILMS = { "video/cred.mp4": 1 };
+        function azagaNoFilm(src) {
+            MK.log("proba", "film missing", src, "— Azaga audio fallback");
+            Timer1_Enabled(false);
+            (async function () {
+                const myTok = MK.currentToken();
+                const n = state.tekFilm || 1;
+                await MK.playSync("mik_siha/kolnoa.wav");
+                if (MK.stale(myTok)) return;
+                await MK.playSync("wav/" + n + "_1/" + n + "l1.wav");
+                if (MK.stale(myTok)) return;
+                btnKnisa_Click();
+            })();
+        }
         function open_video(box, src) {
             const v = box.querySelector("video");
+            if (state.azaga && !FILMS[src]) {
+                state.video = null;
+                azagaNoFilm(src);
+                return;
+            }
             v.src = "assets/" + src;
             // open_video also called UpdateInterval reset and Length read
             // in the original VIDEO.BAS; <video> handles that internally.
             state.video = v;
             state.video.muted = false;  // every open resets mute state
             v.onended = Timer1_Tick;
+            // Safety net if even a listed film fails to load.
+            v.onerror = function () {
+                if (!state.azaga || state.video !== v) return;
+                v.onerror = null;
+                azagaNoFilm(src);
+            };
         }
         function Play_Video() {
             if (!state.video) return;

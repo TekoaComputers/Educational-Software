@@ -76,15 +76,22 @@
     // The previous impl built a 4-item shuffled array then `slice(0, n)`'d
     // it, which would drop `correct` ~(4-n)/4 of the time → in game5
     // (n=3) about 25% of rounds had no valid answer.
-    function pickN(pool, correct, n) {
+    //
+    // `keyFn` defines what must be distinct between the choices (default:
+    // the word). "במה זה מתחיל" (mishak 4) shows only each choice's FIRST
+    // SYLLABLE, so two words sharing it (song 1 חַיָּה/חַוָּה, song 10
+    // אֲבַטִּיחִים/אֲבַטִּיחַ, …) put two identical answer tiles on screen
+    // of which only one was accepted — keyFn dedupes on the syllable there.
+    function pickN(pool, correct, n, keyFn) {
+        const key = keyFn || function (e) { return e.mila; };
         const others = pool.filter(function (e) { return e !== correct; });
         const result = [correct];
-        const seen = new Set([correct.mila]);
+        const seen = new Set([key(correct)]);
         while (result.length < n && others.length) {
             const i = rng(others.length);
             const e = others.splice(i, 1)[0];
-            if (seen.has(e.mila)) continue;
-            seen.add(e.mila);
+            if (seen.has(key(e))) continue;
+            seen.add(key(e));
             result.push(e);
         }
         for (let i = result.length - 1; i > 0; i--) {
@@ -92,6 +99,16 @@
             [result[i], result[j]] = [result[j], result[i]];
         }
         return result;
+    }
+    // Distractor pool for a song: its own TEM subset, topped up with the
+    // rest of the dictionary when the subset is smaller than the game
+    // needs. Song 2's TEM lists only 2 words, so game1 (4 choices), game5
+    // (3) and game2 (4) showed "אין מספיק נתונים" — a dead end that also
+    // stalled every maslul chain of song 2 (all three contain one of those
+    // games). The ASKED word still always comes from the song itself.
+    function distractorPool(entries, need) {
+        if (entries.length >= need) return entries;
+        return entries.concat(window.MK_MILON.filter(function (e) { return e && entries.indexOf(e) < 0; }));
     }
     function awardCoin(taut) {
         if (taut === 0) return { img: "menu/matbea3.png", wav: "mik_siha/coin.wav",  value: 2 };
@@ -108,13 +125,16 @@
     // k = Mahamaa (1..3) — randomized praise variant per round. Earlier
     // versions of this port always used C<k> regardless of Taut, so a
     // 2nd-try correct answer sounded the same as 1st-try.
-    async function tov1(refs, picFeaNode, picBurNode, k, taut) {
+    // `tok` (render token): bail before any further audio once the player
+    // has left the screen, so a praise cue never talks over the next one.
+    async function tov1(refs, picFeaNode, picBurNode, k, taut, tok) {
         const ki = String(((k - 1) % 3) + 1);
         MK.play(taut === 0 ? ("milon/ranit/c" + ki + ".wav")
                            : ("milon/ranit/m" + ki + ".wav"));
         await animSprite(picFeaNode, "pic_fea", 6, 200);
         if (taut < 2) {
             await MK.sleep(100);
+            if (tok != null && MK.stale(tok)) return;
             MK.play("milon/ranit/noc" + ki + ".wav");
             await animSprite(picBurNode, "pic_bur", 6, 200);
         }
@@ -125,15 +145,22 @@
     //   3. sleep 1000
     //   4. sndPlaySound("ranit/NOk<k>.wav", 1)
     //   5. PicBur cells 0..5
-    async function kishalon(picFeaNode, picBurNode, k) {
+    async function kishalon(picFeaNode, picBurNode, k, tok) {
         const ki = String(Math.min(Math.max(k, 1), 3));
         MK.play("milon/ranit/kish" + ki + ".wav");
         await animSprite(picFeaNode, "pic_fea", 6, 200);
         await MK.sleep(1000);
+        if (tok != null && MK.stale(tok)) return;
         MK.play("milon/ranit/nok" + ki + ".wav");
         await animSprite(picBurNode, "pic_bur", 6, 200);
     }
+    // Only a maslul chain step records coins. Free play from the MILON
+    // popup routes with maslIdx 0, so saving there silently merged every
+    // free-play score into maslul 1's Tozaot record: SOFER then reported
+    // e.g. "אספת 71 מטבעות מתוך 79" for a maslul whose own steps earned 26,
+    // and KIVUN flagged maslul 1 as in-progress without it being played.
     function saveCoins(song, masl, code, coins) {
+        if (!sessionStorage.getItem("mikraot:chain")) return;
         try {
             const t = JSON.parse(localStorage.getItem("mikraot:tozaot") || "{}");
             t[song] = t[song] || {};
@@ -218,21 +245,7 @@
     // assets/anim/pic_<label>_<i>.png. Matches the For Y=0 To 5 loops
     // throughout the .frm source.
     function animSprite(node, label, cells, ms) {
-        if (!node) return Promise.resolve();
-        let i = 0;
-        return new Promise(function (resolve) {
-            const tick = function () {
-                if (i >= cells) {
-                    node.style.backgroundImage = "url('assets/anim/" + label + "_0.png')";
-                    resolve();
-                    return;
-                }
-                node.style.backgroundImage = "url('assets/anim/" + label + "_" + i + ".png')";
-                i += 1;
-                setTimeout(tick, ms);
-            };
-            tick();
-        });
+        return MK.animSprite(node, label, cells, ms);
     }
 
     // Helper: wire PicFea_Click / PicBur_Click toggling between two
@@ -246,6 +259,7 @@
         if (!node) return;
         let flip = 0;
         node.addEventListener("click", function () {
+            if (node.__animating) return;   // VB6: UI blocked mid-anim
             const a = audios[flip % audios.length];
             flip = (flip + 1) % audios.length;
             if (a) MK.play(a);
@@ -309,9 +323,18 @@
 
         // Style Halon coin slots: each starts at matbea1.bmp (untouched);
         // turns to matbea0/2/3 as rounds resolve.
+        // Halon is AutoSize=-1: VB6 resized each box to its picture
+        // (matbea*.bmp, 54×50) at runtime. The .frm Width/Height are
+        // stale design sizes (38×26 on GAME5/SLOG/GM3A, one 54×50 among
+        // four 48×33 on WAV1) — using them squashed the coins and made
+        // one hole visibly bigger than its neighbours.
         const halons = [0,1,2,3,4].map(function (i) {
             const n = refs["Halon_" + i];
-            if (n) n.style.backgroundImage = "url('assets/menu/matbea1.png')";
+            if (n) {
+                n.style.backgroundImage = "url('assets/menu/matbea1.png')";
+                n.style.width = "54px";
+                n.style.height = "50px";
+            }
             return n || null;
         });
 
@@ -343,8 +366,10 @@
         // audio (ranit/c1|c2|c3.wav + noc1|noc2|noc3.wav).
         const state = { round: 0, totalCoins: 0, attempts: 0, current: null,
                         mahamaa: 1 + Math.floor(Math.random() * 3) };
+        MK._test = { screen: "quiz", state: state, refs: sc.refs };   // read-only hook for tools/monkey
         const entries = getEntries(sc.song);
-        if (entries.length < (opts.choices || 4)) {
+        const pool = distractorPool(entries, opts.choices || 4);
+        if (entries.length === 0) {
             sc.stage.appendChild(MK.el("div", { style: {
                 position: "absolute", inset: 0,
                 display: "flex", alignItems: "center", justifyContent: "center",
@@ -369,7 +394,8 @@
             // pickN guarantees `correct` is in the returned slice (and
             // shuffled among the rest). `pick4(...).slice(0, n)` did
             // not — it would drop `correct` ~(4-n)/4 of the time.
-            const choices = pickN(entries, correct, opts.choices || 4);
+            const choices = pickN(pool, correct, opts.choices || 4, opts.distinctKey);
+            state.choices = choices;
             opts.setupRound(correct, choices, onAnswer);
         }
         // Audio sequencing 1:1 with WAV.FRM btnOtvet_Click:
@@ -378,7 +404,18 @@
         //   Wrong   → Taut++; Taut<=2: Kishalon (kish<Taut>.wav + PicFea
         //             + 1s + NOk<Taut>.wav + PicBur), then user re-tries
         //             Taut>2: Kishal_3 (kish3.wav) + next round
+        // One answer at a time: VB6 ran the whole feedback (Matbeot →
+        // Tov1 / Kishalon) synchronously, so a second click could not
+        // land mid-way. Without this a double-click on the right answer
+        // awarded the round twice and skipped the next round.
+        const tok = MK.currentToken();
         async function onAnswer(picked, choices) {
+            if (state.busy) return;
+            state.busy = true;
+            try { await answer(picked, choices); }
+            finally { state.busy = false; }
+        }
+        async function answer(picked, choices) {
             const correct = state.current;
             const isRight = opts.isCorrect
                 ? opts.isCorrect(picked, correct, choices)
@@ -388,8 +425,10 @@
                 state.totalCoins += coin.value;
                 sc.setHalon(state.round - 1, state.attempts === 0 ? "right" : "part");
                 if (coin.wav) await MK.playSync(coin.wav);
+                if (MK.stale(tok)) return;
                 await tov1(sc.refs, sc.refs.PicFea, sc.refs.PicBur,
-                           state.mahamaa, state.attempts);
+                           state.mahamaa, state.attempts, tok);
+                if (MK.stale(tok)) return;
                 state.mahamaa = (state.mahamaa % 3) + 1;
                 nextRound();
             } else {
@@ -397,9 +436,10 @@
                 if (state.attempts > 2) {
                     sc.setHalon(state.round - 1, "wrong");
                     await MK.playSync("milon/ranit/kish3.wav");
+                    if (MK.stale(tok)) return;
                     nextRound();
                 } else {
-                    await kishalon(sc.refs.PicFea, sc.refs.PicBur, state.attempts);
+                    await kishalon(sc.refs.PicFea, sc.refs.PicBur, state.attempts, tok);
                 }
             }
         }
@@ -471,6 +511,7 @@
         // / btnTmuna positions exactly (from renderForm).
         runQuiz(sc, {
             choices: 4,
+            distinctKey: mishak === 4 ? function (e) { return (e.slg[0] || "").trim(); } : null,
             setupRound: function (correct, choices, eval_) {
                 nagState.current = correct;
                 resetNag();
@@ -605,7 +646,7 @@
         wireSprite(sc.refs.PicFea, "pic_fea", 11, ["mik_siha/bb003.wav", "mik_siha/bb33.wav"]);
         wireSprite(sc.refs.PicBur, "pic_bur", 10, ["mik_siha/aa008.wav", "mik_siha/aa006.wav", "mik_siha/aa007.wav"]);
         const entries = getEntries(sc.song);
-        if (entries.length < 4) {
+        if (entries.length === 0) {
             sc.stage.appendChild(MK.el("div", { style: {
                 position: "absolute", inset: "0",
                 display: "flex", alignItems: "center", justifyContent: "center",
@@ -615,6 +656,7 @@
         }
 
         const state = { round: 0, totalCoins: 0, attempts: 0, mistakeSlot: 0 };
+        MK._test = { screen: "game2", state: state, refs: sc.refs };   // read-only hook for tools/monkey
 
         function setup() {
             if (state.round >= 5) {
@@ -627,12 +669,14 @@
             }
             state.round += 1;
             state.attempts = 0;
-            // 4 unique entries.
-            const pool = entries.slice();
+            // 4 unique entries — the 3 captions from the song first, the
+            // odd picture out topped up from the dictionary if needed.
+            const own = entries.slice(), extra = distractorPool(entries, 4).slice(entries.length);
             const uu = [];
-            for (let k = 0; k < 4 && pool.length > 0; k++) {
-                const i = rng(pool.length);
-                uu.push(pool.splice(i, 1)[0]);
+            for (let k = 0; k < 4 && (own.length || extra.length); k++) {
+                const src = own.length ? own : extra;
+                const i = rng(src.length);
+                uu.push(src.splice(i, 1)[0]);
             }
             // pr_Nomer = random slot 0..2 — this slot will host the
             // mismatched picture (uu[3]'s picture under uu[pr_Nomer]'s label).
@@ -688,7 +732,15 @@
             pic.style.outline = prevBorder;
             pic.style.boxShadow = prevShadow;
         }
+        // One answer at a time (see runQuiz.onAnswer).
+        const tok = MK.currentToken();
         async function onAnswer(slot) {
+            if (state.busy || state.round === 0) return;
+            state.busy = true;
+            try { await answer(slot); }
+            finally { state.busy = false; }
+        }
+        async function answer(slot) {
             if (slot === state.mistakeSlot) {
                 // WAV1.FRM line ~391: Shape1(pr_Nomer-1).BackColor =
                 // &H00FF00FF& (magenta) on correct — celebrate the find.
@@ -697,8 +749,10 @@
                 sc.setHalon(state.round - 1, state.attempts === 0 ? "right" : "part");
                 flashSlot(slot, "#ff00ff", 800);   // magenta flash, fire-and-forget
                 if (coin.wav) await MK.playSync(coin.wav);
+                if (MK.stale(tok)) return;
                 await tov1(sc.refs, sc.refs.PicFea, sc.refs.PicBur,
-                           1 + ((state.round - 1) % 3), state.attempts);
+                           1 + ((state.round - 1) % 3), state.attempts, tok);
+                if (MK.stale(tok)) return;
                 setup();
             } else {
                 state.attempts += 1;
@@ -707,10 +761,12 @@
                     // &HFF& (red) — reveals the actual mistake slot.
                     sc.setHalon(state.round - 1, "wrong");
                     await flashSlot(state.mistakeSlot, "#ff0000", 1200);
+                    if (MK.stale(tok)) return;
                     await MK.playSync("wav/tautg3.wav");
+                    if (MK.stale(tok)) return;
                     setup();
                 } else {
-                    await kishalon(sc.refs.PicFea, sc.refs.PicBur, state.attempts);
+                    await kishalon(sc.refs.PicFea, sc.refs.PicBur, state.attempts, tok);
                 }
             }
         }
@@ -831,7 +887,16 @@
         }
         const state = { round: 0, totalCoins: 0, attempts: 0, current: null,
                         tekSlog: 0, slgMap: [] /* slgMap[k] = btnOt index for Slg[k] */ };
+        MK._test = { screen: "slog", state: state, refs: sc.refs };   // read-only hook for tools/monkey
 
+        // Syllables used by MILON.DAT words whose Avara.wav\A<code>.wav
+        // recording was never shipped (Avara.bmp has all 660 tiles, the
+        // wav folder only ~170). VB6's sndPlaySound on a missing file just
+        // returned False — silence; here each click 404'd with a console
+        // error. Keep the tile silent, as in the original.
+        const NO_AVARA_WAV = new Set(["3", "22", "43", "47", "55", "56", "73", "101", "102",
+            "122", "123", "128", "192", "195", "206", "222", "223", "242", "243", "273",
+            "279", "352", "372", "392", "411", "412", "422"]);
         function avaraUrl(code) {
             const c = (code || "").trim();
             return c ? "assets/milon/avara.bmp/A" + c + ".png" : "";
@@ -899,7 +964,7 @@
                     // = the syllable audio under milon/avara.wav/a<code>.wav.
                     bOt.onclick = (function (c) {
                         return function () {
-                            if (c) MK.play("milon/avara.wav/a" + c + ".wav");
+                            if (c && !NO_AVARA_WAV.has(c)) MK.play("milon/avara.wav/a" + c + ".wav");
                         };
                     })(code);
                 }
@@ -915,7 +980,16 @@
             // Play the word audio as an opening cue.
             MK.play(milonWavUrl(miln));
         }
+        // One pick at a time (see runQuiz.onAnswer): a double-click on the
+        // right tile otherwise filled two slots / advanced tekSlog twice.
+        const tok = MK.currentToken();
         async function onPick(idx) {
+            if (state.busy || state.round === 0) return;
+            state.busy = true;
+            try { await pick(idx); }
+            finally { state.busy = false; }
+        }
+        async function pick(idx) {
             const expected = state.slgMap[state.tekSlog];
             if (idx === expected) {
                 // Correct — fill btnSlog[tekSlog] with the syllable graphic.
@@ -929,10 +1003,12 @@
                     slot.style.border = "2px solid #00aa00";
                 }
                 await MK.playSync("mik_siha/newchim.wav");
+                if (MK.stale(tok)) return;
                 state.tekSlog += 1;
                 if (state.tekSlog >= (state.current.misp || 1)) {
                     // Word completed — play full word, then award.
                     await MK.playSync(milonWavUrl(state.current));
+                    if (MK.stale(tok)) return;
                     const coin = awardCoin(state.attempts);
                     state.totalCoins += coin.value;
                     sc.setHalon(state.round - 1, state.attempts === 0 ? "right" : "part");
@@ -957,9 +1033,10 @@
                         setTimeout(function () { correctBtnOt.style.border = prevBorder; }, 1500);
                     }
                     await MK.playSync("milon/ranit/kish3.wav");
+                    if (MK.stale(tok)) return;
                     setup();
                 } else {
-                    await kishalon(sc.refs.PicFea, sc.refs.PicBur, state.attempts);
+                    await kishalon(sc.refs.PicFea, sc.refs.PicBur, state.attempts, tok);
                 }
             }
         }
@@ -989,12 +1066,15 @@
     //   When tek > kol → Matbeot, next round.
     //
     // Index → letter mapping: btnABC(0..26) = Chr(224)..Chr(250) in
-    // cp1255 = Hebrew consonants א..ת + final letters ך ם ן ף ץ.
-    // In Unicode these are 0x5D0..0x5EA (no final letters in that range
-    // — finals are 0x5DA, 0x5DD, 0x5DF, 0x5E3, 0x5E5).
-    // The .frm declaration order maps Index 0..21 to 0x5D0..0x5EA and
-    // 22..26 to the 5 final letters. We list them explicitly.
-    const HEB_ABC = ["א","ב","ג","ד","ה","ו","ז","ח","ט","י","כ","ל","מ","נ","ס","ע","פ","צ","ק","ר","ש","ת","ך","ם","ן","ף","ץ"];
+    // cp1255 = א..ת with each FINAL letter right after its base form
+    // (…י ך כ ל ם מ ן נ ס ע ף פ ץ צ ק ר ש ת). The GM3A.FRM grid confirms
+    // it: right-to-left its rows hold indices 6,7,8,9,11,10 / 12,14,13,
+    // 16,15,17 / 18,20,19,22,21,23 — alphabetical with each final after
+    // its letter only under this order. The port used to list the five
+    // finals LAST, which scrambled the on-screen keyboard (row 2 read
+    // ז ח ט י ל כ) and made the Form_KeyPress QWERTY table (built on the
+    // cp1255 indices) type the wrong letter for every key past י.
+    const HEB_ABC = ["א","ב","ג","ד","ה","ו","ז","ח","ט","י","ך","כ","ל","ם","מ","ן","נ","ס","ע","ף","פ","ץ","צ","ק","ר","ש","ת"];
 
     function isHebrewConsonant(ch) {
         const c = ch.charCodeAt(0);
@@ -1057,6 +1137,7 @@
         window.addEventListener("hashchange", cleanupKey);
         const state = { round: 0, totalCoins: 0, attempts: 0, current: null,
                         slovo: "", mas: [], kol: 0, tek: 1 };
+        MK._test = { screen: "gam3", state: state, refs: sc.refs, abc: HEB_ABC };   // read-only hook for tools/monkey
         const slots = [];
 
         for (let i = 0; i < 27; i++) {
@@ -1142,7 +1223,17 @@
             // Play the word audio as opening cue.
             MK.play(milonWavUrl(state.current));
         }
+        // One letter at a time (see runQuiz.onAnswer): a double-click on
+        // the right letter otherwise filled a slot twice and skipped the
+        // next syllable.
+        const tok = MK.currentToken();
         async function onLetter(btnIdx) {
+            if (state.busy || state.round === 0) return;
+            state.busy = true;
+            try { await letter(btnIdx); }
+            finally { state.busy = false; }
+        }
+        async function letter(btnIdx) {
             // Expected: starting consonant of syllable `tek` =
             // slovo[mas[tek-1]] (0-based). Click is correct iff that
             // matches HEB_ABC[btnIdx].
@@ -1154,6 +1245,7 @@
                 const syl = state.slovo.slice(start, end);
                 if (slots[state.tek - 1]) slots[state.tek - 1].textContent = syl;
                 await MK.playSync("mik_siha/newchim.wav");
+                if (MK.stale(tok)) return;
                 state.tek += 1;
                 if (state.tek > state.kol) {
                     const coin = awardCoin(state.attempts);
@@ -1169,6 +1261,7 @@
                     // Kishal_3 1:1 from GM3A.FRM: tautG3.wav + PicFea anim
                     // + flash btnABC[correct] at size 28 / bold.
                     await MK.playSync("wav/tautg3.wav");
+                    if (MK.stale(tok)) return;
                     const idx = HEB_ABC.indexOf(expected);
                     const flashBtn = idx >= 0 ? sc.refs["btnABC_" + idx] : null;
                     await animSprite(sc.refs.PicFea, "pic_fea", 6, 200);
@@ -1185,7 +1278,7 @@
                     sc.setHalon(state.round - 1, "wrong");
                     setupRound();
                 } else {
-                    await kishalon(sc.refs.PicFea, sc.refs.PicBur, state.attempts);
+                    await kishalon(sc.refs.PicFea, sc.refs.PicBur, state.attempts, tok);
                 }
             }
         }
