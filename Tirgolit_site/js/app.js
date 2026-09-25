@@ -328,8 +328,9 @@ const App = (() => {
   }
 
   async function checkAdminPass() {
-    const stored = localStorage.getItem('tirgolit_admin_pass') ?? '777';
-    if (!stored) return true;
+    // A blank stored password (saved by older versions of 'שנה קוד מנהל')
+    // falls back to the default instead of switching the prompt off.
+    const stored = (localStorage.getItem('tirgolit_admin_pass') || '').trim() || '777';
     const entered = await showTInput('הכנס סיסמת מורה', '');
     if (entered === null) return false;
     if (entered.trim() !== stored) { await showTMsg('סיסמא שגויה'); return false; }
@@ -375,9 +376,7 @@ const App = (() => {
       listEl.appendChild(item);
 
       if (scoreEl) {
-        const scores = Object.entries(
-          JSON.parse(localStorage.getItem('tirgolit_users') || '{}')[name]?.scores || {}
-        ).filter(([k, v]) => !k.includes('_s') && v > 0);
+        const scores = Users.lessonScores(name);
         const count = scores.length;
         const avg = count > 0 ? Math.round(scores.reduce((s, [, v]) => s + v, 0) / count) : 0;
         const si = document.createElement('div');
@@ -433,6 +432,7 @@ const App = (() => {
   async function appUserMgmt_changePass() {
     const newPass = await showTInput('הכנס סיסמה חדשה', '');
     if (newPass === null) return;
+    if (!newPass.trim()) { await showTMsg('הסיסמה לא יכולה להיות ריקה'); return; }
     localStorage.setItem('tirgolit_admin_pass', newPass.trim());
     await showTMsg('הסיסמה עודכנה');
   }
@@ -448,10 +448,7 @@ const App = (() => {
   async function appUserMgmt_detail() {
     const name = getSelectedUser();
     if (!name) { await showTMsg('בחר תלמיד מהרשימה'); return; }
-    const data = JSON.parse(localStorage.getItem('tirgolit_users') || '{}');
-    const scores = Object.entries(data[name]?.scores || {})
-      .filter(([k, v]) => !k.includes('_s') && v > 0)
-      .sort(([, a], [, b]) => b - a);
+    const scores = Users.lessonScores(name).sort(([, a], [, b]) => b - a);
     if (!scores.length) { await showTMsg('אין נתוני ציונים עבור ' + name); return; }
     const avg = Math.round(scores.reduce((s, [, v]) => s + v, 0) / scores.length);
     await showTMsg(name + '\nממוצע: ' + avg + ' (' + scores.length + ' שיעורים)');
@@ -539,6 +536,10 @@ const App = (() => {
     }
     clearTip();
     renderUnitList(tabIdx);
+    // A new level starts at its first unit (VB6 refills the ListBox, which
+    // resets TopIndex); the old tab's scroll offset hid rows 1..n.
+    const listEl = document.getElementById('u-list');
+    if (listEl) { listEl.scrollTop = 0; updateScrollThumb(); }
   }
 
   function renderUnitList(tabIdx) {
@@ -588,7 +589,7 @@ const App = (() => {
       row.addEventListener('click', () => {
         listEl.querySelectorAll('.u-row.u-row-sel').forEach(r => r.classList.remove('u-row-sel'));
         row.classList.add('u-row-sel');
-        selectedUnitId = uid;
+        selectedUnitId = String(uid);  // unit "0" exists (רמה ב) — keep ids truthy
         showTip(uid);
       });
 
@@ -1102,7 +1103,7 @@ const App = (() => {
     // Remove any stale keyboard handler from a previous call
     if (glistKeyHandler) { window.removeEventListener('keydown', glistKeyHandler); glistKeyHandler = null; }
 
-    glistUnitId   = uid;
+    glistUnitId   = String(uid);  // numeric 0 would fail the `glistUnitId &&` checks
     glistUnit     = unit;
     glistUnitName = unitName;
 
@@ -1881,10 +1882,27 @@ const App = (() => {
   window.appProduct_select       = appProduct_select;
   window.appProduct_back         = appProduct_back;
   window.appProduct_switchFromUnits = appProduct_switchFromUnits;
+  // The exercise on screen, for the Sketch pad — only where the student can
+  // already see it (Tirgol1 kind 2 target bar, Tirgol2's active row). In
+  // Tirgol1 kind 1 and Tirgol3 the expression is what must be found, so the
+  // pad opens blank instead of giving it away.
+  function visibleExercise() {
+    try {
+      if (gameBg === 't2') { const s = GameT2.peek(); return s.tshP ? s.scene[s.tshNom].expr : null; }
+      if (gameBg === 't3') return null;
+      if (gameKind === 2) { const s = Game.peek(); return s.target ? s.scene[s.target.sceneRow].expr : null; }
+    } catch (e) {}
+    return null;
+  }
+
   window.appGame_openSketch = function() {
     if (typeof SketchTool !== 'undefined') {
-      const unit = UNITS_DATA && currentUnitId ? UNITS_DATA.units[String(currentUnitId)] : null;
-      SketchTool.show(unit ? unit.title : '');
+      // SketchTool.show() lays its argument out on the grid as an
+      // 'a+b=' exercise; passing the unit title stamped stray title
+      // characters (e.g. the '- 6' of 'כפל - כפולות 6') onto the pad.
+      const expr = visibleExercise();
+      const unit = currentUnit || (UNITS_DATA && currentUnitId ? UNITS_DATA.units[String(currentUnitId)] : null);
+      SketchTool.show(expr ? expr + '=' : '', expr ? expr + ' =' : (unit ? unit.title : ''));
     }
   };
 
@@ -1902,7 +1920,22 @@ const App = (() => {
     window[k] = wrapped;
   });
 
-  return { init };
+  // Read-only snapshot for tools/monkey (headless test driver).
+  function peek() {
+    const active = document.querySelector('.screen.active');
+    const glist = document.getElementById('glist-screen');
+    return { user: currentUser, product: currentProduct, unitId: currentUnitId, slot: currentSlot,
+      kind: gameKind, bg: gameBg, tab: selectedTabIndex, selectedUnitId,
+      screen: active ? active.id.replace('screen-', '') : null,
+      glist: !!(glist && glist.style.display !== 'none'), glistUnitId };
+  }
+
+  return { init, peek };
 })();
+window.__tirgolit = {
+  app: () => App.peek(),
+  game: () => Game.peek(), t2: () => GameT2.peek(), t3: () => GameT3.peek(),
+  war: () => GameWar.peek(), krav: () => GameKrav.peek(),
+};
 
 document.addEventListener('DOMContentLoaded', () => App.init());

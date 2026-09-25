@@ -46,6 +46,16 @@ const GameT3 = (() => {
   const CHICK_BGX = [-156, -195, -234];
   let rowPlankEls = [];  // plank DOM element per row (0-3)
 
+
+  // Every destroy() starts a new session; callbacks scheduled by an older
+  // session (intro delay, post-answer / end-of-game delays) become no-ops, so
+  // leaving or restarting a game can't resurrect it on a hidden screen.
+  let session = 0;
+  function later(fn, ms) {
+    const my = session;
+    return setTimeout(() => { if (my === session) fn(); }, ms);
+  }
+
   // ─── Public API ─────────────────────────────────────────────────────────────
 
   function init(unitData, completeCb) {
@@ -54,6 +64,8 @@ const GameT3 = (() => {
     unit = unitData;
     onComplete = completeCb;
     penalty = 0;
+    timerVal = 0;      // the clock restarts at 0:00 every game (was carried over)
+    phase = 0;         // no clicking/typing target until startScene(0)
     eggs = Array(8).fill(-1);
 
     const qs = shuffle([...unitData.questions]);
@@ -78,13 +90,14 @@ const GameT3 = (() => {
     renderEggs();
     startAnim('start');
     AudioMgr.playAnim('Tirgol3Q99.wav');
-    setTimeout(() => {
+    later(() => {
       startScene(0);
       startTimer();
     }, 1600);
   }
 
   function destroy() {
+    session++;
     stopTimer();
     stopAnim();
     stopChicksAnim();
@@ -116,10 +129,26 @@ const GameT3 = (() => {
     transitionGazeTo(targetRow + 2);
   }
 
+  // Numeric value of an answer string ("3+3" → 6), or NaN for anything that
+  // isn't plain arithmetic (e.g. the remainder form "3(1)").
+  function answerValue(a) {
+    const s = String(a).replace(/\s+/g, '');
+    if (!/^[\d+\-*/.()]+$/.test(s) || /^\d+\(\d+\)$/.test(s)) return NaN;
+    try { const v = Function('"use strict";return (' + s + ')')(); return typeof v === 'number' ? v : NaN; }
+    catch { return NaN; }
+  }
+
   function pickFake(scene, allQs) {
     const sceneAnswers = new Set(scene.map(p => p.answer));
-    const pool = allQs.map(q => q.answer).filter(a => !sceneAnswers.has(a));
-    if (pool.length === 0) return allQs.find(q => q.answer !== realAnswer)?.answer || '?';
+    // The planted answer must really be wrong: in the multiplication-as-
+    // addition units another question's answer can be a different spelling of
+    // the same value ("3+3" for 2+2+2, whose answer is "3*2").
+    const realVal = answerValue(realAnswer);
+    const pool = allQs.map(q => q.answer).filter(a => !sceneAnswers.has(a) &&
+      !(Math.abs(answerValue(a) - realVal) < 1e-9));
+    if (pool.length === 0) {
+      return allQs.map(q => q.answer).find(a => a !== realAnswer && !(Math.abs(answerValue(a) - realVal) < 1e-9)) || '?';
+    }
     return pool[Math.floor(Math.random() * pool.length)];
   }
 
@@ -235,7 +264,7 @@ const GameT3 = (() => {
 
   function handleKey(e) {
     if (phase !== 2) return;
-    const ch = keyToChar(e.keyCode, e.shiftKey);
+    const ch = keyToChar(e);
     if (ch === null) return;
     e.preventDefault();
 
@@ -267,7 +296,21 @@ const GameT3 = (() => {
     }
   }
 
-  function keyToChar(k, shift) {
+  // Prefer the character the keyboard actually produced (e.key): on a US
+  // layout "+", "*" and "(" are Shift+=, Shift+8, Shift+9, which the
+  // keyCode table below misreads as null / "8" / ")" — so answers such as
+  // "2+2" or "3(1)" could never be typed. Keys that don't produce one of
+  // the answer characters (e.g. the Hebrew layout's "ץ" on the period key)
+  // fall back to the VB6 keyCode mapping.
+  function keyToChar(e) {
+    if (e.key && e.key.length === 1) {
+      if ('0123456789.-+*/()'.includes(e.key)) return e.key;
+      if (e.key === ',') return '.';
+    }
+    return keyCodeToChar(e.keyCode, e.shiftKey);
+  }
+
+  function keyCodeToChar(k, shift) {
     if (shift && k === 57) return ')';
     if (shift && k === 48) return '(';
     if (k >= 48 && k <= 57)  return String.fromCharCode(k);
@@ -296,7 +339,7 @@ const GameT3 = (() => {
     } else {
       playCorrectAnim();
     }
-    setTimeout(() => {
+    later(() => {
       if (!isLast) {
         startScene(sceneIdx + 1);
       } else {
@@ -456,5 +499,11 @@ const GameT3 = (() => {
     return arr;
   }
 
-  return { init, destroy };
+  // Read-only snapshot for tools/monkey (headless test driver).
+  function peek() {
+    return { sceneIdx, phase, targetRow, realAnswer, fakeAnswer, typedSoFar, penalty, eggs: [...eggs],
+      scene: scenePairs.map(p => ({ expr: p.expr, answer: p.answer })), timerVal };
+  }
+
+  return { init, destroy, peek };
 })();

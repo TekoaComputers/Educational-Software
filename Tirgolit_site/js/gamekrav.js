@@ -137,6 +137,16 @@ const GameKrav = (() => {
     spritesReady = true;
   }
 
+
+  // Every destroy() starts a new session; callbacks scheduled by an older
+  // session (intro delay, post-answer / end-of-game delays) become no-ops, so
+  // leaving or restarting a game can't resurrect it on a hidden screen.
+  let session = 0;
+  function later(fn, ms) {
+    const my = session;
+    return setTimeout(() => { if (my === session) fn(); }, ms);
+  }
+
   // ─── Public API ──────────────────────────────────────────────────────────────
   function init(unitData, completeCb) {
     if (window.TDebug) TDebug.log('game', 'gamekrav init', { unit: unitData?.title, qCount: unitData?.questions?.length });
@@ -162,12 +172,14 @@ const GameKrav = (() => {
     ctx.textAlign = 'center';
     ctx.fillText('טוען...', 400, 300);
 
+    const my = session;
     loadAllSprites().then(() => {
-      if (!gameRunning) startNameEntry();
+      if (!gameRunning && my === session) startNameEntry();
     });
   }
 
   function destroy() {
+    session++;
     gameRunning      = false;
     animRunning      = false;
     ttVis            = false;
@@ -441,7 +453,7 @@ function shelInit() {
     loaHC = [6, 6];
 
     const gameOver = scoreT[0] >= 3 || scoreT[1] >= 3;
-    setTimeout(() => showScore(gameOver), 1500);
+    later(() => showScore(gameOver), 1500);
   }
 
   // ─── ShowScore overlay (VB6 ScoreQ / BackS.jpg panel) ───────────────────────
@@ -548,7 +560,7 @@ function shelInit() {
   // ─── Input ───────────────────────────────────────────────────────────────────
   function handleKey(e) {
     if (!gameRunning || !showQ) return;
-    const ch = keyToChar(e.keyCode, e.shiftKey);
+    const ch = keyToChar(e);
     if (ch !== null) { e.preventDefault(); shelClick(ch); }
   }
 
@@ -581,7 +593,21 @@ function shelInit() {
     }
   }
 
-  function keyToChar(k, shift) {
+  // Prefer the character the keyboard actually produced (e.key): on a US
+  // layout "+", "*" and "(" are Shift+=, Shift+8, Shift+9, which the
+  // keyCode table below misreads as null / "8" / ")" — so answers such as
+  // "2+2" or "3(1)" could never be typed. Keys that don't produce one of
+  // the answer characters (e.g. the Hebrew layout's "ץ" on the period key)
+  // fall back to the VB6 keyCode mapping.
+  function keyToChar(e) {
+    if (e.key && e.key.length === 1) {
+      if ('0123456789.-+*/()'.includes(e.key)) return e.key;
+      if (e.key === ',') return '.';
+    }
+    return keyCodeToChar(e.keyCode, e.shiftKey);
+  }
+
+  function keyCodeToChar(k, shift) {
     if (shift && k === 57) return ')';
     if (shift && k === 48) return '(';
     if (k >= 48 && k <= 57)  return String.fromCharCode(k);
@@ -725,5 +751,13 @@ function shelInit() {
     return arr;
   }
 
-  return { init, destroy };
+  // Read-only snapshot for tools/monkey (headless test driver).
+  function peek() {
+    const pair = allPairs && shela >= 1 && shela <= allPairs.length ? allPairs[shela - 1] : null;
+    return { spritesReady, gameRunning, animRunning, showQ, tor, strAns, tshP, shela, ttPosR,
+      scoreT: scoreT && [...scoreT], realScore: realScore && [...realScore], showScoreOverlay,
+      scoreOverlayGameOver, pair, tickRunning: !!tickId };
+  }
+
+  return { init, destroy, peek };
 })();

@@ -137,6 +137,16 @@ const GameWar = (() => {
     spritesReady = true;
   }
 
+
+  // Every destroy() starts a new session; callbacks scheduled by an older
+  // session (intro delay, post-answer / end-of-game delays) become no-ops, so
+  // leaving or restarting a game can't resurrect it on a hidden screen.
+  let session = 0;
+  function later(fn, ms) {
+    const my = session;
+    return setTimeout(() => { if (my === session) fn(); }, ms);
+  }
+
   // ─── Public API ──────────────────────────────────────────────────────────────
 
   function init(unitData, completeCb) {
@@ -162,12 +172,14 @@ const GameWar = (() => {
     ctx.textAlign = 'center';
     ctx.fillText('טוען...', 400, 300);
 
+    const my = session;
     loadAllSprites().then(() => {
-      if (!gameOver) restart();
+      if (!gameOver && my === session) restart();
     });
   }
 
   function destroy() {
+    session++;
     gameRunning = false;
     celebrating = false;
     dansTrans   = false;
@@ -510,7 +522,7 @@ const GameWar = (() => {
       }
     }
     AudioMgr.play('./assets/war/Victor.wav');
-    setTimeout(() => { celebrating = false; finish(); }, 2000);
+    later(() => { celebrating = false; finish(); }, 2000);
   }
 
   function triggerEndGame(lane) {
@@ -584,7 +596,7 @@ const GameWar = (() => {
       return;
     }
 
-    const ch = keyToChar(e.keyCode, e.shiftKey);
+    const ch = keyToChar(e);
     if (ch !== null) { e.preventDefault(); shelClick(ch); }
   }
 
@@ -634,7 +646,21 @@ const GameWar = (() => {
     rAni        = 0;
   }
 
-  function keyToChar(k, shift) {
+  // Prefer the character the keyboard actually produced (e.key): on a US
+  // layout "+", "*" and "(" are Shift+=, Shift+8, Shift+9, which the
+  // keyCode table below misreads as null / "8" / ")" — so answers such as
+  // "2+2" or "3(1)" could never be typed. Keys that don't produce one of
+  // the answer characters (e.g. the Hebrew layout's "ץ" on the period key)
+  // fall back to the VB6 keyCode mapping.
+  function keyToChar(e) {
+    if (e.key && e.key.length === 1) {
+      if ('0123456789.-+*/()'.includes(e.key)) return e.key;
+      if (e.key === ',') return '.';
+    }
+    return keyCodeToChar(e.keyCode, e.shiftKey);
+  }
+
+  function keyCodeToChar(k, shift) {
     if (shift && k === 57) return ')';
     if (shift && k === 48) return '(';
     if (k >= 48 && k <= 57)  return String.fromCharCode(k);
@@ -877,5 +903,13 @@ const GameWar = (() => {
     return arr;
   }
 
-  return { init, destroy };
+  // Read-only snapshot for tools/monkey (headless test driver).
+  function peek() {
+    return { gameRunning, gameOver, celebrating, losing, spritesReady, shlav, rLane, rMachav, strAns, tshP,
+      pagazNum, warScore, tshNom, answered: answered && [...answered],
+      pair: allPairs && gameRunning ? allPairs[qi(rLane) - 1] : null,
+      creatures: creatures && [1, 2, 3, 4].map(i => ({ px: creatures[i].px, machav: creatures[i].machav })) };
+  }
+
+  return { init, destroy, peek };
 })();
