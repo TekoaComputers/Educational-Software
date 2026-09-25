@@ -4970,7 +4970,22 @@ function kesemChgamesCommit(state) {
         razNom: state.editor.currentRazNom || "",
     };
     klog("kesem: chgames commit", JSON.stringify(state.editor.pendingStage));
-    setScreen(state, "main");
+    // Main.menu(0): "ChGames.Show 1 → Games(n).Show 1" — once the modal
+    // picker closes, Main runs the chosen cutout in the chosen game so the
+    // teacher can try it. Before, OK only stored pendingStage (read by
+    // nothing) and dropped back to Main: the picker looked dead (#44).
+    // Played as a one-stage override slot flagged _kesemPreview so it
+    // records no score/completion and returns to Main, not Sst.
+    const st = state.editor.pendingStage;
+    const hot = (doc && doc.rasb && doc.rasb[st.razNom]) || [];
+    if (!st.pic || !st.razNom || !hot.length) { setScreen(state, "main"); return; }
+    state._activeSlotOverride = {
+        masFile: "", name: st.razNom,
+        header: { pathName: (hot[0] && hot[0].name) || st.razNom },
+        stages: [{ pic: st.pic, razNom: st.razNom, gameNumber: st.gameNumber, hotspots: hot }],
+    };
+    state._kesemPreview = "main";
+    startPath(state, 0);
 }
 
 // === Gzira (hotspot rectangle editor) =====================================
@@ -8342,7 +8357,9 @@ function handleAction(appId, action /*, ctrl */) {
                     // affecting the next regular path play.
                     currentSession._singleStageReplay = false;
                     currentSession._singleStageReplayOnClose = null;
-                    setScreen(currentSession, "sst");
+                    const ret = currentSession._kesemPreview || "sst";
+                    currentSession._kesemPreview = null;
+                    setScreen(currentSession, ret);
                 };
                 if (showScore && slot) showNikod(currentSession, slot, goSst);
                 else                    goSst();
@@ -11896,7 +11913,9 @@ function advanceStage(state) {
         //   3. Creates AppPath\<rama><n_masl>.txt to mark the activity done
         //      → FrmMashal Form_Load reads that file to decide locked/unlocked
         // Sequence: outro video first (if any), then score board, then back to Sst.
-        markPathCompleted(state);
+        const previewReturn = state._kesemPreview;   // Kesem ChGames try-out
+        state._kesemPreview = null;
+        if (!previewReturn) markPathCompleted(state);
         playSlotVideo(state, slot, "end", function () {
             showNikod(state, slot, function () {
                 state.currentPath = null;
@@ -11904,7 +11923,7 @@ function advanceStage(state) {
                 state.activeStage = null;
                 state.pathScore = null;
                 state._activeSlotOverride = null;
-                setScreen(state, "sst");
+                setScreen(state, previewReturn || "sst");
             });
         });
         return;
